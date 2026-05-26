@@ -76,6 +76,7 @@ function handle(req: JsonRpcRequest): JsonRpcResponse | null {
           name: t.name,
           description: t.description,
           inputSchema: t.inputSchema,
+          annotations: t.annotations,
         })),
       });
 
