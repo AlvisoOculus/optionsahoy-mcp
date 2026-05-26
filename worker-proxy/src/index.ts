@@ -18,11 +18,6 @@ export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
     url.hostname = env.UPSTREAM_HOST;
-    // Cloudflare Worker fetch automatically follows redirects + handles
-    // the body as a stream. Forwarding the original Request preserves
-    // method, headers, body. Strip any CF-injected headers if needed,
-    // but for this read-only proxy the defaults are fine.
-    const upstream = new Request(url.toString(), request);
-    return fetch(upstream);
+    return fetch(new Request(url.toString(), request));
   },
 };
