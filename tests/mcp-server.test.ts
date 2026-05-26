@@ -64,8 +64,14 @@ const QSBS_INPUT = {
 };
 
 describe('POST /mcp — initialize', () => {
-  it('returns protocol version + tools capability', async () => {
-    const { status, json } = await call<{ result: { protocolVersion: string; capabilities: { tools: unknown }; serverInfo: { name: string } } }>({
+  it('returns protocol version + tools/resources/prompts capabilities', async () => {
+    const { status, json } = await call<{
+      result: {
+        protocolVersion: string;
+        capabilities: { tools: unknown; resources: unknown; prompts: unknown };
+        serverInfo: { name: string };
+      };
+    }>({
       jsonrpc: '2.0',
       id: 1,
       method: 'initialize',
@@ -74,6 +80,8 @@ describe('POST /mcp — initialize', () => {
     expect(status).toBe(200);
     expect(json.result.protocolVersion).toBe('2024-11-05');
     expect(json.result.capabilities.tools).toBeDefined();
+    expect(json.result.capabilities.resources).toBeDefined();
+    expect(json.result.capabilities.prompts).toBeDefined();
     expect(json.result.serverInfo.name).toBe('OptionsAhoy');
   });
 });
@@ -184,6 +192,123 @@ describe('POST /mcp — tools/call dispatches to the right calc', () => {
   });
 });
 
+describe('POST /mcp — resources', () => {
+  it('resources/list returns 6 article resources with markdown mime type', async () => {
+    type ResourceListItem = { uri: string; name: string; description: string; mimeType: string };
+    const { json } = await call<{ result: { resources: ResourceListItem[] } }>({
+      jsonrpc: '2.0',
+      id: 10,
+      method: 'resources/list',
+    });
+    expect(json.result.resources).toHaveLength(6);
+    for (const r of json.result.resources) {
+      expect(r.uri).toMatch(/^https:\/\/optionsahoy\.com\/learn\//);
+      expect(r.name.length).toBeGreaterThan(10);
+      expect(r.description.length).toBeGreaterThan(20);
+      expect(r.mimeType).toBe('text/markdown');
+    }
+  });
+
+  it('resources/read returns markdown content for a known URI', async () => {
+    const { json } = await call<{
+      result: { contents: Array<{ uri: string; mimeType: string; text: string }> };
+    }>({
+      jsonrpc: '2.0',
+      id: 11,
+      method: 'resources/read',
+      params: { uri: 'https://optionsahoy.com/learn/amt-crossover' },
+    });
+    expect(json.result.contents).toHaveLength(1);
+    expect(json.result.contents[0]!.mimeType).toBe('text/markdown');
+    expect(json.result.contents[0]!.text).toMatch(/Alternative Minimum Tax/);
+    expect(json.result.contents[0]!.text).toMatch(/amt_iso_optimize/);
+  });
+
+  it('resources/read returns -32602 for unknown URI', async () => {
+    const { json } = await call<{ error: { code: number; message: string } }>({
+      jsonrpc: '2.0',
+      id: 12,
+      method: 'resources/read',
+      params: { uri: 'https://optionsahoy.com/learn/nope' },
+    });
+    expect(json.error.code).toBe(-32602);
+    expect(json.error.message).toMatch(/Unknown resource/);
+  });
+});
+
+describe('POST /mcp — prompts', () => {
+  it('prompts/list returns 6 prompts with arguments', async () => {
+    type PromptListItem = {
+      name: string;
+      description: string;
+      arguments: Array<{ name: string; description: string; required: boolean }>;
+    };
+    const { json } = await call<{ result: { prompts: PromptListItem[] } }>({
+      jsonrpc: '2.0',
+      id: 13,
+      method: 'prompts/list',
+    });
+    const names = json.result.prompts.map((p) => p.name).sort();
+    expect(names).toEqual([
+      'analyze-concentration',
+      'analyze-nso-decision',
+      'analyze-rsu-vest',
+      'check-qsbs-eligibility',
+      'optimize-iso-exercise',
+      'price-protective-put',
+    ]);
+    for (const p of json.result.prompts) {
+      expect(p.description.length).toBeGreaterThan(20);
+      expect(p.arguments.length).toBeGreaterThan(0);
+      expect(p.arguments.some((a) => a.required)).toBe(true);
+    }
+  });
+
+  it('prompts/get returns a user message with substituted arguments', async () => {
+    const { json } = await call<{
+      result: { description: string; messages: Array<{ role: string; content: { type: string; text: string } }> };
+    }>({
+      jsonrpc: '2.0',
+      id: 14,
+      method: 'prompts/get',
+      params: {
+        name: 'optimize-iso-exercise',
+        arguments: { shares: '10000', strike: '5', fmv: '50', state: 'CA', ordinaryIncome: '200000' },
+      },
+    });
+    expect(json.result.messages).toHaveLength(1);
+    expect(json.result.messages[0]!.role).toBe('user');
+    const text = json.result.messages[0]!.content.text;
+    expect(text).toContain('10000');
+    expect(text).toContain('$5');
+    expect(text).toContain('$50');
+    expect(text).toContain('CA');
+    expect(text).toContain('amt_iso_optimize');
+  });
+
+  it('prompts/get returns -32602 when required arguments are missing', async () => {
+    const { json } = await call<{ error: { code: number; message: string } }>({
+      jsonrpc: '2.0',
+      id: 15,
+      method: 'prompts/get',
+      params: { name: 'optimize-iso-exercise', arguments: { shares: '1000' } },
+    });
+    expect(json.error.code).toBe(-32602);
+    expect(json.error.message).toMatch(/Missing required prompt arguments/);
+  });
+
+  it('prompts/get returns -32602 for unknown prompt', async () => {
+    const { json } = await call<{ error: { code: number; message: string } }>({
+      jsonrpc: '2.0',
+      id: 16,
+      method: 'prompts/get',
+      params: { name: 'nonexistent-prompt', arguments: {} },
+    });
+    expect(json.error.code).toBe(-32602);
+    expect(json.error.message).toMatch(/Unknown prompt/);
+  });
+});
+
 describe('POST /mcp — error paths', () => {
   it('returns JSON-RPC -32601 for unknown method', async () => {
     const { json } = await call<{ error: { code: number } }>({
@@ -220,12 +345,14 @@ describe('POST /mcp — error paths', () => {
     expect(res.headers.get('access-control-allow-origin')).toBe('*');
   });
 
-  it('GET returns server description JSON', async () => {
+  it('GET returns server description JSON with tools/resources/prompts arrays', async () => {
     const res = await onRequest({ request: rpc(null, 'GET') });
     expect(res.status).toBe(200);
-    const json = (await res.json()) as { name: string; tools: string[] };
+    const json = (await res.json()) as { name: string; tools: string[]; resources: string[]; prompts: string[] };
     expect(json.name).toMatch(/OptionsAhoy/);
     expect(json.tools.length).toBe(6);
+    expect(json.resources.length).toBe(6);
+    expect(json.prompts.length).toBe(6);
   });
 });
 

@@ -1,0 +1,300 @@
+// AlphaLatitude Inc. © 2026
+//
+// MCP resource definitions. Each resource is a short markdown briefing on
+// one equity-compensation topic, mirrored 1:1 with a cornerstone article on
+// optionsahoy.com/learn and the matching calculator tool. The MCP server
+// exposes these via resources/list (metadata) and resources/read (content).
+//
+// The bodies are intentionally compact (~400-600 words). They give an LLM
+// enough grounding to discuss the topic and pick the right tool. For full
+// prose, the URI links to the published article.
+
+export type McpResource = {
+  uri: string;
+  name: string;
+  description: string;
+  mimeType: 'text/markdown';
+  contents: string;
+};
+
+const ARTICLE_BASE = 'https://optionsahoy.com/learn';
+
+export const RESOURCES: McpResource[] = [
+  {
+    uri: `${ARTICLE_BASE}/amt-crossover`,
+    name: 'ISO Alternative Minimum Tax (AMT) crossover and four expensive mistakes',
+    description:
+      'Why a single-year ISO exercise can produce a six-figure AMT bill in cash before any shares are sold, and how multi-year scheduling, state AMT, and the calendar boundary change the answer. Pair with amt_iso_optimize.',
+    mimeType: 'text/markdown',
+    contents: `# ISO/AMT crossover and four expensive mistakes
+
+Exercising incentive stock options (ISOs) creates a "bargain element" equal to (fair market value - strike) x shares. This bargain element is invisible to regular federal income tax but counts as ordinary income for the federal Alternative Minimum Tax (AMT). AMT is owed in cash by April 15 of the following year, even if you never sold a share. State AMT applies separately in California, Minnesota, Colorado, and Connecticut.
+
+## The four most expensive mistakes
+
+1. **Failing to plan the calendar.** A January RSU vest, a mid-year ISO exercise, and a December bonus compound in one tax year. Same logic at the day scale: December 30 vs January 2 lands in different tax years with potentially very different AMT bills.
+
+2. **Ignoring state AMT.** A single filer in California with a $50,000 bargain element pays roughly $13K of federal AMT plus $3.5K of California AMT - a 33% effective rate. Federal-only models systematically underestimate the bill in CA, MN, CO, and CT.
+
+3. **Missing the AMT credit recovery.** AMT paid generates a Minimum Tax Credit (Form 8801) usable against regular tax in future years. A multi-year schedule that exercises in years where you can recover the credit can dramatically reduce lifetime tax.
+
+4. **Exercising past the grant-expiration window or post-termination cliff.** ISOs typically expire 10 years from grant. Leaving the company shrinks the exercise window to 90 days by default. Both deadlines override optimal tax timing if missed.
+
+## Crossover concept
+
+The "AMT crossover point" is the maximum number of shares you can exercise in a tax year before the tentative AMT exceeds the regular tax - the threshold at which the next ISO exercised costs an additional 28% federal (plus state). Below the crossover, the bargain element is effectively free of AMT in that year. Above it, every additional share adds 28%+ to the bill.
+
+The crossover depends on filing status, ordinary income, state, deductions, and any other AMT preference items in the year. It moves year to year.
+
+## What the amt_iso_optimize tool computes
+
+The MCP tool \`amt_iso_optimize\` returns the globally-optimal multi-year exercise schedule. It searches over every reasonable per-year share count from year 1 through your chosen horizon (up to 10 years), accounting for:
+
+- Federal regular tax brackets and AMT brackets (2026 inflation-adjusted)
+- State regular tax and state AMT in all 50 states + DC
+- AMT credit accrual and recovery across years
+- Grant-expiration date and post-termination exercise window
+- Expected growth rate and volatility drag on held shares
+- Cash return rate on tax savings reinvested
+
+Output includes the recommended per-year share count, per-year tax breakdown (federal regular, federal AMT, state, AMT credit used), and net final value vs lump-sum and even-split baselines.
+
+Full article: ${ARTICLE_BASE}/amt-crossover
+`,
+  },
+  {
+    uri: `${ARTICLE_BASE}/nso-sell-vs-hold`,
+    name: 'Non-qualified stock options (NSOs): sell-at-exercise vs hold-for-LTCG',
+    description:
+      'When holding NSO shares past exercise for long-term capital gains beats selling immediately, and the six common mistakes that erase the gain. Pair with nso_calculate.',
+    mimeType: 'text/markdown',
+    contents: `# NSO sell-vs-hold and six common mistakes
+
+A non-qualified stock option (NSO) exercise produces ordinary income on the spread between fair market value and strike, taxed at your marginal rate plus FICA (Social Security + Medicare + Additional Medicare). Two routes after that:
+
+- **Sell at exercise** - lock in the after-tax proceeds, no further market risk.
+- **Hold for long-term capital gains (LTCG)** - sell 12+ months later. Any gain above the FMV at exercise is taxed at LTCG rates (0%, 15%, or 20% federal + Net Investment Income Tax). Any loss below the FMV at exercise is a capital loss.
+
+The hold case wins when the stock rises enough that the LTCG-vs-ordinary spread on the gain exceeds the opportunity cost and concentration risk of holding.
+
+## The six common mistakes
+
+1. **Wrong cost basis at sale.** Brokerage 1099-B forms may report only your strike price as basis, not the FMV at exercise (the latter is correct). Filing without an 8949 correction double-taxes the ordinary-income portion.
+
+2. **Underestimating FICA.** Social Security (6.2% up to the wage base), Medicare (1.45%), and Additional Medicare (0.9% above $200K single / $250K joint) all apply to the NSO spread on top of federal and state income tax.
+
+3. **Sell-to-cover vs cash exercise.** Sell-to-cover liquidates enough shares at exercise to fund the tax. Cash exercise uses outside cash and keeps more shares. The right choice depends on liquidity and concentration tolerance, not on which the brokerage default suggests.
+
+4. **Ignoring state tax on the spread.** NSO income is state-taxable in the state where the work was performed during the vesting period, not where you live at exercise. Multi-state employees face apportionment.
+
+5. **Holding for LTCG when the holding-period math doesn't justify it.** At a 35% federal marginal rate, the federal LTCG-vs-ordinary spread is 35% - 20% = 15% on the post-exercise appreciation. If the position drops 15% during the 12-month hold, the tax savings are wiped out.
+
+6. **Forgetting concentration risk.** Holding NSO shares concentrates wealth in a single stock. Most single stocks underperform the broad market over multi-year periods; the optimal hedge is often selling and diversifying, not holding for tax savings.
+
+## What the nso_calculate tool computes
+
+The MCP tool \`nso_calculate\` returns after-tax payouts for both sell-at-exercise and hold-for-LTCG paths under your chosen horizon. It accounts for:
+
+- Federal ordinary brackets and LTCG brackets (single, joint, head-of-household, MFS)
+- All 50 states + DC, with state LTCG treatment
+- FICA (Social Security + Medicare + Additional Medicare)
+- Net Investment Income Tax (3.8% on investment income above $200K/$250K)
+- Sell-to-cover vs cash funding
+- Expected sale price haircut and broad-market opportunity cost
+
+Output includes the recommendation, dollar-precise after-tax payout under each route, and the break-even sale price at which hold beats sell.
+
+Full article: ${ARTICLE_BASE}/nso-sell-vs-hold
+`,
+  },
+  {
+    uri: `${ARTICLE_BASE}/rsu-withholding-gap`,
+    name: 'The RSU withholding gap and five April surprises',
+    description:
+      'Why employer 22% RSU withholding under-withholds for most tech employees, and the five recurring mistakes that turn the gap into a six-figure April surprise. Pair with rsu_sell_vs_hold.',
+    mimeType: 'text/markdown',
+    contents: `# The RSU withholding gap and five April surprises
+
+A restricted stock unit (RSU) vest is ordinary income equal to (shares vested) x (FMV on vest date). Your employer withholds federal tax on that income at the IRS supplemental rate: 22% for amounts up to $1M, 37% above that. Most tech employees in concentrated equity-comp situations land in the 32% or 35% marginal bracket. The gap between 22% and 32-35% shows up as an April underpayment.
+
+A single filer earning $300K total compensation with $50K of RSU vest in a year is missing about $5,000-7,500 of federal withholding by default, before considering state, NIIT, or FICA.
+
+## The five common mistakes
+
+1. **Assuming the W-2 withholding is "enough."** It rarely is at 22%. Most equity holders need to either submit a W-4 adjustment or make a quarterly estimated payment to avoid Form 2210 underpayment penalties.
+
+2. **Missing state withholding gaps.** Employers withhold state tax on RSU vests at flat supplemental rates that often under-withhold for the actual marginal bracket. California's 10.23% supplemental rate is the most-cited example.
+
+3. **Holding shares past vest without a strategy.** The post-vest "hold" decision is identical to the NSO sell-vs-hold decision: the FMV at vest is your basis. Any further appreciation is short-term capital gains (your ordinary rate) if sold within 12 months, long-term capital gains otherwise. Holding for LTCG saves federal tax but introduces single-stock risk.
+
+4. **Selling at-vest into a wash-sale loss.** Selling shares to cover the withholding tax can trigger wash-sale rules if you also have a tax-loss harvest in the same stock within 30 days.
+
+5. **Concentration creep.** Each quarterly vest adds to the single-stock position. Equity holders who don't sell-to-diversify at-vest accumulate concentration without an explicit decision to do so.
+
+## Sell-at-vest vs hold-for-LTCG
+
+At-vest sale: you receive the after-tax cash immediately. No further market exposure.
+
+Hold for LTCG: you wait 12 months from the vest date. If the stock rises, you owe LTCG (federal 15-20% + NIIT 3.8% + state) on the gain instead of ordinary rates. If it falls, the loss is short-term capital loss for the first 12 months. Holding only beats selling when the expected gain is large enough to overcome the concentration risk and opportunity cost vs the broad market.
+
+## What the rsu_sell_vs_hold tool computes
+
+The MCP tool \`rsu_sell_vs_hold\` returns after-tax payouts for both paths. It accounts for:
+
+- Federal ordinary and LTCG brackets (2026 inflation-adjusted)
+- All 50 states + DC
+- FICA + Net Investment Income Tax
+- The 12-month short-term cliff
+- Volatility drag on the held position
+- Broad-market opportunity cost via expected market return
+
+Output: per-route after-tax dollar payout, break-even sale price, and the recommendation given the inputs.
+
+Full article: ${ARTICLE_BASE}/rsu-withholding-gap
+`,
+  },
+  {
+    uri: `${ARTICLE_BASE}/single-stock-concentration-risk`,
+    name: 'Single-stock concentration risk and the diversification trade-off',
+    description:
+      'Why 96% of stocks have historically underperformed T-bills, the after-tax cost of de-concentrating, and the five common mistakes equity holders make. Pair with concentration_analyze.',
+    mimeType: 'text/markdown',
+    contents: `# Single-stock concentration risk
+
+Bessembinder (2018) found that 96% of US public stocks underperformed one-month Treasury bills over their lifetimes. The aggregate equity premium is driven by a small tail of winners; the median individual stock loses to cash. This is the foundation of the de-concentration argument.
+
+For equity-compensation holders, the concentration is rarely deliberate. It accumulates through ISO/NSO/RSU vests and exercises, then gets entrenched by tax-cost inertia: selling triggers capital gains tax, and the next vest adds to the position before the prior one is fully diversified.
+
+## The five common mistakes
+
+1. **Anchoring on "my stock is different."** Survivorship bias is strong - the 4% of winners are everywhere in tech culture. The base rate is the other 96%.
+
+2. **Letting the tax tail wag the dog.** A 20% federal LTCG bill (plus state and NIIT) is real money. But a 50% drawdown on a concentrated position is two-and-a-half times bigger. The right framing is: "what is the after-tax cost of de-concentrating vs the expected cost of staying concentrated?"
+
+3. **Treating the holding as binary.** Sell-all-now vs hold-forever is a false choice. A multi-year sell-down (10-20% per year) spreads the capital gains across brackets and decorrelates from any single year's market level.
+
+4. **Skipping hedges when sell-down isn't viable.** When concentration is constrained by lockup, basis, or tax cost, a protective put or zero-cost collar truncates the downside. See \`protective_put_price\` for pricing.
+
+5. **Ignoring sector correlation.** Diversifying within tech is not diversification. A NVDA position plus QQQ is ~70% correlated.
+
+## After-tax cost of de-concentrating
+
+Selling $100K of a $400K position with $200K basis creates $50K of long-term capital gains. A single filer in CA in the 35% federal bracket pays:
+
+- Federal LTCG: 20% x $50K = $10,000
+- NIIT: 3.8% x $50K = $1,900
+- California: 13.3% x $50K = $6,650
+- Total: $18,550 (37% effective on the gain, 18.5% of the proceeds)
+
+Compare that to the expected drawdown from holding: a one-standard-deviation move on a typical mid-cap tech stock is ~30%. The drawdown is much larger than the tax bill, and the drawdown can be repeated.
+
+## What the concentration_analyze tool computes
+
+The MCP tool \`concentration_analyze\` quantifies concentration risk and produces a sell-down vs hold vs hedge schedule. It accounts for:
+
+- Position size, cost basis, holding period (LTCG eligibility)
+- Sector (used for historical volatility default and broad-market correlation)
+- Federal + state tax on the gain
+- Expected position return vs expected market return
+- Volatility drag (drawdown impact on compound growth)
+- Optional hedge: protective put or zero-cost collar
+
+Output: after-tax dollar value under each strategy (sell now, sell over N years, hold, hold-with-hedge), drawdown exposure at 30/50/70%, and the recommended path.
+
+Full article: ${ARTICLE_BASE}/single-stock-concentration-risk
+`,
+  },
+  {
+    uri: `${ARTICLE_BASE}/zero-cost-collars`,
+    name: 'Protective puts and zero-cost collars on a concentrated position',
+    description:
+      'How a protective put or zero-cost collar truncates single-stock downside, what the protection actually costs in dollars and forgone upside, and seven common mistakes. Pair with protective_put_price.',
+    mimeType: 'text/markdown',
+    contents: `# Protective puts and zero-cost collars
+
+A **protective put** is a long put option on a stock you own. If the stock falls below the strike, the put pays the difference. It is insurance: positive expected cost, negative expected return, but it truncates the left tail.
+
+A **zero-cost collar** is a protective put plus a short call at a higher strike. The premium from selling the call funds the put. Net cash outlay at trade is roughly zero. The cost shows up as a cap on upside: any gain above the call strike is forfeited.
+
+Typical pricing for a 1-year 10%-out-of-the-money (OTM) put on a 30% implied-volatility stock: ~3% of position value, per year. Over 10 years compounding, that is ~26% of the position - paid for ongoing protection against a tail event.
+
+## The seven common mistakes
+
+1. **Treating "zero-cost" as free.** The premium isn't zero - it's paid in upside. On a stock that returns 25% in a year, a collar capped at +15% gave up 10 points of return for the put protection.
+
+2. **Buying long-dated puts when short-dated rolling is cheaper.** Implied volatility term structure usually has the longest tenors most expensive. Rolling 3-month or 6-month puts can be cheaper than buying a 2-year, though it adds rebalancing complexity.
+
+3. **Ignoring tax treatment.** A protective put on a long position can extend or restart the holding period under Section 1092 straddle rules. Section 1259 constructive-sale rules can trigger a deemed sale on a deep-in-the-money collar.
+
+4. **Mismatched protection level and tenor.** A 30%-OTM 3-month put is cheap and almost worthless. A 5%-OTM 2-year put is expensive and over-insures.
+
+5. **Hedging the wrong reference asset.** A position in a single small-cap stock is not hedged by SPY puts. The basis risk (stock-vs-index divergence) often exceeds the protection.
+
+6. **Forgetting the right tail.** A collar that caps at +15% is fine if you expect ±10% moves. It is a disaster if the stock doubles - you cap a 100% gain at 15%.
+
+7. **Using the broker's default strike grid.** The available strike-tenor combinations on a typical option chain are coarse. The optimal hedge may require multi-leg construction.
+
+## What the protective_put_price tool computes
+
+The MCP tool \`protective_put_price\` prices a protective put or zero-cost collar using Black-Scholes on a daily-refreshed implied-volatility surface. It accounts for:
+
+- Strike (defined as percentage below current price)
+- Tenor (months to expiration)
+- Sector default volatility, or user-supplied volatility
+- Risk-free rate
+- Dividend yield assumption
+
+Output: annual cost as a percentage of position, dollar cost, max loss with hedge, upside cap (for collar), and bad-year coverage (percentage of historical drawdowns the hedge would have covered).
+
+Full article: ${ARTICLE_BASE}/zero-cost-collars
+`,
+  },
+  {
+    uri: `${ARTICLE_BASE}/qsbs`,
+    name: 'Qualified Small Business Stock (QSBS) and five ways to lose the exclusion',
+    description:
+      'How Section 1202 zeros out federal capital gains tax on $10-15M of stock gain, the eight statutory tests, the OBBBA 2026 tiered exclusion, and five common disqualification traps. Pair with qsbs_check.',
+    mimeType: 'text/markdown',
+    contents: `# QSBS and five ways to lose the exclusion
+
+Section 1202 of the Internal Revenue Code excludes from federal capital gains tax the first $10 million (or 10x basis, whichever is greater) of gain on Qualified Small Business Stock (QSBS) held for 5+ years. The One Big Beautiful Bill Act (OBBBA, 2026) introduced a tiered exclusion structure that expands the cap to $15M for stock acquired after the OBBBA effective date and held 5+ years.
+
+The exclusion is the single largest federal tax break available to founders and employees of early-stage C-corps. It is also conditional on eight statutory tests, any one of which can disqualify the entire position.
+
+## The eight statutory tests
+
+1. **Entity type.** Issuer must be a US C-corp at original issuance. LLCs and S-corps do not qualify.
+2. **Acquisition method.** Stock must be acquired at original issuance directly from the corporation (cash, services, or property exchange). Secondary purchases do not qualify; gifts and inheritance transfer the holder's QSBS status.
+3. **Holding period.** 5 years for full exclusion. OBBBA tiered exclusion adds partial benefit at 3-4 years for post-OBBBA stock.
+4. **Gross assets cap.** Issuer's aggregate gross assets must not exceed $50M (pre-OBBBA) / $75M (post-OBBBA) at any point through the date of issuance and immediately after.
+5. **Active business requirement.** Issuer must use 80%+ of assets in a qualified trade or business throughout substantially all of the holder's holding period.
+6. **Industry exclusion.** Service businesses where the principal asset is employee reputation (law, accounting, consulting, finance, etc.), banking/insurance/financing, farming, extraction, and hospitality are disqualified.
+7. **Per-issuer gain cap.** Greater of $10M ($15M post-OBBBA) or 10x adjusted basis. Cap is per-issuer, per-taxpayer.
+8. **Working capital rule.** Working capital held for use in the business within 2 years counts toward the active-business test.
+
+## The five common mistakes
+
+1. **Triggering a redemption.** A corporation buying back stock from any shareholder within 2 years before or after a QSBS issuance can disqualify the QSBS.
+2. **LLC-to-C-corp conversion without QSBS-clock awareness.** The QSBS 5-year clock starts at the C-corp conversion, not the original LLC formation.
+3. **Crossing the gross-assets cap.** A late-stage round that pushes gross assets above the cap disqualifies all subsequent issuances (not retroactive on prior issuances).
+4. **Service-business industry classification.** Substance-over-form: a "tech" company whose main asset is consulting hours is treated as a service business.
+5. **State non-conformity.** California, Pennsylvania, New Jersey, Mississippi, and Alabama do not conform to Section 1202. State capital gains tax still applies even when federal is zeroed.
+
+## What the qsbs_check tool computes
+
+The MCP tool \`qsbs_check\` runs all eight tests against your facts and computes the dollar exclusion. It accounts for:
+
+- Entity type, acquisition date, sale date, acquisition method
+- Asset category (under-50m, 50m-to-75m, over-75m)
+- Industry classification with the disqualifying-services list
+- Active-business attestation
+- Adjusted basis (for 10x basis cap)
+- State conformity (CA, PA, NJ, MS, AL non-conforming)
+- Filing status and ordinary income (for tax-saved calculation)
+
+Output: verdict (qualified / disqualified / partial), exclusion percentage, dollar federal tax saved, state tax owed, and per-test pass/fail breakdown.
+
+Full article: ${ARTICLE_BASE}/qsbs
+`,
+  },
+];
