@@ -147,6 +147,36 @@ curl -sS -X POST https://optionsahoy.com/mcp \
   > public/toolspec.json
 ```
 
+## Troubleshooting
+
+**Connection refused / 404 from the MCP endpoint**
+`https://optionsahoy.com/mcp` requires `POST` with `content-type: application/json` and a JSON-RPC body. A `GET` returns a JSON server description; any other verb returns 405. Verify with:
+```bash
+curl -X POST https://optionsahoy.com/mcp -H 'content-type: application/json' \
+  -d '{"jsonrpc":"2.0","method":"initialize","id":1,"params":{}}'
+```
+
+**Tool calls fail with `Error: ...` text in the response**
+The MCP server returns `isError: true` with a human-readable message when input validation fails. Most common: a required field missing, or a number passed as a string. Check the input against the `inputSchema` returned by `tools/list`, or against [`/openapi.json`](https://optionsahoy.com/openapi.json).
+
+**Tool not appearing in Claude.ai or Claude Desktop**
+- Confirm the connector URL is exactly `https://optionsahoy.com/mcp` (no trailing slash, no `/v1`).
+- In Claude Desktop, restart the app after editing `claude_desktop_config.json`.
+- In Claude.ai, the connector toggle is per-chat: enable it in the attachments menu.
+- Check the live `tools/list` response (six tools expected): `curl -X POST https://optionsahoy.com/mcp -H 'content-type: application/json' -d '{"jsonrpc":"2.0","method":"tools/list","id":1}'`
+
+**CORS errors from a browser-based client**
+The server returns `access-control-allow-origin: *` on all responses including preflight, and accepts the standard MCP headers (`content-type`, `mcp-session-id`, `mcp-protocol-version`). If a browser still blocks, the client is likely sending a non-allowed header — verify the request headers against the `access-control-allow-headers` response.
+
+**Resource / prompt not found**
+Resource URIs and prompt names are case-sensitive. Pull the canonical list with `resources/list` and `prompts/list` rather than hand-typing.
+
+**Stale tax-year math**
+The tax engine ships with 2026 inflation-adjusted brackets, OBBBA 2026 QSBS rules, and current state-conformity tables. If results look off for a multi-year horizon, verify the input `grantDate`, `acquisitionDate`, or `saleDate` falls in the year you expect — the engine resolves brackets per tax year.
+
+**Reporting a calculation bug or unexpected output**
+Email andrew@alphalatitude.com with: the exact JSON-RPC request body, the response, the expected value, and (if known) the IRS publication or state statute the expected value derives from.
+
 ## License
 
 See [LICENSE](LICENSE). All rights reserved during beta; the deployed service at optionsahoy.com is free under [terms](https://optionsahoy.com/terms).
