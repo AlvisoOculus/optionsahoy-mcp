@@ -98,3 +98,14 @@ See [LICENSE](LICENSE). All rights reserved during beta; the deployed service at
 ## Contact
 
 For partnerships, early API access, MCP integration support: andrew@alphalatitude.com
+
+## Deployment topology
+
+Two pieces serve the live endpoint:
+
+1. **Cloudflare Pages project** (GitHub-connected to this repo) auto-deploys
+   `functions/` + `public/` on every push to main → `optionsahoy-mcp.pages.dev`.
+2. **Cloudflare Worker** in [`worker-proxy/`](worker-proxy/) forwards
+   `optionsahoy.com/mcp*` + `/api/v1/*` to that Pages deployment, so the
+   public URL stays stable. One-time `wrangler deploy` — see
+   [`worker-proxy/README.md`](worker-proxy/README.md).

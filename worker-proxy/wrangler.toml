@@ -1,0 +1,40 @@
+# AlphaLatitude Inc. © 2026
+#
+# Tiny edge proxy that catches optionsahoy.com/mcp* and /api/v1/* and
+# forwards them to the optionsahoy-mcp.pages.dev deployment built from
+# this repo's `functions/` directory (Cloudflare Pages auto-deploys
+# from main on every push).
+#
+# Why a proxy rather than custom domain on Pages: the optionsahoy.com
+# apex is already owned by the optionsahoy_web Pages project (marketing
+# site). Workers Routes take precedence over Pages on the same domain,
+# so this Worker intercepts only the MCP + REST paths and leaves the
+# rest of optionsahoy.com untouched.
+#
+# One-time deploy (Andrew):
+#   cd worker-proxy
+#   npx wrangler login          # browser OAuth, ~30s
+#   npx wrangler deploy         # publishes Worker + attaches routes
+#
+# After that, GH Actions deploys on every push via the workflow in
+# .github/workflows/deploy-proxy.yml (requires CF_API_TOKEN + CF_ACCOUNT_ID
+# repo secrets — see README).
+
+name = "optionsahoy-mcp-proxy"
+main = "src/index.ts"
+compatibility_date = "2026-05-26"
+
+# Route patterns: every MCP + REST path on optionsahoy.com. Workers
+# Routes win over Pages on the same domain, so these intercept before
+# the marketing site's CF Pages project sees them.
+routes = [
+  { pattern = "optionsahoy.com/mcp", zone_name = "optionsahoy.com" },
+  { pattern = "optionsahoy.com/mcp/*", zone_name = "optionsahoy.com" },
+  { pattern = "optionsahoy.com/api/v1", zone_name = "optionsahoy.com" },
+  { pattern = "optionsahoy.com/api/v1/*", zone_name = "optionsahoy.com" },
+]
+
+[vars]
+# Pages-dev URL the Worker proxies to. Change here if the Pages project
+# is renamed.
+UPSTREAM_HOST = "optionsahoy-mcp.pages.dev"

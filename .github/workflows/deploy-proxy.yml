@@ -1,0 +1,44 @@
+# AlphaLatitude Inc. © 2026
+#
+# Auto-deploys the proxy Worker on push to main. Requires two repo
+# secrets (set under Settings -> Secrets and variables -> Actions):
+#   CF_API_TOKEN    - Cloudflare API token with "Edit Cloudflare
+#                     Workers" permission on the optionsahoy.com zone
+#   CF_ACCOUNT_ID   - Cloudflare account ID (visible in dashboard URL)
+#
+# Until those secrets exist, the workflow is a no-op (the deploy step
+# skips when CF_API_TOKEN is empty).
+
+name: Deploy proxy Worker
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'worker-proxy/**'
+      - '.github/workflows/deploy-proxy.yml'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    if: vars.CF_DEPLOY_ENABLED == 'true' || github.event_name == 'workflow_dispatch'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install proxy deps
+        working-directory: worker-proxy
+        run: npm install --no-audit
+      - name: Deploy Worker
+        working-directory: worker-proxy
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+        run: |
+          if [ -z "$CLOUDFLARE_API_TOKEN" ]; then
+            echo "CF_API_TOKEN secret not set - skipping deploy"
+            exit 0
+          fi
+          npx wrangler deploy
