@@ -86,10 +86,41 @@ npm run typecheck
 
 ## Registry listings
 
-- [Official MCP Registry](https://registry.modelcontextprotocol.io/v0/servers?search=optionsahoy) — `io.github.AlvisoOculus/optionsahoy_web` v1.0.1, status active
-- [Smithery](https://smithery.ai/servers/alphalatitudeops/optionsahoy)
+- [Official MCP Registry](https://registry.modelcontextprotocol.io/v0/servers?search=optionsahoy) — `io.github.AlvisoOculus/optionsahoy-mcp` v1.0.0, status active
+- [Smithery](https://smithery.ai/server/@alphalatitudeops/optionsahoy)
 - [add-mcp curated registry](https://github.com/neon-solutions/add-mcp)
 - [PulseMCP](https://www.pulsemcp.com) (cascades from Official Registry)
+
+## Use from Google Cloud (Gemini agents)
+
+Google Cloud Agent Registry lets GCP customers register external MCP servers into their own project for use by Gemini agents. There's no central submission — each customer registers individually. Two paths:
+
+```bash
+# Path A: let the Agent Registry introspect our MCP endpoint
+gcloud alpha agent-registry mcp-servers register \
+  --uri=https://optionsahoy.com/mcp \
+  --display-name="OptionsAhoy" \
+  --location=us-central1 \
+  --import-tools
+
+# Path B: pass our published toolspec.json directly (faster, no introspection)
+curl -sSL https://optionsahoy.com/toolspec.json -o /tmp/toolspec.json
+gcloud alpha agent-registry mcp-servers register \
+  --uri=https://optionsahoy.com/mcp \
+  --display-name="OptionsAhoy" \
+  --location=us-central1 \
+  --tool-spec=/tmp/toolspec.json
+```
+
+The toolspec.json mirrors the MCP `tools/list` response with `readOnlyHint` and `idempotentHint` annotations on all six tools (all are pure deterministic calculators with no side effects). To regenerate after a tool-shape change:
+
+```bash
+curl -sS -X POST https://optionsahoy.com/mcp \
+  -H 'content-type: application/json' \
+  -d '{"jsonrpc":"2.0","method":"tools/list","id":1}' \
+  | jq -c '{tools: [.result.tools[] | . + {annotations: {readOnlyHint:true, idempotentHint:true, destructiveHint:false, openWorldHint:false}}]}' \
+  > public/toolspec.json
+```
 
 ## License
 
