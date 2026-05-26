@@ -87,8 +87,24 @@ describe('POST /mcp — notifications', () => {
 });
 
 describe('POST /mcp — tools/list', () => {
-  it('lists 6 calculator tools, each with an inputSchema', async () => {
-    const { json } = await call<{ result: { tools: Array<{ name: string; description: string; inputSchema: unknown }> } }>({
+  // Anthropic Claude Connectors Directory requires every tool to expose a
+  // `title` + the appropriate readOnlyHint or destructiveHint. Missing title
+  // is the #1 cause of submission rejection — keep this assertion live so a
+  // future refactor can't drop it silently.
+  it('lists 6 calculator tools with annotations (title + readOnlyHint + destructiveHint required for Anthropic submission)', async () => {
+    type ToolListItem = {
+      name: string;
+      description: string;
+      inputSchema: unknown;
+      annotations: {
+        title: string;
+        readOnlyHint: boolean;
+        idempotentHint: boolean;
+        destructiveHint: boolean;
+        openWorldHint: boolean;
+      };
+    };
+    const { json } = await call<{ result: { tools: ToolListItem[] } }>({
       jsonrpc: '2.0',
       id: 2,
       method: 'tools/list',
@@ -105,6 +121,11 @@ describe('POST /mcp — tools/list', () => {
     for (const t of json.result.tools) {
       expect(t.description.length).toBeGreaterThan(20);
       expect(t.inputSchema).toBeDefined();
+      expect(t.annotations.title.length).toBeGreaterThan(3);
+      expect(t.annotations.readOnlyHint).toBe(true);
+      expect(t.annotations.idempotentHint).toBe(true);
+      expect(t.annotations.destructiveHint).toBe(false);
+      expect(t.annotations.openWorldHint).toBe(false);
     }
   });
 });

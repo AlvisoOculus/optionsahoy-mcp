@@ -25,12 +25,29 @@ import {
   parseQsbsInput,
 } from './calc-parsers';
 
+export type McpToolAnnotations = {
+  title: string;
+  readOnlyHint: boolean;
+  idempotentHint: boolean;
+  destructiveHint: boolean;
+  openWorldHint: boolean;
+};
+
 export type McpTool = {
   name: string;
   description: string;
   inputSchema: Record<string, unknown>;
+  annotations: McpToolAnnotations;
   handler: (args: unknown) => unknown;
 };
+
+// All six tools are pure deterministic calculators with no side effects.
+const CALC_HINTS = {
+  readOnlyHint: true,
+  idempotentHint: true,
+  destructiveHint: false,
+  openWorldHint: false,
+} as const;
 
 // Shared inputSchema fragments.
 const FILING_SCHEMA = { type: 'string', enum: [...FILING_STATUSES] };
@@ -55,6 +72,7 @@ const ISO_DATE = { type: 'string', format: 'date' };
 export const TOOLS: McpTool[] = [
   {
     name: 'amt_iso_optimize',
+    annotations: { title: 'ISO/AMT Exercise Optimization', ...CALC_HINTS },
     description:
       'Multi-year Incentive Stock Option (ISO) exercise schedule that minimizes federal and state Alternative Minimum Tax (AMT), with credit recovery across years, grant-expiration timing, and the post-termination exercise window. Returns the globally-optimal schedule, per-year tax breakdown, and net-final-value comparison vs lump-sum and even-split alternatives.',
     inputSchema: {
@@ -85,6 +103,7 @@ export const TOOLS: McpTool[] = [
   },
   {
     name: 'nso_calculate',
+    annotations: { title: 'NSO Sell-vs-Hold Analysis', ...CALC_HINTS },
     description:
       'After-tax payout on a non-qualified stock option (NSO) exercise: federal, state, FICA (Social Security + Medicare + Additional Medicare). Compares sell-at-exercise vs hold-for-long-term-capital-gains across the chosen horizon.',
     inputSchema: {
@@ -113,6 +132,7 @@ export const TOOLS: McpTool[] = [
   },
   {
     name: 'rsu_sell_vs_hold',
+    annotations: { title: 'RSU Sell-at-Vest vs Hold', ...CALC_HINTS },
     description:
       'Compare sell-at-vest vs hold-for-LTCG payouts for an RSU vest, including the 12-month short-term cliff, state tax, FICA, and the optional growth assumption.',
     inputSchema: {
@@ -138,6 +158,7 @@ export const TOOLS: McpTool[] = [
   },
   {
     name: 'concentration_analyze',
+    annotations: { title: 'Single-Stock Concentration Analysis', ...CALC_HINTS },
     description:
       'Quantify single-stock concentration risk: drawdown exposure at 30/50/70% and after-tax comparison of selling down vs holding vs hedging, with multi-year tax math.',
     inputSchema: {
@@ -176,6 +197,7 @@ export const TOOLS: McpTool[] = [
   },
   {
     name: 'protective_put_price',
+    annotations: { title: 'Protective Put / Collar Pricing', ...CALC_HINTS },
     description:
       'Price a protective put or zero-cost collar on a single-stock position. Reports annual cost, max loss, upside cap, and bad-year coverage.',
     inputSchema: {
@@ -195,6 +217,7 @@ export const TOOLS: McpTool[] = [
   },
   {
     name: 'qsbs_check',
+    annotations: { title: 'QSBS Qualification Check', ...CALC_HINTS },
     description:
       'Section 1202 Qualified Small Business Stock (QSBS) qualification check against the eight statutory tests. Returns verdict, exclusion percentage, federal tax saved, and state conformity under OBBBA 2026 tiered exclusion rules.',
     inputSchema: {
