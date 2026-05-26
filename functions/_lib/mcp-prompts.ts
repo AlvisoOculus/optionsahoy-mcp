@@ -33,7 +33,23 @@ function arg(args: Record<string, string>, key: string): string {
   return args[key] ?? `<${key}>`;
 }
 
-function userMessage(text: string): McpPromptMessage[] {
+// Shared template for every prompt body: scenario + optional clauses,
+// followed by the "Use the X tool. If you need Y, ask one follow-up.
+// Report Z." closing that all six prompts share verbatim.
+function templatePrompt(opts: {
+  scenario: string;
+  optional?: Array<string | false | undefined>;
+  instruction: string;
+  followUpFields: string;
+  outputs: string;
+}): McpPromptMessage[] {
+  const optionalText = (opts.optional ?? []).filter(Boolean).join('');
+  const text =
+    opts.scenario +
+    optionalText +
+    opts.instruction +
+    ` If you need ${opts.followUpFields}, ask me one short follow-up question before invoking the tool. ` +
+    `Report ${opts.outputs}.`;
   return [{ role: 'user', content: { type: 'text', text } }];
 }
 
@@ -50,14 +66,18 @@ export const PROMPTS: McpPrompt[] = [
       { name: 'ordinaryIncome', description: 'Annual W-2 ordinary income, USD', required: false },
     ],
     build: (a) =>
-      userMessage(
-        `I have ${arg(a, 'shares')} Incentive Stock Options (ISOs) with a strike of $${arg(a, 'strike')} per share and current fair market value of $${arg(a, 'fmv')} per share. ` +
-          (a.state ? `I live in ${a.state}. ` : '') +
-          (a.ordinaryIncome ? `My annual ordinary income is $${a.ordinaryIncome}. ` : '') +
-          `Plan an exercise schedule across the next several years that minimizes my total Alternative Minimum Tax (AMT) and recovers AMT credits where possible. ` +
-          `Use the amt_iso_optimize tool. If you need filing status, state, ordinary income, grant date, or post-termination status, ask me one short follow-up question before invoking the tool. ` +
-          `Report the recommended per-year share count, total AMT paid, AMT credit recovered, and net final value vs lump-sum and even-split alternatives.`,
-      ),
+      templatePrompt({
+        scenario: `I have ${arg(a, 'shares')} Incentive Stock Options (ISOs) with a strike of $${arg(a, 'strike')} per share and current fair market value of $${arg(a, 'fmv')} per share. `,
+        optional: [
+          a.state && `I live in ${a.state}. `,
+          a.ordinaryIncome && `My annual ordinary income is $${a.ordinaryIncome}. `,
+        ],
+        instruction:
+          `Plan an exercise schedule across the next several years that minimizes my total Alternative Minimum Tax (AMT) and recovers AMT credits where possible. Use the amt_iso_optimize tool.`,
+        followUpFields: 'filing status, state, ordinary income, grant date, or post-termination status',
+        outputs:
+          'the recommended per-year share count, total AMT paid, AMT credit recovered, and net final value vs lump-sum and even-split alternatives',
+      }),
   },
   {
     name: 'analyze-nso-decision',
@@ -71,14 +91,17 @@ export const PROMPTS: McpPrompt[] = [
       { name: 'state', description: 'Two-letter state code', required: false },
     ],
     build: (a) =>
-      userMessage(
-        `I'm considering exercising ${arg(a, 'shares')} non-qualified stock options (NSOs) with a strike of $${arg(a, 'strike')} per share. The current share price is $${arg(a, 'currentPrice')}. ` +
-          (a.holdYears ? `I'm thinking about holding for ${a.holdYears} year(s) after exercise to get long-term capital gains treatment on the appreciation. ` : '') +
-          (a.state ? `I live in ${a.state}. ` : '') +
-          `Compare sell-at-exercise vs hold-for-LTCG using the nso_calculate tool. ` +
-          `If you need my filing status, ordinary income, state, expected sale price, or whether I'm still employed at the company, ask me one short follow-up question before invoking the tool. ` +
-          `Report after-tax dollar payout under each route, the break-even sale price, and your recommendation.`,
-      ),
+      templatePrompt({
+        scenario: `I'm considering exercising ${arg(a, 'shares')} non-qualified stock options (NSOs) with a strike of $${arg(a, 'strike')} per share. The current share price is $${arg(a, 'currentPrice')}. `,
+        optional: [
+          a.holdYears && `I'm thinking about holding for ${a.holdYears} year(s) after exercise to get long-term capital gains treatment on the appreciation. `,
+          a.state && `I live in ${a.state}. `,
+        ],
+        instruction: `Compare sell-at-exercise vs hold-for-LTCG using the nso_calculate tool.`,
+        followUpFields:
+          'my filing status, ordinary income, state, expected sale price, or whether I am still employed at the company',
+        outputs: 'after-tax dollar payout under each route, the break-even sale price, and your recommendation',
+      }),
   },
   {
     name: 'analyze-rsu-vest',
@@ -91,14 +114,18 @@ export const PROMPTS: McpPrompt[] = [
       { name: 'state', description: 'Two-letter state code', required: false },
     ],
     build: (a) =>
-      userMessage(
-        `I have ${arg(a, 'shares')} Restricted Stock Units (RSUs) vesting at a current price of $${arg(a, 'currentPrice')} per share. ` +
-          (a.holdYears ? `I'm thinking about holding for ${a.holdYears} year(s). ` : '') +
-          (a.state ? `I live in ${a.state}. ` : '') +
-          `Compare selling all shares at vest vs holding for long-term capital gains. Use the rsu_sell_vs_hold tool. ` +
-          `If you need my filing status, ordinary income, state, expected sale price, or whether I'm still employed, ask me one short follow-up question. ` +
-          `Report the after-tax payout under each route, flag the 22% withholding gap (most equity holders under-withhold), and recommend a path.`,
-      ),
+      templatePrompt({
+        scenario: `I have ${arg(a, 'shares')} Restricted Stock Units (RSUs) vesting at a current price of $${arg(a, 'currentPrice')} per share. `,
+        optional: [
+          a.holdYears && `I'm thinking about holding for ${a.holdYears} year(s). `,
+          a.state && `I live in ${a.state}. `,
+        ],
+        instruction:
+          `Compare selling all shares at vest vs holding for long-term capital gains. Use the rsu_sell_vs_hold tool.`,
+        followUpFields: 'my filing status, ordinary income, state, expected sale price, or whether I am still employed',
+        outputs:
+          'the after-tax payout under each route, flag the 22% withholding gap (most equity holders under-withhold), and recommend a path',
+      }),
   },
   {
     name: 'analyze-concentration',
@@ -112,14 +139,19 @@ export const PROMPTS: McpPrompt[] = [
       { name: 'state', description: 'Two-letter state code', required: false },
     ],
     build: (a) =>
-      userMessage(
-        `I have a single-stock position worth $${arg(a, 'positionValue')} with a cost basis of $${arg(a, 'costBasis')}. My total investable assets are $${arg(a, 'totalAssets')}. ` +
-          (a.sector ? `The stock is in the ${a.sector} sector. ` : '') +
-          (a.state ? `I live in ${a.state}. ` : '') +
-          `Quantify my concentration risk and compare selling down, holding, and hedging using the concentration_analyze tool. ` +
-          `If you need my filing status, ordinary income, expected position return, expected market return, or hedge preference (put vs collar), ask me one short follow-up question. ` +
-          `Report after-tax dollar value under each strategy, drawdown exposure at 30/50/70%, and recommend a path.`,
-      ),
+      templatePrompt({
+        scenario: `I have a single-stock position worth $${arg(a, 'positionValue')} with a cost basis of $${arg(a, 'costBasis')}. My total investable assets are $${arg(a, 'totalAssets')}. `,
+        optional: [
+          a.sector && `The stock is in the ${a.sector} sector. `,
+          a.state && `I live in ${a.state}. `,
+        ],
+        instruction:
+          `Quantify my concentration risk and compare selling down, holding, and hedging using the concentration_analyze tool.`,
+        followUpFields:
+          'my filing status, ordinary income, expected position return, expected market return, or hedge preference (put vs collar)',
+        outputs:
+          'after-tax dollar value under each strategy, drawdown exposure at 30/50/70%, and recommend a path',
+      }),
   },
   {
     name: 'price-protective-put',
@@ -132,14 +164,21 @@ export const PROMPTS: McpPrompt[] = [
       { name: 'sector', description: 'Sector tag for default volatility', required: false },
     ],
     build: (a) =>
-      userMessage(
-        `Price a hedge on my single-stock position worth $${arg(a, 'positionValue')}. ` +
-          (a.protectionLevel ? `Protection level: ${a.protectionLevel} below current price. ` : 'Use a 10% out-of-the-money strike by default. ') +
-          (a.tenorYears ? `Tenor: ${a.tenorYears} year(s). ` : 'Use a 1-year tenor by default. ') +
-          (a.sector ? `Sector: ${a.sector}. ` : '') +
-          `Use the protective_put_price tool to price both a protective put and a zero-cost collar. Report annual cost as a percentage of position, dollar cost, max loss with hedge, upside cap (for the collar), and bad-year coverage. ` +
-          `If you need the sector or implied volatility for an unusual position, ask me one short follow-up question.`,
-      ),
+      templatePrompt({
+        scenario: `Price a hedge on my single-stock position worth $${arg(a, 'positionValue')}. `,
+        optional: [
+          a.protectionLevel
+            ? `Protection level: ${a.protectionLevel} below current price. `
+            : 'Use a 10% out-of-the-money strike by default. ',
+          a.tenorYears ? `Tenor: ${a.tenorYears} year(s). ` : 'Use a 1-year tenor by default. ',
+          a.sector && `Sector: ${a.sector}. `,
+        ],
+        instruction:
+          `Use the protective_put_price tool to price both a protective put and a zero-cost collar.`,
+        followUpFields: 'the sector or implied volatility for an unusual position',
+        outputs:
+          'annual cost as a percentage of position, dollar cost, max loss with hedge, upside cap (for the collar), and bad-year coverage',
+      }),
   },
   {
     name: 'check-qsbs-eligibility',
@@ -153,13 +192,17 @@ export const PROMPTS: McpPrompt[] = [
       { name: 'state', description: 'Two-letter state code', required: false },
     ],
     build: (a) =>
-      userMessage(
-        `I'm checking whether my stock qualifies for the Section 1202 Qualified Small Business Stock (QSBS) exclusion. I acquired the stock on ${arg(a, 'acquisitionDate')} and plan to sell on ${arg(a, 'saleDate')}. Expected gain: $${arg(a, 'expectedGain')}. ` +
-          (a.industry ? `Industry: ${a.industry}. ` : '') +
-          (a.state ? `I live in ${a.state}. ` : '') +
-          `Run the qsbs_check tool against the eight statutory tests. ` +
-          `If you need entity type, acquisition method (original issuance vs secondary vs gift/inheritance), asset category (under-50m / 50m-to-75m / over-75m), active-business attestation, adjusted basis, filing status, or ordinary income, ask me one short follow-up question. ` +
-          `Report the verdict (qualified / disqualified / partial), exclusion percentage, federal tax saved in dollars, state tax owed, and per-test pass/fail breakdown.`,
-      ),
+      templatePrompt({
+        scenario: `I'm checking whether my stock qualifies for the Section 1202 Qualified Small Business Stock (QSBS) exclusion. I acquired the stock on ${arg(a, 'acquisitionDate')} and plan to sell on ${arg(a, 'saleDate')}. Expected gain: $${arg(a, 'expectedGain')}. `,
+        optional: [
+          a.industry && `Industry: ${a.industry}. `,
+          a.state && `I live in ${a.state}. `,
+        ],
+        instruction: `Run the qsbs_check tool against the eight statutory tests.`,
+        followUpFields:
+          'entity type, acquisition method (original issuance vs secondary vs gift/inheritance), asset category (under-50m / 50m-to-75m / over-75m), active-business attestation, adjusted basis, filing status, or ordinary income',
+        outputs:
+          'the verdict (qualified / disqualified / partial), exclusion percentage, federal tax saved in dollars, state tax owed, and per-test pass/fail breakdown',
+      }),
   },
 ];

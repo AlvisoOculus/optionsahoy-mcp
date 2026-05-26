@@ -18,6 +18,36 @@ import { PROMPTS } from './_lib/mcp-prompts';
 
 const PROTOCOL_VERSION = '2024-11-05';
 
+// Precomputed projections for the list endpoints. These fire on every MCP
+// client connect; doing the .map() once at module load avoids reallocating
+// on each request.
+const TOOLS_LIST = TOOLS.map((t) => ({
+  name: t.name,
+  description: t.description,
+  inputSchema: t.inputSchema,
+  annotations: t.annotations,
+}));
+const RESOURCES_LIST = RESOURCES.map((r) => ({
+  uri: r.uri,
+  name: r.name,
+  description: r.description,
+  mimeType: r.mimeType,
+}));
+const PROMPTS_LIST = PROMPTS.map((p) => ({
+  name: p.name,
+  description: p.description,
+  arguments: p.arguments,
+}));
+const GET_DESCRIPTOR = {
+  name: 'OptionsAhoy MCP Server',
+  protocolVersion: PROTOCOL_VERSION,
+  transport: 'http' as const,
+  tools: TOOLS.map((t) => t.name),
+  resources: RESOURCES.map((r) => r.uri),
+  prompts: PROMPTS.map((p) => p.name),
+  documentation: 'https://optionsahoy.com/for-agents',
+};
+
 const CORS: Record<string, string> = {
   'access-control-allow-origin': '*',
   'access-control-allow-methods': 'POST, OPTIONS',
@@ -77,14 +107,7 @@ function handle(req: JsonRpcRequest): JsonRpcResponse | null {
       return null;
 
     case 'tools/list':
-      return ok(id, {
-        tools: TOOLS.map((t) => ({
-          name: t.name,
-          description: t.description,
-          inputSchema: t.inputSchema,
-          annotations: t.annotations,
-        })),
-      });
+      return ok(id, { tools: TOOLS_LIST });
 
     case 'tools/call': {
       if (isNotification) return null;
@@ -108,14 +131,7 @@ function handle(req: JsonRpcRequest): JsonRpcResponse | null {
     }
 
     case 'resources/list':
-      return ok(id, {
-        resources: RESOURCES.map((r) => ({
-          uri: r.uri,
-          name: r.name,
-          description: r.description,
-          mimeType: r.mimeType,
-        })),
-      });
+      return ok(id, { resources: RESOURCES_LIST });
 
     case 'resources/read': {
       if (isNotification) return null;
@@ -130,13 +146,7 @@ function handle(req: JsonRpcRequest): JsonRpcResponse | null {
     }
 
     case 'prompts/list':
-      return ok(id, {
-        prompts: PROMPTS.map((p) => ({
-          name: p.name,
-          description: p.description,
-          arguments: p.arguments,
-        })),
-      });
+      return ok(id, { prompts: PROMPTS_LIST });
 
     case 'prompts/get': {
       if (isNotification) return null;
@@ -175,15 +185,7 @@ export const onRequest: PagesFunction = async ({ request }) => {
     // Some MCP clients GET /mcp first to discover capabilities. Return
     // a brief JSON description; this also makes the endpoint readable in
     // a browser.
-    return jsonResponse({
-      name: 'OptionsAhoy MCP Server',
-      protocolVersion: PROTOCOL_VERSION,
-      transport: 'http',
-      tools: TOOLS.map((t) => t.name),
-      resources: RESOURCES.map((r) => r.uri),
-      prompts: PROMPTS.map((p) => p.name),
-      documentation: 'https://optionsahoy.com/for-agents',
-    });
+    return jsonResponse(GET_DESCRIPTOR);
   }
   if (request.method !== 'POST') {
     return jsonResponse(err(null, -32600, 'Method not allowed; use POST'), 405);
