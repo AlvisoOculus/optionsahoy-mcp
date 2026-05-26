@@ -93,7 +93,7 @@ npm run typecheck
 
 ## Use from Google Cloud (Gemini agents)
 
-Google Cloud Agent Registry lets GCP customers register external MCP servers into their own project for use by Gemini agents. There's no central submission — each customer registers individually. Two paths:
+Google Cloud Agent Registry lets each GCP project register external MCP servers for use by Gemini agents. Registration is per-project (no central submission). Two paths:
 
 ```bash
 # Path A: let the Agent Registry introspect our MCP endpoint
@@ -104,12 +104,11 @@ gcloud alpha agent-registry mcp-servers register \
   --import-tools
 
 # Path B: pass our published toolspec.json directly (faster, no introspection)
-curl -sSL https://optionsahoy.com/toolspec.json -o /tmp/toolspec.json
 gcloud alpha agent-registry mcp-servers register \
   --uri=https://optionsahoy.com/mcp \
   --display-name="OptionsAhoy" \
   --location=us-central1 \
-  --tool-spec=/tmp/toolspec.json
+  --tool-spec=<(curl -sSL https://optionsahoy.com/toolspec.json)
 ```
 
 The toolspec.json mirrors the MCP `tools/list` response with `readOnlyHint` and `idempotentHint` annotations on all six tools (all are pure deterministic calculators with no side effects). To regenerate after a tool-shape change:
