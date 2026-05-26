@@ -1,0 +1,84 @@
+{
+  "name": "Minnesota",
+  "source": "Tax Foundation (taxfoundation.org/data/all/state/state-income-tax-rates)",
+  "years": {
+    "2025": {
+      "single": [
+        {
+          "min": 0,
+          "rate": 0.0535
+        },
+        {
+          "min": 32570,
+          "rate": 0.068
+        },
+        {
+          "min": 106990,
+          "rate": 0.0785
+        },
+        {
+          "min": 198630,
+          "rate": 0.0985
+        }
+      ],
+      "married_joint": [
+        {
+          "min": 0,
+          "rate": 0.0535
+        },
+        {
+          "min": 47620,
+          "rate": 0.068
+        },
+        {
+          "min": 189180,
+          "rate": 0.0785
+        },
+        {
+          "min": 330410,
+          "rate": 0.0985
+        }
+      ],
+      "notes": ""
+    },
+    "2026": {
+      "single": [
+        {
+          "min": 0,
+          "rate": 0.0535
+        },
+        {
+          "min": 33310,
+          "rate": 0.068
+        },
+        {
+          "min": 109430,
+          "rate": 0.0785
+        },
+        {
+          "min": 203150,
+          "rate": 0.0985
+        }
+      ],
+      "married_joint": [
+        {
+          "min": 0,
+          "rate": 0.0535
+        },
+        {
+          "min": 48700,
+          "rate": 0.068
+        },
+        {
+          "min": 193480,
+          "rate": 0.0785
+        },
+        {
+          "min": 337930,
+          "rate": 0.0985
+        }
+      ],
+      "notes": ""
+    }
+  }
+}

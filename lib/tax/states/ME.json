@@ -1,0 +1,68 @@
+{
+  "name": "Maine",
+  "source": "Tax Foundation (taxfoundation.org/data/all/state/state-income-tax-rates)",
+  "years": {
+    "2025": {
+      "single": [
+        {
+          "min": 0,
+          "rate": 0.058
+        },
+        {
+          "min": 26800,
+          "rate": 0.0675
+        },
+        {
+          "min": 63450,
+          "rate": 0.0715
+        }
+      ],
+      "married_joint": [
+        {
+          "min": 0,
+          "rate": 0.058
+        },
+        {
+          "min": 53600,
+          "rate": 0.0675
+        },
+        {
+          "min": 126900,
+          "rate": 0.0715
+        }
+      ],
+      "notes": ""
+    },
+    "2026": {
+      "single": [
+        {
+          "min": 0,
+          "rate": 0.058
+        },
+        {
+          "min": 27399,
+          "rate": 0.0675
+        },
+        {
+          "min": 64849,
+          "rate": 0.0715
+        }
+      ],
+      "married_joint": [
+        {
+          "min": 0,
+          "rate": 0.058
+        },
+        {
+          "min": 54849,
+          "rate": 0.0675
+        },
+        {
+          "min": 129749,
+          "rate": 0.0715
+        }
+      ],
+      "notes": ""
+    }
+  }
+}

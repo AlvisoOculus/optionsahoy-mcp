@@ -1,0 +1,36 @@
+{
+  "name": "Georgia",
+  "source": "Tax Foundation (taxfoundation.org/data/all/state/state-income-tax-rates)",
+  "years": {
+    "2025": {
+      "single": [
+        {
+          "min": 0,
+          "rate": 0.0539
+        }
+      ],
+      "married_joint": [
+        {
+          "min": 0,
+          "rate": 0.0539
+        }
+      ],
+      "notes": "Flat tax"
+    },
+    "2026": {
+      "single": [
+        {
+          "min": 0,
+          "rate": 0.0519
+        }
+      ],
+      "married_joint": [
+        {
+          "min": 0,
+          "rate": 0.0519
+        }
+      ],
+      "notes": "Flat tax"
+    }
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "name": "Idaho",
+  "source": "Tax Foundation (taxfoundation.org/data/all/state/state-income-tax-rates)",
+  "years": {
+    "2025": {
+      "single": [
+        {
+          "min": 4673,
+          "rate": 0.05695
+        }
+      ],
+      "married_joint": [
+        {
+          "min": 9346,
+          "rate": 0.05695
+        }
+      ],
+      "notes": "Flat tax above threshold"
+    },
+    "2026": {
+      "single": [
+        {
+          "min": 4811,
+          "rate": 0.053
+        }
+      ],
+      "married_joint": [
+        {
+          "min": 9622,
+          "rate": 0.053
+        }
+      ],
+      "notes": "Flat tax above threshold"
+    }
+  }
+}

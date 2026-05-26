@@ -1,0 +1,84 @@
+{
+  "name": "Virginia",
+  "source": "Tax Foundation (taxfoundation.org/data/all/state/state-income-tax-rates)",
+  "years": {
+    "2025": {
+      "single": [
+        {
+          "min": 0,
+          "rate": 0.02
+        },
+        {
+          "min": 3000,
+          "rate": 0.03
+        },
+        {
+          "min": 5000,
+          "rate": 0.05
+        },
+        {
+          "min": 17000,
+          "rate": 0.0575
+        }
+      ],
+      "married_joint": [
+        {
+          "min": 0,
+          "rate": 0.02
+        },
+        {
+          "min": 3000,
+          "rate": 0.03
+        },
+        {
+          "min": 5000,
+          "rate": 0.05
+        },
+        {
+          "min": 17000,
+          "rate": 0.0575
+        }
+      ],
+      "notes": ""
+    },
+    "2026": {
+      "single": [
+        {
+          "min": 0,
+          "rate": 0.02
+        },
+        {
+          "min": 3000,
+          "rate": 0.03
+        },
+        {
+          "min": 5000,
+          "rate": 0.05
+        },
+        {
+          "min": 17000,
+          "rate": 0.0575
+        }
+      ],
+      "married_joint": [
+        {
+          "min": 0,
+          "rate": 0.02
+        },
+        {
+          "min": 3000,
+          "rate": 0.03
+        },
+        {
+          "min": 5000,
+          "rate": 0.05
+        },
+        {
+          "min": 17000,
+          "rate": 0.0575
+        }
+      ],
+      "notes": ""
+    }
+  }
+}

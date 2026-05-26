@@ -1,0 +1,36 @@
+{
+  "name": "Michigan",
+  "source": "Tax Foundation (taxfoundation.org/data/all/state/state-income-tax-rates)",
+  "years": {
+    "2025": {
+      "single": [
+        {
+          "min": 0,
+          "rate": 0.0425
+        }
+      ],
+      "married_joint": [
+        {
+          "min": 0,
+          "rate": 0.0425
+        }
+      ],
+      "notes": "Flat tax"
+    },
+    "2026": {
+      "single": [
+        {
+          "min": 0,
+          "rate": 0.0425
+        }
+      ],
+      "married_joint": [
+        {
+          "min": 0,
+          "rate": 0.0425
+        }
+      ],
+      "notes": "Flat tax"
+    }
+  }
+}

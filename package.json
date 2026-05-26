@@ -1,0 +1,16 @@
+{
+  "name": "optionsahoy-mcp",
+  "version": "1.1.0",
+  "private": false,
+  "description": "Multi-year equity-compensation optimization MCP server + REST API. Six tools: ISO/AMT, NSO, RSU, concentration, protective puts, QSBS. Full federal + 50-state + DC tax code.",
+  "type": "module",
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "devDependencies": {
+    "@types/node": "^25.9.1",
+    "typescript": "^5.5.4",
+    "vitest": "^3.2.4"
+  }
+}

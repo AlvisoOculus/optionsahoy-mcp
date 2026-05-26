@@ -1,0 +1,132 @@
+{
+  "name": "Missouri",
+  "source": "Tax Foundation (taxfoundation.org/data/all/state/state-income-tax-rates)",
+  "years": {
+    "2025": {
+      "single": [
+        {
+          "min": 1313,
+          "rate": 0.02
+        },
+        {
+          "min": 2626,
+          "rate": 0.025
+        },
+        {
+          "min": 3939,
+          "rate": 0.03
+        },
+        {
+          "min": 5252,
+          "rate": 0.035
+        },
+        {
+          "min": 6565,
+          "rate": 0.04
+        },
+        {
+          "min": 7878,
+          "rate": 0.045
+        },
+        {
+          "min": 9191,
+          "rate": 0.047
+        }
+      ],
+      "married_joint": [
+        {
+          "min": 1313,
+          "rate": 0.02
+        },
+        {
+          "min": 2626,
+          "rate": 0.025
+        },
+        {
+          "min": 3939,
+          "rate": 0.03
+        },
+        {
+          "min": 5252,
+          "rate": 0.035
+        },
+        {
+          "min": 6565,
+          "rate": 0.04
+        },
+        {
+          "min": 7878,
+          "rate": 0.045
+        },
+        {
+          "min": 9191,
+          "rate": 0.047
+        }
+      ],
+      "notes": ""
+    },
+    "2026": {
+      "single": [
+        {
+          "min": 1348,
+          "rate": 0.02
+        },
+        {
+          "min": 2696,
+          "rate": 0.025
+        },
+        {
+          "min": 4044,
+          "rate": 0.03
+        },
+        {
+          "min": 5392,
+          "rate": 0.035
+        },
+        {
+          "min": 6740,
+          "rate": 0.04
+        },
+        {
+          "min": 8088,
+          "rate": 0.045
+        },
+        {
+          "min": 9436,
+          "rate": 0.047
+        }
+      ],
+      "married_joint": [
+        {
+          "min": 1348,
+          "rate": 0.02
+        },
+        {
+          "min": 2696,
+          "rate": 0.025
+        },
+        {
+          "min": 4044,
+          "rate": 0.03
+        },
+        {
+          "min": 5392,
+          "rate": 0.035
+        },
+        {
+          "min": 6740,
+          "rate": 0.04
+        },
+        {
+          "min": 8088,
+          "rate": 0.045
+        },
+        {
+          "min": 9436,
+          "rate": 0.047
+        }
+      ],
+      "notes": "Capital gains exempt from state income tax"
+    }
+  }
+}

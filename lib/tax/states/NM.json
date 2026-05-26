@@ -1,0 +1,116 @@
+{
+  "name": "New Mexico",
+  "source": "Tax Foundation (taxfoundation.org/data/all/state/state-income-tax-rates)",
+  "years": {
+    "2025": {
+      "single": [
+        {
+          "min": 0,
+          "rate": 0.015
+        },
+        {
+          "min": 5500,
+          "rate": 0.032
+        },
+        {
+          "min": 16500,
+          "rate": 0.043
+        },
+        {
+          "min": 33500,
+          "rate": 0.047
+        },
+        {
+          "min": 66500,
+          "rate": 0.049
+        },
+        {
+          "min": 210000,
+          "rate": 0.059
+        }
+      ],
+      "married_joint": [
+        {
+          "min": 0,
+          "rate": 0.015
+        },
+        {
+          "min": 8000,
+          "rate": 0.032
+        },
+        {
+          "min": 25000,
+          "rate": 0.043
+        },
+        {
+          "min": 50000,
+          "rate": 0.047
+        },
+        {
+          "min": 100000,
+          "rate": 0.049
+        },
+        {
+          "min": 315000,
+          "rate": 0.059
+        }
+      ],
+      "notes": ""
+    },
+    "2026": {
+      "single": [
+        {
+          "min": 0,
+          "rate": 0.015
+        },
+        {
+          "min": 5500,
+          "rate": 0.032
+        },
+        {
+          "min": 16500,
+          "rate": 0.043
+        },
+        {
+          "min": 33500,
+          "rate": 0.047
+        },
+        {
+          "min": 66500,
+          "rate": 0.049
+        },
+        {
+          "min": 210000,
+          "rate": 0.059
+        }
+      ],
+      "married_joint": [
+        {
+          "min": 0,
+          "rate": 0.015
+        },
+        {
+          "min": 8000,
+          "rate": 0.032
+        },
+        {
+          "min": 25000,
+          "rate": 0.043
+        },
+        {
+          "min": 50000,
+          "rate": 0.047
+        },
+        {
+          "min": 100000,
+          "rate": 0.049
+        },
+        {
+          "min": 315000,
+          "rate": 0.059
+        }
+      ],
+      "notes": ""
+    }
+  }
+}

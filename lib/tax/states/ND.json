@@ -1,0 +1,52 @@
+{
+  "name": "North Dakota",
+  "source": "Tax Foundation (taxfoundation.org/data/all/state/state-income-tax-rates)",
+  "years": {
+    "2025": {
+      "single": [
+        {
+          "min": 48475,
+          "rate": 0.0195
+        },
+        {
+          "min": 244825,
+          "rate": 0.025
+        }
+      ],
+      "married_joint": [
+        {
+          "min": 80975,
+          "rate": 0.0195
+        },
+        {
+          "min": 298075,
+          "rate": 0.025
+        }
+      ],
+      "notes": ""
+    },
+    "2026": {
+      "single": [
+        {
+          "min": 48475,
+          "rate": 0.0195
+        },
+        {
+          "min": 244825,
+          "rate": 0.025
+        }
+      ],
+      "married_joint": [
+        {
+          "min": 80975,
+          "rate": 0.0195
+        },
+        {
+          "min": 298075,
+          "rate": 0.025
+        }
+      ],
+      "notes": ""
+    }
+  }
+}

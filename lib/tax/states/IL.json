@@ -1,0 +1,36 @@
+{
+  "name": "Illinois",
+  "source": "Tax Foundation (taxfoundation.org/data/all/state/state-income-tax-rates)",
+  "years": {
+    "2025": {
+      "single": [
+        {
+          "min": 0,
+          "rate": 0.0495
+        }
+      ],
+      "married_joint": [
+        {
+          "min": 0,
+          "rate": 0.0495
+        }
+      ],
+      "notes": "Flat tax"
+    },
+    "2026": {
+      "single": [
+        {
+          "min": 0,
+          "rate": 0.0495
+        }
+      ],
+      "married_joint": [
+        {
+          "min": 0,
+          "rate": 0.0495
+        }
+      ],
+      "notes": "Flat tax"
+    }
+  }
+}

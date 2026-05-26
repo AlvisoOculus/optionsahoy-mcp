@@ -1,0 +1,13 @@
+Copyright © 2026 AlphaLatitude Inc.
+
+All rights reserved during beta.
+
+This source code is published for transparency, agent discoverability, and
+audit purposes. You may read, link to, and reference this code in your own
+work. You may NOT copy, redistribute, or run this code or substantial
+portions of it as a commercial service without prior written permission
+from AlphaLatitude Inc. (andrew@alphalatitude.com).
+
+The deployed service at https://optionsahoy.com/mcp and
+https://optionsahoy.com/api/v1 is free for non-commercial use during beta,
+under the terms at https://optionsahoy.com/terms.

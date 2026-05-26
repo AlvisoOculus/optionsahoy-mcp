@@ -1,0 +1,8 @@
+{
+  "kind": "piggyback_federal",
+  "name": "Connecticut",
+  "source": "https://portal.ct.gov/-/media/drs/forms/2025/income/ct-6251_1225.pdf",
+  "asOfYear": 2025,
+  "rateOnFederalTmt": 0.19,
+  "rateOnAmti": 0.055
+}

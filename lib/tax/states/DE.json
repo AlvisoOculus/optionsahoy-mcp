@@ -1,0 +1,116 @@
+{
+  "name": "Delaware",
+  "source": "Tax Foundation (taxfoundation.org/data/all/state/state-income-tax-rates)",
+  "years": {
+    "2025": {
+      "single": [
+        {
+          "min": 2000,
+          "rate": 0.022
+        },
+        {
+          "min": 5000,
+          "rate": 0.039
+        },
+        {
+          "min": 10000,
+          "rate": 0.048
+        },
+        {
+          "min": 20000,
+          "rate": 0.052
+        },
+        {
+          "min": 25000,
+          "rate": 0.0555
+        },
+        {
+          "min": 60000,
+          "rate": 0.066
+        }
+      ],
+      "married_joint": [
+        {
+          "min": 2000,
+          "rate": 0.022
+        },
+        {
+          "min": 5000,
+          "rate": 0.039
+        },
+        {
+          "min": 10000,
+          "rate": 0.048
+        },
+        {
+          "min": 20000,
+          "rate": 0.052
+        },
+        {
+          "min": 25000,
+          "rate": 0.0555
+        },
+        {
+          "min": 60000,
+          "rate": 0.066
+        }
+      ],
+      "notes": ""
+    },
+    "2026": {
+      "single": [
+        {
+          "min": 2000,
+          "rate": 0.022
+        },
+        {
+          "min": 5000,
+          "rate": 0.039
+        },
+        {
+          "min": 10000,
+          "rate": 0.048
+        },
+        {
+          "min": 20000,
+          "rate": 0.052
+        },
+        {
+          "min": 25000,
+          "rate": 0.0555
+        },
+        {
+          "min": 60000,
+          "rate": 0.066
+        }
+      ],
+      "married_joint": [
+        {
+          "min": 2000,
+          "rate": 0.022
+        },
+        {
+          "min": 5000,
+          "rate": 0.039
+        },
+        {
+          "min": 10000,
+          "rate": 0.048
+        },
+        {
+          "min": 20000,
+          "rate": 0.052
+        },
+        {
+          "min": 25000,
+          "rate": 0.0555
+        },
+        {
+          "min": 60000,
+          "rate": 0.066
+        }
+      ],
+      "notes": ""
+    }
+  }
+}

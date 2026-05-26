@@ -1,0 +1,68 @@
+{
+  "name": "Rhode Island",
+  "source": "Tax Foundation (taxfoundation.org/data/all/state/state-income-tax-rates)",
+  "years": {
+    "2025": {
+      "single": [
+        {
+          "min": 0,
+          "rate": 0.0375
+        },
+        {
+          "min": 79900,
+          "rate": 0.0475
+        },
+        {
+          "min": 181650,
+          "rate": 0.0599
+        }
+      ],
+      "married_joint": [
+        {
+          "min": 0,
+          "rate": 0.0375
+        },
+        {
+          "min": 79900,
+          "rate": 0.0475
+        },
+        {
+          "min": 181650,
+          "rate": 0.0599
+        }
+      ],
+      "notes": ""
+    },
+    "2026": {
+      "single": [
+        {
+          "min": 0,
+          "rate": 0.0375
+        },
+        {
+          "min": 82050,
+          "rate": 0.0475
+        },
+        {
+          "min": 186450,
+          "rate": 0.0599
+        }
+      ],
+      "married_joint": [
+        {
+          "min": 0,
+          "rate": 0.0375
+        },
+        {
+          "min": 82050,
+          "rate": 0.0475
+        },
+        {
+          "min": 186450,
+          "rate": 0.0599
+        }
+      ],
+      "notes": ""
+    }
+  }
+}

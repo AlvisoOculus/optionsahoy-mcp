@@ -1,0 +1,44 @@
+{
+  "name": "Ohio",
+  "source": "Tax Foundation (taxfoundation.org/data/all/state/state-income-tax-rates)",
+  "years": {
+    "2025": {
+      "single": [
+        {
+          "min": 26050,
+          "rate": 0.0275
+        },
+        {
+          "min": 100000,
+          "rate": 0.035
+        }
+      ],
+      "married_joint": [
+        {
+          "min": 26050,
+          "rate": 0.0275
+        },
+        {
+          "min": 100000,
+          "rate": 0.035
+        }
+      ],
+      "notes": ""
+    },
+    "2026": {
+      "single": [
+        {
+          "min": 26050,
+          "rate": 0.0275
+        }
+      ],
+      "married_joint": [
+        {
+          "min": 26050,
+          "rate": 0.0275
+        }
+      ],
+      "notes": "Flat tax on nonbusiness income above $26,050 (2026 restructure)"
+    }
+  }
+}

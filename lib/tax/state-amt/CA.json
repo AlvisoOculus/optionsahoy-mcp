@@ -1,0 +1,17 @@
+{
+  "name": "California",
+  "source": "https://www.ftb.ca.gov/forms/2025/2025-540-p.pdf",
+  "asOfYear": 2025,
+  "rate": 0.07,
+  "phaseoutRate": 0.25,
+  "exemption": {
+    "single": 92749,
+    "married_joint": 123667,
+    "head_household": 92749
+  },
+  "phaseoutStart": {
+    "single": 347808,
+    "married_joint": 463745,
+    "head_household": 347808
+  }
+}

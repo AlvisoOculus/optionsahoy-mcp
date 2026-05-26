@@ -1,0 +1,36 @@
+{
+  "name": "Mississippi",
+  "source": "Tax Foundation (taxfoundation.org/data/all/state/state-income-tax-rates)",
+  "years": {
+    "2025": {
+      "single": [
+        {
+          "min": 10000,
+          "rate": 0.044
+        }
+      ],
+      "married_joint": [
+        {
+          "min": 10000,
+          "rate": 0.044
+        }
+      ],
+      "notes": "Flat tax above $10k"
+    },
+    "2026": {
+      "single": [
+        {
+          "min": 10000,
+          "rate": 0.04
+        }
+      ],
+      "married_joint": [
+        {
+          "min": 10000,
+          "rate": 0.04
+        }
+      ],
+      "notes": "Flat tax above $10k"
+    }
+  }
+}

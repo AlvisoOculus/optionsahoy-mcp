@@ -1,0 +1,36 @@
+{
+  "name": "Kentucky",
+  "source": "Tax Foundation (taxfoundation.org/data/all/state/state-income-tax-rates)",
+  "years": {
+    "2025": {
+      "single": [
+        {
+          "min": 0,
+          "rate": 0.04
+        }
+      ],
+      "married_joint": [
+        {
+          "min": 0,
+          "rate": 0.04
+        }
+      ],
+      "notes": "Flat tax"
+    },
+    "2026": {
+      "single": [
+        {
+          "min": 0,
+          "rate": 0.035
+        }
+      ],
+      "married_joint": [
+        {
+          "min": 0,
+          "rate": 0.035
+        }
+      ],
+      "notes": "Flat tax"
+    }
+  }
+}

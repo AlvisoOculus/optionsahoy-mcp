@@ -1,0 +1,36 @@
+{
+  "name": "Utah",
+  "source": "Tax Foundation (taxfoundation.org/data/all/state/state-income-tax-rates)",
+  "years": {
+    "2025": {
+      "single": [
+        {
+          "min": 0,
+          "rate": 0.0455
+        }
+      ],
+      "married_joint": [
+        {
+          "min": 0,
+          "rate": 0.0455
+        }
+      ],
+      "notes": "Flat tax"
+    },
+    "2026": {
+      "single": [
+        {
+          "min": 0,
+          "rate": 0.045
+        }
+      ],
+      "married_joint": [
+        {
+          "min": 0,
+          "rate": 0.045
+        }
+      ],
+      "notes": "Flat tax"
+    }
+  }
+}

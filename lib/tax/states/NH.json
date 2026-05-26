@@ -1,0 +1,16 @@
+{
+  "name": "New Hampshire",
+  "source": "Tax Foundation (taxfoundation.org/data/all/state/state-income-tax-rates)",
+  "years": {
+    "2025": {
+      "single": [],
+      "married_joint": [],
+      "notes": "Repealed interest and dividends tax effective 2025"
+    },
+    "2026": {
+      "single": [],
+      "married_joint": [],
+      "notes": "No state income tax"
+    }
+  }
+}

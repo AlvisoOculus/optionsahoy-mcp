@@ -1,0 +1,52 @@
+{
+  "name": "Arkansas",
+  "source": "Tax Foundation (taxfoundation.org/data/all/state/state-income-tax-rates)",
+  "years": {
+    "2025": {
+      "single": [
+        {
+          "min": 0,
+          "rate": 0.02
+        },
+        {
+          "min": 4500,
+          "rate": 0.039
+        }
+      ],
+      "married_joint": [
+        {
+          "min": 0,
+          "rate": 0.02
+        },
+        {
+          "min": 4500,
+          "rate": 0.039
+        }
+      ],
+      "notes": "Separate tables for income ≤$89,600"
+    },
+    "2026": {
+      "single": [
+        {
+          "min": 0,
+          "rate": 0.02
+        },
+        {
+          "min": 4600,
+          "rate": 0.039
+        }
+      ],
+      "married_joint": [
+        {
+          "min": 0,
+          "rate": 0.02
+        },
+        {
+          "min": 4600,
+          "rate": 0.039
+        }
+      ],
+      "notes": ""
+    }
+  }
+}

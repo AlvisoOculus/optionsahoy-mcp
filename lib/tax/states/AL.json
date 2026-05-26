@@ -1,0 +1,68 @@
+{
+  "name": "Alabama",
+  "source": "Tax Foundation (taxfoundation.org/data/all/state/state-income-tax-rates)",
+  "years": {
+    "2025": {
+      "single": [
+        {
+          "min": 0,
+          "rate": 0.02
+        },
+        {
+          "min": 500,
+          "rate": 0.04
+        },
+        {
+          "min": 3000,
+          "rate": 0.05
+        }
+      ],
+      "married_joint": [
+        {
+          "min": 0,
+          "rate": 0.02
+        },
+        {
+          "min": 1000,
+          "rate": 0.04
+        },
+        {
+          "min": 6000,
+          "rate": 0.05
+        }
+      ],
+      "notes": "Federal income tax paid may be deductible"
+    },
+    "2026": {
+      "single": [
+        {
+          "min": 0,
+          "rate": 0.02
+        },
+        {
+          "min": 500,
+          "rate": 0.04
+        },
+        {
+          "min": 3000,
+          "rate": 0.05
+        }
+      ],
+      "married_joint": [
+        {
+          "min": 0,
+          "rate": 0.02
+        },
+        {
+          "min": 1000,
+          "rate": 0.04
+        },
+        {
+          "min": 6000,
+          "rate": 0.05
+        }
+      ],
+      "notes": ""
+    }
+  }
+}

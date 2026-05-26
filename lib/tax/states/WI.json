@@ -1,0 +1,84 @@
+{
+  "name": "Wisconsin",
+  "source": "Tax Foundation (taxfoundation.org/data/all/state/state-income-tax-rates)",
+  "years": {
+    "2025": {
+      "single": [
+        {
+          "min": 0,
+          "rate": 0.035
+        },
+        {
+          "min": 14680,
+          "rate": 0.044
+        },
+        {
+          "min": 29370,
+          "rate": 0.053
+        },
+        {
+          "min": 323290,
+          "rate": 0.0765
+        }
+      ],
+      "married_joint": [
+        {
+          "min": 0,
+          "rate": 0.035
+        },
+        {
+          "min": 19580,
+          "rate": 0.044
+        },
+        {
+          "min": 39150,
+          "rate": 0.053
+        },
+        {
+          "min": 431060,
+          "rate": 0.0765
+        }
+      ],
+      "notes": ""
+    },
+    "2026": {
+      "single": [
+        {
+          "min": 0,
+          "rate": 0.035
+        },
+        {
+          "min": 15110,
+          "rate": 0.044
+        },
+        {
+          "min": 51950,
+          "rate": 0.053
+        },
+        {
+          "min": 332720,
+          "rate": 0.0765
+        }
+      ],
+      "married_joint": [
+        {
+          "min": 0,
+          "rate": 0.035
+        },
+        {
+          "min": 20150,
+          "rate": 0.044
+        },
+        {
+          "min": 69260,
+          "rate": 0.053
+        },
+        {
+          "min": 443630,
+          "rate": 0.0765
+        }
+      ],
+      "notes": ""
+    }
+  }
+}

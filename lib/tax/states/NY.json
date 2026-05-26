@@ -1,0 +1,164 @@
+{
+  "name": "New York",
+  "source": "Tax Foundation (taxfoundation.org/data/all/state/state-income-tax-rates)",
+  "years": {
+    "2025": {
+      "single": [
+        {
+          "min": 0,
+          "rate": 0.04
+        },
+        {
+          "min": 8500,
+          "rate": 0.045
+        },
+        {
+          "min": 11700,
+          "rate": 0.0525
+        },
+        {
+          "min": 13900,
+          "rate": 0.055
+        },
+        {
+          "min": 80650,
+          "rate": 0.06
+        },
+        {
+          "min": 215400,
+          "rate": 0.0685
+        },
+        {
+          "min": 1077550,
+          "rate": 0.0965
+        },
+        {
+          "min": 5000000,
+          "rate": 0.103
+        },
+        {
+          "min": 25000000,
+          "rate": 0.109
+        }
+      ],
+      "married_joint": [
+        {
+          "min": 0,
+          "rate": 0.04
+        },
+        {
+          "min": 17150,
+          "rate": 0.045
+        },
+        {
+          "min": 23600,
+          "rate": 0.0525
+        },
+        {
+          "min": 27900,
+          "rate": 0.055
+        },
+        {
+          "min": 161550,
+          "rate": 0.06
+        },
+        {
+          "min": 323200,
+          "rate": 0.0685
+        },
+        {
+          "min": 2155350,
+          "rate": 0.0965
+        },
+        {
+          "min": 5000000,
+          "rate": 0.103
+        },
+        {
+          "min": 25000000,
+          "rate": 0.109
+        }
+      ],
+      "notes": "Tax benefit recapture for high earners"
+    },
+    "2026": {
+      "single": [
+        {
+          "min": 0,
+          "rate": 0.039
+        },
+        {
+          "min": 8500,
+          "rate": 0.044
+        },
+        {
+          "min": 11700,
+          "rate": 0.0515
+        },
+        {
+          "min": 13900,
+          "rate": 0.054
+        },
+        {
+          "min": 80650,
+          "rate": 0.059
+        },
+        {
+          "min": 215400,
+          "rate": 0.0685
+        },
+        {
+          "min": 1077550,
+          "rate": 0.0965
+        },
+        {
+          "min": 5000000,
+          "rate": 0.103
+        },
+        {
+          "min": 25000000,
+          "rate": 0.109
+        }
+      ],
+      "married_joint": [
+        {
+          "min": 0,
+          "rate": 0.039
+        },
+        {
+          "min": 17150,
+          "rate": 0.044
+        },
+        {
+          "min": 23600,
+          "rate": 0.0515
+        },
+        {
+          "min": 27900,
+          "rate": 0.054
+        },
+        {
+          "min": 161550,
+          "rate": 0.059
+        },
+        {
+          "min": 323200,
+          "rate": 0.0685
+        },
+        {
+          "min": 2155350,
+          "rate": 0.0965
+        },
+        {
+          "min": 5000000,
+          "rate": 0.103
+        },
+        {
+          "min": 25000000,
+          "rate": 0.109
+        }
+      ],
+      "notes": "Tax benefit recapture"
+    }
+  }
+}

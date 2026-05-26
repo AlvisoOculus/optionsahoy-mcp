@@ -1,0 +1,132 @@
+{
+  "name": "Connecticut",
+  "source": "Tax Foundation (taxfoundation.org/data/all/state/state-income-tax-rates)",
+  "years": {
+    "2025": {
+      "single": [
+        {
+          "min": 0,
+          "rate": 0.02
+        },
+        {
+          "min": 10000,
+          "rate": 0.045
+        },
+        {
+          "min": 50000,
+          "rate": 0.055
+        },
+        {
+          "min": 100000,
+          "rate": 0.06
+        },
+        {
+          "min": 200000,
+          "rate": 0.065
+        },
+        {
+          "min": 250000,
+          "rate": 0.069
+        },
+        {
+          "min": 500000,
+          "rate": 0.0699
+        }
+      ],
+      "married_joint": [
+        {
+          "min": 0,
+          "rate": 0.02
+        },
+        {
+          "min": 20000,
+          "rate": 0.045
+        },
+        {
+          "min": 100000,
+          "rate": 0.055
+        },
+        {
+          "min": 200000,
+          "rate": 0.06
+        },
+        {
+          "min": 400000,
+          "rate": 0.065
+        },
+        {
+          "min": 500000,
+          "rate": 0.069
+        },
+        {
+          "min": 1000000,
+          "rate": 0.0699
+        }
+      ],
+      "notes": "Tax benefit recapture for high earners"
+    },
+    "2026": {
+      "single": [
+        {
+          "min": 0,
+          "rate": 0.02
+        },
+        {
+          "min": 10000,
+          "rate": 0.045
+        },
+        {
+          "min": 50000,
+          "rate": 0.055
+        },
+        {
+          "min": 100000,
+          "rate": 0.06
+        },
+        {
+          "min": 200000,
+          "rate": 0.065
+        },
+        {
+          "min": 250000,
+          "rate": 0.069
+        },
+        {
+          "min": 500000,
+          "rate": 0.0699
+        }
+      ],
+      "married_joint": [
+        {
+          "min": 0,
+          "rate": 0.02
+        },
+        {
+          "min": 20000,
+          "rate": 0.045
+        },
+        {
+          "min": 100000,
+          "rate": 0.055
+        },
+        {
+          "min": 200000,
+          "rate": 0.06
+        },
+        {
+          "min": 400000,
+          "rate": 0.065
+        },
+        {
+          "min": 500000,
+          "rate": 0.069
+        },
+        {
+          "min": 1000000,
+          "rate": 0.0699
+        }
+      ],
+      "notes": ""
+    }
+  }
+}

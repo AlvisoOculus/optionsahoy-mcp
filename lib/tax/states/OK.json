@@ -1,0 +1,92 @@
+{
+  "name": "Oklahoma",
+  "source": "Tax Foundation (taxfoundation.org/data/all/state/state-income-tax-rates)",
+  "years": {
+    "2025": {
+      "single": [
+        {
+          "min": 0,
+          "rate": 0.0025
+        },
+        {
+          "min": 1000,
+          "rate": 0.0075
+        },
+        {
+          "min": 2500,
+          "rate": 0.0175
+        },
+        {
+          "min": 3750,
+          "rate": 0.0275
+        },
+        {
+          "min": 4900,
+          "rate": 0.0375
+        },
+        {
+          "min": 7200,
+          "rate": 0.0475
+        }
+      ],
+      "married_joint": [
+        {
+          "min": 0,
+          "rate": 0.0025
+        },
+        {
+          "min": 2000,
+          "rate": 0.0075
+        },
+        {
+          "min": 5000,
+          "rate": 0.0175
+        },
+        {
+          "min": 7500,
+          "rate": 0.0275
+        },
+        {
+          "min": 9800,
+          "rate": 0.0375
+        },
+        {
+          "min": 14400,
+          "rate": 0.0475
+        }
+      ],
+      "notes": ""
+    },
+    "2026": {
+      "single": [
+        {
+          "min": 3750,
+          "rate": 0.025
+        },
+        {
+          "min": 4900,
+          "rate": 0.035
+        },
+        {
+          "min": 7200,
+          "rate": 0.045
+        }
+      ],
+      "married_joint": [
+        {
+          "min": 7500,
+          "rate": 0.025
+        },
+        {
+          "min": 9800,
+          "rate": 0.035
+        },
+        {
+          "min": 14400,
+          "rate": 0.045
+        }
+      ],
+      "notes": ""
+    }
+  }
+}

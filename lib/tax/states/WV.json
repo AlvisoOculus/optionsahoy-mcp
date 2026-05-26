@@ -1,0 +1,100 @@
+{
+  "name": "West Virginia",
+  "source": "Tax Foundation (taxfoundation.org/data/all/state/state-income-tax-rates)",
+  "years": {
+    "2025": {
+      "single": [
+        {
+          "min": 0,
+          "rate": 0.0222
+        },
+        {
+          "min": 10000,
+          "rate": 0.0296
+        },
+        {
+          "min": 25000,
+          "rate": 0.0333
+        },
+        {
+          "min": 40000,
+          "rate": 0.0444
+        },
+        {
+          "min": 60000,
+          "rate": 0.0482
+        }
+      ],
+      "married_joint": [
+        {
+          "min": 0,
+          "rate": 0.0222
+        },
+        {
+          "min": 10000,
+          "rate": 0.0296
+        },
+        {
+          "min": 25000,
+          "rate": 0.0333
+        },
+        {
+          "min": 40000,
+          "rate": 0.0444
+        },
+        {
+          "min": 60000,
+          "rate": 0.0482
+        }
+      ],
+      "notes": ""
+    },
+    "2026": {
+      "single": [
+        {
+          "min": 0,
+          "rate": 0.0222
+        },
+        {
+          "min": 10000,
+          "rate": 0.0296
+        },
+        {
+          "min": 25000,
+          "rate": 0.0333
+        },
+        {
+          "min": 40000,
+          "rate": 0.0444
+        },
+        {
+          "min": 60000,
+          "rate": 0.0482
+        }
+      ],
+      "married_joint": [
+        {
+          "min": 0,
+          "rate": 0.0222
+        },
+        {
+          "min": 10000,
+          "rate": 0.0296
+        },
+        {
+          "min": 25000,
+          "rate": 0.0333
+        },
+        {
+          "min": 40000,
+          "rate": 0.0444
+        },
+        {
+          "min": 60000,
+          "rate": 0.0482
+        }
+      ],
+      "notes": ""
+    }
+  }
+}

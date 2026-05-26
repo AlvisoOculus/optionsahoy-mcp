@@ -1,0 +1,68 @@
+{
+  "name": "South Carolina",
+  "source": "Tax Foundation (taxfoundation.org/data/all/state/state-income-tax-rates)",
+  "years": {
+    "2025": {
+      "single": [
+        {
+          "min": 0,
+          "rate": 0
+        },
+        {
+          "min": 3560,
+          "rate": 0.03
+        },
+        {
+          "min": 17830,
+          "rate": 0.062
+        }
+      ],
+      "married_joint": [
+        {
+          "min": 0,
+          "rate": 0
+        },
+        {
+          "min": 3560,
+          "rate": 0.03
+        },
+        {
+          "min": 17830,
+          "rate": 0.062
+        }
+      ],
+      "notes": ""
+    },
+    "2026": {
+      "single": [
+        {
+          "min": 0,
+          "rate": 0
+        },
+        {
+          "min": 3640,
+          "rate": 0.03
+        },
+        {
+          "min": 18230,
+          "rate": 0.06
+        }
+      ],
+      "married_joint": [
+        {
+          "min": 0,
+          "rate": 0
+        },
+        {
+          "min": 3640,
+          "rate": 0.03
+        },
+        {
+          "min": 18230,
+          "rate": 0.06
+        }
+      ],
+      "notes": "Top rate temporarily reduced to 6% Jul 2025 - Jun 2026"
+    }
+  }
+}

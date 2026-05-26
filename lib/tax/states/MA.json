@@ -1,0 +1,52 @@
+{
+  "name": "Massachusetts",
+  "source": "Tax Foundation (taxfoundation.org/data/all/state/state-income-tax-rates)",
+  "years": {
+    "2025": {
+      "single": [
+        {
+          "min": 0,
+          "rate": 0.05
+        },
+        {
+          "min": 1083150,
+          "rate": 0.09
+        }
+      ],
+      "married_joint": [
+        {
+          "min": 0,
+          "rate": 0.05
+        },
+        {
+          "min": 1083150,
+          "rate": 0.09
+        }
+      ],
+      "notes": "Millionaire tax 4% additional over $1,083,150"
+    },
+    "2026": {
+      "single": [
+        {
+          "min": 0,
+          "rate": 0.05
+        },
+        {
+          "min": 1083150,
+          "rate": 0.09
+        }
+      ],
+      "married_joint": [
+        {
+          "min": 0,
+          "rate": 0.05
+        },
+        {
+          "min": 1083150,
+          "rate": 0.09
+        }
+      ],
+      "notes": "Millionaire tax 4% additional over $1,083,150"
+    }
+  }
+}

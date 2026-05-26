@@ -1,0 +1,407 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "OptionsAhoy Calculator API",
+    "summary": "Deterministic equity-compensation calculator endpoints. JSON in, JSON out.",
+    "description": "Multi-year equity-compensation optimization engine. Six free calculators that compute the globally-optimal schedule across the candidate space (not heuristics, not samples). Full federal tax code plus all 50 states and DC: ordinary brackets, long-term capital gains, AMT with credit recovery, FICA, NIIT; state AMT modeled for CA, NY, MN. Unauthenticated, wide-open CORS. Same engine as the in-browser tools at https://optionsahoy.com/tools — response is byte-identical. Reference implementation and request-body source-of-truth: https://github.com/AlvisoOculus/optionsahoy_web/tree/main/web/lib/calc. Determinism is a side benefit: same inputs always return the same answer, so the optimizer's recommendation is verifiable. Empirical justification for using an optimizer rather than letting a chatbot do the math: https://hackernoon.com/but-can-it-do-taxes-though-why-you-shouldnt-trust-chatbots-with-tax-optimization-math",
+    "version": "1.0.0",
+    "contact": {
+      "name": "AlphaLatitude Inc.",
+      "email": "andrew@alphalatitude.com",
+      "url": "https://optionsahoy.com/for-agents"
+    },
+    "license": {
+      "name": "Proprietary. Free for non-commercial use during beta.",
+      "url": "https://optionsahoy.com/terms"
+    }
+  },
+  "servers": [
+    {
+      "url": "https://optionsahoy.com",
+      "description": "Production"
+    }
+  ],
+  "tags": [
+    { "name": "Discovery", "description": "API inventory" },
+    { "name": "ISO", "description": "Incentive stock options" },
+    { "name": "NSO", "description": "Non-qualified stock options" },
+    { "name": "RSU", "description": "Restricted stock units" },
+    { "name": "Concentration", "description": "Single-stock concentration risk" },
+    { "name": "Hedging", "description": "Protective put / collar pricing" },
+    { "name": "QSBS", "description": "Section 1202 qualification" }
+  ],
+  "paths": {
+    "/api/v1": {
+      "get": {
+        "summary": "API discovery",
+        "description": "Returns the API name, version, documentation URL, OpenAPI URL, and the array of endpoints. Cheap, public, no body required.",
+        "operationId": "discover",
+        "tags": ["Discovery"],
+        "responses": {
+          "200": {
+            "description": "Endpoint inventory",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": ["name", "version", "endpoints"],
+                  "properties": {
+                    "name": { "type": "string" },
+                    "version": { "type": "string" },
+                    "documentation": { "type": "string", "format": "uri" },
+                    "openapi": { "type": "string", "format": "uri" },
+                    "endpoints": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "required": ["method", "path", "description"],
+                        "properties": {
+                          "method": { "type": "string" },
+                          "path": { "type": "string" },
+                          "description": { "type": "string" }
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/amt-iso": {
+      "post": {
+        "summary": "Multi-year ISO exercise schedule optimization",
+        "description": "Returns the globally-optimal multi-year Incentive Stock Option (ISO) exercise schedule that minimizes federal and state Alternative Minimum Tax (AMT) across the horizon, accounting for AMT credit recovery in later years, qualifying-disposition timing, grant expiration, and the post-termination exercise window. Engine: chunk-grid search with one-share refinement across the full candidate space. Result is reproducible (same inputs → same schedule).",
+        "operationId": "optimizeAmtIso",
+        "tags": ["ISO"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/AmtIsoInput" } }
+          }
+        },
+        "responses": {
+          "200": { "$ref": "#/components/responses/CalculatorSuccess" },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "405": { "$ref": "#/components/responses/MethodNotAllowed" }
+        }
+      }
+    },
+    "/api/v1/nso": {
+      "post": {
+        "summary": "NSO exercise tax + sell-vs-hold",
+        "description": "Computes the after-tax payout on a non-qualified stock option (NSO) exercise: federal, state, FICA (Social Security + Medicare + Additional Medicare). Compares selling at exercise vs. holding for long-term capital gains across the chosen horizon.",
+        "operationId": "calculateNso",
+        "tags": ["NSO"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/NsoInput" } }
+          }
+        },
+        "responses": {
+          "200": { "$ref": "#/components/responses/CalculatorSuccess" },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "405": { "$ref": "#/components/responses/MethodNotAllowed" }
+        }
+      }
+    },
+    "/api/v1/rsu-sell-vs-hold": {
+      "post": {
+        "summary": "RSU sell-at-vest vs. hold-for-LTCG",
+        "description": "Compares the after-tax payout from selling RSU shares at vest and reinvesting in the market versus holding the shares, including the 12-month short-term-vs-long-term-capital-gains cliff, state tax, FICA, and the optional growth assumption.",
+        "operationId": "calculateRsu",
+        "tags": ["RSU"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/RsuInput" } }
+          }
+        },
+        "responses": {
+          "200": { "$ref": "#/components/responses/CalculatorSuccess" },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "405": { "$ref": "#/components/responses/MethodNotAllowed" }
+        }
+      }
+    },
+    "/api/v1/concentration": {
+      "post": {
+        "summary": "Single-stock concentration risk",
+        "description": "Quantifies single-stock concentration risk: drawdown exposure at 30/50/70% scenarios and the after-tax comparison of selling down vs. holding vs. hedging, with multi-year tax math.",
+        "operationId": "calculateConcentration",
+        "tags": ["Concentration"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/ConcentrationInput" } }
+          }
+        },
+        "responses": {
+          "200": { "$ref": "#/components/responses/CalculatorSuccess" },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "405": { "$ref": "#/components/responses/MethodNotAllowed" }
+        }
+      }
+    },
+    "/api/v1/protective-put": {
+      "post": {
+        "summary": "Protective put / zero-cost collar pricing",
+        "description": "Prices a protective put or zero-cost collar on a single-stock position. Reports annual cost, maximum loss, upside cap, and bad-year coverage.",
+        "operationId": "priceProtectivePut",
+        "tags": ["Hedging"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/ProtectivePutInput" } }
+          }
+        },
+        "responses": {
+          "200": { "$ref": "#/components/responses/CalculatorSuccess" },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "405": { "$ref": "#/components/responses/MethodNotAllowed" }
+        }
+      }
+    },
+    "/api/v1/qsbs": {
+      "post": {
+        "summary": "Section 1202 QSBS qualification check",
+        "description": "Evaluates Section 1202 Qualified Small Business Stock (QSBS) against the eight statutory tests, returning the verdict, exclusion percentage, federal tax saved, and state conformity under OBBBA 2026 tiered exclusion rules.",
+        "operationId": "checkQsbs",
+        "tags": ["QSBS"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/QsbsInput" } }
+          }
+        },
+        "responses": {
+          "200": { "$ref": "#/components/responses/CalculatorSuccess" },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "405": { "$ref": "#/components/responses/MethodNotAllowed" }
+        }
+      }
+    }
+  },
+  "components": {
+    "responses": {
+      "CalculatorSuccess": {
+        "description": "Calculation result. The exact shape of `result` is the return type of the corresponding compute function in `web/lib/calc/*.ts` — sample a call to discover the full structure.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": ["ok", "result"],
+              "properties": {
+                "ok": { "type": "boolean", "const": true },
+                "result": { "type": "object", "description": "Calculator output. Shape varies by endpoint." }
+              }
+            }
+          }
+        }
+      },
+      "BadRequest": {
+        "description": "Invalid input or calculation failure. The `error` string names the specific field or condition.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": ["error"],
+              "properties": { "error": { "type": "string" } }
+            }
+          }
+        }
+      },
+      "MethodNotAllowed": {
+        "description": "Endpoint accepts only POST (and OPTIONS for CORS preflight).",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": ["error"],
+              "properties": { "error": { "type": "string" } }
+            }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "FilingStatus": {
+        "type": "string",
+        "enum": ["single", "married_joint", "head_household"],
+        "description": "United States federal filing status."
+      },
+      "StateCode": {
+        "type": "string",
+        "pattern": "^[A-Z]{2}$",
+        "description": "Two-letter United States state code (e.g. CA, NY, TX)."
+      },
+      "SectorKey": {
+        "type": "string",
+        "enum": [
+          "tech_software",
+          "semiconductors",
+          "consumer_cyclical",
+          "consumer_defensive",
+          "financials",
+          "healthcare_biotech",
+          "energy",
+          "industrials",
+          "communication",
+          "broad_market"
+        ]
+      },
+      "IsoDate": {
+        "type": "string",
+        "format": "date",
+        "description": "ISO 8601 date string (YYYY-MM-DD)."
+      },
+      "AmtIsoInput": {
+        "type": "object",
+        "required": [
+          "shares", "strike", "fmv", "expectedGrowth", "volatilityDrag",
+          "filingStatus", "ordinaryIncome", "stateCode", "carryforwardCredit",
+          "horizon", "cashReturnRate", "grantDate", "hasLeftCompany", "terminationDate"
+        ],
+        "properties": {
+          "shares": { "type": "integer", "minimum": 1, "description": "Total ISO shares to exercise across the horizon." },
+          "strike": { "type": "number", "minimum": 0, "description": "Strike price per share, USD." },
+          "fmv": { "type": "number", "minimum": 0, "description": "Fair market value per share today (year 1)." },
+          "expectedGrowth": { "type": "number", "description": "Arithmetic-mean annual growth rate, e.g. 0.10 for 10%/year." },
+          "volatilityDrag": { "type": "number", "minimum": 0, "maximum": 0.99, "description": "Multiplicative haircut at the planning horizon. 0 disables drag; 0.2 is the default." },
+          "filingStatus": { "$ref": "#/components/schemas/FilingStatus" },
+          "ordinaryIncome": { "type": "number", "minimum": 0, "description": "Annual W-2 / 1099 income excluding the exercise." },
+          "stateCode": { "$ref": "#/components/schemas/StateCode" },
+          "carryforwardCredit": { "type": "number", "minimum": 0, "description": "Existing federal AMT credit from prior years." },
+          "horizon": { "type": "integer", "minimum": 1, "maximum": 10, "description": "Planning horizon in years." },
+          "cashReturnRate": { "type": "number", "description": "Annual after-tax return on idle cash, used to time-value AMT premiums." },
+          "grantDate": { "$ref": "#/components/schemas/IsoDate", "description": "ISO grant date. Drives the 10-year expiration and 2-year qualifying-disposition gate." },
+          "hasLeftCompany": { "type": "boolean" },
+          "terminationDate": { "oneOf": [{ "$ref": "#/components/schemas/IsoDate" }, { "type": "null" }], "description": "Termination date if departed; null otherwise. When set, opens the 90-day post-termination exercise window." }
+        }
+      },
+      "NsoInput": {
+        "type": "object",
+        "required": [
+          "shares", "strike", "currentPrice", "ordinaryIncome", "filingStatus",
+          "stateCode", "stillEmployed", "holdYears", "expectedSalePrice",
+          "haircut", "expectedMarketReturn", "holdFunding"
+        ],
+        "properties": {
+          "shares": { "type": "integer", "minimum": 1 },
+          "strike": { "type": "number", "minimum": 0 },
+          "currentPrice": { "type": "number", "minimum": 0 },
+          "ordinaryIncome": { "type": "number", "minimum": 0 },
+          "filingStatus": { "$ref": "#/components/schemas/FilingStatus" },
+          "stateCode": { "$ref": "#/components/schemas/StateCode" },
+          "stillEmployed": { "type": "boolean", "description": "FICA applies only when true." },
+          "holdYears": { "type": "number", "minimum": 1, "description": "Hold horizon. Sub-1-year is short-term and out of scope." },
+          "expectedSalePrice": { "type": "number", "minimum": 0, "description": "Expected sale price at horizon, USD per share." },
+          "haircut": { "type": "number", "minimum": 0, "maximum": 1, "description": "Volatility-drag haircut on expectedSalePrice." },
+          "expectedMarketReturn": { "type": "number", "description": "Per-year median market return rate (vol-drag pre-applied)." },
+          "holdFunding": { "type": "string", "enum": ["sell-to-cover", "cash"] }
+        }
+      },
+      "RsuInput": {
+        "type": "object",
+        "required": [
+          "shares", "currentPrice", "ordinaryIncome", "filingStatus", "stateCode",
+          "stillEmployed", "holdYears", "expectedSalePrice", "haircut", "expectedMarketReturn"
+        ],
+        "properties": {
+          "shares": { "type": "integer", "minimum": 1 },
+          "currentPrice": { "type": "number", "minimum": 0, "description": "Fair market value at vest." },
+          "ordinaryIncome": { "type": "number", "minimum": 0 },
+          "filingStatus": { "$ref": "#/components/schemas/FilingStatus" },
+          "stateCode": { "$ref": "#/components/schemas/StateCode" },
+          "stillEmployed": { "type": "boolean" },
+          "holdYears": { "type": "number", "minimum": 0.25, "maximum": 5 },
+          "expectedSalePrice": { "type": "number", "minimum": 0 },
+          "haircut": { "type": "number", "minimum": 0, "maximum": 1 },
+          "expectedMarketReturn": { "type": "number" }
+        }
+      },
+      "ConcentrationInput": {
+        "type": "object",
+        "required": [
+          "positionValue", "costBasis", "acquisitionDate", "sector", "stateCode",
+          "filingStatus", "ordinaryIncome", "totalAssets", "expectedPositionReturn",
+          "expectedMarketReturn", "volatilityDrag"
+        ],
+        "properties": {
+          "positionValue": { "type": "number", "minimum": 0, "description": "Current value of the concentrated position, USD." },
+          "costBasis": { "type": "number", "minimum": 0 },
+          "acquisitionDate": { "$ref": "#/components/schemas/IsoDate" },
+          "sector": { "$ref": "#/components/schemas/SectorKey" },
+          "stateCode": { "$ref": "#/components/schemas/StateCode" },
+          "filingStatus": { "$ref": "#/components/schemas/FilingStatus" },
+          "ordinaryIncome": { "type": "number", "minimum": 0 },
+          "totalAssets": { "type": "number", "minimum": 0, "description": "Total liquid net worth including the position." },
+          "expectedPositionReturn": { "type": "number", "description": "Annual return on the concentrated stock." },
+          "expectedMarketReturn": { "type": "number", "description": "Annual return on diversified holdings + reinvested proceeds." },
+          "volatilityDrag": { "type": "number", "minimum": 0, "maximum": 0.99 },
+          "volatility": { "type": "number", "minimum": 0, "description": "Override sector-typed σ for the Black-Scholes hedging path." },
+          "hedgeChoice": {
+            "type": "object",
+            "required": ["kind", "protectionLevel", "tenorYears"],
+            "properties": {
+              "kind": { "type": "string", "enum": ["put", "collar"] },
+              "protectionLevel": { "type": "number", "minimum": 0.05, "maximum": 0.5 },
+              "tenorYears": { "type": "number", "minimum": 0.25 },
+              "upsideCapPct": { "type": "number" }
+            }
+          }
+        }
+      },
+      "ProtectivePutInput": {
+        "type": "object",
+        "required": ["positionValue", "sector", "volatility", "protectionLevel", "tenorYears"],
+        "properties": {
+          "positionValue": { "type": "number", "minimum": 0 },
+          "sector": { "$ref": "#/components/schemas/SectorKey" },
+          "volatility": { "type": "number", "minimum": 0, "description": "Annualized implied volatility (σ)." },
+          "protectionLevel": { "type": "number", "minimum": 0.05, "maximum": 0.5, "description": "Drawdown the put protects against, as a fraction (e.g. 0.20 = 20% below current)." },
+          "tenorYears": { "type": "number", "minimum": 0.25, "description": "Option tenor in years." },
+          "expectedReturn": { "type": "number", "description": "Override sector long-run drift μ." },
+          "tickerLabel": { "type": "string", "description": "Optional ticker for warning copy (e.g. \"AAPL\")." }
+        }
+      },
+      "QsbsInput": {
+        "type": "object",
+        "required": [
+          "acquisitionDate", "saleDate", "entityType", "acquisitionMethod",
+          "assetCategory", "industry", "activeBusiness", "adjustedBasis",
+          "expectedGain", "stateCode", "ordinaryIncome", "filingStatus"
+        ],
+        "properties": {
+          "acquisitionDate": { "$ref": "#/components/schemas/IsoDate" },
+          "saleDate": { "$ref": "#/components/schemas/IsoDate" },
+          "entityType": { "type": "string", "enum": ["us-c-corp", "other"] },
+          "acquisitionMethod": { "type": "string", "enum": ["original-issuance", "gift-or-inheritance", "secondary", "unsure"] },
+          "assetCategory": { "type": "string", "enum": ["under-50m", "50m-to-75m", "over-75m", "unsure"] },
+          "industry": {
+            "type": "string",
+            "enum": [
+              "tech-software", "manufacturing", "biotech-research", "retail-wholesale",
+              "health-services", "law", "engineering", "architecture",
+              "accounting-actuarial", "consulting", "finance", "farming",
+              "extraction", "hospitality", "performing-arts", "other-services", "unsure"
+            ]
+          },
+          "activeBusiness": { "type": "string", "enum": ["yes", "no", "unsure"] },
+          "adjustedBasis": { "type": "number", "minimum": 0 },
+          "expectedGain": { "type": "number" },
+          "stateCode": { "$ref": "#/components/schemas/StateCode" },
+          "ordinaryIncome": { "type": "number", "minimum": 0 },
+          "filingStatus": { "$ref": "#/components/schemas/FilingStatus" }
+        }
+      }
+    }
+  },
+  "externalDocs": {
+    "description": "Integration surface, citation guidance, and roadmap",
+    "url": "https://optionsahoy.com/for-agents"
+  }
+}

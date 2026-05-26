@@ -1,0 +1,76 @@
+{
+  "name": "Nebraska",
+  "source": "Tax Foundation (taxfoundation.org/data/all/state/state-income-tax-rates)",
+  "years": {
+    "2025": {
+      "single": [
+        {
+          "min": 0,
+          "rate": 0.0246
+        },
+        {
+          "min": 4030,
+          "rate": 0.0351
+        },
+        {
+          "min": 24120,
+          "rate": 0.0501
+        },
+        {
+          "min": 38870,
+          "rate": 0.052
+        }
+      ],
+      "married_joint": [
+        {
+          "min": 0,
+          "rate": 0.0246
+        },
+        {
+          "min": 8040,
+          "rate": 0.0351
+        },
+        {
+          "min": 48250,
+          "rate": 0.0501
+        },
+        {
+          "min": 77730,
+          "rate": 0.052
+        }
+      ],
+      "notes": ""
+    },
+    "2026": {
+      "single": [
+        {
+          "min": 0,
+          "rate": 0.0246
+        },
+        {
+          "min": 4130,
+          "rate": 0.0351
+        },
+        {
+          "min": 24760,
+          "rate": 0.0455
+        }
+      ],
+      "married_joint": [
+        {
+          "min": 0,
+          "rate": 0.0246
+        },
+        {
+          "min": 8250,
+          "rate": 0.0351
+        },
+        {
+          "min": 49530,
+          "rate": 0.0455
+        }
+      ],
+      "notes": ""
+    }
+  }
+}

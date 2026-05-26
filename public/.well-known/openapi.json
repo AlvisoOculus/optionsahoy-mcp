@@ -1,0 +1,4 @@
+{
+  "openapi_url": "https://optionsahoy.com/openapi.json",
+  "description": "OpenAPI 3.1 spec for the OptionsAhoy Calculator API. The canonical spec lives at /openapi.json; this .well-known location is a discovery hint for agents that look here first."
+}

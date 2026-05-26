@@ -1,0 +1,52 @@
+{
+  "name": "Washington",
+  "source": "Tax Foundation (taxfoundation.org/data/all/state/state-income-tax-rates)",
+  "years": {
+    "2025": {
+      "single": [],
+      "married_joint": [],
+      "notes": "No ordinary income tax; 7% capital gains tax above $270k LTCG — see ltcgOnly field",
+      "ltcg": {
+        "single": [
+          {
+            "min": 270000,
+            "rate": 0.07
+          }
+        ],
+        "married_joint": [
+          {
+            "min": 270000,
+            "rate": 0.07
+          }
+        ]
+      }
+    },
+    "2026": {
+      "single": [],
+      "married_joint": [],
+      "notes": "No ordinary income tax; 7%/9% LTCG tax — see ltcg override",
+      "ltcg": {
+        "single": [
+          {
+            "min": 270000,
+            "rate": 0.07
+          },
+          {
+            "min": 1270000,
+            "rate": 0.09
+          }
+        ],
+        "married_joint": [
+          {
+            "min": 270000,
+            "rate": 0.07
+          },
+          {
+            "min": 1270000,
+            "rate": 0.09
+          }
+        ]
+      }
+    }
+  }
+}

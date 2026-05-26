@@ -1,0 +1,84 @@
+{
+  "name": "Oregon",
+  "source": "Tax Foundation (taxfoundation.org/data/all/state/state-income-tax-rates)",
+  "years": {
+    "2025": {
+      "single": [
+        {
+          "min": 0,
+          "rate": 0.0475
+        },
+        {
+          "min": 4400,
+          "rate": 0.0675
+        },
+        {
+          "min": 11050,
+          "rate": 0.0875
+        },
+        {
+          "min": 125000,
+          "rate": 0.099
+        }
+      ],
+      "married_joint": [
+        {
+          "min": 0,
+          "rate": 0.0475
+        },
+        {
+          "min": 8800,
+          "rate": 0.0675
+        },
+        {
+          "min": 22100,
+          "rate": 0.0875
+        },
+        {
+          "min": 250000,
+          "rate": 0.099
+        }
+      ],
+      "notes": ""
+    },
+    "2026": {
+      "single": [
+        {
+          "min": 0,
+          "rate": 0.0475
+        },
+        {
+          "min": 4550,
+          "rate": 0.0675
+        },
+        {
+          "min": 11400,
+          "rate": 0.0875
+        },
+        {
+          "min": 125000,
+          "rate": 0.099
+        }
+      ],
+      "married_joint": [
+        {
+          "min": 0,
+          "rate": 0.0475
+        },
+        {
+          "min": 9100,
+          "rate": 0.0675
+        },
+        {
+          "min": 22800,
+          "rate": 0.0875
+        },
+        {
+          "min": 250000,
+          "rate": 0.099
+        }
+      ],
+      "notes": ""
+    }
+  }
+}

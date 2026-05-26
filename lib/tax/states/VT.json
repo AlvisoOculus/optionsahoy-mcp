@@ -1,0 +1,84 @@
+{
+  "name": "Vermont",
+  "source": "Tax Foundation (taxfoundation.org/data/all/state/state-income-tax-rates)",
+  "years": {
+    "2025": {
+      "single": [
+        {
+          "min": 0,
+          "rate": 0.0335
+        },
+        {
+          "min": 47900,
+          "rate": 0.066
+        },
+        {
+          "min": 116000,
+          "rate": 0.076
+        },
+        {
+          "min": 242000,
+          "rate": 0.0875
+        }
+      ],
+      "married_joint": [
+        {
+          "min": 0,
+          "rate": 0.0335
+        },
+        {
+          "min": 79950,
+          "rate": 0.066
+        },
+        {
+          "min": 193300,
+          "rate": 0.076
+        },
+        {
+          "min": 294600,
+          "rate": 0.0875
+        }
+      ],
+      "notes": ""
+    },
+    "2026": {
+      "single": [
+        {
+          "min": 0,
+          "rate": 0.0335
+        },
+        {
+          "min": 49400,
+          "rate": 0.066
+        },
+        {
+          "min": 119700,
+          "rate": 0.076
+        },
+        {
+          "min": 249700,
+          "rate": 0.0875
+        }
+      ],
+      "married_joint": [
+        {
+          "min": 0,
+          "rate": 0.0335
+        },
+        {
+          "min": 82500,
+          "rate": 0.066
+        },
+        {
+          "min": 199450,
+          "rate": 0.076
+        },
+        {
+          "min": 304000,
+          "rate": 0.0875
+        }
+      ],
+      "notes": ""
+    }
+  }
+}

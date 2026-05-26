@@ -1,0 +1,180 @@
+{
+  "name": "California",
+  "source": "Tax Foundation (taxfoundation.org/data/all/state/state-income-tax-rates)",
+  "years": {
+    "2025": {
+      "single": [
+        {
+          "min": 0,
+          "rate": 0.01
+        },
+        {
+          "min": 10756,
+          "rate": 0.02
+        },
+        {
+          "min": 25499,
+          "rate": 0.04
+        },
+        {
+          "min": 40245,
+          "rate": 0.06
+        },
+        {
+          "min": 55866,
+          "rate": 0.08
+        },
+        {
+          "min": 70606,
+          "rate": 0.093
+        },
+        {
+          "min": 360659,
+          "rate": 0.103
+        },
+        {
+          "min": 432787,
+          "rate": 0.113
+        },
+        {
+          "min": 721314,
+          "rate": 0.123
+        },
+        {
+          "min": 1000000,
+          "rate": 0.133
+        }
+      ],
+      "married_joint": [
+        {
+          "min": 0,
+          "rate": 0.01
+        },
+        {
+          "min": 21512,
+          "rate": 0.02
+        },
+        {
+          "min": 50998,
+          "rate": 0.04
+        },
+        {
+          "min": 80490,
+          "rate": 0.06
+        },
+        {
+          "min": 111732,
+          "rate": 0.08
+        },
+        {
+          "min": 141732,
+          "rate": 0.093
+        },
+        {
+          "min": 721318,
+          "rate": 0.103
+        },
+        {
+          "min": 865574,
+          "rate": 0.113
+        },
+        {
+          "min": 1000000,
+          "rate": 0.123
+        },
+        {
+          "min": 1442628,
+          "rate": 0.133
+        }
+      ],
+      "notes": "Includes 1% mental-health surcharge over $1M"
+    },
+    "2026": {
+      "single": [
+        {
+          "min": 0,
+          "rate": 0.01
+        },
+        {
+          "min": 11079,
+          "rate": 0.02
+        },
+        {
+          "min": 26264,
+          "rate": 0.04
+        },
+        {
+          "min": 41452,
+          "rate": 0.06
+        },
+        {
+          "min": 57542,
+          "rate": 0.08
+        },
+        {
+          "min": 72724,
+          "rate": 0.093
+        },
+        {
+          "min": 371479,
+          "rate": 0.103
+        },
+        {
+          "min": 445771,
+          "rate": 0.113
+        },
+        {
+          "min": 742953,
+          "rate": 0.123
+        },
+        {
+          "min": 1000000,
+          "rate": 0.133
+        }
+      ],
+      "married_joint": [
+        {
+          "min": 0,
+          "rate": 0.01
+        },
+        {
+          "min": 22158,
+          "rate": 0.02
+        },
+        {
+          "min": 52528,
+          "rate": 0.04
+        },
+        {
+          "min": 82904,
+          "rate": 0.06
+        },
+        {
+          "min": 115084,
+          "rate": 0.08
+        },
+        {
+          "min": 145448,
+          "rate": 0.093
+        },
+        {
+          "min": 742958,
+          "rate": 0.103
+        },
+        {
+          "min": 891542,
+          "rate": 0.113
+        },
+        {
+          "min": 1000000,
+          "rate": 0.123
+        },
+        {
+          "min": 1485906,
+          "rate": 0.133
+        }
+      ],
+      "notes": "Includes 1% mental-health surcharge over $1M"
+    }
+  }
+}

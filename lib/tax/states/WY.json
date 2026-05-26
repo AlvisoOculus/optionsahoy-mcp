@@ -1,0 +1,16 @@
+{
+  "name": "Wyoming",
+  "source": "Tax Foundation (taxfoundation.org/data/all/state/state-income-tax-rates)",
+  "years": {
+    "2025": {
+      "single": [],
+      "married_joint": [],
+      "notes": "No state income tax"
+    },
+    "2026": {
+      "single": [],
+      "married_joint": [],
+      "notes": "No state income tax"
+    }
+  }
+}

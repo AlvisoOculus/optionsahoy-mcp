@@ -1,0 +1,17 @@
+{
+  "name": "Colorado",
+  "source": "https://tax.colorado.gov/sites/tax/files/documents/DR_0104AMT_2024.pdf",
+  "asOfYear": 2026,
+  "rate": 0.0347,
+  "phaseoutRate": 0.50,
+  "exemption": {
+    "single": 90100,
+    "married_joint": 140200,
+    "head_household": 90100
+  },
+  "phaseoutStart": {
+    "single": 500000,
+    "married_joint": 1000000,
+    "head_household": 500000
+  }
+}

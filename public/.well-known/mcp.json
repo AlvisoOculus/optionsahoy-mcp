@@ -1,0 +1,10 @@
+{
+  "name": "OptionsAhoy",
+  "description": "Deterministic equity-compensation calculator tools for AI agents. Multi-year ISO/AMT optimization, NSO sell-vs-hold, RSU vest decisions, single-stock concentration, protective put pricing, QSBS qualification.",
+  "version": "1.0.0",
+  "mcp_url": "https://optionsahoy.com/mcp",
+  "transport": "http",
+  "protocolVersion": "2024-11-05",
+  "documentation": "https://optionsahoy.com/for-agents",
+  "contact": "andrew@alphalatitude.com"
+}

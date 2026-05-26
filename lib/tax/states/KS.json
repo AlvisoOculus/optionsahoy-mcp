@@ -1,0 +1,52 @@
+{
+  "name": "Kansas",
+  "source": "Tax Foundation (taxfoundation.org/data/all/state/state-income-tax-rates)",
+  "years": {
+    "2025": {
+      "single": [
+        {
+          "min": 0,
+          "rate": 0.052
+        },
+        {
+          "min": 23000,
+          "rate": 0.0558
+        }
+      ],
+      "married_joint": [
+        {
+          "min": 0,
+          "rate": 0.052
+        },
+        {
+          "min": 46000,
+          "rate": 0.0558
+        }
+      ],
+      "notes": ""
+    },
+    "2026": {
+      "single": [
+        {
+          "min": 0,
+          "rate": 0.052
+        },
+        {
+          "min": 23000,
+          "rate": 0.0558
+        }
+      ],
+      "married_joint": [
+        {
+          "min": 0,
+          "rate": 0.052
+        },
+        {
+          "min": 46000,
+          "rate": 0.0558
+        }
+      ],
+      "notes": ""
+    }
+  }
+}
