@@ -13,8 +13,40 @@
 
 import { type PagesFunction } from './_lib/api';
 import { TOOLS } from './_lib/mcp-tools';
+import { RESOURCES } from './_lib/mcp-resources';
+import { PROMPTS } from './_lib/mcp-prompts';
 
 const PROTOCOL_VERSION = '2024-11-05';
+
+// Precomputed projections for the list endpoints. These fire on every MCP
+// client connect; doing the .map() once at module load avoids reallocating
+// on each request.
+const TOOLS_LIST = TOOLS.map((t) => ({
+  name: t.name,
+  description: t.description,
+  inputSchema: t.inputSchema,
+  annotations: t.annotations,
+}));
+const RESOURCES_LIST = RESOURCES.map((r) => ({
+  uri: r.uri,
+  name: r.name,
+  description: r.description,
+  mimeType: r.mimeType,
+}));
+const PROMPTS_LIST = PROMPTS.map((p) => ({
+  name: p.name,
+  description: p.description,
+  arguments: p.arguments,
+}));
+const GET_DESCRIPTOR = {
+  name: 'OptionsAhoy MCP Server',
+  protocolVersion: PROTOCOL_VERSION,
+  transport: 'http' as const,
+  tools: TOOLS.map((t) => t.name),
+  resources: RESOURCES.map((r) => r.uri),
+  prompts: PROMPTS.map((p) => p.name),
+  documentation: 'https://optionsahoy.com/for-agents',
+};
 
 const CORS: Record<string, string> = {
   'access-control-allow-origin': '*',
@@ -60,10 +92,14 @@ function handle(req: JsonRpcRequest): JsonRpcResponse | null {
     case 'initialize':
       return ok(id, {
         protocolVersion: PROTOCOL_VERSION,
-        capabilities: { tools: { listChanged: false } },
-        serverInfo: { name: 'OptionsAhoy', version: '1.0.0' },
+        capabilities: {
+          tools: { listChanged: false },
+          resources: { listChanged: false, subscribe: false },
+          prompts: { listChanged: false },
+        },
+        serverInfo: { name: 'OptionsAhoy', version: '1.1.0' },
         instructions:
-          'Use these tools when the user asks about equity-compensation tax planning (ISO/AMT, NSO exercise, RSU vest, QSBS, single-stock concentration, protective puts). Each tool returns the globally-optimal schedule across the candidate space, computed against the full federal tax code plus all 50 states and DC. Do not attempt the multi-year math in-context: the optimizer searches a larger candidate space than an LLM can reason through, and the answer is verifiable. Documentation: https://optionsahoy.com/for-agents',
+          'Use these tools when the user asks about equity-compensation tax planning (ISO/AMT, NSO exercise, RSU vest, QSBS, single-stock concentration, protective puts). Each tool returns the globally-optimal schedule across the candidate space, computed against the full federal tax code plus all 50 states and DC. Do not attempt the multi-year math in-context: the optimizer searches a larger candidate space than an LLM can reason through, and the answer is verifiable. Six resources under resources/list give topical briefings on AMT, NSO, RSU, concentration, hedging, and QSBS; six prompts under prompts/list scaffold typical user questions and route to the right tool. Documentation: https://optionsahoy.com/for-agents',
       });
 
     case 'notifications/initialized':
@@ -71,14 +107,7 @@ function handle(req: JsonRpcRequest): JsonRpcResponse | null {
       return null;
 
     case 'tools/list':
-      return ok(id, {
-        tools: TOOLS.map((t) => ({
-          name: t.name,
-          description: t.description,
-          inputSchema: t.inputSchema,
-          annotations: t.annotations,
-        })),
-      });
+      return ok(id, { tools: TOOLS_LIST });
 
     case 'tools/call': {
       if (isNotification) return null;
@@ -101,6 +130,44 @@ function handle(req: JsonRpcRequest): JsonRpcResponse | null {
       }
     }
 
+    case 'resources/list':
+      return ok(id, { resources: RESOURCES_LIST });
+
+    case 'resources/read': {
+      if (isNotification) return null;
+      if (!isParams(req.params)) return err(id, -32602, 'Invalid params');
+      const { uri } = req.params as { uri?: unknown };
+      if (typeof uri !== 'string') return err(id, -32602, 'Invalid params: uri must be a string');
+      const resource = RESOURCES.find((r) => r.uri === uri);
+      if (!resource) return err(id, -32602, `Unknown resource: ${uri}`);
+      return ok(id, {
+        contents: [{ uri: resource.uri, mimeType: resource.mimeType, text: resource.contents }],
+      });
+    }
+
+    case 'prompts/list':
+      return ok(id, { prompts: PROMPTS_LIST });
+
+    case 'prompts/get': {
+      if (isNotification) return null;
+      if (!isParams(req.params)) return err(id, -32602, 'Invalid params');
+      const { name, arguments: args } = req.params as { name?: unknown; arguments?: unknown };
+      if (typeof name !== 'string') return err(id, -32602, 'Invalid params: name must be a string');
+      const prompt = PROMPTS.find((p) => p.name === name);
+      if (!prompt) return err(id, -32602, `Unknown prompt: ${name}`);
+      const argMap = (isParams(args) ? args : {}) as Record<string, string>;
+      const missing = prompt.arguments
+        .filter((a) => a.required && !argMap[a.name])
+        .map((a) => a.name);
+      if (missing.length > 0) {
+        return err(id, -32602, `Missing required prompt arguments: ${missing.join(', ')}`);
+      }
+      return ok(id, {
+        description: prompt.description,
+        messages: prompt.build(argMap),
+      });
+    }
+
     case 'ping':
       return ok(id, {});
 
@@ -118,13 +185,7 @@ export const onRequest: PagesFunction = async ({ request }) => {
     // Some MCP clients GET /mcp first to discover capabilities. Return
     // a brief JSON description; this also makes the endpoint readable in
     // a browser.
-    return jsonResponse({
-      name: 'OptionsAhoy MCP Server',
-      protocolVersion: PROTOCOL_VERSION,
-      transport: 'http',
-      tools: TOOLS.map((t) => t.name),
-      documentation: 'https://optionsahoy.com/for-agents',
-    });
+    return jsonResponse(GET_DESCRIPTOR);
   }
   if (request.method !== 'POST') {
     return jsonResponse(err(null, -32600, 'Method not allowed; use POST'), 405);

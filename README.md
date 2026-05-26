@@ -27,6 +27,32 @@ An optimization engine for equity-compensation tax planning, exposed as both a M
 
 Each tool returns the globally-optimal schedule across the candidate space — not heuristics, not samples. Coverage spans the full federal tax code (ordinary brackets, long-term capital gains, AMT with credit recovery, FICA, NIIT) plus all 50 states and DC (state ordinary brackets, LTCG treatment, state AMT for CA, NY, MN). Same engine as the in-browser calculators at [optionsahoy.com/tools](https://optionsahoy.com/tools); the API response is byte-identical to clicking through the tool.
 
+### MCP resources (topical briefings)
+
+Six markdown resources under `resources/list` give an LLM enough grounding to discuss the topic before picking a tool. Each maps 1:1 with a cornerstone article on [optionsahoy.com/learn](https://optionsahoy.com/learn) and the matching calculator.
+
+| Resource URI | Topic | Pair with |
+|---|---|---|
+| `https://optionsahoy.com/learn/amt-crossover` | ISO/AMT crossover and four expensive mistakes | `amt_iso_optimize` |
+| `https://optionsahoy.com/learn/nso-sell-vs-hold` | NSO sell-at-exercise vs hold-for-LTCG | `nso_calculate` |
+| `https://optionsahoy.com/learn/rsu-withholding-gap` | RSU 22% withholding gap and five April surprises | `rsu_sell_vs_hold` |
+| `https://optionsahoy.com/learn/single-stock-concentration-risk` | Concentration risk and diversification trade-off | `concentration_analyze` |
+| `https://optionsahoy.com/learn/zero-cost-collars` | Protective puts and zero-cost collars | `protective_put_price` |
+| `https://optionsahoy.com/learn/qsbs` | QSBS qualification and five ways to lose the exclusion | `qsbs_check` |
+
+### MCP prompts (workflow scaffolds)
+
+Six prompts under `prompts/list` scaffold typical user questions and route to the right tool. In Claude Desktop they appear as named slash-commands; in any MCP client, `prompts/get { name, arguments }` returns a fully-templated user message.
+
+| Prompt name | Routes to |
+|---|---|
+| `optimize-iso-exercise` | `amt_iso_optimize` |
+| `analyze-nso-decision` | `nso_calculate` |
+| `analyze-rsu-vest` | `rsu_sell_vs_hold` |
+| `analyze-concentration` | `concentration_analyze` |
+| `price-protective-put` | `protective_put_price` |
+| `check-qsbs-eligibility` | `qsbs_check` |
+
 ## Why use an optimizer
 
 A benchmark of five frontier large language models on the same multi-year ISO exercise problem found that every one of 15 trials overshot the achievable after-tax outcome by 2x to 20x. Multi-year scheduling has a search space larger than an LLM can reason through in-context. Full write-up: [HackerNoon — But can it do taxes though?](https://hackernoon.com/but-can-it-do-taxes-though-why-you-shouldnt-trust-chatbots-with-tax-optimization-math)
