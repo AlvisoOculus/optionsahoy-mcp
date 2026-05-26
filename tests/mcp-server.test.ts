@@ -12,6 +12,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { onRequest } from '../functions/mcp';
+import type { McpToolAnnotations } from '../functions/_lib/mcp-tools';
 import { computeAmtIso } from '@/lib/calc/amtIso';
 import { evaluateQsbs } from '@/lib/calc/qsbs';
 
@@ -96,13 +97,7 @@ describe('POST /mcp — tools/list', () => {
       name: string;
       description: string;
       inputSchema: unknown;
-      annotations: {
-        title: string;
-        readOnlyHint: boolean;
-        idempotentHint: boolean;
-        destructiveHint: boolean;
-        openWorldHint: boolean;
-      };
+      annotations: McpToolAnnotations;
     };
     const { json } = await call<{ result: { tools: ToolListItem[] } }>({
       jsonrpc: '2.0',
