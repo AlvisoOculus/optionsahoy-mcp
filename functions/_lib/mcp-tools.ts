@@ -69,16 +69,33 @@ const SECTOR_SCHEMA = {
 };
 const ISO_DATE = { type: 'string', format: 'date' };
 
+// Shared optional ticker field — the four growth-bearing calculators (ISO,
+// NSO, RSU, concentration) accept it as an alternative to passing explicit
+// expected-return / sale-price values. Resolved against the trailing-CAGR
+// table at lib/data/trailing-returns.json (~90 covered public-stock symbols,
+// refreshed daily).
+const TICKER_SCHEMA = {
+  type: 'string',
+  description:
+    'Optional public-stock symbol (e.g. "NVDA", "AAPL"). When set, the tool substitutes the ticker\'s trailing CAGR for any unsupplied expected-return / sale-price field instead of requiring the caller to invent one. ~90 symbols covered; unknown tickers fall through to "required field" errors so the model knows to ask the user.',
+};
+
+// Boilerplate appended to every growth-bearing tool's description. Tells the
+// invoking model how to handle required fields whose only honest sources are
+// the user message or a recognized ticker — never the model itself.
+const STRICT_INPUT_NOTE =
+  ' IMPORTANT: every field listed in `required` must come from the user\'s message OR be derivable from an optional `ticker`. The model invoking this tool MUST NOT invent a value for any required field. If the user did not supply it and no ticker resolves it, ask the user.';
+
 export const TOOLS: McpTool[] = [
   {
     name: 'amt_iso_optimize',
     annotations: { title: 'ISO/AMT Exercise Optimization', ...CALC_HINTS },
     description:
-      'Multi-year Incentive Stock Option (ISO) exercise schedule that minimizes federal and state Alternative Minimum Tax (AMT), with credit recovery across years, grant-expiration timing, and the post-termination exercise window. Returns the globally-optimal schedule, per-year tax breakdown, and net-final-value comparison vs lump-sum and even-split alternatives.',
+      'Multi-year Incentive Stock Option (ISO) exercise schedule that minimizes federal and state Alternative Minimum Tax (AMT), with credit recovery across years, grant-expiration timing, and the post-termination exercise window. Returns the globally-optimal schedule, per-year tax breakdown, and net-final-value comparison vs lump-sum and even-split alternatives.' + STRICT_INPUT_NOTE,
     inputSchema: {
       type: 'object',
       required: [
-        'shares', 'strike', 'fmv', 'expectedGrowth', 'volatilityDrag', 'filingStatus',
+        'shares', 'strike', 'fmv', 'volatilityDrag', 'filingStatus',
         'ordinaryIncome', 'stateCode', 'carryforwardCredit', 'horizon', 'cashReturnRate',
         'grantDate', 'hasLeftCompany', 'terminationDate',
       ],
@@ -86,7 +103,12 @@ export const TOOLS: McpTool[] = [
         shares: { type: 'integer', minimum: 1 },
         strike: { type: 'number', minimum: 0 },
         fmv: { type: 'number', minimum: 0 },
-        expectedGrowth: { type: 'number' },
+        expectedGrowth: {
+          type: 'number',
+          description:
+            'Annual expected stock growth as a decimal (0.10 = 10%). Required unless `ticker` resolves it from trailing CAGR.',
+        },
+        ticker: TICKER_SCHEMA,
         volatilityDrag: { type: 'number', minimum: 0, maximum: 0.99 },
         filingStatus: FILING_SCHEMA,
         ordinaryIncome: { type: 'number', minimum: 0 },
@@ -105,13 +127,12 @@ export const TOOLS: McpTool[] = [
     name: 'nso_calculate',
     annotations: { title: 'NSO Sell-vs-Hold Analysis', ...CALC_HINTS },
     description:
-      'After-tax payout on a non-qualified stock option (NSO) exercise: federal, state, FICA (Social Security + Medicare + Additional Medicare). Compares sell-at-exercise vs hold-for-long-term-capital-gains across the chosen horizon.',
+      'After-tax payout on a non-qualified stock option (NSO) exercise: federal, state, FICA (Social Security + Medicare + Additional Medicare). Compares sell-at-exercise vs hold-for-long-term-capital-gains across the chosen horizon.' + STRICT_INPUT_NOTE,
     inputSchema: {
       type: 'object',
       required: [
         'shares', 'strike', 'currentPrice', 'ordinaryIncome', 'filingStatus', 'stateCode',
-        'stillEmployed', 'holdYears', 'expectedSalePrice', 'haircut', 'expectedMarketReturn',
-        'holdFunding',
+        'stillEmployed', 'holdYears', 'haircut', 'holdFunding',
       ],
       properties: {
         shares: { type: 'integer', minimum: 1 },
@@ -122,9 +143,19 @@ export const TOOLS: McpTool[] = [
         stateCode: STATE_SCHEMA,
         stillEmployed: { type: 'boolean' },
         holdYears: { type: 'number', minimum: 1 },
-        expectedSalePrice: { type: 'number', minimum: 0 },
+        expectedSalePrice: {
+          type: 'number',
+          minimum: 0,
+          description:
+            'Projected $/share at end of holdYears. Required unless `ticker` resolves it from currentPrice × (1 + trailing CAGR)^holdYears.',
+        },
         haircut: { type: 'number', minimum: 0, maximum: 1 },
-        expectedMarketReturn: { type: 'number' },
+        expectedMarketReturn: {
+          type: 'number',
+          description:
+            'Annual after-tax-proceeds reinvestment rate. Defaults to SPY trailing CAGR for holdYears if omitted.',
+        },
+        ticker: TICKER_SCHEMA,
         holdFunding: { type: 'string', enum: ['sell-to-cover', 'cash'] },
       },
     },
@@ -134,12 +165,12 @@ export const TOOLS: McpTool[] = [
     name: 'rsu_sell_vs_hold',
     annotations: { title: 'RSU Sell-at-Vest vs Hold', ...CALC_HINTS },
     description:
-      'Compare sell-at-vest vs hold-for-LTCG payouts for an RSU vest, including the 12-month short-term cliff, state tax, FICA, and the optional growth assumption.',
+      'Compare sell-at-vest vs hold-for-LTCG payouts for an RSU vest, including the 12-month short-term cliff, state tax, FICA, and the optional growth assumption.' + STRICT_INPUT_NOTE,
     inputSchema: {
       type: 'object',
       required: [
         'shares', 'currentPrice', 'ordinaryIncome', 'filingStatus', 'stateCode',
-        'stillEmployed', 'holdYears', 'expectedSalePrice', 'haircut', 'expectedMarketReturn',
+        'stillEmployed', 'holdYears', 'haircut',
       ],
       properties: {
         shares: { type: 'integer', minimum: 1 },
@@ -149,9 +180,19 @@ export const TOOLS: McpTool[] = [
         stateCode: STATE_SCHEMA,
         stillEmployed: { type: 'boolean' },
         holdYears: { type: 'number', minimum: 0.25, maximum: 5 },
-        expectedSalePrice: { type: 'number', minimum: 0 },
+        expectedSalePrice: {
+          type: 'number',
+          minimum: 0,
+          description:
+            'Projected $/share at end of holdYears. Required unless `ticker` resolves it from currentPrice × (1 + trailing CAGR)^holdYears.',
+        },
         haircut: { type: 'number', minimum: 0, maximum: 1 },
-        expectedMarketReturn: { type: 'number' },
+        expectedMarketReturn: {
+          type: 'number',
+          description:
+            'Annual after-tax-proceeds reinvestment rate. Defaults to SPY trailing CAGR for holdYears if omitted.',
+        },
+        ticker: TICKER_SCHEMA,
       },
     },
     handler: (args) => computeRsuResult(parseRsuInput(args)),
@@ -160,13 +201,12 @@ export const TOOLS: McpTool[] = [
     name: 'concentration_analyze',
     annotations: { title: 'Single-Stock Concentration Analysis', ...CALC_HINTS },
     description:
-      'Quantify single-stock concentration risk: drawdown exposure at 30/50/70% and after-tax comparison of selling down vs holding vs hedging, with multi-year tax math.',
+      'Quantify single-stock concentration risk: drawdown exposure at 30/50/70% and after-tax comparison of selling down vs holding vs hedging, with multi-year tax math. `totalAssets` is the user\'s total investable portfolio (the concentrated position plus everything else); the analysis frames risk relative to it, so it MUST come from the user — never infer or default it.' + STRICT_INPUT_NOTE,
     inputSchema: {
       type: 'object',
       required: [
         'positionValue', 'costBasis', 'acquisitionDate', 'sector', 'stateCode', 'filingStatus',
-        'ordinaryIncome', 'totalAssets', 'expectedPositionReturn', 'expectedMarketReturn',
-        'volatilityDrag',
+        'ordinaryIncome', 'totalAssets', 'volatilityDrag',
       ],
       properties: {
         positionValue: { type: 'number', minimum: 0 },
@@ -176,9 +216,23 @@ export const TOOLS: McpTool[] = [
         stateCode: STATE_SCHEMA,
         filingStatus: FILING_SCHEMA,
         ordinaryIncome: { type: 'number', minimum: 0 },
-        totalAssets: { type: 'number', minimum: 0 },
-        expectedPositionReturn: { type: 'number' },
-        expectedMarketReturn: { type: 'number' },
+        totalAssets: {
+          type: 'number',
+          minimum: 0,
+          description:
+            'Total investable portfolio in dollars (concentrated position + everything else). User-supplied; never inferred. If the user did not state it, ASK.',
+        },
+        expectedPositionReturn: {
+          type: 'number',
+          description:
+            'Annual expected return on the concentrated stock as a decimal (0.10 = 10%). Required unless `ticker` resolves it from trailing CAGR.',
+        },
+        expectedMarketReturn: {
+          type: 'number',
+          description:
+            'Annual after-tax-proceeds reinvestment rate. Defaults to SPY trailing CAGR for the 3-year horizon if omitted.',
+        },
+        ticker: TICKER_SCHEMA,
         volatilityDrag: { type: 'number', minimum: 0, maximum: 0.99 },
         volatility: { type: 'number', minimum: 0 },
         hedgeChoice: {

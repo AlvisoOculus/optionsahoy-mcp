@@ -190,6 +190,64 @@ describe('POST /mcp — tools/call dispatches to the right calc', () => {
     expect(json.error.code).toBe(-32602);
     expect(json.error.message).toMatch(/Unknown tool/);
   });
+
+  // Concentration is the bug-reported case: an LLM was inventing
+  // expectedPositionReturn and surfacing the projected wealth as if the
+  // user had supplied it. The fix is twofold — ticker-derived rates and
+  // explicit "ask the user" errors when both are missing. This test
+  // locks both halves end-to-end through the MCP transport.
+  it('concentration_analyze with ticker but no expectedPositionReturn succeeds', async () => {
+    const { json } = await call<{
+      result: { content: Array<{ text: string }>; isError?: boolean };
+    }>({
+      jsonrpc: '2.0',
+      id: 7,
+      method: 'tools/call',
+      params: {
+        name: 'concentration_analyze',
+        arguments: {
+          positionValue: 400000,
+          costBasis: 200000,
+          acquisitionDate: '2022-01-15',
+          sector: 'tech_software',
+          stateCode: 'CA',
+          filingStatus: 'single',
+          ordinaryIncome: 250000,
+          totalAssets: 1000000,
+          volatilityDrag: 0.2,
+          ticker: 'NVDA',
+        },
+      },
+    });
+    expect(json.result.isError).toBeFalsy();
+    expect(json.result.content[0]!.text).toMatch(/lumpSum|riskBand|"plans"/);
+  });
+
+  it('concentration_analyze with no ticker and no growth returns isError ("ask the user")', async () => {
+    const { json } = await call<{
+      result: { content: Array<{ text: string }>; isError?: boolean };
+    }>({
+      jsonrpc: '2.0',
+      id: 8,
+      method: 'tools/call',
+      params: {
+        name: 'concentration_analyze',
+        arguments: {
+          positionValue: 400000,
+          costBasis: 200000,
+          acquisitionDate: '2022-01-15',
+          sector: 'tech_software',
+          stateCode: 'CA',
+          filingStatus: 'single',
+          ordinaryIncome: 250000,
+          totalAssets: 1000000,
+          volatilityDrag: 0.2,
+        },
+      },
+    });
+    expect(json.result.isError).toBe(true);
+    expect(json.result.content[0]!.text).toMatch(/MUST NOT invent/i);
+  });
 });
 
 describe('POST /mcp — resources', () => {

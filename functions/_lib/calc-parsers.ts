@@ -14,6 +14,60 @@ import type { ProtectivePutInputs } from '../../lib/calc/protectivePut';
 import type { QsbsInputs } from '../../lib/calc/qsbs';
 
 import { asObject, p, FILING_STATUSES } from './api';
+import { getTrailingReturn } from '../../lib/data/trailing-returns';
+
+type Obj = Record<string, unknown>;
+
+const ASK_USER_HINT =
+  'The model invoking this tool MUST NOT invent this value — ask the user.';
+
+// Resolve a growth-rate field that the LLM is otherwise tempted to invent.
+// Priority: explicit numeric value > trailing CAGR for `ticker` > error.
+function resolveGrowthRate(o: Obj, fieldName: string, horizonYears: number): number {
+  if (o[fieldName] !== undefined) return p.num(o, fieldName);
+  if (o.ticker !== undefined) {
+    const ticker = p.str(o, 'ticker');
+    const r = getTrailingReturn(ticker, horizonYears);
+    if (r !== null) return r;
+    throw new Error(
+      `field "${fieldName}" required: ticker "${ticker}" is not in our trailing-returns table (~90 covered). Pass "${fieldName}" explicitly or use a covered public-stock symbol. ${ASK_USER_HINT}`,
+    );
+  }
+  throw new Error(
+    `field "${fieldName}" required: pass a decimal annual rate (e.g. 0.10 for 10%) or set "ticker" to a covered public-stock symbol (e.g. "NVDA") to derive from trailing returns. ${ASK_USER_HINT}`,
+  );
+}
+
+// Resolve the market-comparison return — defaults to SPY's horizon-blended
+// trailing CAGR. Unlike position return, market return isn't user-belief-
+// dependent, so a documented default is reasonable.
+function resolveMarketReturn(o: Obj, horizonYears: number): number {
+  if (o.expectedMarketReturn !== undefined) return p.num(o, 'expectedMarketReturn');
+  const spy = getTrailingReturn('SPY', horizonYears);
+  if (spy === null) {
+    throw new Error(
+      `field "expectedMarketReturn" required: SPY default lookup failed for ${horizonYears}y. Pass "expectedMarketReturn" explicitly.`,
+    );
+  }
+  return spy;
+}
+
+// Resolve a projected sale price. Priority: explicit price > derived from
+// ticker (currentPrice × (1 + trailing CAGR)^holdYears) > error.
+function resolveExpectedSalePrice(o: Obj, currentPrice: number, holdYears: number): number {
+  if (o.expectedSalePrice !== undefined) return p.num(o, 'expectedSalePrice');
+  if (o.ticker !== undefined) {
+    const ticker = p.str(o, 'ticker');
+    const r = getTrailingReturn(ticker, holdYears);
+    if (r !== null) return currentPrice * Math.pow(1 + r, holdYears);
+    throw new Error(
+      `field "expectedSalePrice" required: ticker "${ticker}" is not in our trailing-returns table (~90 covered). Pass "expectedSalePrice" explicitly or use a covered public-stock symbol. ${ASK_USER_HINT}`,
+    );
+  }
+  throw new Error(
+    `field "expectedSalePrice" required: pass the projected $/share at end of holdYears, or set "ticker" to a covered public-stock symbol to derive from currentPrice × (1 + trailing CAGR)^holdYears. ${ASK_USER_HINT}`,
+  );
+}
 
 const HOLD_FUNDING = ['sell-to-cover', 'cash'] as const;
 const SECTORS = [
@@ -55,17 +109,18 @@ const QSBS_ACTIVE_BUSINESS = ['yes', 'no', 'unsure'] as const;
 
 export function parseAmtIsoInput(raw: unknown): AmtIsoInput {
   const o = asObject(raw);
+  const horizon = p.num(o, 'horizon');
   return {
     shares: p.num(o, 'shares'),
     strike: p.num(o, 'strike'),
     fmv: p.num(o, 'fmv'),
-    expectedGrowth: p.num(o, 'expectedGrowth'),
+    expectedGrowth: resolveGrowthRate(o, 'expectedGrowth', horizon),
     volatilityDrag: p.num(o, 'volatilityDrag'),
     filingStatus: p.enum(o, 'filingStatus', FILING_STATUSES),
     ordinaryIncome: p.num(o, 'ordinaryIncome'),
     stateCode: p.str(o, 'stateCode'),
     carryforwardCredit: p.num(o, 'carryforwardCredit'),
-    horizon: p.num(o, 'horizon'),
+    horizon,
     cashReturnRate: p.num(o, 'cashReturnRate'),
     grantDate: p.date(o, 'grantDate'),
     hasLeftCompany: p.bool(o, 'hasLeftCompany'),
@@ -75,37 +130,46 @@ export function parseAmtIsoInput(raw: unknown): AmtIsoInput {
 
 export function parseNsoInput(raw: unknown): NsoInput {
   const o = asObject(raw);
+  const currentPrice = p.num(o, 'currentPrice');
+  const holdYears = p.num(o, 'holdYears');
   return {
     shares: p.num(o, 'shares'),
     strike: p.num(o, 'strike'),
-    currentPrice: p.num(o, 'currentPrice'),
+    currentPrice,
     ordinaryIncome: p.num(o, 'ordinaryIncome'),
     filingStatus: p.enum(o, 'filingStatus', FILING_STATUSES),
     stateCode: p.str(o, 'stateCode'),
     stillEmployed: p.bool(o, 'stillEmployed'),
-    holdYears: p.num(o, 'holdYears'),
-    expectedSalePrice: p.num(o, 'expectedSalePrice'),
+    holdYears,
+    expectedSalePrice: resolveExpectedSalePrice(o, currentPrice, holdYears),
     haircut: p.num(o, 'haircut'),
-    expectedMarketReturn: p.num(o, 'expectedMarketReturn'),
+    expectedMarketReturn: resolveMarketReturn(o, holdYears),
     holdFunding: p.enum(o, 'holdFunding', HOLD_FUNDING),
   };
 }
 
 export function parseRsuInput(raw: unknown): RsuInput {
   const o = asObject(raw);
+  const currentPrice = p.num(o, 'currentPrice');
+  const holdYears = p.num(o, 'holdYears');
   return {
     shares: p.num(o, 'shares'),
-    currentPrice: p.num(o, 'currentPrice'),
+    currentPrice,
     ordinaryIncome: p.num(o, 'ordinaryIncome'),
     filingStatus: p.enum(o, 'filingStatus', FILING_STATUSES),
     stateCode: p.str(o, 'stateCode'),
     stillEmployed: p.bool(o, 'stillEmployed'),
-    holdYears: p.num(o, 'holdYears'),
-    expectedSalePrice: p.num(o, 'expectedSalePrice'),
+    holdYears,
+    expectedSalePrice: resolveExpectedSalePrice(o, currentPrice, holdYears),
     haircut: p.num(o, 'haircut'),
-    expectedMarketReturn: p.num(o, 'expectedMarketReturn'),
+    expectedMarketReturn: resolveMarketReturn(o, holdYears),
   };
 }
+
+// Concentration calc projects across a fixed 3-year horizon (see
+// HORIZON_YEARS in lib/calc/concentration.ts). Ticker-derived rates
+// blend trailing CAGRs around that window.
+const CONCENTRATION_HORIZON_YEARS = 3;
 
 export function parseConcentrationInput(raw: unknown): ConcentrationInputs {
   const o = asObject(raw);
@@ -118,8 +182,8 @@ export function parseConcentrationInput(raw: unknown): ConcentrationInputs {
     filingStatus: p.enum(o, 'filingStatus', FILING_STATUSES),
     ordinaryIncome: p.num(o, 'ordinaryIncome'),
     totalAssets: p.num(o, 'totalAssets'),
-    expectedPositionReturn: p.num(o, 'expectedPositionReturn'),
-    expectedMarketReturn: p.num(o, 'expectedMarketReturn'),
+    expectedPositionReturn: resolveGrowthRate(o, 'expectedPositionReturn', CONCENTRATION_HORIZON_YEARS),
+    expectedMarketReturn: resolveMarketReturn(o, CONCENTRATION_HORIZON_YEARS),
     volatilityDrag: p.num(o, 'volatilityDrag'),
   };
   if (o.volatility !== undefined) base.volatility = p.num(o, 'volatility');
