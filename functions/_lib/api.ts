@@ -9,8 +9,12 @@
 
 // Cloudflare Pages Functions ambient type. Declared here so per-endpoint
 // files don't each re-declare it just to avoid pulling in
-// @cloudflare/workers-types.
-export type PagesFunction = (context: { request: Request }) => Promise<Response> | Response;
+// @cloudflare/workers-types. env and waitUntil are optional so tests can
+// drive handlers with `{ request }` alone; in production CF always
+// supplies both.
+import { type PagesContext } from './stats';
+export type PagesFunction = (context: PagesContext) => Promise<Response> | Response;
+export type { PagesContext } from './stats';
 
 // Canonical FilingStatus literal values, mirrors the FilingStatus type in
 // lib/tax/types.ts. Used by 5 of the 6 calculator endpoints; the calc
@@ -37,36 +41,44 @@ export function preflight(): Response {
 
 // Parse and run a calculator. Returns the result as JSON on success, or
 // a 400 with the error message if parsing / validation / the calc throws.
+// Logs one row to MCP_STATS per inbound POST (preflight OPTIONS skipped).
+import { logCall } from './stats';
+
 export async function runCalc<I, O>(
-  request: Request,
+  context: PagesContext,
+  endpoint: string,
   parseInput: (raw: unknown) => I,
   compute: (input: I) => O,
 ): Promise<Response> {
+  const { request } = context;
   if (request.method === 'OPTIONS') return preflight();
   if (request.method !== 'POST') {
+    logCall(context, { endpoint, isError: true, errorMsg: `method ${request.method}` });
     return jsonResponse(405, { error: 'Method not allowed. Use POST.' });
   }
   let raw: unknown;
   try {
     raw = await request.json();
   } catch {
+    logCall(context, { endpoint, isError: true, errorMsg: 'invalid json' });
     return jsonResponse(400, { error: 'Invalid JSON in request body.' });
   }
   let input: I;
   try {
     input = parseInput(raw);
   } catch (err) {
-    return jsonResponse(400, {
-      error: `Invalid input: ${err instanceof Error ? err.message : String(err)}`,
-    });
+    const errorMsg = err instanceof Error ? err.message : String(err);
+    logCall(context, { endpoint, isError: true, errorMsg: `parse: ${errorMsg}` });
+    return jsonResponse(400, { error: `Invalid input: ${errorMsg}` });
   }
   try {
     const output = compute(input);
+    logCall(context, { endpoint, isError: false });
     return jsonResponse(200, { ok: true, result: output });
   } catch (err) {
-    return jsonResponse(400, {
-      error: `Calculation failed: ${err instanceof Error ? err.message : String(err)}`,
-    });
+    const errorMsg = err instanceof Error ? err.message : String(err);
+    logCall(context, { endpoint, isError: true, errorMsg: `calc: ${errorMsg}` });
+    return jsonResponse(400, { error: `Calculation failed: ${errorMsg}` });
   }
 }
 

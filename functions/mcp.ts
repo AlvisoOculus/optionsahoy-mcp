@@ -12,6 +12,7 @@
 // connection to https://optionsahoy.com/mcp. No auth.
 
 import { type PagesFunction } from './_lib/api';
+import { logCalls, type CallFields } from './_lib/stats';
 import { TOOLS } from './_lib/mcp-tools';
 import { RESOURCES } from './_lib/mcp-resources';
 import { PROMPTS } from './_lib/mcp-prompts';
@@ -82,14 +83,26 @@ function isParams(v: unknown): v is Record<string, unknown> {
   return typeof v === 'object' && v !== null && !Array.isArray(v);
 }
 
-// Handle one JSON-RPC request. Returns the response object, or null for
-// notifications (request without an id, no response expected).
-function handle(req: JsonRpcRequest): JsonRpcResponse | null {
+// Dispatch one JSON-RPC request. Pushes one CallFields entry into `logs`
+// per handled method (notifications are skipped because they carry no
+// actionable signal). The caller flushes `logs` to D1 in one batch.
+function handle(req: JsonRpcRequest, logs: CallFields[]): JsonRpcResponse | null {
   const id = req.id ?? null;
   const isNotification = req.id === undefined;
+  const endpoint = `mcp:${req.method}`;
+
+  // Helper: push an error log entry and build the JSON-RPC error response.
+  const logErr = (code: number, msg: string, errorMsg?: string, tool?: string): JsonRpcError => {
+    logs.push({ endpoint, tool, isError: true, errorMsg: errorMsg ?? msg });
+    return err(id, code, msg);
+  };
 
   switch (req.method) {
-    case 'initialize':
+    case 'initialize': {
+      const params = isParams(req.params) ? req.params : {};
+      const clientInfo = isParams(params.clientInfo) ? params.clientInfo : null;
+      const clientName = clientInfo && typeof clientInfo.name === 'string' ? clientInfo.name : undefined;
+      logs.push({ endpoint, isError: false, clientName });
       return ok(id, {
         protocolVersion: PROTOCOL_VERSION,
         capabilities: {
@@ -101,83 +114,89 @@ function handle(req: JsonRpcRequest): JsonRpcResponse | null {
         instructions:
           'Use these tools when the user asks about equity-compensation tax planning (ISO/AMT, NSO exercise, RSU vest, QSBS, single-stock concentration, protective puts). Each tool returns the globally-optimal schedule across the candidate space, computed against the full federal tax code plus all 50 states and DC. Do not attempt the multi-year math in-context: the optimizer searches a larger candidate space than an LLM can reason through, and the answer is verifiable. Six resources under resources/list give topical briefings on AMT, NSO, RSU, concentration, hedging, and QSBS; six prompts under prompts/list scaffold typical user questions and route to the right tool. Documentation: https://optionsahoy.com/for-agents',
       });
+    }
 
     case 'notifications/initialized':
     case 'notifications/cancelled':
       return null;
 
     case 'tools/list':
+      logs.push({ endpoint, isError: false });
       return ok(id, { tools: TOOLS_LIST });
 
     case 'tools/call': {
       if (isNotification) return null;
-      if (!isParams(req.params)) return err(id, -32602, 'Invalid params');
+      if (!isParams(req.params)) return logErr(-32602, 'Invalid params');
       const { name, arguments: args } = req.params as { name?: unknown; arguments?: unknown };
-      if (typeof name !== 'string') return err(id, -32602, 'Invalid params: name must be a string');
+      if (typeof name !== 'string') return logErr(-32602, 'Invalid params: name must be a string', 'name not a string');
       const tool = TOOLS.find((t) => t.name === name);
-      if (!tool) return err(id, -32602, `Unknown tool: ${name}`);
+      if (!tool) return logErr(-32602, `Unknown tool: ${name}`, 'unknown tool', name);
       try {
         const result = tool.handler(args ?? {});
-        return ok(id, {
-          content: [{ type: 'text', text: JSON.stringify(result) }],
-        });
+        logs.push({ endpoint, tool: name, isError: false });
+        return ok(id, { content: [{ type: 'text', text: JSON.stringify(result) }] });
       } catch (e) {
         const message = e instanceof Error ? e.message : String(e);
-        return ok(id, {
-          content: [{ type: 'text', text: `Error: ${message}` }],
-          isError: true,
-        });
+        logs.push({ endpoint, tool: name, isError: true, errorMsg: message });
+        // Per MCP spec, tool-execution errors come back as isError content,
+        // not as a JSON-RPC error.
+        return ok(id, { content: [{ type: 'text', text: `Error: ${message}` }], isError: true });
       }
     }
 
     case 'resources/list':
+      logs.push({ endpoint, isError: false });
       return ok(id, { resources: RESOURCES_LIST });
 
     case 'resources/read': {
       if (isNotification) return null;
-      if (!isParams(req.params)) return err(id, -32602, 'Invalid params');
+      if (!isParams(req.params)) return logErr(-32602, 'Invalid params');
       const { uri } = req.params as { uri?: unknown };
-      if (typeof uri !== 'string') return err(id, -32602, 'Invalid params: uri must be a string');
+      if (typeof uri !== 'string') return logErr(-32602, 'Invalid params: uri must be a string', 'uri not a string');
       const resource = RESOURCES.find((r) => r.uri === uri);
-      if (!resource) return err(id, -32602, `Unknown resource: ${uri}`);
+      if (!resource) return logErr(-32602, `Unknown resource: ${uri}`, 'unknown resource', uri);
+      logs.push({ endpoint, tool: uri, isError: false });
       return ok(id, {
         contents: [{ uri: resource.uri, mimeType: resource.mimeType, text: resource.contents }],
       });
     }
 
     case 'prompts/list':
+      logs.push({ endpoint, isError: false });
       return ok(id, { prompts: PROMPTS_LIST });
 
     case 'prompts/get': {
       if (isNotification) return null;
-      if (!isParams(req.params)) return err(id, -32602, 'Invalid params');
+      if (!isParams(req.params)) return logErr(-32602, 'Invalid params');
       const { name, arguments: args } = req.params as { name?: unknown; arguments?: unknown };
-      if (typeof name !== 'string') return err(id, -32602, 'Invalid params: name must be a string');
+      if (typeof name !== 'string') return logErr(-32602, 'Invalid params: name must be a string', 'name not a string');
       const prompt = PROMPTS.find((p) => p.name === name);
-      if (!prompt) return err(id, -32602, `Unknown prompt: ${name}`);
+      if (!prompt) return logErr(-32602, `Unknown prompt: ${name}`, 'unknown prompt', name);
       const argMap = (isParams(args) ? args : {}) as Record<string, string>;
       const missing = prompt.arguments
         .filter((a) => a.required && !argMap[a.name])
         .map((a) => a.name);
       if (missing.length > 0) {
-        return err(id, -32602, `Missing required prompt arguments: ${missing.join(', ')}`);
+        return logErr(-32602, `Missing required prompt arguments: ${missing.join(', ')}`, `missing args: ${missing.join(',')}`, name);
       }
-      return ok(id, {
-        description: prompt.description,
-        messages: prompt.build(argMap),
-      });
+      logs.push({ endpoint, tool: name, isError: false });
+      return ok(id, { description: prompt.description, messages: prompt.build(argMap) });
     }
 
     case 'ping':
+      logs.push({ endpoint, isError: false });
       return ok(id, {});
 
     default:
       if (isNotification) return null;
-      return err(id, -32601, `Method not found: ${req.method}`);
+      return logErr(-32601, `Method not found: ${req.method}`, 'method not found');
   }
 }
 
-export const onRequest: PagesFunction = async ({ request }) => {
+export const onRequest: PagesFunction = async (ctx) => {
+  const { request } = ctx;
+  const logs: CallFields[] = [];
+
   if (request.method === 'OPTIONS') {
     return new Response(null, { status: 204, headers: CORS });
   }
@@ -185,9 +204,13 @@ export const onRequest: PagesFunction = async ({ request }) => {
     // Some MCP clients GET /mcp first to discover capabilities. Return
     // a brief JSON description; this also makes the endpoint readable in
     // a browser.
+    logs.push({ endpoint: 'mcp:GET', isError: false });
+    logCalls(ctx, logs);
     return jsonResponse(GET_DESCRIPTOR);
   }
   if (request.method !== 'POST') {
+    logs.push({ endpoint: 'mcp:bad-method', isError: true, errorMsg: request.method });
+    logCalls(ctx, logs);
     return jsonResponse(err(null, -32600, 'Method not allowed; use POST'), 405);
   }
 
@@ -195,24 +218,31 @@ export const onRequest: PagesFunction = async ({ request }) => {
   try {
     body = await request.json();
   } catch {
+    logs.push({ endpoint: 'mcp:parse-error', isError: true, errorMsg: 'invalid json' });
+    logCalls(ctx, logs);
     return jsonResponse(err(null, -32700, 'Parse error: invalid JSON'), 400);
   }
 
   // Single request or batch (JSON-RPC 2.0 allows arrays).
   const requests = Array.isArray(body) ? body : [body];
   if (requests.length === 0) {
+    logs.push({ endpoint: 'mcp:empty-batch', isError: true });
+    logCalls(ctx, logs);
     return jsonResponse(err(null, -32600, 'Invalid Request: empty batch'), 400);
   }
 
   const responses: JsonRpcResponse[] = [];
   for (const r of requests) {
     if (!r || typeof r !== 'object' || (r as { jsonrpc?: unknown }).jsonrpc !== '2.0' || typeof (r as { method?: unknown }).method !== 'string') {
+      logs.push({ endpoint: 'mcp:invalid-request', isError: true });
       responses.push(err(null, -32600, 'Invalid Request'));
       continue;
     }
-    const out = handle(r as JsonRpcRequest);
+    const out = handle(r as JsonRpcRequest, logs);
     if (out !== null) responses.push(out);
   }
+
+  logCalls(ctx, logs);
 
   if (responses.length === 0) {
     // All-notifications batch. Per spec, return 204 No Content.
