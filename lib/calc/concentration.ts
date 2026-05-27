@@ -186,7 +186,7 @@ const ONE_YEAR_MS = 365 * 24 * 60 * 60 * 1000;
 // than realized ATM vol. We apply a flat 1.20× multiplier to bring our
 // estimate closer to market, while staying conservative for liquid names.
 // Validate against a sample of live option chains during periodic refresh.
-const IV_OVER_RV_MULTIPLIER = 1.20;
+export const IV_OVER_RV_MULTIPLIER = 1.20;
 
 // Comparison horizon: wealth in this many years. All plans are evaluated
 // at the same point in time so the comparison is apples-to-apples.
