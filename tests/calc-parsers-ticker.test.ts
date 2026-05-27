@@ -19,9 +19,11 @@ import {
   parseAmtIsoInput,
   parseConcentrationInput,
   parseNsoInput,
+  parseProtectivePutInput,
   parseRsuInput,
 } from '../functions/_lib/calc-parsers';
 import { getTrailingReturn } from '../lib/data/trailing-returns';
+import { SECTOR_STATS } from '../lib/markets/sector-stats';
 
 // Base fixtures with EVERY required field except the growth-rate ones —
 // each test fills in the growth path it's exercising.
@@ -155,6 +157,31 @@ describe('parseNsoInput — ticker lookup', () => {
 
   it('throws when neither ticker nor expectedSalePrice is set', () => {
     expect(() => parseNsoInput(NSO_BASE)).toThrow(/expectedSalePrice.*MUST NOT invent/i);
+  });
+});
+
+describe('parseProtectivePutInput — sector-default volatility', () => {
+  const PUT_BASE = {
+    positionValue: 100000,
+    sector: 'tech_software',
+    protectionLevel: 0.2,
+    tenorYears: 1,
+  };
+
+  it('defaults volatility to sector_stats.annualVol × 1.20 when omitted', () => {
+    const out = parseProtectivePutInput(PUT_BASE);
+    expect(out.volatility).toBeCloseTo(SECTOR_STATS.tech_software.annualVol * 1.20, 10);
+  });
+
+  it('prefers explicit volatility over sector default', () => {
+    const out = parseProtectivePutInput({ ...PUT_BASE, volatility: 0.55 });
+    expect(out.volatility).toBe(0.55);
+  });
+
+  it('sector affects the default (semis IV > tech IV)', () => {
+    const tech = parseProtectivePutInput(PUT_BASE);
+    const semis = parseProtectivePutInput({ ...PUT_BASE, sector: 'semiconductors' });
+    expect(semis.volatility).toBeGreaterThan(tech.volatility);
   });
 });
 

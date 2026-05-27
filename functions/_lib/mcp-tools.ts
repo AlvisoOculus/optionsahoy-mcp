@@ -86,6 +86,13 @@ const TICKER_SCHEMA = {
 const STRICT_INPUT_NOTE =
   ' IMPORTANT: every field listed in `required` must come from the user\'s message OR be derivable from an optional `ticker`. The model invoking this tool MUST NOT invent a value for any required field. If the user did not supply it and no ticker resolves it, ask the user.';
 
+// Same idea for tools without ticker-derivable shortcuts (qsbs_check,
+// protective_put_price). Tells the model to ask for missing required fields
+// rather than guessing — and to pass `unsure` rather than a definite value
+// when the schema offers that enum option.
+const STRICT_INPUT_NOTE_NO_TICKER =
+  ' IMPORTANT: every field listed in `required` must come from the user\'s message. The model invoking this tool MUST NOT invent a value for any required field. If the user did not supply it, ask the user. For enum fields that accept `unsure`, pass `unsure` when the user does not know — do not guess yes/no.';
+
 export const TOOLS: McpTool[] = [
   {
     name: 'amt_iso_optimize',
@@ -253,14 +260,19 @@ export const TOOLS: McpTool[] = [
     name: 'protective_put_price',
     annotations: { title: 'Protective Put / Collar Pricing', ...CALC_HINTS },
     description:
-      'Price a protective put or zero-cost collar on a single-stock position. Reports annual cost, max loss, upside cap, and bad-year coverage.',
+      'Price a protective put or zero-cost collar on a single-stock position. Reports annual cost, max loss, upside cap, and bad-year coverage.' + STRICT_INPUT_NOTE_NO_TICKER,
     inputSchema: {
       type: 'object',
-      required: ['positionValue', 'sector', 'volatility', 'protectionLevel', 'tenorYears'],
+      required: ['positionValue', 'sector', 'protectionLevel', 'tenorYears'],
       properties: {
         positionValue: { type: 'number', minimum: 0 },
         sector: SECTOR_SCHEMA,
-        volatility: { type: 'number', minimum: 0 },
+        volatility: {
+          type: 'number',
+          minimum: 0,
+          description:
+            'Annualized implied volatility (sigma) of the stock. Defaults to a sector-typical IV (sector_stats.annualVol × 1.20) when omitted. The model SHOULD NOT invent this — either pass an explicit value the user gave you, or omit it and let the sector default apply.',
+        },
         protectionLevel: { type: 'number', minimum: 0.05, maximum: 0.5 },
         tenorYears: { type: 'number', minimum: 0.25 },
         expectedReturn: { type: 'number' },
@@ -273,7 +285,7 @@ export const TOOLS: McpTool[] = [
     name: 'qsbs_check',
     annotations: { title: 'QSBS Qualification Check', ...CALC_HINTS },
     description:
-      'Section 1202 Qualified Small Business Stock (QSBS) qualification check against the eight statutory tests. Returns verdict, exclusion percentage, federal tax saved, and state conformity under OBBBA 2026 tiered exclusion rules.',
+      'Section 1202 Qualified Small Business Stock (QSBS) qualification check against the eight statutory tests. Returns verdict, exclusion percentage, federal tax saved, and state conformity under OBBBA 2026 tiered exclusion rules.' + STRICT_INPUT_NOTE_NO_TICKER,
     inputSchema: {
       type: 'object',
       required: [
