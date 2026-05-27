@@ -195,3 +195,39 @@ Two pieces serve the live endpoint:
    `optionsahoy.com/mcp*` + `/api/v1/*` to that Pages deployment, so the
    public URL stays stable. One-time `wrangler deploy` — see
    [`worker-proxy/README.md`](worker-proxy/README.md).
+
+## Call stats (D1)
+
+Every inbound MCP and REST call writes one row to a D1 table via
+`ctx.waitUntil` (fire-and-forget — never blocks the response). View
+aggregates at `https://optionsahoy-mcp.pages.dev/admin/mcp-stats?token=<ADMIN_TOKEN>`.
+
+**One-time setup (Andrew):**
+
+```bash
+# 1. Create the database. Outputs a database_id.
+cd /Users/andrewk/Projects/optionsahoy-mcp
+npx wrangler d1 create optionsahoy-mcp-stats
+
+# 2. Apply the schema.
+npx wrangler d1 execute optionsahoy-mcp-stats --remote \
+  --file=db/migrations/0001_init.sql
+
+# 3. Generate a token.
+openssl rand -hex 32
+```
+
+Then in the Cloudflare dashboard for the `optionsahoy-mcp` Pages project:
+
+- **Settings → Functions → D1 database bindings** — add variable name
+  `MCP_STATS`, point at the database created in step 1.
+- **Settings → Environment variables → Production** — add `ADMIN_TOKEN`
+  with the value from step 3 (mark as encrypted).
+
+After the next deploy, `/admin/mcp-stats?token=...&days=30` renders the
+dashboard. Without the bindings, `logCall` silently no-ops and the admin
+page returns 503 (the rest of the server is unaffected).
+
+What's logged: `ts, endpoint, tool, is_error, error_msg (truncated 500),
+client_name, ua (truncated 200), country`. Tool arguments are **never**
+logged (PII + table-size).
