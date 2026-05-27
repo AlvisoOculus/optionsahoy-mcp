@@ -363,11 +363,11 @@
       },
       "ProtectivePutInput": {
         "type": "object",
-        "required": ["positionValue", "sector", "volatility", "protectionLevel", "tenorYears"],
+        "required": ["positionValue", "sector", "protectionLevel", "tenorYears"],
         "properties": {
           "positionValue": { "type": "number", "minimum": 0 },
           "sector": { "$ref": "#/components/schemas/SectorKey" },
-          "volatility": { "type": "number", "minimum": 0, "description": "Annualized implied volatility (σ)." },
+          "volatility": { "type": "number", "minimum": 0, "description": "Annualized implied volatility (σ). Defaults to a sector-typical IV (sector_stats.annualVol × 1.20) when omitted." },
           "protectionLevel": { "type": "number", "minimum": 0.05, "maximum": 0.5, "description": "Drawdown the put protects against, as a fraction (e.g. 0.20 = 20% below current)." },
           "tenorYears": { "type": "number", "minimum": 0.25, "description": "Option tenor in years." },
           "expectedReturn": { "type": "number", "description": "Override sector long-run drift μ." },

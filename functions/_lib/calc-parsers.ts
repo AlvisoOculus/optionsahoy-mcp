@@ -15,11 +15,18 @@ import type { QsbsInputs } from '../../lib/calc/qsbs';
 
 import { asObject, p, FILING_STATUSES } from './api';
 import { getTrailingReturn } from '../../lib/data/trailing-returns';
+import { SECTOR_STATS, type SectorKey } from '../../lib/markets/sector-stats';
 
 type Obj = Record<string, unknown>;
 
 const ASK_USER_HINT =
   'The model invoking this tool MUST NOT invent this value — ask the user.';
+
+// Typical IV / realized-vol ratio for single-name equity options. Used to
+// translate the sector_stats realized-vol annualization into an implied-vol
+// estimate when the caller doesn't pass an explicit IV. Matches the same
+// constant inside lib/calc/concentration.ts.
+const IV_OVER_RV_MULTIPLIER = 1.20;
 
 // Resolve a growth-rate field that the LLM is otherwise tempted to invent.
 // Priority: explicit numeric value > trailing CAGR for `ticker` > error.
@@ -202,10 +209,14 @@ export function parseConcentrationInput(raw: unknown): ConcentrationInputs {
 
 export function parseProtectivePutInput(raw: unknown): ProtectivePutInputs {
   const o = asObject(raw);
+  const sector = p.enum(o, 'sector', SECTORS) as SectorKey;
+  const volatility = o.volatility !== undefined
+    ? p.num(o, 'volatility')
+    : SECTOR_STATS[sector].annualVol * IV_OVER_RV_MULTIPLIER;
   const base: ProtectivePutInputs = {
     positionValue: p.num(o, 'positionValue'),
-    sector: p.enum(o, 'sector', SECTORS),
-    volatility: p.num(o, 'volatility'),
+    sector,
+    volatility,
     protectionLevel: p.num(o, 'protectionLevel'),
     tenorYears: p.num(o, 'tenorYears'),
   };
