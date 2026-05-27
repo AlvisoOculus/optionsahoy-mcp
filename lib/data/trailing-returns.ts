@@ -48,9 +48,11 @@ export function hasTrailingReturn(ticker: string): boolean {
   return typeof entry.return5y === 'number' || typeof entry.return10y === 'number';
 }
 
+const TICKER_COUNT = Object.keys(TICKERS).length;
+
 export function trailingReturnsCoverage(): { total: number; refreshedAt: string } {
   return {
-    total: Object.keys(TICKERS).length,
+    total: TICKER_COUNT,
     refreshedAt: (data as { _refreshedAt?: string })._refreshedAt ?? '',
   };
 }

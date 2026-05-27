@@ -74,7 +74,7 @@ export async function runCalc<I, O>(
 // with a `field "<name>" must be <X>` message that's surfaced to the caller
 // in the 400 response. Keeps per-endpoint wrappers small.
 
-type Obj = Record<string, unknown>;
+export type Obj = Record<string, unknown>;
 
 export function asObject(raw: unknown): Obj {
   if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) {

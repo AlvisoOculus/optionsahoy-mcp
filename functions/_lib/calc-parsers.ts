@@ -13,23 +13,14 @@ import type { ConcentrationInputs } from '../../lib/calc/concentration';
 import type { ProtectivePutInputs } from '../../lib/calc/protectivePut';
 import type { QsbsInputs } from '../../lib/calc/qsbs';
 
-import { asObject, p, FILING_STATUSES } from './api';
+import { asObject, p, FILING_STATUSES, type Obj } from './api';
 import { getTrailingReturn } from '../../lib/data/trailing-returns';
 import { SECTOR_STATS, type SectorKey } from '../../lib/markets/sector-stats';
-
-type Obj = Record<string, unknown>;
+import { HORIZON_YEARS as CONCENTRATION_HORIZON_YEARS, IV_OVER_RV_MULTIPLIER } from '../../lib/calc/concentration';
 
 const ASK_USER_HINT =
   'The model invoking this tool MUST NOT invent this value — ask the user.';
 
-// Typical IV / realized-vol ratio for single-name equity options. Used to
-// translate the sector_stats realized-vol annualization into an implied-vol
-// estimate when the caller doesn't pass an explicit IV. Matches the same
-// constant inside lib/calc/concentration.ts.
-const IV_OVER_RV_MULTIPLIER = 1.20;
-
-// Resolve a growth-rate field that the LLM is otherwise tempted to invent.
-// Priority: explicit numeric value > trailing CAGR for `ticker` > error.
 function resolveGrowthRate(o: Obj, fieldName: string, horizonYears: number): number {
   if (o[fieldName] !== undefined) return p.num(o, fieldName);
   if (o.ticker !== undefined) {
@@ -59,8 +50,6 @@ function resolveMarketReturn(o: Obj, horizonYears: number): number {
   return spy;
 }
 
-// Resolve a projected sale price. Priority: explicit price > derived from
-// ticker (currentPrice × (1 + trailing CAGR)^holdYears) > error.
 function resolveExpectedSalePrice(o: Obj, currentPrice: number, holdYears: number): number {
   if (o.expectedSalePrice !== undefined) return p.num(o, 'expectedSalePrice');
   if (o.ticker !== undefined) {
@@ -172,11 +161,6 @@ export function parseRsuInput(raw: unknown): RsuInput {
     expectedMarketReturn: resolveMarketReturn(o, holdYears),
   };
 }
-
-// Concentration calc projects across a fixed 3-year horizon (see
-// HORIZON_YEARS in lib/calc/concentration.ts). Ticker-derived rates
-// blend trailing CAGRs around that window.
-const CONCENTRATION_HORIZON_YEARS = 3;
 
 export function parseConcentrationInput(raw: unknown): ConcentrationInputs {
   const o = asObject(raw);
