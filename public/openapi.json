@@ -258,10 +258,14 @@
         "format": "date",
         "description": "ISO 8601 date string (YYYY-MM-DD)."
       },
+      "Ticker": {
+        "type": "string",
+        "description": "Optional public-stock symbol (e.g. \"NVDA\"). When set, the API substitutes the ticker's trailing CAGR for any unsupplied expected-return / sale-price field instead of requiring the caller to invent one. ~90 symbols covered; unknown tickers fall through to 'required field' 400 errors."
+      },
       "AmtIsoInput": {
         "type": "object",
         "required": [
-          "shares", "strike", "fmv", "expectedGrowth", "volatilityDrag",
+          "shares", "strike", "fmv", "volatilityDrag",
           "filingStatus", "ordinaryIncome", "stateCode", "carryforwardCredit",
           "horizon", "cashReturnRate", "grantDate", "hasLeftCompany", "terminationDate"
         ],
@@ -269,7 +273,8 @@
           "shares": { "type": "integer", "minimum": 1, "description": "Total ISO shares to exercise across the horizon." },
           "strike": { "type": "number", "minimum": 0, "description": "Strike price per share, USD." },
           "fmv": { "type": "number", "minimum": 0, "description": "Fair market value per share today (year 1)." },
-          "expectedGrowth": { "type": "number", "description": "Arithmetic-mean annual growth rate, e.g. 0.10 for 10%/year." },
+          "expectedGrowth": { "type": "number", "description": "Arithmetic-mean annual growth rate, e.g. 0.10 for 10%/year. Required unless `ticker` resolves it from trailing CAGR." },
+          "ticker": { "$ref": "#/components/schemas/Ticker" },
           "volatilityDrag": { "type": "number", "minimum": 0, "maximum": 0.99, "description": "Multiplicative haircut at the planning horizon. 0 disables drag; 0.2 is the default." },
           "filingStatus": { "$ref": "#/components/schemas/FilingStatus" },
           "ordinaryIncome": { "type": "number", "minimum": 0, "description": "Annual W-2 / 1099 income excluding the exercise." },
@@ -286,8 +291,7 @@
         "type": "object",
         "required": [
           "shares", "strike", "currentPrice", "ordinaryIncome", "filingStatus",
-          "stateCode", "stillEmployed", "holdYears", "expectedSalePrice",
-          "haircut", "expectedMarketReturn", "holdFunding"
+          "stateCode", "stillEmployed", "holdYears", "haircut", "holdFunding"
         ],
         "properties": {
           "shares": { "type": "integer", "minimum": 1 },
@@ -298,9 +302,10 @@
           "stateCode": { "$ref": "#/components/schemas/StateCode" },
           "stillEmployed": { "type": "boolean", "description": "FICA applies only when true." },
           "holdYears": { "type": "number", "minimum": 1, "description": "Hold horizon. Sub-1-year is short-term and out of scope." },
-          "expectedSalePrice": { "type": "number", "minimum": 0, "description": "Expected sale price at horizon, USD per share." },
+          "expectedSalePrice": { "type": "number", "minimum": 0, "description": "Expected sale price at horizon, USD per share. Required unless `ticker` resolves it from currentPrice × (1 + trailing CAGR)^holdYears." },
           "haircut": { "type": "number", "minimum": 0, "maximum": 1, "description": "Volatility-drag haircut on expectedSalePrice." },
-          "expectedMarketReturn": { "type": "number", "description": "Per-year median market return rate (vol-drag pre-applied)." },
+          "expectedMarketReturn": { "type": "number", "description": "Per-year median market return rate (vol-drag pre-applied). Defaults to SPY trailing CAGR for holdYears if omitted." },
+          "ticker": { "$ref": "#/components/schemas/Ticker" },
           "holdFunding": { "type": "string", "enum": ["sell-to-cover", "cash"] }
         }
       },
@@ -308,7 +313,7 @@
         "type": "object",
         "required": [
           "shares", "currentPrice", "ordinaryIncome", "filingStatus", "stateCode",
-          "stillEmployed", "holdYears", "expectedSalePrice", "haircut", "expectedMarketReturn"
+          "stillEmployed", "holdYears", "haircut"
         ],
         "properties": {
           "shares": { "type": "integer", "minimum": 1 },
@@ -318,17 +323,17 @@
           "stateCode": { "$ref": "#/components/schemas/StateCode" },
           "stillEmployed": { "type": "boolean" },
           "holdYears": { "type": "number", "minimum": 0.25, "maximum": 5 },
-          "expectedSalePrice": { "type": "number", "minimum": 0 },
+          "expectedSalePrice": { "type": "number", "minimum": 0, "description": "Projected $/share at end of holdYears. Required unless `ticker` resolves it from currentPrice × (1 + trailing CAGR)^holdYears." },
           "haircut": { "type": "number", "minimum": 0, "maximum": 1 },
-          "expectedMarketReturn": { "type": "number" }
+          "expectedMarketReturn": { "type": "number", "description": "Per-year reinvestment rate. Defaults to SPY trailing CAGR for holdYears if omitted." },
+          "ticker": { "$ref": "#/components/schemas/Ticker" }
         }
       },
       "ConcentrationInput": {
         "type": "object",
         "required": [
           "positionValue", "costBasis", "acquisitionDate", "sector", "stateCode",
-          "filingStatus", "ordinaryIncome", "totalAssets", "expectedPositionReturn",
-          "expectedMarketReturn", "volatilityDrag"
+          "filingStatus", "ordinaryIncome", "totalAssets", "volatilityDrag"
         ],
         "properties": {
           "positionValue": { "type": "number", "minimum": 0, "description": "Current value of the concentrated position, USD." },
@@ -338,9 +343,10 @@
           "stateCode": { "$ref": "#/components/schemas/StateCode" },
           "filingStatus": { "$ref": "#/components/schemas/FilingStatus" },
           "ordinaryIncome": { "type": "number", "minimum": 0 },
-          "totalAssets": { "type": "number", "minimum": 0, "description": "Total liquid net worth including the position." },
-          "expectedPositionReturn": { "type": "number", "description": "Annual return on the concentrated stock." },
-          "expectedMarketReturn": { "type": "number", "description": "Annual return on diversified holdings + reinvested proceeds." },
+          "totalAssets": { "type": "number", "minimum": 0, "description": "Total investable portfolio in dollars (concentrated position + everything else). User-supplied; never inferred." },
+          "expectedPositionReturn": { "type": "number", "description": "Annual return on the concentrated stock. Required unless `ticker` resolves it from trailing CAGR." },
+          "expectedMarketReturn": { "type": "number", "description": "Annual return on diversified holdings + reinvested proceeds. Defaults to SPY trailing CAGR for the 3-year horizon if omitted." },
+          "ticker": { "$ref": "#/components/schemas/Ticker" },
           "volatilityDrag": { "type": "number", "minimum": 0, "maximum": 0.99 },
           "volatility": { "type": "number", "minimum": 0, "description": "Override sector-typed σ for the Black-Scholes hedging path." },
           "hedgeChoice": {
