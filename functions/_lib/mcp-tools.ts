@@ -107,25 +107,85 @@ export const TOOLS: McpTool[] = [
         'grantDate', 'hasLeftCompany', 'terminationDate',
       ],
       properties: {
-        shares: { type: 'integer', minimum: 1 },
-        strike: { type: 'number', minimum: 0 },
-        fmv: { type: 'number', minimum: 0 },
+        shares: {
+          type: 'integer',
+          minimum: 1,
+          description:
+            'Total Incentive Stock Option (ISO) shares available to exercise across the planning horizon.',
+        },
+        strike: {
+          type: 'number',
+          minimum: 0,
+          description: 'Strike price per share, USD.',
+        },
+        fmv: {
+          type: 'number',
+          minimum: 0,
+          description:
+            'Current fair market value per share, USD. Anchors year-1 of the growth path; future years compound from here using expectedGrowth and volatilityDrag.',
+        },
         expectedGrowth: {
           type: 'number',
           description:
             'Annual expected stock growth as a decimal (0.10 = 10%). Required unless `ticker` resolves it from trailing CAGR.',
         },
         ticker: TICKER_SCHEMA,
-        volatilityDrag: { type: 'number', minimum: 0, maximum: 0.99 },
-        filingStatus: FILING_SCHEMA,
-        ordinaryIncome: { type: 'number', minimum: 0 },
-        stateCode: STATE_SCHEMA,
-        carryforwardCredit: { type: 'number', minimum: 0 },
-        horizon: { type: 'integer', minimum: 1, maximum: 10 },
-        cashReturnRate: { type: 'number' },
-        grantDate: ISO_DATE,
-        hasLeftCompany: { type: 'boolean' },
-        terminationDate: { oneOf: [ISO_DATE, { type: 'null' }] },
+        volatilityDrag: {
+          type: 'number',
+          minimum: 0,
+          maximum: 0.99,
+          description:
+            'Multiplicative haircut on the terminal-FMV growth path (0..0.99), capturing the half-variance correction in compounded returns. 0 = no drag, 0.20 = 20% haircut at horizon.',
+        },
+        filingStatus: {
+          ...FILING_SCHEMA,
+          description:
+            'Federal filing status. Drives the ordinary-bracket walk, the AMT exemption tier ($90,100 single / $140,200 MFJ for 2026), and the AMT exemption phaseout start ($500,000 single / $1,000,000 MFJ).',
+        },
+        ordinaryIncome: {
+          type: 'number',
+          minimum: 0,
+          description:
+            'Annual W-2 ordinary income before this exercise, USD. Baseline for the bracket walk and the AMT exemption phaseout.',
+        },
+        stateCode: {
+          ...STATE_SCHEMA,
+          description:
+            'Two-letter US state code (e.g. CA, NY, TX). Drives state ordinary brackets, state long-term capital gains (LTCG) treatment, and state AMT (CA, CO, CT, MN).',
+        },
+        carryforwardCredit: {
+          type: 'number',
+          minimum: 0,
+          description:
+            'Existing federal AMT credit (Minimum Tax Credit, Form 8801) carryforward from prior tax years, USD. Recoverable in future years where regular federal tax exceeds tentative minimum tax.',
+        },
+        horizon: {
+          type: 'integer',
+          minimum: 1,
+          maximum: 10,
+          description:
+            'Planning horizon in years (1..10). The optimizer searches all feasible per-year share allocations across this many years.',
+        },
+        cashReturnRate: {
+          type: 'number',
+          description:
+            'Annual after-tax return on idle cash (decimal), used to time-value the cash-tax stream. 0.05 = 5% (~short-Treasury yield). At 0 the math collapses to a nominal sum.',
+        },
+        grantDate: {
+          ...ISO_DATE,
+          description:
+            'ISO grant date (YYYY-MM-DD). Drives the 10-year statutory grant expiration (IRC §422) and the 2-year qualifying-disposition threshold from grant.',
+        },
+        hasLeftCompany: {
+          type: 'boolean',
+          description:
+            'True if the user has separated from the company. Activates the 90-day post-termination ISO exercise window measured from terminationDate.',
+        },
+        terminationDate: {
+          oneOf: [ISO_DATE, { type: 'null' }],
+          description:
+            'Separation date (YYYY-MM-DD) when hasLeftCompany=true; null when still employed. Together with hasLeftCompany, drives the 90-day exercise window deadline.',
+        },
       },
     },
     handler: (args) => computeAmtIso(parseAmtIsoInput(args)),
@@ -142,28 +202,72 @@ export const TOOLS: McpTool[] = [
         'stillEmployed', 'holdYears', 'haircut', 'holdFunding',
       ],
       properties: {
-        shares: { type: 'integer', minimum: 1 },
-        strike: { type: 'number', minimum: 0 },
-        currentPrice: { type: 'number', minimum: 0 },
-        ordinaryIncome: { type: 'number', minimum: 0 },
-        filingStatus: FILING_SCHEMA,
-        stateCode: STATE_SCHEMA,
-        stillEmployed: { type: 'boolean' },
-        holdYears: { type: 'number', minimum: 1 },
+        shares: {
+          type: 'integer',
+          minimum: 1,
+          description: 'Non-qualified Stock Option (NSO) shares to exercise.',
+        },
+        strike: {
+          type: 'number',
+          minimum: 0,
+          description: 'Strike price per share, USD.',
+        },
+        currentPrice: {
+          type: 'number',
+          minimum: 0,
+          description:
+            'Current fair market value per share, USD. The bargain element at exercise is shares × (currentPrice − strike).',
+        },
+        ordinaryIncome: {
+          type: 'number',
+          minimum: 0,
+          description:
+            'Annual W-2 ordinary income before this exercise, USD. Baseline for the bracket walk on the bargain element.',
+        },
+        filingStatus: {
+          ...FILING_SCHEMA,
+          description: 'Federal filing status. Drives ordinary brackets and LTCG brackets used at the hold horizon.',
+        },
+        stateCode: {
+          ...STATE_SCHEMA,
+          description: 'Two-letter US state code. Drives state ordinary and LTCG treatment.',
+        },
+        stillEmployed: {
+          type: 'boolean',
+          description:
+            'True if still employed at exercise. FICA (Social Security + Medicare + Additional Medicare) applies only when true.',
+        },
+        holdYears: {
+          type: 'number',
+          minimum: 1,
+          description:
+            'Years to hold after exercise (minimum 1). At ≥1 year, the appreciation since exercise is LTCG; sub-1-year holds are out of scope.',
+        },
         expectedSalePrice: {
           type: 'number',
           minimum: 0,
           description:
             'Projected $/share at end of holdYears. Required unless `ticker` resolves it from currentPrice × (1 + trailing CAGR)^holdYears.',
         },
-        haircut: { type: 'number', minimum: 0, maximum: 1 },
+        haircut: {
+          type: 'number',
+          minimum: 0,
+          maximum: 1,
+          description:
+            'Multiplicative haircut on expectedSalePrice (0..1) capturing volatility drag at the hold horizon. 0.20 = 20% haircut.',
+        },
         expectedMarketReturn: {
           type: 'number',
           description:
             'Annual after-tax-proceeds reinvestment rate. Defaults to SPY trailing CAGR for holdYears if omitted.',
         },
         ticker: TICKER_SCHEMA,
-        holdFunding: { type: 'string', enum: ['sell-to-cover', 'cash'] },
+        holdFunding: {
+          type: 'string',
+          enum: ['sell-to-cover', 'cash'],
+          description:
+            "How the strike cost and exercise tax are funded. 'sell-to-cover' sells enough shares to cover strike + tax (reduces sharesRetained). 'cash' pays from outside the position (full sharesRetained but requires the cashNeededAtExercise field).",
+        },
       },
     },
     handler: (args) => computeNsoResult(parseNsoInput(args)),
@@ -180,20 +284,54 @@ export const TOOLS: McpTool[] = [
         'stillEmployed', 'holdYears', 'haircut',
       ],
       properties: {
-        shares: { type: 'integer', minimum: 1 },
-        currentPrice: { type: 'number', minimum: 0 },
-        ordinaryIncome: { type: 'number', minimum: 0 },
-        filingStatus: FILING_SCHEMA,
-        stateCode: STATE_SCHEMA,
-        stillEmployed: { type: 'boolean' },
-        holdYears: { type: 'number', minimum: 0.25, maximum: 5 },
+        shares: {
+          type: 'integer',
+          minimum: 1,
+          description: 'Restricted Stock Unit (RSU) shares vesting in this tranche.',
+        },
+        currentPrice: {
+          type: 'number',
+          minimum: 0,
+          description:
+            'Fair market value per share at vest, USD. Also the cost basis on retained shares.',
+        },
+        ordinaryIncome: {
+          type: 'number',
+          minimum: 0,
+          description: 'Annual W-2 ordinary income before this vest, USD. Baseline for the bracket walk on the vest amount.',
+        },
+        filingStatus: {
+          ...FILING_SCHEMA,
+          description: 'Federal filing status.',
+        },
+        stateCode: {
+          ...STATE_SCHEMA,
+          description: 'Two-letter US state code.',
+        },
+        stillEmployed: {
+          type: 'boolean',
+          description:
+            'True if still employed at vest. Drives FICA applicability and whether the 22% supplemental withholding rule applies.',
+        },
+        holdYears: {
+          type: 'number',
+          minimum: 0.25,
+          maximum: 5,
+          description:
+            'Years to hold after vest (0.25..5). Below 1 year triggers the short-term capital gains cliff (ordinary rates on appreciation).',
+        },
         expectedSalePrice: {
           type: 'number',
           minimum: 0,
           description:
             'Projected $/share at end of holdYears. Required unless `ticker` resolves it from currentPrice × (1 + trailing CAGR)^holdYears.',
         },
-        haircut: { type: 'number', minimum: 0, maximum: 1 },
+        haircut: {
+          type: 'number',
+          minimum: 0,
+          maximum: 1,
+          description: 'Multiplicative haircut on expectedSalePrice (0..1) capturing volatility drag at the hold horizon.',
+        },
         expectedMarketReturn: {
           type: 'number',
           description:
@@ -216,13 +354,40 @@ export const TOOLS: McpTool[] = [
         'ordinaryIncome', 'totalAssets', 'volatilityDrag',
       ],
       properties: {
-        positionValue: { type: 'number', minimum: 0 },
-        costBasis: { type: 'number', minimum: 0 },
-        acquisitionDate: ISO_DATE,
-        sector: SECTOR_SCHEMA,
-        stateCode: STATE_SCHEMA,
-        filingStatus: FILING_SCHEMA,
-        ordinaryIncome: { type: 'number', minimum: 0 },
+        positionValue: {
+          type: 'number',
+          minimum: 0,
+          description: 'Current market value of the concentrated single-stock position, USD.',
+        },
+        costBasis: {
+          type: 'number',
+          minimum: 0,
+          description:
+            'Total cost basis of the position, USD (sum of strikes paid + ordinary-income inclusions on RSU vest / NSO exercise / disqualified ISO).',
+        },
+        acquisitionDate: {
+          ...ISO_DATE,
+          description:
+            'Earliest acquisition date in the lot (YYYY-MM-DD). Drives the 1-year LTCG threshold and the long-term-vs-short-term tax routing.',
+        },
+        sector: {
+          ...SECTOR_SCHEMA,
+          description:
+            'Sector tag. Drives the default volatility used in the hedge-cost computation when no explicit volatility is provided. See lib/markets/sector-stats.ts for the per-sector annualVol table; this tool applies IV_OVER_RV_MULTIPLIER (1.20) to the realized vol to approximate implied vol.',
+        },
+        stateCode: {
+          ...STATE_SCHEMA,
+          description: 'Two-letter US state code. Drives state LTCG and ordinary brackets.',
+        },
+        filingStatus: {
+          ...FILING_SCHEMA,
+          description: 'Federal filing status. Drives LTCG brackets and the NIIT MAGI threshold.',
+        },
+        ordinaryIncome: {
+          type: 'number',
+          minimum: 0,
+          description: 'Annual W-2 ordinary income before any sales, USD. Baseline for LTCG bracket determination.',
+        },
         totalAssets: {
           type: 'number',
           minimum: 0,
@@ -240,16 +405,47 @@ export const TOOLS: McpTool[] = [
             'Annual after-tax-proceeds reinvestment rate. Defaults to SPY trailing CAGR for the 3-year horizon if omitted.',
         },
         ticker: TICKER_SCHEMA,
-        volatilityDrag: { type: 'number', minimum: 0, maximum: 0.99 },
-        volatility: { type: 'number', minimum: 0 },
+        volatilityDrag: {
+          type: 'number',
+          minimum: 0,
+          maximum: 0.99,
+          description:
+            'Multiplicative haircut on the expected stock-price path at the 3-year analysis horizon (0..0.99), capturing the half-variance correction in compounded returns.',
+        },
+        volatility: {
+          type: 'number',
+          minimum: 0,
+          description:
+            'Annualized implied volatility (sigma) of the stock. Optional. When omitted, falls back to sector_stats.annualVol × 1.20 (the IV-over-RV multiplier).',
+        },
         hedgeChoice: {
           type: 'object',
           required: ['kind', 'protectionLevel', 'tenorYears'],
+          description:
+            'Optional hedge specification. When provided, adds a hedged scenario to the sell-down-vs-hold comparison and computes the post-tax NFV of the hedged hold. Omit to compare only sell-down vs. hold.',
           properties: {
-            kind: { type: 'string', enum: ['put', 'collar'] },
-            protectionLevel: { type: 'number', minimum: 0.05, maximum: 0.5 },
-            tenorYears: { type: 'number', minimum: 0.25 },
-            upsideCapPct: { type: 'number' },
+            kind: {
+              type: 'string',
+              enum: ['put', 'collar'],
+              description:
+                "Hedge instrument: 'put' (bare protective put — pay premium for downside protection) or 'collar' (put financed by a short call — caps upside in exchange for lower or zero net premium).",
+            },
+            protectionLevel: {
+              type: 'number',
+              minimum: 0.05,
+              maximum: 0.5,
+              description: 'Put strike chosen as (1 − this fraction) × spot. 0.10 = 10% OTM put. Range 0.05..0.50.',
+            },
+            tenorYears: {
+              type: 'number',
+              minimum: 0.25,
+              description: 'Option tenor in years. 1 = 12-month; 0.25 = ~90-day.',
+            },
+            upsideCapPct: {
+              type: 'number',
+              description:
+                'For collars only: optional explicit upside cap as fraction above spot (e.g. 0.20 = 20% cap). Omit to let the tool solve for the cap that makes the collar zero-net-premium.',
+            },
           },
         },
       },
@@ -265,18 +461,43 @@ export const TOOLS: McpTool[] = [
       type: 'object',
       required: ['positionValue', 'sector', 'protectionLevel', 'tenorYears'],
       properties: {
-        positionValue: { type: 'number', minimum: 0 },
-        sector: SECTOR_SCHEMA,
+        positionValue: {
+          type: 'number',
+          minimum: 0,
+          description:
+            'Market value of the underlying single-stock position, USD. Premium and max-loss scale linearly with this.',
+        },
+        sector: {
+          ...SECTOR_SCHEMA,
+          description:
+            'Sector tag. Drives the default volatility when no explicit `volatility` is supplied. Lookup table is in lib/markets/sector-stats.ts.',
+        },
         volatility: {
           type: 'number',
           minimum: 0,
           description:
             'Annualized implied volatility (sigma) of the stock. Defaults to a sector-typical IV when omitted. The model SHOULD NOT invent this. Either pass an explicit value the user gave you, or omit it and let the sector default apply.',
         },
-        protectionLevel: { type: 'number', minimum: 0.05, maximum: 0.5 },
-        tenorYears: { type: 'number', minimum: 0.25 },
-        expectedReturn: { type: 'number' },
-        tickerLabel: { type: 'string' },
+        protectionLevel: {
+          type: 'number',
+          minimum: 0.05,
+          maximum: 0.5,
+          description: 'Put strike as (1 − this fraction) × spot. 0.10 = 10% OTM put. Range 0.05..0.50.',
+        },
+        tenorYears: {
+          type: 'number',
+          minimum: 0.25,
+          description: 'Option tenor in years. 1 = 12-month; 0.25 = ~90-day.',
+        },
+        expectedReturn: {
+          type: 'number',
+          description:
+            'Annual expected stock return (decimal). Drives risk-neutral drift in the cap-hit / floor-hit probability metrics. Does not affect premium math. Default 0.',
+        },
+        tickerLabel: {
+          type: 'string',
+          description: 'Optional display string echoed back in the result. Not used in pricing.',
+        },
       },
     },
     handler: (args) => calculateProtectivePut(parseProtectivePutInput(args)),
@@ -294,14 +515,34 @@ export const TOOLS: McpTool[] = [
         'ordinaryIncome', 'filingStatus',
       ],
       properties: {
-        acquisitionDate: ISO_DATE,
-        saleDate: ISO_DATE,
-        entityType: { type: 'string', enum: ['us-c-corp', 'other'] },
+        acquisitionDate: {
+          ...ISO_DATE,
+          description:
+            'Date the QSBS shares were acquired (YYYY-MM-DD). Drives the holding-period test and the era classification (50% pre-2009, 75% 2009-2010, 100% 2010-2025-07-04, OBBBA tiered after 2025-07-05).',
+        },
+        saleDate: {
+          ...ISO_DATE,
+          description:
+            'Planned or actual sale date (YYYY-MM-DD). Together with acquisitionDate determines holdingYears.',
+        },
+        entityType: {
+          type: 'string',
+          enum: ['us-c-corp', 'other'],
+          description:
+            "§1202 Test 1: Type of issuer at the time of acquisition. Only 'us-c-corp' qualifies. S-corps, LLCs, partnerships, and foreign entities fail.",
+        },
         acquisitionMethod: {
           type: 'string',
           enum: ['original-issuance', 'gift-or-inheritance', 'secondary', 'unsure'],
+          description:
+            "§1202 Test 2: How the user obtained the shares. 'original-issuance' (direct from the company) qualifies. 'gift-or-inheritance' tacks the original holder's basis and clock. 'secondary' (bought on a secondary market) does NOT qualify. 'unsure' triggers a partial verdict.",
         },
-        assetCategory: { type: 'string', enum: ['under-50m', '50m-to-75m', 'over-75m', 'unsure'] },
+        assetCategory: {
+          type: 'string',
+          enum: ['under-50m', '50m-to-75m', 'over-75m', 'unsure'],
+          description:
+            "§1202 Test 3: Aggregate gross assets of the issuing corporation at the time of issuance. 'under-50m' qualifies pre-OBBBA. '50m-to-75m' qualifies ONLY under OBBBA 2026+ (post-2025-07-05). 'over-75m' never qualifies. 'unsure' returns a partial verdict.",
+        },
         industry: {
           type: 'string',
           enum: [
@@ -310,13 +551,40 @@ export const TOOLS: McpTool[] = [
             'accounting-actuarial', 'consulting', 'finance', 'farming',
             'extraction', 'hospitality', 'performing-arts', 'other-services', 'unsure',
           ],
+          description:
+            '§1202 Test 4: Industry classification of the corporation. Qualified-trade-or-business industries qualify (tech-software, manufacturing, biotech-research, retail-wholesale, hospitality, etc.). Specified service trades or businesses (law, engineering, architecture, accounting-actuarial, consulting, finance, farming, extraction, health-services, performing-arts) generally do NOT qualify.',
         },
-        activeBusiness: { type: 'string', enum: ['yes', 'no', 'unsure'] },
-        adjustedBasis: { type: 'number', minimum: 0 },
-        expectedGain: { type: 'number' },
-        stateCode: STATE_SCHEMA,
-        ordinaryIncome: { type: 'number', minimum: 0 },
-        filingStatus: FILING_SCHEMA,
+        activeBusiness: {
+          type: 'string',
+          enum: ['yes', 'no', 'unsure'],
+          description:
+            "§1202 Test 5: Did the corporation use ≥80% of its assets in the active conduct of a qualified trade throughout the holding period? 'yes' qualifies. 'no' fails. 'unsure' returns a partial verdict (user should confirm with their CFO).",
+        },
+        adjustedBasis: {
+          type: 'number',
+          minimum: 0,
+          description:
+            "Adjusted basis of the QSBS shares, USD. Used in the 10× basis cap: the per-issuer exclusion cap is max($10M, 10 × adjustedBasis).",
+        },
+        expectedGain: {
+          type: 'number',
+          description:
+            'Expected total gain on sale, USD. Compared against the per-issuer exclusion cap to compute excludableGain and taxableGain.',
+        },
+        stateCode: {
+          ...STATE_SCHEMA,
+          description:
+            'Two-letter US state code. Drives the state-conformity verdict: CA/AL/PA/MS do not conform (full state tax owed); HI/MA partial; NJ 2026-01-01 conformity switch; most others fully conform.',
+        },
+        ordinaryIncome: {
+          type: 'number',
+          minimum: 0,
+          description: 'Annual W-2 ordinary income, USD. Baseline for the federal LTCG bracket on any taxable gain.',
+        },
+        filingStatus: {
+          ...FILING_SCHEMA,
+          description: 'Federal filing status. Drives the LTCG bracket on any non-excluded gain and the NIIT MAGI threshold.',
+        },
       },
     },
     handler: (args) => evaluateQsbs(parseQsbsInput(args)),
