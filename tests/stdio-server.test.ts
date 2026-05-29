@@ -328,6 +328,20 @@ describe('local stdio MCP server', () => {
     expect(result.content[0].text).toContain('unknown tool');
   });
 
+  it('answers ping with an empty success result (no -32601)', async () => {
+    const res = await session.request('ping');
+    expect(res.error).toBeUndefined();
+    expect(res.result).toEqual({});
+  });
+
+  it('answers resources/templates/list with an empty array (no -32601)', async () => {
+    const res = await session.request('resources/templates/list');
+    expect(res.error).toBeUndefined();
+    const r = res.result as { resourceTemplates: unknown[] };
+    expect(Array.isArray(r.resourceTemplates)).toBe(true);
+    expect(r.resourceTemplates).toHaveLength(0);
+  });
+
   it('rejects a prompt missing required arguments with a clean error', async () => {
     // Pick a prompt that actually has a required argument. analyze-rsu-vest
     // requires "shares" per functions/_lib/mcp-prompts.ts. Call without it.

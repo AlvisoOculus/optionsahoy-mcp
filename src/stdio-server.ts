@@ -18,9 +18,11 @@ import {
   CallToolRequestSchema,
   ListToolsRequestSchema,
   ListResourcesRequestSchema,
+  ListResourceTemplatesRequestSchema,
   ReadResourceRequestSchema,
   ListPromptsRequestSchema,
   GetPromptRequestSchema,
+  PingRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js';
 
 import { TOOLS } from '../functions/_lib/mcp-tools';
@@ -115,6 +117,17 @@ server.setRequestHandler(GetPromptRequestSchema, async (req) => {
     messages: prompt.build(args),
   };
 });
+
+// Health-check and discovery methods that clients (including Glama's Try
+// in Browser introspection) probe even though they're not always
+// advertised in the initialize response. Return success so the client gets
+// a -32601 only for methods we genuinely do not implement.
+
+server.setRequestHandler(PingRequestSchema, async () => ({}));
+
+server.setRequestHandler(ListResourceTemplatesRequestSchema, async () => ({
+  resourceTemplates: [],
+}));
 
 const transport = new StdioServerTransport();
 await server.connect(transport);
