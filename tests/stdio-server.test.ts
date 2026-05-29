@@ -3,15 +3,17 @@
 // End-to-end test of the local stdio MCP server: spawn it, send a
 // JSON-RPC handshake + tools/list + tools/call over stdin, parse
 // responses from stdout. Validates that the stdio entry point exposes
-// the same TOOLS surface as the hosted HTTP endpoint.
+// the same TOOLS / RESOURCES / PROMPTS surface as the hosted HTTP
+// endpoint.
 
-import { describe, it, expect } from 'vitest';
-import { spawn } from 'node:child_process';
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const SERVER_ENTRY = path.resolve(__dirname, '..', 'src', 'stdio-server.ts');
+const SERVER_CWD = path.resolve(__dirname, '..');
 
 type JsonRpcResponse = {
   jsonrpc: '2.0';
@@ -20,104 +22,115 @@ type JsonRpcResponse = {
   error?: { code: number; message: string };
 };
 
-async function runStdioSession(
-  requests: Array<Record<string, unknown>>,
-  expectedResponseCount: number,
-): Promise<JsonRpcResponse[]> {
-  return new Promise((resolve, reject) => {
-    const child = spawn('npx', ['tsx', SERVER_ENTRY], {
-      cwd: path.resolve(__dirname, '..'),
+type Pending = {
+  id: number;
+  resolve: (r: JsonRpcResponse) => void;
+  reject: (err: Error) => void;
+};
+
+// Long-lived stdio session reused across all the per-tool tests. Spawning
+// the server once instead of per-test cuts the suite from ~20s to ~2s.
+class StdioSession {
+  child!: ChildProcessWithoutNullStreams;
+  private buffer = '';
+  private pending: Pending[] = [];
+  private nextId = 1;
+
+  async start() {
+    this.child = spawn('npx', ['tsx', SERVER_ENTRY], {
+      cwd: SERVER_CWD,
       stdio: ['pipe', 'pipe', 'pipe'],
     });
-
-    const responses: JsonRpcResponse[] = [];
-    let buffer = '';
-    const timeout = setTimeout(() => {
-      child.kill();
-      reject(new Error(`timeout waiting for ${expectedResponseCount} responses; got ${responses.length}`));
-    }, 10000);
-
-    child.stdout.on('data', (chunk) => {
-      buffer += chunk.toString();
-      let nl;
-      while ((nl = buffer.indexOf('\n')) >= 0) {
-        const line = buffer.slice(0, nl).trim();
-        buffer = buffer.slice(nl + 1);
-        if (!line) continue;
-        try {
-          responses.push(JSON.parse(line));
-        } catch {
-          // ignore non-JSON debug lines
-        }
-        if (responses.length >= expectedResponseCount) {
-          clearTimeout(timeout);
-          child.kill();
-          resolve(responses);
-        }
+    this.child.stdout.on('data', (chunk) => this.onChunk(chunk));
+    this.child.stderr.on('data', () => {});
+    // If the child dies, reject every in-flight request so tests fail loudly
+    // instead of hanging until each per-request timer fires.
+    this.child.on('exit', (code, signal) => {
+      const pending = this.pending;
+      this.pending = [];
+      for (const p of pending) {
+        p.reject(new Error(`child exited (code=${code}, signal=${signal}) before responding to id=${p.id}`));
       }
     });
 
-    child.stderr.on('data', () => {});
-    child.on('error', reject);
+    // Handshake.
+    const init = await this.request('initialize', {
+      protocolVersion: '2024-11-05',
+      capabilities: {},
+      clientInfo: { name: 'test', version: '1' },
+    });
+    this.notify('notifications/initialized');
+    return init;
+  }
 
-    for (const req of requests) {
-      child.stdin.write(JSON.stringify(req) + '\n');
+  stop() {
+    this.child.kill();
+  }
+
+  request(method: string, params?: unknown): Promise<JsonRpcResponse> {
+    const id = this.nextId++;
+    return new Promise<JsonRpcResponse>((resolve, reject) => {
+      const timer = setTimeout(() => {
+        this.pending = this.pending.filter((p) => p.id !== id);
+        reject(new Error(`timeout waiting for ${method} (id=${id})`));
+      }, 8000);
+      this.pending.push({
+        id,
+        resolve: (r) => {
+          clearTimeout(timer);
+          resolve(r);
+        },
+        reject: (err) => {
+          clearTimeout(timer);
+          reject(err);
+        },
+      });
+      this.child.stdin.write(JSON.stringify({ jsonrpc: '2.0', id, method, params }) + '\n');
+    });
+  }
+
+  notify(method: string) {
+    this.child.stdin.write(JSON.stringify({ jsonrpc: '2.0', method }) + '\n');
+  }
+
+  private onChunk(chunk: Buffer) {
+    this.buffer += chunk.toString();
+    let nl;
+    while ((nl = this.buffer.indexOf('\n')) >= 0) {
+      const line = this.buffer.slice(0, nl).trim();
+      this.buffer = this.buffer.slice(nl + 1);
+      if (!line) continue;
+      let parsed: JsonRpcResponse;
+      try {
+        parsed = JSON.parse(line);
+      } catch {
+        continue;
+      }
+      if (parsed.id == null) continue;
+      const match = this.pending.find((p) => p.id === parsed.id);
+      if (match) {
+        this.pending = this.pending.filter((p) => p !== match);
+        match.resolve(parsed);
+      }
     }
-  });
+  }
 }
 
 describe('local stdio MCP server', () => {
-  it('handshakes, lists tools, and answers a tool call', async () => {
-    const responses = await runStdioSession(
-      [
-        {
-          jsonrpc: '2.0',
-          id: 1,
-          method: 'initialize',
-          params: {
-            protocolVersion: '2024-11-05',
-            capabilities: {},
-            clientInfo: { name: 'test', version: '1' },
-          },
-        },
-        { jsonrpc: '2.0', method: 'notifications/initialized' },
-        { jsonrpc: '2.0', id: 2, method: 'tools/list' },
-        {
-          jsonrpc: '2.0',
-          id: 3,
-          method: 'tools/call',
-          params: {
-            name: 'qsbs_check',
-            arguments: {
-              acquisitionDate: '2020-01-15',
-              saleDate: '2026-06-01',
-              entityType: 'us-c-corp',
-              acquisitionMethod: 'original-issuance',
-              assetCategory: 'under-50m',
-              industry: 'tech-software',
-              activeBusiness: 'yes',
-              adjustedBasis: 100000,
-              expectedGain: 5000000,
-              stateCode: 'CA',
-              ordinaryIncome: 250000,
-              filingStatus: 'single',
-            },
-          },
-        },
-      ],
-      3,
-    );
+  const session = new StdioSession();
 
-    expect(responses).toHaveLength(3);
-
-    // initialize
-    const init = responses.find((r) => r.id === 1)!;
+  beforeAll(async () => {
+    const init = await session.start();
     expect((init.result as { protocolVersion: string }).protocolVersion).toBe('2024-11-05');
+  }, 15000);
 
-    // tools/list returns six tools
-    const list = responses.find((r) => r.id === 2)!;
-    const tools = (list.result as { tools: Array<{ name: string }> }).tools;
-    expect(tools).toHaveLength(6);
+  afterAll(() => {
+    session.stop();
+  });
+
+  it('lists all six tools', async () => {
+    const res = await session.request('tools/list');
+    const tools = (res.result as { tools: Array<{ name: string; description: string }> }).tools;
     expect(tools.map((t) => t.name).sort()).toEqual([
       'amt_iso_optimize',
       'concentration_analyze',
@@ -126,12 +139,203 @@ describe('local stdio MCP server', () => {
       'qsbs_check',
       'rsu_sell_vs_hold',
     ]);
+    // Every tool has the input-discipline note appended.
+    for (const t of tools) {
+      expect(t.description).toContain('MUST NOT invent');
+    }
+  });
 
-    // tools/call qsbs_check returns a verdict
-    const call = responses.find((r) => r.id === 3)!;
-    const content = (call.result as { content: Array<{ type: string; text: string }> }).content[0].text;
-    const parsed = JSON.parse(content);
-    expect(parsed.verdict).toBe('qualifies');
-    expect(parsed.exclusionPercent).toBe(1);
-  }, 15000);
+  it('lists all six resources', async () => {
+    const res = await session.request('resources/list');
+    const resources = (res.result as { resources: Array<{ uri: string }> }).resources;
+    expect(resources).toHaveLength(6);
+    for (const r of resources) {
+      expect(r.uri.startsWith('https://optionsahoy.com/learn/')).toBe(true);
+    }
+  });
+
+  it('reads a resource', async () => {
+    const res = await session.request('resources/read', {
+      uri: 'https://optionsahoy.com/learn/amt-crossover',
+    });
+    const contents = (res.result as { contents: Array<{ uri: string; text: string }> }).contents;
+    expect(contents).toHaveLength(1);
+    expect(contents[0].text).toContain('AMT');
+  });
+
+  it('lists all six prompts', async () => {
+    const res = await session.request('prompts/list');
+    const prompts = (res.result as { prompts: Array<{ name: string }> }).prompts;
+    expect(prompts.map((p) => p.name).sort()).toEqual([
+      'analyze-concentration',
+      'analyze-nso-decision',
+      'analyze-rsu-vest',
+      'check-qsbs-eligibility',
+      'optimize-iso-exercise',
+      'price-protective-put',
+    ]);
+  });
+
+  it('returns a templated prompt body', async () => {
+    const res = await session.request('prompts/get', {
+      name: 'check-qsbs-eligibility',
+      arguments: {
+        acquisitionDate: '2020-01-15',
+        saleDate: '2026-06-01',
+        expectedGain: '5000000',
+      },
+    });
+    const messages = (res.result as { messages: Array<{ role: string; content: { type: string; text: string } }> })
+      .messages;
+    expect(messages[0].role).toBe('user');
+    expect(messages[0].content.type).toBe('text');
+    expect(messages[0].content.text).toContain('2020-01-15');
+    expect(messages[0].content.text).toContain('2026-06-01');
+  });
+
+  it.each([
+    {
+      tool: 'qsbs_check',
+      args: {
+        acquisitionDate: '2020-01-15',
+        saleDate: '2026-06-01',
+        entityType: 'us-c-corp',
+        acquisitionMethod: 'original-issuance',
+        assetCategory: 'under-50m',
+        industry: 'tech-software',
+        activeBusiness: 'yes',
+        adjustedBasis: 100000,
+        expectedGain: 5000000,
+        stateCode: 'CA',
+        ordinaryIncome: 250000,
+        filingStatus: 'single',
+      },
+      check: (r: Record<string, unknown>) => {
+        expect(r.verdict).toBe('qualifies');
+        expect(r.exclusionPercent).toBe(1);
+      },
+    },
+    {
+      tool: 'protective_put_price',
+      args: {
+        positionValue: 400000,
+        sector: 'tech_software',
+        protectionLevel: 0.3,
+        tenorYears: 1,
+      },
+      check: (r: Record<string, unknown>) => {
+        expect(r.barePut).toBeDefined();
+        expect(typeof (r.barePut as { annualCostPct: number }).annualCostPct).toBe('number');
+      },
+    },
+    {
+      tool: 'rsu_sell_vs_hold',
+      args: {
+        shares: 1000,
+        currentPrice: 100,
+        ordinaryIncome: 200000,
+        filingStatus: 'single',
+        stateCode: 'CA',
+        stillEmployed: true,
+        holdYears: 2,
+        haircut: 0.2,
+        ticker: 'MSFT',
+      },
+      check: (r: Record<string, unknown>) => {
+        expect(r.vest).toBeDefined();
+        expect(r.hold).toBeDefined();
+        expect(r.sellNowInvest).toBeDefined();
+      },
+    },
+    {
+      tool: 'nso_calculate',
+      args: {
+        shares: 5000,
+        strike: 10,
+        currentPrice: 50,
+        ordinaryIncome: 180000,
+        filingStatus: 'single',
+        stateCode: 'CA',
+        stillEmployed: true,
+        holdYears: 2,
+        haircut: 0.2,
+        holdFunding: 'cash',
+        ticker: 'AAPL',
+      },
+      check: (r: Record<string, unknown>) => {
+        expect(r.exercise).toBeDefined();
+        expect(r.hold).toBeDefined();
+        expect(r.sellNowInvest).toBeDefined();
+      },
+    },
+    {
+      tool: 'concentration_analyze',
+      args: {
+        positionValue: 400000,
+        costBasis: 100000,
+        acquisitionDate: '2022-01-01',
+        sector: 'tech_software',
+        stateCode: 'CA',
+        filingStatus: 'single',
+        ordinaryIncome: 200000,
+        totalAssets: 1200000,
+        volatilityDrag: 0.2,
+        ticker: 'NVDA',
+      },
+      check: (r: Record<string, unknown>) => {
+        expect(typeof r.concentration).toBe('number');
+        expect(r.riskBand).toBeDefined();
+      },
+    },
+    {
+      tool: 'amt_iso_optimize',
+      args: {
+        shares: 10000,
+        strike: 5,
+        fmv: 40,
+        volatilityDrag: 0.2,
+        filingStatus: 'single',
+        ordinaryIncome: 200000,
+        stateCode: 'CA',
+        carryforwardCredit: 0,
+        horizon: 3,
+        cashReturnRate: 0.05,
+        grantDate: '2022-01-01',
+        hasLeftCompany: false,
+        terminationDate: null,
+        ticker: 'NVDA',
+      },
+      check: (r: Record<string, unknown>) => {
+        const schedules = r.schedules as Record<string, unknown>;
+        expect(schedules.lumpSum).toBeDefined();
+        expect(schedules.evenSplit).toBeDefined();
+        expect(schedules.optimized).toBeDefined();
+        expect(typeof r.crossoverShares).toBe('number');
+      },
+    },
+  ])('calls $tool successfully', async ({ tool, args, check }) => {
+    const res = await session.request('tools/call', { name: tool, arguments: args });
+    const result = res.result as { content: Array<{ type: string; text: string }>; isError?: boolean };
+    expect(result.isError).not.toBe(true);
+    const parsed = JSON.parse(result.content[0].text);
+    check(parsed);
+  });
+
+  it('returns isError for an unknown tool', async () => {
+    const res = await session.request('tools/call', { name: 'no_such_tool', arguments: {} });
+    const result = res.result as { content: Array<{ type: string; text: string }>; isError?: boolean };
+    expect(result.isError).toBe(true);
+    expect(result.content[0].text).toContain('unknown tool');
+  });
+
+  it('rejects a prompt missing required arguments with a clean error', async () => {
+    // Pick a prompt that actually has a required argument. analyze-rsu-vest
+    // requires "shares" per functions/_lib/mcp-prompts.ts. Call without it.
+    const res = await session.request('prompts/get', {
+      name: 'analyze-rsu-vest',
+      arguments: {},
+    });
+    expect(res.error).toBeDefined();
+    expect(res.error!.message).toContain('missing required arguments');
+  });
 });
