@@ -6,12 +6,20 @@
   "license": "MIT",
   "type": "module",
   "scripts": {
+    "start": "tsx src/stdio-server.ts",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"
+  },
+  "bin": {
+    "optionsahoy-mcp": "src/stdio-server.ts"
   },
   "devDependencies": {
     "@types/node": "^25.9.1",
     "typescript": "^5.5.4",
     "vitest": "^3.2.4"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "tsx": "^4.22.3"
   }
 }
