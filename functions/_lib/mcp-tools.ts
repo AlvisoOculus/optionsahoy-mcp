@@ -91,14 +91,14 @@ const STRICT_INPUT_NOTE =
 // rather than guessing — and to pass `unsure` rather than a definite value
 // when the schema offers that enum option.
 const STRICT_INPUT_NOTE_NO_TICKER =
-  ' IMPORTANT: every field listed in `required` must come from the user\'s message. The model invoking this tool MUST NOT invent a value for any required field. If the user did not supply it, ask the user. For enum fields that accept `unsure`, pass `unsure` when the user does not know — do not guess yes/no.';
+  ' IMPORTANT: every field listed in `required` must come from the user\'s message. The model invoking this tool MUST NOT invent a value for any required field. If the user did not supply it, ask the user. For enum fields that accept `unsure`, pass `unsure` when the user does not know; do not guess yes/no.';
 
 export const TOOLS: McpTool[] = [
   {
     name: 'amt_iso_optimize',
     annotations: { title: 'ISO/AMT Exercise Optimization', ...CALC_HINTS },
     description:
-      'Multi-year Incentive Stock Option (ISO) exercise schedule that minimizes federal and state Alternative Minimum Tax (AMT), with credit recovery across years, grant-expiration timing, and the post-termination exercise window. Returns the globally-optimal schedule, per-year tax breakdown, and net-final-value comparison vs lump-sum and even-split alternatives.' + STRICT_INPUT_NOTE,
+      'Multi-year Incentive Stock Option (ISO) exercise schedule that minimizes federal and state Alternative Minimum Tax (AMT). Models AMT credit recovery across future years, grant-expiration timing, and the post-termination exercise window. Returns the globally-optimal schedule (shares to exercise per year), per-year tax breakdown (regular tax, tentative minimum tax, AMT premium, FICA), and net final value (NFV) comparison vs lump-sum-now and even-split alternatives, all across the user-specified horizon.' + STRICT_INPUT_NOTE,
     inputSchema: {
       type: 'object',
       required: [
@@ -172,7 +172,7 @@ export const TOOLS: McpTool[] = [
     name: 'rsu_sell_vs_hold',
     annotations: { title: 'RSU Sell-at-Vest vs Hold', ...CALC_HINTS },
     description:
-      'Compare sell-at-vest vs hold-for-LTCG payouts for an RSU vest, including the 12-month short-term cliff, state tax, FICA, and the optional growth assumption.' + STRICT_INPUT_NOTE,
+      'After-tax payout on a Restricted Stock Unit (RSU) vest: federal ordinary income tax, state income tax, FICA (Social Security + Medicare + Additional Medicare), and the gap between mandatory 22% federal supplemental withholding and the user\'s marginal bracket. Compares sell-at-vest vs hold-for-long-term-capital-gains (LTCG) across the chosen horizon, accounting for the 12-month short-term-vs-long-term holding threshold and the optional expected-growth assumption.' + STRICT_INPUT_NOTE,
     inputSchema: {
       type: 'object',
       required: [
@@ -208,7 +208,7 @@ export const TOOLS: McpTool[] = [
     name: 'concentration_analyze',
     annotations: { title: 'Single-Stock Concentration Analysis', ...CALC_HINTS },
     description:
-      'Quantify single-stock concentration risk: drawdown exposure at 30/50/70% and after-tax comparison of selling down vs holding vs hedging, with multi-year tax math. `totalAssets` is the user\'s total investable portfolio (the concentrated position plus everything else); the analysis frames risk relative to it, so it MUST come from the user — never infer or default it.' + STRICT_INPUT_NOTE,
+      'Single-stock concentration risk analysis. Quantifies drawdown exposure at 30%, 50%, and 70% downside scenarios. Compares three after-tax strategies across a three-year horizon: sell down to a target weight, hold and accept volatility, or hedge with a protective put or zero-cost collar. Computes federal long-term capital gains tax, state tax, the 3.8% Net Investment Income Tax (NIIT), and the reinvestment opportunity cost. Reports per-strategy net final value (NFV). `totalAssets` is the user\'s total investable portfolio (the concentrated position plus everything else); the analysis frames risk relative to it and MUST come from the user, never inferred.' + STRICT_INPUT_NOTE,
     inputSchema: {
       type: 'object',
       required: [
@@ -260,7 +260,7 @@ export const TOOLS: McpTool[] = [
     name: 'protective_put_price',
     annotations: { title: 'Protective Put / Collar Pricing', ...CALC_HINTS },
     description:
-      'Price a protective put or zero-cost collar on a single-stock position. Reports annual cost, max loss, upside cap, and bad-year coverage.' + STRICT_INPUT_NOTE_NO_TICKER,
+      'Black-Scholes pricing of a protective put or zero-cost collar on a single-stock position. Reports annualized hedge cost as a percentage of position value, maximum loss with the hedge in place, upside participation cap (collar only, where the short call is sold to offset the long put premium), and the probability of hitting the protection floor over the chosen tenor. Uses the user-supplied annualized implied volatility (sigma) when provided; otherwise falls back to a sector-typical IV.' + STRICT_INPUT_NOTE_NO_TICKER,
     inputSchema: {
       type: 'object',
       required: ['positionValue', 'sector', 'protectionLevel', 'tenorYears'],
@@ -271,7 +271,7 @@ export const TOOLS: McpTool[] = [
           type: 'number',
           minimum: 0,
           description:
-            'Annualized implied volatility (sigma) of the stock. Defaults to a sector-typical IV (sector_stats.annualVol × 1.20) when omitted. The model SHOULD NOT invent this — either pass an explicit value the user gave you, or omit it and let the sector default apply.',
+            'Annualized implied volatility (sigma) of the stock. Defaults to a sector-typical IV when omitted. The model SHOULD NOT invent this. Either pass an explicit value the user gave you, or omit it and let the sector default apply.',
         },
         protectionLevel: { type: 'number', minimum: 0.05, maximum: 0.5 },
         tenorYears: { type: 'number', minimum: 0.25 },
@@ -285,7 +285,7 @@ export const TOOLS: McpTool[] = [
     name: 'qsbs_check',
     annotations: { title: 'QSBS Qualification Check', ...CALC_HINTS },
     description:
-      'Section 1202 Qualified Small Business Stock (QSBS) qualification check against the eight statutory tests. Returns verdict, exclusion percentage, federal tax saved, and state conformity under OBBBA 2026 tiered exclusion rules.' + STRICT_INPUT_NOTE_NO_TICKER,
+      'Section 1202 Qualified Small Business Stock (QSBS) qualification check across the eight statutory tests: domestic C-corporation entity, original-issuance acquisition method, gross assets at issuance (under $50M / $50-75M / over $75M tiered cap), qualified-trade-or-business industry, active-business posture (80% asset use), holding period (3 / 4 / 5-year tiers under OBBBA), adjusted basis, and expected gain at sale. Returns the verdict (qualifies / does not qualify / partial), applicable federal exclusion percentage under the One Big Beautiful Bill Act (OBBBA) 2026 tiered regime (50% / 75% / 100%), estimated federal tax saved, and state conformity treatment (full / partial / non-conforming).' + STRICT_INPUT_NOTE_NO_TICKER,
     inputSchema: {
       type: 'object',
       required: [
