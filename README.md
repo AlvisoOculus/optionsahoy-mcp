@@ -179,7 +179,7 @@ Email andrew@alphalatitude.com with: the exact JSON-RPC request body, the respon
 
 ## License
 
-See [LICENSE](LICENSE). All rights reserved during beta; the deployed service at optionsahoy.com is free under [terms](https://optionsahoy.com/terms).
+MIT. See [LICENSE](LICENSE). The deployed service at https://optionsahoy.com/mcp and https://optionsahoy.com/api/v1 is free during beta under [terms](https://optionsahoy.com/terms).
 
 ## Contact
 

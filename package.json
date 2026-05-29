@@ -3,6 +3,7 @@
   "version": "1.2.0",
   "private": false,
   "description": "Multi-year equity-compensation optimization MCP server + REST API. Six tools: ISO/AMT, NSO, RSU, concentration, protective puts, QSBS. Full federal + 50-state + DC tax code.",
+  "license": "MIT",
   "type": "module",
   "scripts": {
     "test": "vitest run",
