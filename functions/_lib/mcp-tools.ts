@@ -130,18 +130,18 @@ export const TOOLS: McpTool[] = [
             'Annual expected stock growth as a decimal (0.10 = 10%). Required unless `ticker` resolves it from trailing CAGR.',
         },
         ticker: TICKER_SCHEMA,
+        volatility: {
+          type: 'number',
+          minimum: 0,
+          description:
+            'PREFERRED INPUT. Annualized volatility (sigma) of the stock as a decimal (0.72 = 72%). Pass this directly when the user provides a volatility number. The tool derives the horizon-cumulative drag internally using 1 - exp(-(sigma^2 / 2) * horizon). DO NOT compute drag yourself — the formula is horizon-dependent and most callers get it wrong (a common mistake is using sigma^2 / 2 as a per-year drag, which is roughly 4x too small at a 4y horizon). Either this OR `volatilityDrag` is required.',
+        },
         volatilityDrag: {
           type: 'number',
           minimum: 0,
           maximum: 0.99,
           description:
-            'Multiplicative haircut on the terminal-FMV growth path (0..0.99), capturing the half-variance correction in compounded returns. 0 = no drag, 0.20 = 20% haircut at horizon. Either this field OR `volatility` is required; if both are supplied, `volatilityDrag` wins.',
-        },
-        volatility: {
-          type: 'number',
-          minimum: 0,
-          description:
-            'Annualized volatility (sigma) of the stock as a decimal (0.30 = 30%). Either this OR `volatilityDrag` is required; if both are supplied, `volatilityDrag` wins. When only `volatility` is supplied, drag is derived as 1 - exp(-(sigma^2 / 2) * horizon).',
+            'ADVANCED override. Multiplicative haircut on the terminal-FMV growth path at the horizon (0..0.99). 0.20 = 20% haircut at horizon. Only pass this if the user supplied a drag figure directly; otherwise pass `volatility` and let the tool derive drag. When both are supplied, `volatilityDrag` wins.',
         },
         filingStatus: {
           ...FILING_SCHEMA,
@@ -175,7 +175,7 @@ export const TOOLS: McpTool[] = [
         cashReturnRate: {
           type: 'number',
           description:
-            'Annual after-tax return on idle cash (decimal), used to time-value the cash-tax stream. 0.05 = 5% (~short-Treasury yield). At 0 the math collapses to a nominal sum.',
+            'Annual after-tax return on idle cash (decimal), used to time-value the cash-tax stream. 0.05 = 5% (~short-Treasury yield). Required. The model MUST NOT invent this value; ask the user (e.g. "what after-tax yield should I use for idle cash, e.g. ~5% for short-term Treasury?"). At 0 the math collapses to a nominal sum.',
         },
         grantDate: {
           ...ISO_DATE,
@@ -255,18 +255,18 @@ export const TOOLS: McpTool[] = [
           description:
             'Projected $/share at end of holdYears. Required unless `ticker` resolves it from currentPrice × (1 + trailing CAGR)^holdYears.',
         },
+        volatility: {
+          type: 'number',
+          minimum: 0,
+          description:
+            'PREFERRED INPUT. Annualized volatility (sigma) of the stock as a decimal (0.72 = 72%). Pass this directly when the user provides a volatility number. The tool derives the horizon-cumulative haircut internally using 1 - exp(-(sigma^2 / 2) * holdYears). DO NOT compute haircut yourself — the formula is horizon-dependent and most callers get it wrong (a common mistake is using sigma^2 / 2 as a per-year haircut, which is too small at multi-year horizons). Either this OR `haircut` is required.',
+        },
         haircut: {
           type: 'number',
           minimum: 0,
           maximum: 1,
           description:
-            'Multiplicative haircut on expectedSalePrice (0..1) capturing volatility drag at the hold horizon. 0.20 = 20% haircut. Either this OR `volatility` is required; if both are supplied, `haircut` wins.',
-        },
-        volatility: {
-          type: 'number',
-          minimum: 0,
-          description:
-            'Annualized volatility (sigma) of the stock as a decimal (0.30 = 30%). Either this OR `haircut` is required; if both are supplied, `haircut` wins. When only `volatility` is supplied, the haircut is derived as 1 - exp(-(sigma^2 / 2) * holdYears).',
+            'ADVANCED override. Multiplicative haircut on expectedSalePrice (0..1) at the hold horizon. 0.20 = 20% haircut at horizon. Only pass this if the user supplied a haircut figure directly; otherwise pass `volatility` and let the tool derive it. When both are supplied, `haircut` wins.',
         },
         expectedMarketReturn: {
           type: 'number',
@@ -338,18 +338,18 @@ export const TOOLS: McpTool[] = [
           description:
             'Projected $/share at end of holdYears. Required unless `ticker` resolves it from currentPrice × (1 + trailing CAGR)^holdYears.',
         },
+        volatility: {
+          type: 'number',
+          minimum: 0,
+          description:
+            'PREFERRED INPUT. Annualized volatility (sigma) of the stock as a decimal (0.72 = 72%). Pass this directly when the user provides a volatility number. The tool derives the horizon-cumulative haircut internally using 1 - exp(-(sigma^2 / 2) * holdYears). DO NOT compute haircut yourself — the formula is horizon-dependent and most callers get it wrong. Either this OR `haircut` is required.',
+        },
         haircut: {
           type: 'number',
           minimum: 0,
           maximum: 1,
           description:
-            'Multiplicative haircut on expectedSalePrice (0..1) capturing volatility drag at the hold horizon. Either this OR `volatility` is required; if both are supplied, `haircut` wins.',
-        },
-        volatility: {
-          type: 'number',
-          minimum: 0,
-          description:
-            'Annualized volatility (sigma) of the stock as a decimal (0.30 = 30%). Either this OR `haircut` is required; if both are supplied, `haircut` wins. When only `volatility` is supplied, the haircut is derived as 1 - exp(-(sigma^2 / 2) * holdYears).',
+            'ADVANCED override. Multiplicative haircut on expectedSalePrice (0..1) at the hold horizon. Only pass this if the user supplied a haircut figure directly; otherwise pass `volatility` and let the tool derive it. When both are supplied, `haircut` wins.',
         },
         expectedMarketReturn: {
           type: 'number',
@@ -424,18 +424,18 @@ export const TOOLS: McpTool[] = [
             'Annual after-tax-proceeds reinvestment rate. Defaults to SPY trailing CAGR for the 3-year horizon if omitted.',
         },
         ticker: TICKER_SCHEMA,
+        volatility: {
+          type: 'number',
+          minimum: 0,
+          description:
+            'PREFERRED INPUT. Annualized volatility (sigma) of the stock as a decimal (0.72 = 72%). Pass this directly when the user provides a volatility number. Drives hedge pricing (used directly as implied vol) AND derives drag at the 3y horizon as 1 - exp(-(sigma^2 / 2) * 3). DO NOT compute drag yourself — the formula is horizon-dependent and most callers get it wrong. Either this OR `volatilityDrag` is required for drag; when omitted entirely, hedge pricing falls back to sector_stats.annualVol × 1.20 (the IV-over-RV multiplier).',
+        },
         volatilityDrag: {
           type: 'number',
           minimum: 0,
           maximum: 0.99,
           description:
-            'Multiplicative haircut on the expected stock-price path at the 3-year analysis horizon (0..0.99), capturing the half-variance correction in compounded returns. Either this OR `volatility` is required; if both are supplied, `volatilityDrag` wins.',
-        },
-        volatility: {
-          type: 'number',
-          minimum: 0,
-          description:
-            'Annualized volatility (sigma) of the stock as a decimal (0.30 = 30%). Drives hedge pricing (used directly as implied vol) AND, when `volatilityDrag` is omitted, derives drag as 1 - exp(-(sigma^2 / 2) * 3). Either this OR `volatilityDrag` is required for the drag input; if both are supplied, `volatilityDrag` wins. When omitted entirely, hedge pricing falls back to sector_stats.annualVol × 1.20 (the IV-over-RV multiplier).',
+            'ADVANCED override. Multiplicative haircut on the expected stock-price path at the 3-year analysis horizon (0..0.99). Only pass this if the user supplied a drag figure directly; otherwise pass `volatility` and let the tool derive drag. When both are supplied, `volatilityDrag` wins.',
         },
         hedgeChoice: {
           type: 'object',
