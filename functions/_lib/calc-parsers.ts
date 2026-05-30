@@ -17,22 +17,17 @@ import { asObject, p, FILING_STATUSES, type Obj } from './api';
 import { getTrailingReturn } from '../../lib/data/trailing-returns';
 import { SECTOR_STATS, type SectorKey } from '../../lib/markets/sector-stats';
 import { HORIZON_YEARS as CONCENTRATION_HORIZON_YEARS, IV_OVER_RV_MULTIPLIER } from '../../lib/calc/concentration';
+import { lognormalHaircut } from '../../lib/calc/volatility-drag';
 
 const ASK_USER_HINT =
   'The model invoking this tool MUST NOT invent this value — ask the user.';
 
-// Convert annualized volatility (sigma) into the multiplicative
-// drag-at-horizon field that the engine consumes. Uses the GBM half-variance
-// correction: drag = 1 - exp(-(sigma^2 / 2) * T). If the caller passes the
-// drag field directly, that wins; otherwise we derive from `volatility`.
-// Throws if neither is supplied.
+// Caller may pass either a pre-computed drag-at-horizon (legacy REST clients)
+// or annualized sigma. The drag-style field wins when both are supplied.
 function resolveDragFromVolatility(o: Obj, dragField: string, horizonYears: number): number {
   if (o[dragField] !== undefined) return p.num(o, dragField);
   if (o.volatility !== undefined) {
-    const sigma = p.num(o, 'volatility');
-    if (sigma < 0) throw new Error(`field "volatility" must be >= 0`);
-    const T = Math.max(0, horizonYears);
-    return 1 - Math.exp(-((sigma * sigma) / 2) * T);
+    return lognormalHaircut(p.num(o, 'volatility'), horizonYears);
   }
   throw new Error(
     `field "volatility" required: annualized sigma of the stock as a decimal (e.g. 0.30 for 30%). ${ASK_USER_HINT}`,

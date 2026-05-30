@@ -340,7 +340,7 @@ export interface YearTax {
 
 export type ScheduleLabel = 'lump_sum' | 'even_split' | 'optimized';
 
-export interface Schedule {
+export interface Schedule extends NfvBreakdown {
   label: ScheduleLabel;
   years: YearTax[];
   totalTax: number;
@@ -543,7 +543,9 @@ export function runSchedule(
       ? (years[0].regularFederal + years[0].regularState) * years.length
       : 0;
 
-  return {
+  // nfvBreakdown only needs schedule.years[] (via futureValueExerciseTax) to
+  // compute amtPremiumFV — safe to call before the NFV fields are filled.
+  const base = {
     label,
     years,
     totalTax,
@@ -553,6 +555,8 @@ export function runSchedule(
     creditRecovered,
     creditRemaining: Math.max(0, creditBalance),
   };
+  const breakdown = nfvBreakdown(base as Schedule, input);
+  return { ...base, ...breakdown };
 }
 
 // ---------------------------------------------------------------

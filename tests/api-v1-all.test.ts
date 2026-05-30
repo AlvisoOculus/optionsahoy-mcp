@@ -21,6 +21,7 @@ import { computeRsuResult } from '@/lib/calc/rsu';
 import { calculate as computeConcentration } from '@/lib/calc/concentration';
 import { calculateProtectivePut } from '@/lib/calc/protectivePut';
 import { evaluateQsbs } from '@/lib/calc/qsbs';
+import { lognormalHaircut } from '@/lib/calc/volatility-drag';
 
 function postReq(path: string, body: unknown): Request {
   return new Request(`http://localhost${path}`, {
@@ -40,13 +41,8 @@ async function expectOkAndMatch<T>(
   expect(JSON.stringify(json.result)).toEqual(JSON.stringify(reference));
 }
 
-// REST goes through parseNsoInput etc, which derives the drag-at-horizon
-// haircut from `volatility`. In-process calc functions skip the parser, so
-// the test must compute the haircut the same way the parser would.
-function dragAtHorizon(sigma: number, years: number): number {
-  return 1 - Math.exp(-((sigma * sigma) / 2) * years);
-}
-
+// REST handlers derive `haircut` from `volatility` via the parser; in-process
+// calc functions skip the parser, so the test must apply the same derivation.
 describe('POST /api/v1/nso', () => {
   it('matches in-process computeNsoResult', async () => {
     const body = {
@@ -66,7 +62,7 @@ describe('POST /api/v1/nso', () => {
     const res = await nsoHandler({ request: postReq('/api/v1/nso', body) });
     await expectOkAndMatch(res, computeNsoResult({
       ...body,
-      haircut: dragAtHorizon(body.volatility, body.holdYears),
+      haircut: lognormalHaircut(body.volatility, body.holdYears),
       filingStatus: 'single',
     } as Parameters<typeof computeNsoResult>[0]));
   });
@@ -91,7 +87,7 @@ describe('POST /api/v1/rsu-sell-vs-hold', () => {
       res,
       computeRsuResult({
         ...body,
-        haircut: dragAtHorizon(body.volatility, body.holdYears),
+        haircut: lognormalHaircut(body.volatility, body.holdYears),
         filingStatus: 'married_joint',
       } as Parameters<typeof computeRsuResult>[0]),
     );

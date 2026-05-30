@@ -93,6 +93,16 @@ const STRICT_INPUT_NOTE =
 const STRICT_INPUT_NOTE_NO_TICKER =
   ' IMPORTANT: every field listed in `required` must come from the user\'s message. The model invoking this tool MUST NOT invent a value for any required field. If the user did not supply it, ask the user. For enum fields that accept `unsure`, pass `unsure` when the user does not know; do not guess yes/no.';
 
+// Vol input shared by amt_iso_optimize, nso_calculate, rsu_sell_vs_hold.
+// concentration_analyze defines its own version because it also uses sigma
+// for Black-Scholes hedge pricing (dual purpose).
+const VOLATILITY_SCHEMA = {
+  type: 'number',
+  minimum: 0,
+  description:
+    'Annualized volatility (sigma) of the stock as a decimal (0.72 = 72%). Pass the user-supplied volatility directly; the tool computes the horizon-cumulative drag internally. The model MUST NOT compute drag itself — the correct formula is horizon-dependent and most models get it wrong. If the user does not supply a volatility number, ASK them.',
+};
+
 export const TOOLS: McpTool[] = [
   {
     name: 'amt_iso_optimize',
@@ -130,12 +140,7 @@ export const TOOLS: McpTool[] = [
             'Annual expected stock growth as a decimal (0.10 = 10%). Required unless `ticker` resolves it from trailing CAGR.',
         },
         ticker: TICKER_SCHEMA,
-        volatility: {
-          type: 'number',
-          minimum: 0,
-          description:
-            'Annualized volatility (sigma) of the stock as a decimal (0.72 = 72%). Pass the user-supplied volatility directly; the tool computes the horizon-cumulative drag internally. The model MUST NOT compute drag itself — the correct formula is horizon-dependent and most models get it wrong. If the user does not supply a volatility number, ASK them.',
-        },
+        volatility: VOLATILITY_SCHEMA,
         filingStatus: {
           ...FILING_SCHEMA,
           description:
@@ -248,12 +253,7 @@ export const TOOLS: McpTool[] = [
           description:
             'Projected $/share at end of holdYears. Required unless `ticker` resolves it from currentPrice × (1 + trailing CAGR)^holdYears.',
         },
-        volatility: {
-          type: 'number',
-          minimum: 0,
-          description:
-            'Annualized volatility (sigma) of the stock as a decimal (0.72 = 72%). Pass the user-supplied volatility directly; the tool computes the horizon-cumulative haircut internally. The model MUST NOT compute the haircut itself — the correct formula is horizon-dependent and most models get it wrong. If the user does not supply a volatility number, ASK them.',
-        },
+        volatility: VOLATILITY_SCHEMA,
         expectedMarketReturn: {
           type: 'number',
           description:
@@ -324,12 +324,7 @@ export const TOOLS: McpTool[] = [
           description:
             'Projected $/share at end of holdYears. Required unless `ticker` resolves it from currentPrice × (1 + trailing CAGR)^holdYears.',
         },
-        volatility: {
-          type: 'number',
-          minimum: 0,
-          description:
-            'Annualized volatility (sigma) of the stock as a decimal (0.72 = 72%). Pass the user-supplied volatility directly; the tool computes the horizon-cumulative haircut internally. The model MUST NOT compute the haircut itself — the correct formula is horizon-dependent and most models get it wrong. If the user does not supply a volatility number, ASK them.',
-        },
+        volatility: VOLATILITY_SCHEMA,
         expectedMarketReturn: {
           type: 'number',
           description:

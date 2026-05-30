@@ -24,6 +24,7 @@ import {
 } from '../functions/_lib/calc-parsers';
 import { getTrailingReturn } from '../lib/data/trailing-returns';
 import { SECTOR_STATS } from '../lib/markets/sector-stats';
+import { lognormalHaircut } from '@/lib/calc/volatility-drag';
 
 // Base fixtures with EVERY required field except the growth-rate ones —
 // each test fills in the growth path it's exercising.
@@ -198,17 +199,11 @@ describe('parseRsuInput — ticker lookup', () => {
   });
 });
 
-// Convert annualized sigma -> drag-at-horizon for the test expectations.
-// Mirrors resolveDragFromVolatility in calc-parsers.ts.
-function dragFromSigma(sigma: number, horizonYears: number): number {
-  return 1 - Math.exp(-((sigma * sigma) / 2) * horizonYears);
-}
-
 describe('parseAmtIsoInput — volatility -> drag derivation', () => {
   it('derives volatilityDrag from annualized sigma over the planning horizon', () => {
     const sigma = 0.72;
     const out = parseAmtIsoInput({ ...AMT_ISO_BASE, expectedGrowth: 0.17, volatility: sigma });
-    expect(out.volatilityDrag).toBeCloseTo(dragFromSigma(sigma, AMT_ISO_BASE.horizon), 10);
+    expect(out.volatilityDrag).toBeCloseTo(lognormalHaircut(sigma, AMT_ISO_BASE.horizon), 10);
   });
 
   it('throws when volatility is missing', () => {
@@ -227,7 +222,7 @@ describe('parseNsoInput — volatility -> haircut derivation', () => {
       expectedSalePrice: 100,
       volatility: sigma,
     });
-    expect(out.haircut).toBeCloseTo(dragFromSigma(sigma, NSO_BASE.holdYears), 10);
+    expect(out.haircut).toBeCloseTo(lognormalHaircut(sigma, NSO_BASE.holdYears), 10);
   });
 });
 
@@ -239,7 +234,7 @@ describe('parseRsuInput — volatility -> haircut derivation', () => {
       expectedSalePrice: 100,
       volatility: sigma,
     });
-    expect(out.haircut).toBeCloseTo(dragFromSigma(sigma, RSU_BASE.holdYears), 10);
+    expect(out.haircut).toBeCloseTo(lognormalHaircut(sigma, RSU_BASE.holdYears), 10);
   });
 });
 
@@ -252,7 +247,7 @@ describe('parseConcentrationInput — volatility -> drag derivation', () => {
       expectedPositionReturn: 0.12,
       volatility: sigma,
     });
-    expect(out.volatilityDrag).toBeCloseTo(dragFromSigma(sigma, 3), 10);
+    expect(out.volatilityDrag).toBeCloseTo(lognormalHaircut(sigma, 3), 10);
     expect(out.volatility).toBe(sigma);
   });
 });
