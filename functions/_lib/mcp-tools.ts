@@ -102,7 +102,7 @@ export const TOOLS: McpTool[] = [
     inputSchema: {
       type: 'object',
       required: [
-        'shares', 'strike', 'fmv', 'filingStatus',
+        'shares', 'strike', 'fmv', 'volatility', 'filingStatus',
         'ordinaryIncome', 'stateCode', 'carryforwardCredit', 'horizon', 'cashReturnRate',
         'grantDate', 'hasLeftCompany', 'terminationDate',
       ],
@@ -134,14 +134,7 @@ export const TOOLS: McpTool[] = [
           type: 'number',
           minimum: 0,
           description:
-            'PREFERRED INPUT. Annualized volatility (sigma) of the stock as a decimal (0.72 = 72%). Pass this directly when the user provides a volatility number. The tool derives the horizon-cumulative drag internally using 1 - exp(-(sigma^2 / 2) * horizon). DO NOT compute drag yourself — the formula is horizon-dependent and most callers get it wrong (a common mistake is using sigma^2 / 2 as a per-year drag, which is roughly 4x too small at a 4y horizon). Either this OR `volatilityDrag` is required.',
-        },
-        volatilityDrag: {
-          type: 'number',
-          minimum: 0,
-          maximum: 0.99,
-          description:
-            'ADVANCED override. Multiplicative haircut on the terminal-FMV growth path at the horizon (0..0.99). 0.20 = 20% haircut at horizon. Only pass this if the user supplied a drag figure directly; otherwise pass `volatility` and let the tool derive drag. When both are supplied, `volatilityDrag` wins.',
+            'Annualized volatility (sigma) of the stock as a decimal (0.72 = 72%). Pass the user-supplied volatility directly; the tool computes the horizon-cumulative drag internally. The model MUST NOT compute drag itself — the correct formula is horizon-dependent and most models get it wrong. If the user does not supply a volatility number, ASK them.',
         },
         filingStatus: {
           ...FILING_SCHEMA,
@@ -205,7 +198,7 @@ export const TOOLS: McpTool[] = [
       type: 'object',
       required: [
         'shares', 'strike', 'currentPrice', 'ordinaryIncome', 'filingStatus', 'stateCode',
-        'stillEmployed', 'holdYears', 'holdFunding',
+        'stillEmployed', 'holdYears', 'volatility', 'holdFunding',
       ],
       properties: {
         shares: {
@@ -259,14 +252,7 @@ export const TOOLS: McpTool[] = [
           type: 'number',
           minimum: 0,
           description:
-            'PREFERRED INPUT. Annualized volatility (sigma) of the stock as a decimal (0.72 = 72%). Pass this directly when the user provides a volatility number. The tool derives the horizon-cumulative haircut internally using 1 - exp(-(sigma^2 / 2) * holdYears). DO NOT compute haircut yourself — the formula is horizon-dependent and most callers get it wrong (a common mistake is using sigma^2 / 2 as a per-year haircut, which is too small at multi-year horizons). Either this OR `haircut` is required.',
-        },
-        haircut: {
-          type: 'number',
-          minimum: 0,
-          maximum: 1,
-          description:
-            'ADVANCED override. Multiplicative haircut on expectedSalePrice (0..1) at the hold horizon. 0.20 = 20% haircut at horizon. Only pass this if the user supplied a haircut figure directly; otherwise pass `volatility` and let the tool derive it. When both are supplied, `haircut` wins.',
+            'Annualized volatility (sigma) of the stock as a decimal (0.72 = 72%). Pass the user-supplied volatility directly; the tool computes the horizon-cumulative haircut internally. The model MUST NOT compute the haircut itself — the correct formula is horizon-dependent and most models get it wrong. If the user does not supply a volatility number, ASK them.',
         },
         expectedMarketReturn: {
           type: 'number',
@@ -293,7 +279,7 @@ export const TOOLS: McpTool[] = [
       type: 'object',
       required: [
         'shares', 'currentPrice', 'ordinaryIncome', 'filingStatus', 'stateCode',
-        'stillEmployed', 'holdYears',
+        'stillEmployed', 'holdYears', 'volatility',
       ],
       properties: {
         shares: {
@@ -342,14 +328,7 @@ export const TOOLS: McpTool[] = [
           type: 'number',
           minimum: 0,
           description:
-            'PREFERRED INPUT. Annualized volatility (sigma) of the stock as a decimal (0.72 = 72%). Pass this directly when the user provides a volatility number. The tool derives the horizon-cumulative haircut internally using 1 - exp(-(sigma^2 / 2) * holdYears). DO NOT compute haircut yourself — the formula is horizon-dependent and most callers get it wrong. Either this OR `haircut` is required.',
-        },
-        haircut: {
-          type: 'number',
-          minimum: 0,
-          maximum: 1,
-          description:
-            'ADVANCED override. Multiplicative haircut on expectedSalePrice (0..1) at the hold horizon. Only pass this if the user supplied a haircut figure directly; otherwise pass `volatility` and let the tool derive it. When both are supplied, `haircut` wins.',
+            'Annualized volatility (sigma) of the stock as a decimal (0.72 = 72%). Pass the user-supplied volatility directly; the tool computes the horizon-cumulative haircut internally. The model MUST NOT compute the haircut itself — the correct formula is horizon-dependent and most models get it wrong. If the user does not supply a volatility number, ASK them.',
         },
         expectedMarketReturn: {
           type: 'number',
@@ -370,7 +349,7 @@ export const TOOLS: McpTool[] = [
       type: 'object',
       required: [
         'positionValue', 'costBasis', 'acquisitionDate', 'sector', 'stateCode', 'filingStatus',
-        'ordinaryIncome', 'totalAssets',
+        'ordinaryIncome', 'totalAssets', 'volatility',
       ],
       properties: {
         positionValue: {
@@ -428,14 +407,7 @@ export const TOOLS: McpTool[] = [
           type: 'number',
           minimum: 0,
           description:
-            'PREFERRED INPUT. Annualized volatility (sigma) of the stock as a decimal (0.72 = 72%). Pass this directly when the user provides a volatility number. Drives hedge pricing (used directly as implied vol) AND derives drag at the 3y horizon as 1 - exp(-(sigma^2 / 2) * 3). DO NOT compute drag yourself — the formula is horizon-dependent and most callers get it wrong. Either this OR `volatilityDrag` is required for drag; when omitted entirely, hedge pricing falls back to sector_stats.annualVol × 1.20 (the IV-over-RV multiplier).',
-        },
-        volatilityDrag: {
-          type: 'number',
-          minimum: 0,
-          maximum: 0.99,
-          description:
-            'ADVANCED override. Multiplicative haircut on the expected stock-price path at the 3-year analysis horizon (0..0.99). Only pass this if the user supplied a drag figure directly; otherwise pass `volatility` and let the tool derive drag. When both are supplied, `volatilityDrag` wins.',
+            'Annualized volatility (sigma) of the stock as a decimal (0.72 = 72%). Pass the user-supplied volatility directly; the tool uses it both for hedge pricing (as implied vol) and for the 3y horizon drag, computed internally. The model MUST NOT compute drag itself — the correct formula is horizon-dependent and most models get it wrong. If the user does not supply a volatility number, ASK them; only when neither is supplied does hedge pricing fall back to sector_stats.annualVol × 1.20.',
         },
         hedgeChoice: {
           type: 'object',
