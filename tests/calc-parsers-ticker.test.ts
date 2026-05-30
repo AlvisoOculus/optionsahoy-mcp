@@ -31,7 +31,7 @@ const AMT_ISO_BASE = {
   shares: 5000,
   strike: 4,
   fmv: 90,
-  volatilityDrag: 0.2,
+  volatility: 0.3,
   filingStatus: 'single',
   ordinaryIncome: 250000,
   stateCode: 'CA',
@@ -52,7 +52,7 @@ const CONCENTRATION_BASE = {
   filingStatus: 'single',
   ordinaryIncome: 250000,
   totalAssets: 1000000,
-  volatilityDrag: 0.2,
+  volatility: 0.3,
 };
 
 const NSO_BASE = {
@@ -64,7 +64,7 @@ const NSO_BASE = {
   stateCode: 'CA',
   stillEmployed: true,
   holdYears: 3,
-  haircut: 0.2,
+  volatility: 0.3,
   holdFunding: 'cash',
 };
 
@@ -76,7 +76,7 @@ const RSU_BASE = {
   stateCode: 'CA',
   stillEmployed: true,
   holdYears: 2,
-  haircut: 0.2,
+  volatility: 0.3,
 };
 
 describe('parseConcentrationInput — ticker lookup', () => {
@@ -205,63 +205,37 @@ function dragFromSigma(sigma: number, horizonYears: number): number {
 }
 
 describe('parseAmtIsoInput — volatility -> drag derivation', () => {
-  // Drop volatilityDrag from the base; supply volatility instead.
-  const { volatilityDrag: _vd, ...AMT_NO_DRAG } = AMT_ISO_BASE;
-
   it('derives volatilityDrag from annualized sigma over the planning horizon', () => {
     const sigma = 0.72;
-    const out = parseAmtIsoInput({ ...AMT_NO_DRAG, expectedGrowth: 0.17, volatility: sigma });
+    const out = parseAmtIsoInput({ ...AMT_ISO_BASE, expectedGrowth: 0.17, volatility: sigma });
     expect(out.volatilityDrag).toBeCloseTo(dragFromSigma(sigma, AMT_ISO_BASE.horizon), 10);
   });
 
-  it('prefers explicit volatilityDrag over volatility when both supplied', () => {
-    const out = parseAmtIsoInput({
-      ...AMT_NO_DRAG,
-      expectedGrowth: 0.17,
-      volatility: 0.72,
-      volatilityDrag: 0.3,
-    });
-    expect(out.volatilityDrag).toBe(0.3);
-  });
-
-  it('throws when both volatility and volatilityDrag are missing', () => {
-    expect(() => parseAmtIsoInput({ ...AMT_NO_DRAG, expectedGrowth: 0.17 })).toThrow(
-      /volatilityDrag.*required.*volatility/i,
+  it('throws when volatility is missing', () => {
+    const { volatility: _v, ...NO_VOL } = AMT_ISO_BASE;
+    expect(() => parseAmtIsoInput({ ...NO_VOL, expectedGrowth: 0.17 })).toThrow(
+      /volatility.*required/i,
     );
   });
 });
 
 describe('parseNsoInput — volatility -> haircut derivation', () => {
-  const { haircut: _h, ...NSO_NO_HAIRCUT } = NSO_BASE;
-
   it('derives haircut from sigma over holdYears', () => {
     const sigma = 0.5;
     const out = parseNsoInput({
-      ...NSO_NO_HAIRCUT,
+      ...NSO_BASE,
       expectedSalePrice: 100,
       volatility: sigma,
     });
     expect(out.haircut).toBeCloseTo(dragFromSigma(sigma, NSO_BASE.holdYears), 10);
   });
-
-  it('explicit haircut wins over volatility', () => {
-    const out = parseNsoInput({
-      ...NSO_NO_HAIRCUT,
-      expectedSalePrice: 100,
-      haircut: 0.15,
-      volatility: 0.5,
-    });
-    expect(out.haircut).toBe(0.15);
-  });
 });
 
 describe('parseRsuInput — volatility -> haircut derivation', () => {
-  const { haircut: _h, ...RSU_NO_HAIRCUT } = RSU_BASE;
-
   it('derives haircut from sigma over holdYears', () => {
     const sigma = 0.4;
     const out = parseRsuInput({
-      ...RSU_NO_HAIRCUT,
+      ...RSU_BASE,
       expectedSalePrice: 100,
       volatility: sigma,
     });
@@ -270,12 +244,11 @@ describe('parseRsuInput — volatility -> haircut derivation', () => {
 });
 
 describe('parseConcentrationInput — volatility -> drag derivation', () => {
-  const { volatilityDrag: _vd, ...CONC_NO_DRAG } = CONCENTRATION_BASE;
 
   it('derives volatilityDrag from sigma over the 3y concentration horizon', () => {
     const sigma = 0.55;
     const out = parseConcentrationInput({
-      ...CONC_NO_DRAG,
+      ...CONCENTRATION_BASE,
       expectedPositionReturn: 0.12,
       volatility: sigma,
     });

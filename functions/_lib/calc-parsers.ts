@@ -35,7 +35,7 @@ function resolveDragFromVolatility(o: Obj, dragField: string, horizonYears: numb
     return 1 - Math.exp(-((sigma * sigma) / 2) * T);
   }
   throw new Error(
-    `field "${dragField}" required: pass a multiplicative haircut (0..0.99) at the planning horizon, or set "volatility" to annualized sigma (e.g. 0.30 for 30%) to derive it from 1 - exp(-(sigma^2 / 2) * T). ${ASK_USER_HINT}`,
+    `field "volatility" required: annualized sigma of the stock as a decimal (e.g. 0.30 for 30%). ${ASK_USER_HINT}`,
   );
 }
 
