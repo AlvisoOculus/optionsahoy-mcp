@@ -265,7 +265,7 @@
       "AmtIsoInput": {
         "type": "object",
         "required": [
-          "shares", "strike", "fmv", "volatilityDrag",
+          "shares", "strike", "fmv",
           "filingStatus", "ordinaryIncome", "stateCode", "carryforwardCredit",
           "horizon", "cashReturnRate", "grantDate", "hasLeftCompany", "terminationDate"
         ],
@@ -275,7 +275,8 @@
           "fmv": { "type": "number", "minimum": 0, "description": "Fair market value per share today (year 1)." },
           "expectedGrowth": { "type": "number", "description": "Arithmetic-mean annual growth rate, e.g. 0.10 for 10%/year. Required unless `ticker` resolves it from trailing CAGR." },
           "ticker": { "$ref": "#/components/schemas/Ticker" },
-          "volatilityDrag": { "type": "number", "minimum": 0, "maximum": 0.99, "description": "Multiplicative haircut at the planning horizon. 0 disables drag; 0.2 is the default." },
+          "volatilityDrag": { "type": "number", "minimum": 0, "maximum": 0.99, "description": "Multiplicative haircut at the planning horizon. Either this OR `volatility` is required; if both are supplied, `volatilityDrag` wins." },
+          "volatility": { "type": "number", "minimum": 0, "description": "Annualized volatility (sigma) of the stock. Either this OR `volatilityDrag` is required; if both are supplied, `volatilityDrag` wins. Derived drag = 1 - exp(-(sigma^2 / 2) * horizon)." },
           "filingStatus": { "$ref": "#/components/schemas/FilingStatus" },
           "ordinaryIncome": { "type": "number", "minimum": 0, "description": "Annual W-2 / 1099 income excluding the exercise." },
           "stateCode": { "$ref": "#/components/schemas/StateCode" },
@@ -291,7 +292,7 @@
         "type": "object",
         "required": [
           "shares", "strike", "currentPrice", "ordinaryIncome", "filingStatus",
-          "stateCode", "stillEmployed", "holdYears", "haircut", "holdFunding"
+          "stateCode", "stillEmployed", "holdYears", "holdFunding"
         ],
         "properties": {
           "shares": { "type": "integer", "minimum": 1 },
@@ -303,7 +304,8 @@
           "stillEmployed": { "type": "boolean", "description": "FICA applies only when true." },
           "holdYears": { "type": "number", "minimum": 1, "description": "Hold horizon. Sub-1-year is short-term and out of scope." },
           "expectedSalePrice": { "type": "number", "minimum": 0, "description": "Expected sale price at horizon, USD per share. Required unless `ticker` resolves it from currentPrice × (1 + trailing CAGR)^holdYears." },
-          "haircut": { "type": "number", "minimum": 0, "maximum": 1, "description": "Volatility-drag haircut on expectedSalePrice." },
+          "haircut": { "type": "number", "minimum": 0, "maximum": 1, "description": "Volatility-drag haircut on expectedSalePrice. Either this OR `volatility` is required; if both are supplied, `haircut` wins." },
+          "volatility": { "type": "number", "minimum": 0, "description": "Annualized volatility (sigma). Either this OR `haircut` is required; if both are supplied, `haircut` wins. Derived haircut = 1 - exp(-(sigma^2 / 2) * holdYears)." },
           "expectedMarketReturn": { "type": "number", "description": "Per-year median market return rate (vol-drag pre-applied). Defaults to SPY trailing CAGR for holdYears if omitted." },
           "ticker": { "$ref": "#/components/schemas/Ticker" },
           "holdFunding": { "type": "string", "enum": ["sell-to-cover", "cash"] }
@@ -313,7 +315,7 @@
         "type": "object",
         "required": [
           "shares", "currentPrice", "ordinaryIncome", "filingStatus", "stateCode",
-          "stillEmployed", "holdYears", "haircut"
+          "stillEmployed", "holdYears"
         ],
         "properties": {
           "shares": { "type": "integer", "minimum": 1 },
@@ -324,7 +326,8 @@
           "stillEmployed": { "type": "boolean" },
           "holdYears": { "type": "number", "minimum": 0.25, "maximum": 5 },
           "expectedSalePrice": { "type": "number", "minimum": 0, "description": "Projected $/share at end of holdYears. Required unless `ticker` resolves it from currentPrice × (1 + trailing CAGR)^holdYears." },
-          "haircut": { "type": "number", "minimum": 0, "maximum": 1 },
+          "haircut": { "type": "number", "minimum": 0, "maximum": 1, "description": "Volatility-drag haircut on expectedSalePrice. Either this OR `volatility` is required; if both are supplied, `haircut` wins." },
+          "volatility": { "type": "number", "minimum": 0, "description": "Annualized volatility (sigma). Either this OR `haircut` is required; if both are supplied, `haircut` wins. Derived haircut = 1 - exp(-(sigma^2 / 2) * holdYears)." },
           "expectedMarketReturn": { "type": "number", "description": "Per-year reinvestment rate. Defaults to SPY trailing CAGR for holdYears if omitted." },
           "ticker": { "$ref": "#/components/schemas/Ticker" }
         }
@@ -333,7 +336,7 @@
         "type": "object",
         "required": [
           "positionValue", "costBasis", "acquisitionDate", "sector", "stateCode",
-          "filingStatus", "ordinaryIncome", "totalAssets", "volatilityDrag"
+          "filingStatus", "ordinaryIncome", "totalAssets"
         ],
         "properties": {
           "positionValue": { "type": "number", "minimum": 0, "description": "Current value of the concentrated position, USD." },
@@ -347,8 +350,8 @@
           "expectedPositionReturn": { "type": "number", "description": "Annual return on the concentrated stock. Required unless `ticker` resolves it from trailing CAGR." },
           "expectedMarketReturn": { "type": "number", "description": "Annual return on diversified holdings + reinvested proceeds. Defaults to SPY trailing CAGR for the 3-year horizon if omitted." },
           "ticker": { "$ref": "#/components/schemas/Ticker" },
-          "volatilityDrag": { "type": "number", "minimum": 0, "maximum": 0.99 },
-          "volatility": { "type": "number", "minimum": 0, "description": "Override sector-typed σ for the Black-Scholes hedging path." },
+          "volatilityDrag": { "type": "number", "minimum": 0, "maximum": 0.99, "description": "Multiplicative haircut on the 3y stock-price path. Either this OR `volatility` is required for drag; if both are supplied, `volatilityDrag` wins." },
+          "volatility": { "type": "number", "minimum": 0, "description": "Annualized volatility (sigma). Used for the Black-Scholes hedging path AND, when `volatilityDrag` is omitted, derives drag = 1 - exp(-(sigma^2 / 2) * 3). Either this OR `volatilityDrag` is required for drag." },
           "hedgeChoice": {
             "type": "object",
             "required": ["kind", "protectionLevel", "tenorYears"],

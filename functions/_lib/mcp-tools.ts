@@ -102,7 +102,7 @@ export const TOOLS: McpTool[] = [
     inputSchema: {
       type: 'object',
       required: [
-        'shares', 'strike', 'fmv', 'volatilityDrag', 'filingStatus',
+        'shares', 'strike', 'fmv', 'filingStatus',
         'ordinaryIncome', 'stateCode', 'carryforwardCredit', 'horizon', 'cashReturnRate',
         'grantDate', 'hasLeftCompany', 'terminationDate',
       ],
@@ -135,7 +135,13 @@ export const TOOLS: McpTool[] = [
           minimum: 0,
           maximum: 0.99,
           description:
-            'Multiplicative haircut on the terminal-FMV growth path (0..0.99), capturing the half-variance correction in compounded returns. 0 = no drag, 0.20 = 20% haircut at horizon.',
+            'Multiplicative haircut on the terminal-FMV growth path (0..0.99), capturing the half-variance correction in compounded returns. 0 = no drag, 0.20 = 20% haircut at horizon. Either this field OR `volatility` is required; if both are supplied, `volatilityDrag` wins.',
+        },
+        volatility: {
+          type: 'number',
+          minimum: 0,
+          description:
+            'Annualized volatility (sigma) of the stock as a decimal (0.30 = 30%). Either this OR `volatilityDrag` is required; if both are supplied, `volatilityDrag` wins. When only `volatility` is supplied, drag is derived as 1 - exp(-(sigma^2 / 2) * horizon).',
         },
         filingStatus: {
           ...FILING_SCHEMA,
@@ -199,7 +205,7 @@ export const TOOLS: McpTool[] = [
       type: 'object',
       required: [
         'shares', 'strike', 'currentPrice', 'ordinaryIncome', 'filingStatus', 'stateCode',
-        'stillEmployed', 'holdYears', 'haircut', 'holdFunding',
+        'stillEmployed', 'holdYears', 'holdFunding',
       ],
       properties: {
         shares: {
@@ -254,7 +260,13 @@ export const TOOLS: McpTool[] = [
           minimum: 0,
           maximum: 1,
           description:
-            'Multiplicative haircut on expectedSalePrice (0..1) capturing volatility drag at the hold horizon. 0.20 = 20% haircut.',
+            'Multiplicative haircut on expectedSalePrice (0..1) capturing volatility drag at the hold horizon. 0.20 = 20% haircut. Either this OR `volatility` is required; if both are supplied, `haircut` wins.',
+        },
+        volatility: {
+          type: 'number',
+          minimum: 0,
+          description:
+            'Annualized volatility (sigma) of the stock as a decimal (0.30 = 30%). Either this OR `haircut` is required; if both are supplied, `haircut` wins. When only `volatility` is supplied, the haircut is derived as 1 - exp(-(sigma^2 / 2) * holdYears).',
         },
         expectedMarketReturn: {
           type: 'number',
@@ -281,7 +293,7 @@ export const TOOLS: McpTool[] = [
       type: 'object',
       required: [
         'shares', 'currentPrice', 'ordinaryIncome', 'filingStatus', 'stateCode',
-        'stillEmployed', 'holdYears', 'haircut',
+        'stillEmployed', 'holdYears',
       ],
       properties: {
         shares: {
@@ -330,7 +342,14 @@ export const TOOLS: McpTool[] = [
           type: 'number',
           minimum: 0,
           maximum: 1,
-          description: 'Multiplicative haircut on expectedSalePrice (0..1) capturing volatility drag at the hold horizon.',
+          description:
+            'Multiplicative haircut on expectedSalePrice (0..1) capturing volatility drag at the hold horizon. Either this OR `volatility` is required; if both are supplied, `haircut` wins.',
+        },
+        volatility: {
+          type: 'number',
+          minimum: 0,
+          description:
+            'Annualized volatility (sigma) of the stock as a decimal (0.30 = 30%). Either this OR `haircut` is required; if both are supplied, `haircut` wins. When only `volatility` is supplied, the haircut is derived as 1 - exp(-(sigma^2 / 2) * holdYears).',
         },
         expectedMarketReturn: {
           type: 'number',
@@ -351,7 +370,7 @@ export const TOOLS: McpTool[] = [
       type: 'object',
       required: [
         'positionValue', 'costBasis', 'acquisitionDate', 'sector', 'stateCode', 'filingStatus',
-        'ordinaryIncome', 'totalAssets', 'volatilityDrag',
+        'ordinaryIncome', 'totalAssets',
       ],
       properties: {
         positionValue: {
@@ -410,13 +429,13 @@ export const TOOLS: McpTool[] = [
           minimum: 0,
           maximum: 0.99,
           description:
-            'Multiplicative haircut on the expected stock-price path at the 3-year analysis horizon (0..0.99), capturing the half-variance correction in compounded returns.',
+            'Multiplicative haircut on the expected stock-price path at the 3-year analysis horizon (0..0.99), capturing the half-variance correction in compounded returns. Either this OR `volatility` is required; if both are supplied, `volatilityDrag` wins.',
         },
         volatility: {
           type: 'number',
           minimum: 0,
           description:
-            'Annualized implied volatility (sigma) of the stock. Optional. When omitted, falls back to sector_stats.annualVol × 1.20 (the IV-over-RV multiplier).',
+            'Annualized volatility (sigma) of the stock as a decimal (0.30 = 30%). Drives hedge pricing (used directly as implied vol) AND, when `volatilityDrag` is omitted, derives drag as 1 - exp(-(sigma^2 / 2) * 3). Either this OR `volatilityDrag` is required for the drag input; if both are supplied, `volatilityDrag` wins. When omitted entirely, hedge pricing falls back to sector_stats.annualVol × 1.20 (the IV-over-RV multiplier).',
         },
         hedgeChoice: {
           type: 'object',

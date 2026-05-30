@@ -21,6 +21,24 @@ import { HORIZON_YEARS as CONCENTRATION_HORIZON_YEARS, IV_OVER_RV_MULTIPLIER } f
 const ASK_USER_HINT =
   'The model invoking this tool MUST NOT invent this value — ask the user.';
 
+// Convert annualized volatility (sigma) into the multiplicative
+// drag-at-horizon field that the engine consumes. Uses the GBM half-variance
+// correction: drag = 1 - exp(-(sigma^2 / 2) * T). If the caller passes the
+// drag field directly, that wins; otherwise we derive from `volatility`.
+// Throws if neither is supplied.
+function resolveDragFromVolatility(o: Obj, dragField: string, horizonYears: number): number {
+  if (o[dragField] !== undefined) return p.num(o, dragField);
+  if (o.volatility !== undefined) {
+    const sigma = p.num(o, 'volatility');
+    if (sigma < 0) throw new Error(`field "volatility" must be >= 0`);
+    const T = Math.max(0, horizonYears);
+    return 1 - Math.exp(-((sigma * sigma) / 2) * T);
+  }
+  throw new Error(
+    `field "${dragField}" required: pass a multiplicative haircut (0..0.99) at the planning horizon, or set "volatility" to annualized sigma (e.g. 0.30 for 30%) to derive it from 1 - exp(-(sigma^2 / 2) * T). ${ASK_USER_HINT}`,
+  );
+}
+
 function resolveGrowthRate(o: Obj, fieldName: string, horizonYears: number): number {
   if (o[fieldName] !== undefined) return p.num(o, fieldName);
   if (o.ticker !== undefined) {
@@ -111,7 +129,7 @@ export function parseAmtIsoInput(raw: unknown): AmtIsoInput {
     strike: p.num(o, 'strike'),
     fmv: p.num(o, 'fmv'),
     expectedGrowth: resolveGrowthRate(o, 'expectedGrowth', horizon),
-    volatilityDrag: p.num(o, 'volatilityDrag'),
+    volatilityDrag: resolveDragFromVolatility(o, 'volatilityDrag', horizon),
     filingStatus: p.enum(o, 'filingStatus', FILING_STATUSES),
     ordinaryIncome: p.num(o, 'ordinaryIncome'),
     stateCode: p.str(o, 'stateCode'),
@@ -138,7 +156,7 @@ export function parseNsoInput(raw: unknown): NsoInput {
     stillEmployed: p.bool(o, 'stillEmployed'),
     holdYears,
     expectedSalePrice: resolveExpectedSalePrice(o, currentPrice, holdYears),
-    haircut: p.num(o, 'haircut'),
+    haircut: resolveDragFromVolatility(o, 'haircut', holdYears),
     expectedMarketReturn: resolveMarketReturn(o, holdYears),
     holdFunding: p.enum(o, 'holdFunding', HOLD_FUNDING),
   };
@@ -157,7 +175,7 @@ export function parseRsuInput(raw: unknown): RsuInput {
     stillEmployed: p.bool(o, 'stillEmployed'),
     holdYears,
     expectedSalePrice: resolveExpectedSalePrice(o, currentPrice, holdYears),
-    haircut: p.num(o, 'haircut'),
+    haircut: resolveDragFromVolatility(o, 'haircut', holdYears),
     expectedMarketReturn: resolveMarketReturn(o, holdYears),
   };
 }
@@ -175,7 +193,7 @@ export function parseConcentrationInput(raw: unknown): ConcentrationInputs {
     totalAssets: p.num(o, 'totalAssets'),
     expectedPositionReturn: resolveGrowthRate(o, 'expectedPositionReturn', CONCENTRATION_HORIZON_YEARS),
     expectedMarketReturn: resolveMarketReturn(o, CONCENTRATION_HORIZON_YEARS),
-    volatilityDrag: p.num(o, 'volatilityDrag'),
+    volatilityDrag: resolveDragFromVolatility(o, 'volatilityDrag', CONCENTRATION_HORIZON_YEARS),
   };
   if (o.volatility !== undefined) base.volatility = p.num(o, 'volatility');
   if (o.hedgeChoice !== undefined) {

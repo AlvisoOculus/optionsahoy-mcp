@@ -197,3 +197,89 @@ describe('parseRsuInput — ticker lookup', () => {
     expect(() => parseRsuInput(RSU_BASE)).toThrow(/expectedSalePrice.*MUST NOT invent/i);
   });
 });
+
+// Convert annualized sigma -> drag-at-horizon for the test expectations.
+// Mirrors resolveDragFromVolatility in calc-parsers.ts.
+function dragFromSigma(sigma: number, horizonYears: number): number {
+  return 1 - Math.exp(-((sigma * sigma) / 2) * horizonYears);
+}
+
+describe('parseAmtIsoInput — volatility -> drag derivation', () => {
+  // Drop volatilityDrag from the base; supply volatility instead.
+  const { volatilityDrag: _vd, ...AMT_NO_DRAG } = AMT_ISO_BASE;
+
+  it('derives volatilityDrag from annualized sigma over the planning horizon', () => {
+    const sigma = 0.72;
+    const out = parseAmtIsoInput({ ...AMT_NO_DRAG, expectedGrowth: 0.17, volatility: sigma });
+    expect(out.volatilityDrag).toBeCloseTo(dragFromSigma(sigma, AMT_ISO_BASE.horizon), 10);
+  });
+
+  it('prefers explicit volatilityDrag over volatility when both supplied', () => {
+    const out = parseAmtIsoInput({
+      ...AMT_NO_DRAG,
+      expectedGrowth: 0.17,
+      volatility: 0.72,
+      volatilityDrag: 0.3,
+    });
+    expect(out.volatilityDrag).toBe(0.3);
+  });
+
+  it('throws when both volatility and volatilityDrag are missing', () => {
+    expect(() => parseAmtIsoInput({ ...AMT_NO_DRAG, expectedGrowth: 0.17 })).toThrow(
+      /volatilityDrag.*required.*volatility/i,
+    );
+  });
+});
+
+describe('parseNsoInput — volatility -> haircut derivation', () => {
+  const { haircut: _h, ...NSO_NO_HAIRCUT } = NSO_BASE;
+
+  it('derives haircut from sigma over holdYears', () => {
+    const sigma = 0.5;
+    const out = parseNsoInput({
+      ...NSO_NO_HAIRCUT,
+      expectedSalePrice: 100,
+      volatility: sigma,
+    });
+    expect(out.haircut).toBeCloseTo(dragFromSigma(sigma, NSO_BASE.holdYears), 10);
+  });
+
+  it('explicit haircut wins over volatility', () => {
+    const out = parseNsoInput({
+      ...NSO_NO_HAIRCUT,
+      expectedSalePrice: 100,
+      haircut: 0.15,
+      volatility: 0.5,
+    });
+    expect(out.haircut).toBe(0.15);
+  });
+});
+
+describe('parseRsuInput — volatility -> haircut derivation', () => {
+  const { haircut: _h, ...RSU_NO_HAIRCUT } = RSU_BASE;
+
+  it('derives haircut from sigma over holdYears', () => {
+    const sigma = 0.4;
+    const out = parseRsuInput({
+      ...RSU_NO_HAIRCUT,
+      expectedSalePrice: 100,
+      volatility: sigma,
+    });
+    expect(out.haircut).toBeCloseTo(dragFromSigma(sigma, RSU_BASE.holdYears), 10);
+  });
+});
+
+describe('parseConcentrationInput — volatility -> drag derivation', () => {
+  const { volatilityDrag: _vd, ...CONC_NO_DRAG } = CONCENTRATION_BASE;
+
+  it('derives volatilityDrag from sigma over the 3y concentration horizon', () => {
+    const sigma = 0.55;
+    const out = parseConcentrationInput({
+      ...CONC_NO_DRAG,
+      expectedPositionReturn: 0.12,
+      volatility: sigma,
+    });
+    expect(out.volatilityDrag).toBeCloseTo(dragFromSigma(sigma, 3), 10);
+    expect(out.volatility).toBe(sigma);
+  });
+});
