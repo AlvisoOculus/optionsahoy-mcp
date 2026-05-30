@@ -102,7 +102,7 @@ export const TOOLS: McpTool[] = [
     inputSchema: {
       type: 'object',
       required: [
-        'shares', 'strike', 'fmv', 'volatility', 'filingStatus',
+        'shares', 'strike', 'fmv', 'filingStatus',
         'ordinaryIncome', 'stateCode', 'carryforwardCredit', 'horizon', 'cashReturnRate',
         'grantDate', 'hasLeftCompany', 'terminationDate',
       ],
@@ -198,7 +198,7 @@ export const TOOLS: McpTool[] = [
       type: 'object',
       required: [
         'shares', 'strike', 'currentPrice', 'ordinaryIncome', 'filingStatus', 'stateCode',
-        'stillEmployed', 'holdYears', 'volatility', 'holdFunding',
+        'stillEmployed', 'holdYears', 'holdFunding',
       ],
       properties: {
         shares: {
@@ -279,7 +279,7 @@ export const TOOLS: McpTool[] = [
       type: 'object',
       required: [
         'shares', 'currentPrice', 'ordinaryIncome', 'filingStatus', 'stateCode',
-        'stillEmployed', 'holdYears', 'volatility',
+        'stillEmployed', 'holdYears',
       ],
       properties: {
         shares: {
@@ -349,7 +349,7 @@ export const TOOLS: McpTool[] = [
       type: 'object',
       required: [
         'positionValue', 'costBasis', 'acquisitionDate', 'sector', 'stateCode', 'filingStatus',
-        'ordinaryIncome', 'totalAssets', 'volatility',
+        'ordinaryIncome', 'totalAssets',
       ],
       properties: {
         positionValue: {
