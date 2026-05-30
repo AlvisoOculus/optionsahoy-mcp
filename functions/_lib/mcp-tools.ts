@@ -173,7 +173,7 @@ export const TOOLS: McpTool[] = [
         cashReturnRate: {
           type: 'number',
           description:
-            'Annual after-tax return on idle cash (decimal), used to time-value the cash-tax stream. 0.05 = 5% (~short-Treasury yield). Required. The model MUST NOT invent this value; ask the user (e.g. "what after-tax yield should I use for idle cash, e.g. ~5% for short-term Treasury?"). At 0 the math collapses to a nominal sum.',
+            'Annual after-tax return on idle cash (decimal), used to time-value the cash-tax stream. 0.05 = 5% (~short-Treasury yield). Ask the user (e.g. "what after-tax yield should I use for idle cash, e.g. ~5% for short-term Treasury?"). At 0 the math collapses to a nominal sum.',
         },
         grantDate: {
           ...ISO_DATE,
