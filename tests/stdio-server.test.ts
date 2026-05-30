@@ -343,8 +343,8 @@ describe('local stdio MCP server', () => {
   });
 
   it('rejects a prompt missing required arguments with a clean error', async () => {
-    // Pick a prompt that actually has a required argument. analyze-rsu-vest
-    // requires "shares" per functions/_lib/mcp-prompts.ts. Call without it.
+    // analyze-rsu-vest has multiple required arguments — call with none of
+    // them and expect the missing-args error to fire cleanly.
     const res = await session.request('prompts/get', {
       name: 'analyze-rsu-vest',
       arguments: {},

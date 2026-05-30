@@ -57,26 +57,27 @@ export const PROMPTS: McpPrompt[] = [
   {
     name: 'optimize-iso-exercise',
     description:
-      'Plan a multi-year Incentive Stock Option (ISO) exercise schedule that minimizes federal and state Alternative Minimum Tax with credit recovery. Uses the amt_iso_optimize tool.',
+      'Plan a multi-year Incentive Stock Option (ISO) exercise schedule that maximizes after-tax Net Final Value (NFV) at the planning horizon, accounting for AMT, AMT credit recovery, and stock-price drag from volatility. Uses the amt_iso_optimize tool.',
     arguments: [
       { name: 'shares', description: 'Total ISO shares available to exercise', required: true },
       { name: 'strike', description: 'Strike price per share, USD', required: true },
       { name: 'fmv', description: 'Current fair market value per share, USD', required: true },
+      { name: 'volatility', description: 'Annualized volatility (sigma) as a decimal (e.g. 0.5 for 50%)', required: true },
       { name: 'state', description: 'Two-letter state code (e.g. CA, NY, TX)', required: false },
       { name: 'ordinaryIncome', description: 'Annual W-2 ordinary income, USD', required: false },
     ],
     build: (a) =>
       templatePrompt({
-        scenario: `I have ${arg(a, 'shares')} Incentive Stock Options (ISOs) with a strike of $${arg(a, 'strike')} per share and current fair market value of $${arg(a, 'fmv')} per share. `,
+        scenario: `I have ${arg(a, 'shares')} Incentive Stock Options (ISOs) with a strike of $${arg(a, 'strike')} per share and current fair market value of $${arg(a, 'fmv')} per share. Annualized volatility on the stock is ${arg(a, 'volatility')}. `,
         optional: [
           a.state && `I live in ${a.state}. `,
           a.ordinaryIncome && `My annual ordinary income is $${a.ordinaryIncome}. `,
         ],
         instruction:
-          `Plan an exercise schedule across the next several years that minimizes my total Alternative Minimum Tax (AMT) and recovers AMT credits where possible. Use the amt_iso_optimize tool.`,
-        followUpFields: 'filing status, state, ordinary income, grant date, or post-termination status',
+          `Plan an exercise schedule across the next several years that maximizes my after-tax Net Final Value (NFV) at the planning horizon. Use the amt_iso_optimize tool — pass volatility directly; do not compute drag yourself.`,
+        followUpFields: 'filing status, state, ordinary income, grant date, idle-cash after-tax return rate, or post-termination status',
         outputs:
-          'the recommended per-year share count, total AMT paid, AMT credit recovered, and net final value vs lump-sum and even-split alternatives',
+          "the optimized schedule's after-tax NFV vs the lump-sum and even-split alternatives, the recommended per-year share count, and the AMT credit carryforward at horizon",
       }),
   },
   {
@@ -87,17 +88,18 @@ export const PROMPTS: McpPrompt[] = [
       { name: 'shares', description: 'NSO shares to exercise', required: true },
       { name: 'strike', description: 'Strike price per share, USD', required: true },
       { name: 'currentPrice', description: 'Current share price, USD', required: true },
+      { name: 'volatility', description: 'Annualized volatility (sigma) as a decimal (e.g. 0.4 for 40%)', required: true },
       { name: 'holdYears', description: 'Years to hold after exercise (1 minimum for LTCG)', required: false },
       { name: 'state', description: 'Two-letter state code', required: false },
     ],
     build: (a) =>
       templatePrompt({
-        scenario: `I'm considering exercising ${arg(a, 'shares')} non-qualified stock options (NSOs) with a strike of $${arg(a, 'strike')} per share. The current share price is $${arg(a, 'currentPrice')}. `,
+        scenario: `I'm considering exercising ${arg(a, 'shares')} non-qualified stock options (NSOs) with a strike of $${arg(a, 'strike')} per share. The current share price is $${arg(a, 'currentPrice')}. Annualized volatility on the stock is ${arg(a, 'volatility')}. `,
         optional: [
           a.holdYears && `I'm thinking about holding for ${a.holdYears} year(s) after exercise to get long-term capital gains treatment on the appreciation. `,
           a.state && `I live in ${a.state}. `,
         ],
-        instruction: `Compare sell-at-exercise vs hold-for-LTCG using the nso_calculate tool.`,
+        instruction: `Compare sell-at-exercise vs hold-for-LTCG using the nso_calculate tool. Pass volatility directly; do not compute the haircut yourself.`,
         followUpFields:
           'my filing status, ordinary income, state, expected sale price, or whether I am still employed at the company',
         outputs: 'after-tax dollar payout under each route, the break-even sale price, and your recommendation',
@@ -110,18 +112,19 @@ export const PROMPTS: McpPrompt[] = [
     arguments: [
       { name: 'shares', description: 'RSU shares vesting', required: true },
       { name: 'currentPrice', description: 'Current share price, USD', required: true },
+      { name: 'volatility', description: 'Annualized volatility (sigma) as a decimal (e.g. 0.4 for 40%)', required: true },
       { name: 'holdYears', description: 'Years to hold after vest', required: false },
       { name: 'state', description: 'Two-letter state code', required: false },
     ],
     build: (a) =>
       templatePrompt({
-        scenario: `I have ${arg(a, 'shares')} Restricted Stock Units (RSUs) vesting at a current price of $${arg(a, 'currentPrice')} per share. `,
+        scenario: `I have ${arg(a, 'shares')} Restricted Stock Units (RSUs) vesting at a current price of $${arg(a, 'currentPrice')} per share. Annualized volatility on the stock is ${arg(a, 'volatility')}. `,
         optional: [
           a.holdYears && `I'm thinking about holding for ${a.holdYears} year(s). `,
           a.state && `I live in ${a.state}. `,
         ],
         instruction:
-          `Compare selling all shares at vest vs holding for long-term capital gains. Use the rsu_sell_vs_hold tool.`,
+          `Compare selling all shares at vest vs holding for long-term capital gains. Use the rsu_sell_vs_hold tool. Pass volatility directly; do not compute the haircut yourself.`,
         followUpFields: 'my filing status, ordinary income, state, expected sale price, or whether I am still employed',
         outputs:
           'the after-tax payout under each route, flag the 22% withholding gap (most equity holders under-withhold), and recommend a path',
@@ -135,18 +138,19 @@ export const PROMPTS: McpPrompt[] = [
       { name: 'positionValue', description: 'Current market value of the single-stock position, USD', required: true },
       { name: 'costBasis', description: 'Total cost basis of the position, USD', required: true },
       { name: 'totalAssets', description: 'Total investable assets, USD (for concentration ratio)', required: true },
+      { name: 'volatility', description: 'Annualized volatility (sigma) as a decimal (e.g. 0.4 for 40%)', required: true },
       { name: 'sector', description: 'Sector tag (e.g. tech_software, healthcare_biotech, semiconductors)', required: false },
       { name: 'state', description: 'Two-letter state code', required: false },
     ],
     build: (a) =>
       templatePrompt({
-        scenario: `I have a single-stock position worth $${arg(a, 'positionValue')} with a cost basis of $${arg(a, 'costBasis')}. My total investable assets are $${arg(a, 'totalAssets')}. `,
+        scenario: `I have a single-stock position worth $${arg(a, 'positionValue')} with a cost basis of $${arg(a, 'costBasis')}. My total investable assets are $${arg(a, 'totalAssets')}. Annualized volatility on the stock is ${arg(a, 'volatility')}. `,
         optional: [
           a.sector && `The stock is in the ${a.sector} sector. `,
           a.state && `I live in ${a.state}. `,
         ],
         instruction:
-          `Quantify my concentration risk and compare selling down, holding, and hedging using the concentration_analyze tool.`,
+          `Quantify my concentration risk and compare selling down, holding, and hedging using the concentration_analyze tool. Pass volatility directly; do not compute drag yourself.`,
         followUpFields:
           'my filing status, ordinary income, expected position return, expected market return, or hedge preference (put vs collar)',
         outputs:

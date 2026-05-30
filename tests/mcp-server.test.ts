@@ -331,7 +331,7 @@ describe('POST /mcp — prompts', () => {
       method: 'prompts/get',
       params: {
         name: 'optimize-iso-exercise',
-        arguments: { shares: '10000', strike: '5', fmv: '50', state: 'CA', ordinaryIncome: '200000' },
+        arguments: { shares: '10000', strike: '5', fmv: '50', volatility: '0.5', state: 'CA', ordinaryIncome: '200000' },
       },
     });
     expect(json.result.messages).toHaveLength(1);
