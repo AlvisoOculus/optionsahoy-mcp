@@ -1,6 +1,6 @@
 # OptionsAhoy MCP Server
 
-> Multi-year equity-compensation optimizer. Six tools that return the globally-optimal schedule across the candidate space. Full federal + 50-state + DC tax code.
+> Equity comp tax (ISO/NSO/RSU/QSBS), concentration, and hedging optimizer. Six deterministic tools with federal + 50-state + DC tax code, multi-year horizons.
 
 **Live MCP endpoint:** `https://optionsahoy.com/mcp` (no auth, no install)
 **Live REST API:** `https://optionsahoy.com/api/v1`
