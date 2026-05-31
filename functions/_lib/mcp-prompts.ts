@@ -210,9 +210,9 @@ export const PROMPTS: McpPrompt[] = [
       }),
   },
   {
-    name: 'plan-house-funding',
+    name: 'plan-equity-funding',
     description:
-      'Plan the minimum-tax sell schedule to net a target after-tax dollar amount by a target date from existing stock holdings (down payment, tuition, surgery, etc.). Uses the house_funding_plan tool.',
+      'Plan the minimum-tax sell schedule to net a target after-tax dollar amount by a target date from existing stock holdings (down payment, tuition, surgery, etc.). Uses the equity_funding_plan tool.',
     arguments: [
       { name: 'targetAfterTax', description: 'Net cash needed in pocket after all taxes, USD', required: true },
       { name: 'targetDate', description: 'Date the cash is needed by (YYYY-MM-DD)', required: true },
@@ -227,7 +227,7 @@ export const PROMPTS: McpPrompt[] = [
           a.state && `I live in ${a.state}. `,
         ],
         instruction:
-          'Plan the cheapest sell schedule using the house_funding_plan tool. You will need the per-lot cost basis and acquisition date for each tranche (RSU vest dates and prices, ESPP purchases, open-market buys), filing status, and annual W-2 income. If the user only knows the total shares and an average basis, ask whether to treat the position as a single combined lot.',
+          'Plan the cheapest sell schedule using the equity_funding_plan tool. You will need the per-lot cost basis and acquisition date for each tranche (RSU vest dates and prices, ESPP purchases, open-market buys), filing status, and annual W-2 income. If the user only knows the total shares and an average basis, ask whether to treat the position as a single combined lot.',
         followUpFields:
           'per-lot detail (shares, cost basis per share, acquisition date), filing status, and annual W-2 ordinary income',
         outputs:

@@ -184,16 +184,16 @@
         }
       }
     },
-    "/api/v1/house-funding": {
+    "/api/v1/equity-funding": {
       "post": {
         "summary": "Minimum-tax sell schedule to net a target after-tax dollar amount by a target date",
-        "description": "Single-stack house-funding plan. Bracket-aware greedy fill across (year, lot) cells from now through targetDate, minimizing total federal LTCG + state + NIIT to reach the cash target. Returns per-year per-lot schedule, total taxes, savings vs the all-in-one-year counterfactual, and shortfall data when the target is infeasible.",
-        "operationId": "planHouseFunding",
-        "tags": ["HouseFunding"],
+        "description": "Single-stack equity-funding plan. Bracket-aware greedy fill across (year, lot) cells from now through targetDate, minimizing total federal LTCG + state + NIIT to reach the cash target. Returns per-year per-lot schedule, total taxes, savings vs the all-in-one-year counterfactual, and shortfall data when the target is infeasible.",
+        "operationId": "planEquityFunding",
+        "tags": ["EquityFunding"],
         "requestBody": {
           "required": true,
           "content": {
-            "application/json": { "schema": { "$ref": "#/components/schemas/HouseFundingInput" } }
+            "application/json": { "schema": { "$ref": "#/components/schemas/EquityFundingInput" } }
           }
         },
         "responses": {
@@ -426,7 +426,7 @@
           "filingStatus": { "$ref": "#/components/schemas/FilingStatus" }
         }
       },
-      "HouseFundingInput": {
+      "EquityFundingInput": {
         "type": "object",
         "required": ["targetAfterTax", "targetDate", "lots", "currentPrice", "ordinaryIncome", "filingStatus", "stateCode"],
         "properties": {

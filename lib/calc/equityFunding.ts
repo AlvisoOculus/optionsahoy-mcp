@@ -28,16 +28,16 @@ import type { FilingStatus } from '../tax/types';
 const MS_PER_DAY = 86_400_000;
 const LT_HOLDING_DAYS = 366;
 
-export interface HouseFundingLot {
+export interface EquityFundingLot {
   shares: number;
   costBasisPerShare: number;
   acquisitionDate: Date;
 }
 
-export interface HouseFundingInput {
+export interface EquityFundingInput {
   targetAfterTax: number;
   targetDate: Date;
-  lots: HouseFundingLot[];
+  lots: EquityFundingLot[];
   currentPrice: number;
   ordinaryIncome: number;
   filingStatus: FilingStatus;
@@ -71,7 +71,7 @@ export interface YearSchedule {
   runningCumulativeNet: number;
 }
 
-export interface HouseFundingResult {
+export interface EquityFundingResult {
   feasible: boolean;
   targetAfterTax: number;
   targetDateISO: string;
@@ -302,7 +302,7 @@ function commitBlock(
   };
 }
 
-export function computeHouseFundingPlan(input: HouseFundingInput): HouseFundingResult {
+export function computeEquityFundingPlan(input: EquityFundingInput): EquityFundingResult {
   const today = input.today ?? new Date();
   const years = enumerateYears(today, input.targetDate);
 
@@ -484,7 +484,7 @@ export function computeHouseFundingPlan(input: HouseFundingInput): HouseFundingR
     0,
   );
 
-  const result: HouseFundingResult = {
+  const result: EquityFundingResult = {
     feasible,
     targetAfterTax: input.targetAfterTax,
     targetDateISO: input.targetDate.toISOString().slice(0, 10),
@@ -530,9 +530,9 @@ export function computeHouseFundingPlan(input: HouseFundingInput): HouseFundingR
 // tax year (the target year). Gives us the comparison baseline for
 // "savings vs sell-all-now" reporting.
 function computeSingleYearCounterfactual(
-  input: HouseFundingInput,
+  input: EquityFundingInput,
 ): { totalTax: number; afterTax: number; sharesSold: number } {
-  const singleYearInput: HouseFundingInput = {
+  const singleYearInput: EquityFundingInput = {
     ...input,
     targetDate: input.targetDate,
     today: new Date(Date.UTC(input.targetDate.getUTCFullYear(), 0, 1)),
@@ -623,7 +623,7 @@ function computeSingleYearCounterfactual(
   };
 }
 
-function emptyResult(input: HouseFundingInput): HouseFundingResult {
+function emptyResult(input: EquityFundingInput): EquityFundingResult {
   return {
     feasible: false,
     targetAfterTax: input.targetAfterTax,

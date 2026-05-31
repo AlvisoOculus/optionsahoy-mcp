@@ -116,7 +116,7 @@ describe('POST /mcp — tools/list', () => {
     expect(names).toEqual([
       'amt_iso_optimize',
       'concentration_analyze',
-      'house_funding_plan',
+      'equity_funding_plan',
       'nso_calculate',
       'protective_put_price',
       'qsbs_check',
@@ -314,7 +314,7 @@ describe('POST /mcp — prompts', () => {
       'analyze-rsu-vest',
       'check-qsbs-eligibility',
       'optimize-iso-exercise',
-      'plan-house-funding',
+      'plan-equity-funding',
       'price-protective-put',
     ]);
     for (const p of json.result.prompts) {

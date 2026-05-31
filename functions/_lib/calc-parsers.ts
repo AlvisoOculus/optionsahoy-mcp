@@ -12,7 +12,7 @@ import type { RsuInput } from '../../lib/calc/rsu';
 import type { ConcentrationInputs } from '../../lib/calc/concentration';
 import type { ProtectivePutInputs } from '../../lib/calc/protectivePut';
 import type { QsbsInputs } from '../../lib/calc/qsbs';
-import type { HouseFundingInput, HouseFundingLot } from '../../lib/calc/houseFunding';
+import type { EquityFundingInput, EquityFundingLot } from '../../lib/calc/equityFunding';
 
 import { asObject, p, FILING_STATUSES, type Obj } from './api';
 import { getTrailingReturn } from '../../lib/data/trailing-returns';
@@ -223,7 +223,7 @@ export function parseProtectivePutInput(raw: unknown): ProtectivePutInputs {
   return base;
 }
 
-function parseHouseFundingLot(raw: unknown, index: number): HouseFundingLot {
+function parseEquityFundingLot(raw: unknown, index: number): EquityFundingLot {
   if (raw === null || typeof raw !== 'object') {
     throw new Error(`lots[${index}] must be an object with shares, costBasisPerShare, acquisitionDate`);
   }
@@ -235,13 +235,13 @@ function parseHouseFundingLot(raw: unknown, index: number): HouseFundingLot {
   };
 }
 
-export function parseHouseFundingInput(raw: unknown): HouseFundingInput {
+export function parseEquityFundingInput(raw: unknown): EquityFundingInput {
   const o = asObject(raw);
   const lotsRaw = o.lots;
   if (!Array.isArray(lotsRaw) || lotsRaw.length === 0) {
     throw new Error('field "lots" must be a non-empty array of {shares, costBasisPerShare, acquisitionDate}');
   }
-  const lots = lotsRaw.map((lot, idx) => parseHouseFundingLot(lot, idx));
+  const lots = lotsRaw.map((lot, idx) => parseEquityFundingLot(lot, idx));
   return {
     targetAfterTax: p.num(o, 'targetAfterTax'),
     targetDate: p.date(o, 'targetDate'),

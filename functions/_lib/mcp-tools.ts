@@ -14,7 +14,7 @@ import { computeRsuResult } from '../../lib/calc/rsu';
 import { calculate as computeConcentration } from '../../lib/calc/concentration';
 import { calculateProtectivePut } from '../../lib/calc/protectivePut';
 import { evaluateQsbs } from '../../lib/calc/qsbs';
-import { computeHouseFundingPlan } from '../../lib/calc/houseFunding';
+import { computeEquityFundingPlan } from '../../lib/calc/equityFunding';
 
 import { FILING_STATUSES } from './api';
 import {
@@ -24,7 +24,7 @@ import {
   parseConcentrationInput,
   parseProtectivePutInput,
   parseQsbsInput,
-  parseHouseFundingInput,
+  parseEquityFundingInput,
 } from './calc-parsers';
 
 export type McpToolAnnotations = {
@@ -578,7 +578,7 @@ export const TOOLS: McpTool[] = [
     handler: (args) => evaluateQsbs(parseQsbsInput(args)),
   },
   {
-    name: 'house_funding_plan',
+    name: 'equity_funding_plan',
     annotations: { title: 'House-Funding Sell Schedule', ...CALC_HINTS },
     description:
       'Plans the minimum-tax sell schedule to net a target after-tax dollar amount by a target date from existing already-vested public stock lots (single ticker, one or more cost-basis lots). Use this tool when an equity holder needs cash by a deadline (down payment, tuition, surgery, etc.) and is liquidating existing holdings; for the upstream tax math on RSU/NSO/ISO events that PRODUCED the holdings, use `rsu_sell_vs_hold` / `nso_calculate` / `amt_iso_optimize` first. Algorithm: bracket-aware greedy. Considers every (year, lot) cell from now through targetDate, classifies each by long-term vs short-term capital gains for that year, computes the marginal tax cost per share (federal LTCG bracket walk + NIIT 3.8% above MAGI threshold + state ordinary or LTCG depending on state code), and greedily allocates sales to the lowest-tax cells until cumulative net cash meets the target. Returns per-year schedule with lot-by-lot detail, total taxes, savings vs the all-in-one-year counterfactual, and shortfall data when the target can\'t be reached. Pure deterministic computation: no network, no PII retention, tax tables compiled in. Out of scope: FICA (no wage events — already-vested-and-held shares don\'t trigger FICA on sale), AMT (no ISO exercise), multi-stack joint plans (use the upstream tools per stack). Example call: {targetAfterTax: 600000, targetDate: "2027-08-01", lots: [{shares: 8000, costBasisPerShare: 25, acquisitionDate: "2023-06-15"}], currentPrice: 110, ordinaryIncome: 280000, filingStatus: "married_joint", stateCode: "CA"}.' + STRICT_INPUT_NOTE_NO_TICKER,
@@ -636,6 +636,6 @@ export const TOOLS: McpTool[] = [
         },
       },
     },
-    handler: (args) => computeHouseFundingPlan(parseHouseFundingInput(args)),
+    handler: (args) => computeEquityFundingPlan(parseEquityFundingInput(args)),
   },
 ];

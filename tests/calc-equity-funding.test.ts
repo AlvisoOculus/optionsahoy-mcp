@@ -1,9 +1,9 @@
 // AlphaLatitude Inc. © 2026
 
 import { describe, it, expect } from 'vitest';
-import { computeHouseFundingPlan, type HouseFundingInput } from '../lib/calc/houseFunding';
+import { computeEquityFundingPlan, type EquityFundingInput } from '../lib/calc/equityFunding';
 
-function baseInput(overrides: Partial<HouseFundingInput> = {}): HouseFundingInput {
+function baseInput(overrides: Partial<EquityFundingInput> = {}): EquityFundingInput {
   return {
     targetAfterTax: 500_000,
     targetDate: new Date('2027-08-01T00:00:00Z'),
@@ -19,9 +19,9 @@ function baseInput(overrides: Partial<HouseFundingInput> = {}): HouseFundingInpu
   };
 }
 
-describe('computeHouseFundingPlan', () => {
+describe('computeEquityFundingPlan', () => {
   it('feasible single-lot trivial case nets close to target', () => {
-    const result = computeHouseFundingPlan(baseInput());
+    const result = computeEquityFundingPlan(baseInput());
     expect(result.feasible).toBe(true);
     // Within $500 of target — block-quantization residual from greedy fill.
     expect(result.totalAfterTaxAchieved).toBeGreaterThanOrEqual(499_500);
@@ -31,7 +31,7 @@ describe('computeHouseFundingPlan', () => {
 
   it('long-term holding gets LTCG rates (lower than ordinary)', () => {
     // Lot acquired well before target date — clearly long-term.
-    const lt = computeHouseFundingPlan(
+    const lt = computeEquityFundingPlan(
       baseInput({
         lots: [
           { shares: 10_000, costBasisPerShare: 20, acquisitionDate: new Date('2020-01-01T00:00:00Z') },
@@ -39,7 +39,7 @@ describe('computeHouseFundingPlan', () => {
       }),
     );
     // Lot acquired 1 month before target — short-term.
-    const st = computeHouseFundingPlan(
+    const st = computeEquityFundingPlan(
       baseInput({
         lots: [
           { shares: 10_000, costBasisPerShare: 20, acquisitionDate: new Date('2027-07-01T00:00:00Z') },
@@ -50,7 +50,7 @@ describe('computeHouseFundingPlan', () => {
   });
 
   it('infeasible when inventory cannot cover target', () => {
-    const result = computeHouseFundingPlan(
+    const result = computeEquityFundingPlan(
       baseInput({
         targetAfterTax: 5_000_000,
         lots: [
@@ -64,7 +64,7 @@ describe('computeHouseFundingPlan', () => {
   });
 
   it('reports savings vs sell-all-in-target-year counterfactual', () => {
-    const result = computeHouseFundingPlan(
+    const result = computeEquityFundingPlan(
       baseInput({
         targetAfterTax: 400_000,
         ordinaryIncome: 100_000, // lower income → bigger jump when sale piles on
@@ -85,7 +85,7 @@ describe('computeHouseFundingPlan', () => {
       ordinaryIncome: 200_000,
       targetDate: new Date('2027-12-15T00:00:00Z'),
     });
-    const result = computeHouseFundingPlan(input);
+    const result = computeEquityFundingPlan(input);
     // If split across 2026 and 2027 gives any benefit, savings > 0.
     expect(result.comparison.optimizedSavingsVsTargetYearSale).toBeGreaterThanOrEqual(0);
   });
@@ -94,7 +94,7 @@ describe('computeHouseFundingPlan', () => {
     // Two lots, same acquisition era (both long-term), different basis.
     // Lower basis = bigger gain per share = MORE tax per share.
     // So the optimizer should prefer the HIGHER basis lot (less gain → less tax).
-    const result = computeHouseFundingPlan(
+    const result = computeEquityFundingPlan(
       baseInput({
         targetAfterTax: 50_000, // small enough to fit in cheaper bracket
         lots: [
@@ -119,7 +119,7 @@ describe('computeHouseFundingPlan', () => {
 
   it('targetDate today works (immediate liquidation)', () => {
     const today = new Date('2026-05-31T00:00:00Z');
-    const result = computeHouseFundingPlan(
+    const result = computeEquityFundingPlan(
       baseInput({
         targetAfterTax: 300_000,
         targetDate: today,
@@ -133,7 +133,7 @@ describe('computeHouseFundingPlan', () => {
 
   it('throws if targetDate is in the past', () => {
     expect(() =>
-      computeHouseFundingPlan(
+      computeEquityFundingPlan(
         baseInput({
           targetDate: new Date('2025-01-01T00:00:00Z'),
           today: new Date('2026-05-31T00:00:00Z'),
@@ -144,7 +144,7 @@ describe('computeHouseFundingPlan', () => {
 
   it('NIIT kicks in above MAGI threshold', () => {
     // Very high income — NIIT 3.8% should apply on any cap gain.
-    const result = computeHouseFundingPlan(
+    const result = computeEquityFundingPlan(
       baseInput({
         ordinaryIncome: 400_000,
         targetAfterTax: 200_000,
@@ -156,7 +156,7 @@ describe('computeHouseFundingPlan', () => {
 
   it('low income → low or zero NIIT', () => {
     // Low income, modest sale: NIIT shouldn't apply.
-    const result = computeHouseFundingPlan(
+    const result = computeEquityFundingPlan(
       baseInput({
         ordinaryIncome: 50_000,
         targetAfterTax: 50_000,

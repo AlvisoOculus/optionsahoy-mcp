@@ -134,7 +134,7 @@ describe('local stdio MCP server', () => {
     expect(tools.map((t) => t.name).sort()).toEqual([
       'amt_iso_optimize',
       'concentration_analyze',
-      'house_funding_plan',
+      'equity_funding_plan',
       'nso_calculate',
       'protective_put_price',
       'qsbs_check',
@@ -173,7 +173,7 @@ describe('local stdio MCP server', () => {
       'analyze-rsu-vest',
       'check-qsbs-eligibility',
       'optimize-iso-exercise',
-      'plan-house-funding',
+      'plan-equity-funding',
       'price-protective-put',
     ]);
   });
@@ -316,7 +316,7 @@ describe('local stdio MCP server', () => {
       },
     },
     {
-      tool: 'house_funding_plan',
+      tool: 'equity_funding_plan',
       args: {
         targetAfterTax: 400000,
         targetDate: '2027-08-01',
