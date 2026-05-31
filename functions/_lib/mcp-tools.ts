@@ -14,6 +14,7 @@ import { computeRsuResult } from '../../lib/calc/rsu';
 import { calculate as computeConcentration } from '../../lib/calc/concentration';
 import { calculateProtectivePut } from '../../lib/calc/protectivePut';
 import { evaluateQsbs } from '../../lib/calc/qsbs';
+import { computeHouseFundingPlan } from '../../lib/calc/houseFunding';
 
 import { FILING_STATUSES } from './api';
 import {
@@ -23,6 +24,7 @@ import {
   parseConcentrationInput,
   parseProtectivePutInput,
   parseQsbsInput,
+  parseHouseFundingInput,
 } from './calc-parsers';
 
 export type McpToolAnnotations = {
@@ -41,7 +43,7 @@ export type McpTool = {
   handler: (args: unknown) => unknown;
 };
 
-// All six tools are pure deterministic calculators with no side effects.
+// All tools are pure deterministic calculators with no side effects.
 const CALC_HINTS = {
   readOnlyHint: true,
   idempotentHint: true,
@@ -574,5 +576,66 @@ export const TOOLS: McpTool[] = [
       },
     },
     handler: (args) => evaluateQsbs(parseQsbsInput(args)),
+  },
+  {
+    name: 'house_funding_plan',
+    annotations: { title: 'House-Funding Sell Schedule', ...CALC_HINTS },
+    description:
+      'Plans the minimum-tax sell schedule to net a target after-tax dollar amount by a target date from existing already-vested public stock lots (single ticker, one or more cost-basis lots). Use this tool when an equity holder needs cash by a deadline (down payment, tuition, surgery, etc.) and is liquidating existing holdings; for the upstream tax math on RSU/NSO/ISO events that PRODUCED the holdings, use `rsu_sell_vs_hold` / `nso_calculate` / `amt_iso_optimize` first. Algorithm: bracket-aware greedy. Considers every (year, lot) cell from now through targetDate, classifies each by long-term vs short-term capital gains for that year, computes the marginal tax cost per share (federal LTCG bracket walk + NIIT 3.8% above MAGI threshold + state ordinary or LTCG depending on state code), and greedily allocates sales to the lowest-tax cells until cumulative net cash meets the target. Returns per-year schedule with lot-by-lot detail, total taxes, savings vs the all-in-one-year counterfactual, and shortfall data when the target can\'t be reached. Pure deterministic computation: no network, no PII retention, tax tables compiled in. Out of scope: FICA (no wage events — already-vested-and-held shares don\'t trigger FICA on sale), AMT (no ISO exercise), multi-stack joint plans (use the upstream tools per stack). Example call: {targetAfterTax: 600000, targetDate: "2027-08-01", lots: [{shares: 8000, costBasisPerShare: 25, acquisitionDate: "2023-06-15"}], currentPrice: 110, ordinaryIncome: 280000, filingStatus: "married_joint", stateCode: "CA"}.' + STRICT_INPUT_NOTE_NO_TICKER,
+    inputSchema: {
+      type: 'object',
+      required: ['targetAfterTax', 'targetDate', 'lots', 'currentPrice', 'ordinaryIncome', 'filingStatus', 'stateCode'],
+      properties: {
+        targetAfterTax: {
+          type: 'number',
+          minimum: 0,
+          description: 'Net cash needed in the user\'s pocket after all applicable taxes (federal LTCG/ordinary + state + NIIT), USD. Example: a $1M house with 20% down minus existing savings might give a $200,000 target.',
+        },
+        targetDate: {
+          ...ISO_DATE,
+          description: 'Date by which the user needs the net cash (YYYY-MM-DD). Bounds the planning horizon. Sales in non-target years happen on Dec 31; the target year\'s sale happens on this exact date.',
+        },
+        lots: {
+          type: 'array',
+          minItems: 1,
+          description: 'The user\'s already-vested public-stock lots. Each lot is one cost-basis cohort (e.g. one RSU vest tranche, one ESPP purchase, one open-market buy). Required even for a single lot.',
+          items: {
+            type: 'object',
+            required: ['shares', 'costBasisPerShare', 'acquisitionDate'],
+            properties: {
+              shares: { type: 'integer', minimum: 1, description: 'Whole shares in this lot.' },
+              costBasisPerShare: {
+                type: 'number',
+                minimum: 0,
+                description: 'Per-share cost basis, USD. For RSU vests this is the FMV at vest (already taxed as ordinary). For ESPP/open-market this is the purchase price.',
+              },
+              acquisitionDate: {
+                ...ISO_DATE,
+                description: 'Date the lot was acquired (vest date / purchase date). Drives the long-term-vs-short-term classification at each candidate sale date (1-year holding cliff).',
+              },
+            },
+          },
+        },
+        currentPrice: {
+          type: 'number',
+          minimum: 0,
+          description: 'Current share price, USD. The plan assumes prices stay roughly constant across the horizon — there is no growth-path projection in v1. The model SHOULD NOT invent this; pass the user\'s current price.',
+        },
+        ordinaryIncome: {
+          type: 'number',
+          minimum: 0,
+          description: 'Annual W-2 ordinary income, USD. Used as the baseline for the federal LTCG bracket walk in each candidate year and for NIIT threshold tests.',
+        },
+        filingStatus: {
+          ...FILING_SCHEMA,
+          description: 'Federal filing status. Drives LTCG brackets, NIIT threshold ($200K single / $250K MFJ MAGI), and state bracket lookups.',
+        },
+        stateCode: {
+          ...STATE_SCHEMA,
+          description: 'Two-letter US state code (e.g. CA, NY, TX). Drives state ordinary or LTCG treatment depending on state (CA taxes LTCG as ordinary; WA has no LTCG tax under $250K; TX/FL/etc. have no state income tax).',
+        },
+      },
+    },
+    handler: (args) => computeHouseFundingPlan(parseHouseFundingInput(args)),
   },
 ];

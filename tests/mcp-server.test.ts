@@ -116,6 +116,7 @@ describe('POST /mcp — tools/list', () => {
     expect(names).toEqual([
       'amt_iso_optimize',
       'concentration_analyze',
+      'house_funding_plan',
       'nso_calculate',
       'protective_put_price',
       'qsbs_check',
@@ -295,7 +296,7 @@ describe('POST /mcp — resources', () => {
 });
 
 describe('POST /mcp — prompts', () => {
-  it('prompts/list returns 6 prompts with arguments', async () => {
+  it('prompts/list returns 7 prompts with arguments', async () => {
     type PromptListItem = {
       name: string;
       description: string;
@@ -313,6 +314,7 @@ describe('POST /mcp — prompts', () => {
       'analyze-rsu-vest',
       'check-qsbs-eligibility',
       'optimize-iso-exercise',
+      'plan-house-funding',
       'price-protective-put',
     ]);
     for (const p of json.result.prompts) {
@@ -408,9 +410,9 @@ describe('POST /mcp — error paths', () => {
     expect(res.status).toBe(200);
     const json = (await res.json()) as { name: string; tools: string[]; resources: string[]; prompts: string[] };
     expect(json.name).toMatch(/OptionsAhoy/);
-    expect(json.tools.length).toBe(6);
+    expect(json.tools.length).toBe(7);
     expect(json.resources.length).toBe(6);
-    expect(json.prompts.length).toBe(6);
+    expect(json.prompts.length).toBe(7);
   });
 });
 

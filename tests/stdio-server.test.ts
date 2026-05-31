@@ -128,12 +128,13 @@ describe('local stdio MCP server', () => {
     session.stop();
   });
 
-  it('lists all six tools', async () => {
+  it('lists all seven tools', async () => {
     const res = await session.request('tools/list');
     const tools = (res.result as { tools: Array<{ name: string; description: string }> }).tools;
     expect(tools.map((t) => t.name).sort()).toEqual([
       'amt_iso_optimize',
       'concentration_analyze',
+      'house_funding_plan',
       'nso_calculate',
       'protective_put_price',
       'qsbs_check',
@@ -163,7 +164,7 @@ describe('local stdio MCP server', () => {
     expect(contents[0].text).toContain('AMT');
   });
 
-  it('lists all six prompts', async () => {
+  it('lists all seven prompts', async () => {
     const res = await session.request('prompts/list');
     const prompts = (res.result as { prompts: Array<{ name: string }> }).prompts;
     expect(prompts.map((p) => p.name).sort()).toEqual([
@@ -172,6 +173,7 @@ describe('local stdio MCP server', () => {
       'analyze-rsu-vest',
       'check-qsbs-eligibility',
       'optimize-iso-exercise',
+      'plan-house-funding',
       'price-protective-put',
     ]);
   });
@@ -311,6 +313,26 @@ describe('local stdio MCP server', () => {
         expect(schedules.evenSplit).toBeDefined();
         expect(schedules.optimized).toBeDefined();
         expect(typeof r.crossoverShares).toBe('number');
+      },
+    },
+    {
+      tool: 'house_funding_plan',
+      args: {
+        targetAfterTax: 400000,
+        targetDate: '2027-08-01',
+        lots: [
+          { shares: 8000, costBasisPerShare: 25, acquisitionDate: '2023-06-15' },
+        ],
+        currentPrice: 110,
+        ordinaryIncome: 200000,
+        filingStatus: 'single',
+        stateCode: 'CA',
+      },
+      check: (r: Record<string, unknown>) => {
+        expect(typeof r.feasible).toBe('boolean');
+        expect(typeof r.totalAfterTaxAchieved).toBe('number');
+        expect(Array.isArray(r.schedule)).toBe(true);
+        expect((r.totalTaxes as Record<string, number>).total).toBeGreaterThan(0);
       },
     },
   ])('calls $tool successfully', async ({ tool, args, check }) => {

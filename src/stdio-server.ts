@@ -1,6 +1,6 @@
 // AlphaLatitude Inc. © 2026
 //
-// Local stdio MCP server. Same six tools as the hosted endpoint at
+// Local stdio MCP server. Same tools as the hosted endpoint at
 // https://optionsahoy.com/mcp, exposed over the Model Context Protocol
 // stdio transport so MCP clients that only support local stdio servers
 // (Claude Desktop without mcp-remote, Glama installer, etc.) can use
@@ -29,7 +29,7 @@ import { TOOLS } from '../functions/_lib/mcp-tools';
 import { RESOURCES } from '../functions/_lib/mcp-resources';
 import { PROMPTS } from '../functions/_lib/mcp-prompts';
 
-const SERVER_INFO = { name: 'optionsahoy', version: '1.3.7' };
+const SERVER_INFO = { name: 'optionsahoy', version: '1.4.0' };
 
 // Precomputed list projections + name lookups, mirroring the precomputation
 // in functions/mcp.ts so list calls don't allocate on every request and

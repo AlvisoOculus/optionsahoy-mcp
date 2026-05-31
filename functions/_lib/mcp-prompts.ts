@@ -35,7 +35,7 @@ function arg(args: Record<string, string>, key: string): string {
 
 // Shared template for every prompt body: scenario + optional clauses,
 // followed by the "Use the X tool. If you need Y, ask one follow-up.
-// Report Z." closing that all six prompts share verbatim.
+// Report Z." closing that all prompts share verbatim.
 function templatePrompt(opts: {
   scenario: string;
   optional?: Array<string | false | undefined>;
@@ -207,6 +207,31 @@ export const PROMPTS: McpPrompt[] = [
           'entity type, acquisition method (original issuance vs secondary vs gift/inheritance), asset category (under-50m / 50m-to-75m / over-75m), active-business attestation, adjusted basis, filing status, or ordinary income',
         outputs:
           'the verdict (qualified / disqualified / partial), exclusion percentage, federal tax saved in dollars, state tax owed, and per-test pass/fail breakdown',
+      }),
+  },
+  {
+    name: 'plan-house-funding',
+    description:
+      'Plan the minimum-tax sell schedule to net a target after-tax dollar amount by a target date from existing stock holdings (down payment, tuition, surgery, etc.). Uses the house_funding_plan tool.',
+    arguments: [
+      { name: 'targetAfterTax', description: 'Net cash needed in pocket after all taxes, USD', required: true },
+      { name: 'targetDate', description: 'Date the cash is needed by (YYYY-MM-DD)', required: true },
+      { name: 'shares', description: 'Total shares held across all lots', required: true },
+      { name: 'currentPrice', description: 'Current share price, USD', required: true },
+      { name: 'state', description: 'Two-letter state code', required: false },
+    ],
+    build: (a) =>
+      templatePrompt({
+        scenario: `I need to net $${arg(a, 'targetAfterTax')} after all taxes by ${arg(a, 'targetDate')}. I have ${arg(a, 'shares')} shares of public stock at a current price of $${arg(a, 'currentPrice')} per share. `,
+        optional: [
+          a.state && `I live in ${a.state}. `,
+        ],
+        instruction:
+          'Plan the cheapest sell schedule using the house_funding_plan tool. You will need the per-lot cost basis and acquisition date for each tranche (RSU vest dates and prices, ESPP purchases, open-market buys), filing status, and annual W-2 income. If the user only knows the total shares and an average basis, ask whether to treat the position as a single combined lot.',
+        followUpFields:
+          'per-lot detail (shares, cost basis per share, acquisition date), filing status, and annual W-2 ordinary income',
+        outputs:
+          'whether the target is feasible, the per-year sell schedule with lot-by-lot detail, total taxes (federal LTCG + NIIT + state), savings vs liquidating everything in the target year, and any leftover shares plus their market value',
       }),
   },
 ];
