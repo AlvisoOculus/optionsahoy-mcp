@@ -242,7 +242,7 @@ export function parseEquityFundingInput(raw: unknown): EquityFundingInput {
     throw new Error('field "lots" must be a non-empty array of {shares, costBasisPerShare, acquisitionDate}');
   }
   const lots = lotsRaw.map((lot, idx) => parseEquityFundingLot(lot, idx));
-  return {
+  const out: EquityFundingInput = {
     targetAfterTax: p.num(o, 'targetAfterTax'),
     targetDate: p.date(o, 'targetDate'),
     lots,
@@ -251,6 +251,10 @@ export function parseEquityFundingInput(raw: unknown): EquityFundingInput {
     filingStatus: p.enum(o, 'filingStatus', FILING_STATUSES),
     stateCode: p.str(o, 'stateCode'),
   };
+  if (o.expectedAnnualGrowth !== undefined) {
+    out.expectedAnnualGrowth = p.num(o, 'expectedAnnualGrowth');
+  }
+  return out;
 }
 
 export function parseQsbsInput(raw: unknown): QsbsInputs {

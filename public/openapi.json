@@ -446,6 +446,7 @@
             }
           },
           "currentPrice": { "type": "number", "minimum": 0 },
+          "expectedAnnualGrowth": { "type": "number" },
           "ordinaryIncome": { "type": "number", "minimum": 0 },
           "filingStatus": { "$ref": "#/components/schemas/FilingStatus" },
           "stateCode": { "$ref": "#/components/schemas/StateCode" }

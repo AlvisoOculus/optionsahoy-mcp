@@ -43,6 +43,14 @@ export interface EquityFundingInput {
   filingStatus: FilingStatus;
   stateCode: string;
   /**
+   * Annual expected stock-price growth as a decimal (0.10 = 10%/yr).
+   * Defaults to 0 (constant-price assumption, matches v1.5 behavior).
+   * The projected price at each future sale date is
+   * `currentPrice × (1 + expectedAnnualGrowth)^Δyears`. Negative values
+   * model a decline scenario.
+   */
+  expectedAnnualGrowth?: number;
+  /**
    * Optional reference "now" — defaults to new Date(). Tests pass an
    * explicit value to keep year-classification deterministic.
    */
@@ -111,6 +119,15 @@ function isLongTermFor(acquisitionDate: Date, saleDate: Date): boolean {
   return diff >= LT_HOLDING_DAYS;
 }
 
+// Projected $/share at `saleDate`, compounding currentPrice at the annual
+// growth rate. Returns currentPrice unchanged when growth=0 (preserves
+// v1.5 behavior for callers who omit expectedAnnualGrowth).
+function projectPrice(currentPrice: number, growthAnnual: number, today: Date, saleDate: Date): number {
+  if (growthAnnual === 0) return currentPrice;
+  const yearsForward = Math.max(0, (saleDate.getTime() - today.getTime()) / (365.25 * MS_PER_DAY));
+  return currentPrice * Math.pow(1 + growthAnnual, yearsForward);
+}
+
 // Per-year running state. Lets us compute marginal incremental tax for
 // "sell ONE more share from lot L in year Y" without re-walking
 // everything each iteration. sharesRemaining is NOT here — lot inventory
@@ -118,10 +135,13 @@ function isLongTermFor(acquisitionDate: Date, saleDate: Date): boolean {
 interface YearState {
   year: number;
   saleDate: Date;
+  /** Projected $/share at this year's sale date (currentPrice × growth^Δyears). */
+  projectedPrice: number;
   longTermGainSoFar: number;
   shortTermGainSoFar: number;
-  // gain-per-share per lot + LT/ST classification for this year's sale
-  // date + whether the lot is acquired yet by this year's sale date.
+  // gain-per-share per lot (= projectedPrice − basisPerShare) + LT/ST
+  // classification for this year's sale date + whether the lot is
+  // acquired yet by this year's sale date.
   lotMeta: Array<{ gainPerShare: number; isLongTerm: boolean; acquired: boolean }>;
 }
 
@@ -313,16 +333,19 @@ export function computeEquityFundingPlan(input: EquityFundingInput): EquityFundi
   // Build per-year state. Each year sees the SAME lots but with year-
   // specific long-term classification and "is this lot acquired yet at
   // this year's sale date" flag.
+  const growth = input.expectedAnnualGrowth ?? 0;
   const yearStates: YearState[] = years.map((year) => {
     const saleDate = saleDateForYear(year, input.targetDate);
+    const projectedPrice = projectPrice(input.currentPrice, growth, today, saleDate);
     const lotMeta = input.lots.map((lot) => ({
-      gainPerShare: input.currentPrice - lot.costBasisPerShare,
+      gainPerShare: projectedPrice - lot.costBasisPerShare,
       isLongTerm: isLongTermFor(lot.acquisitionDate, saleDate),
       acquired: lot.acquisitionDate.getTime() <= saleDate.getTime(),
     }));
     return {
       year,
       saleDate,
+      projectedPrice,
       longTermGainSoFar: 0,
       shortTermGainSoFar: 0,
       lotMeta,
@@ -378,7 +401,7 @@ export function computeEquityFundingPlan(input: EquityFundingInput): EquityFundi
             input.filingStatus,
             input.stateCode,
           );
-          const incrementalGross = candidateShares * input.currentPrice;
+          const incrementalGross = candidateShares * ys.projectedPrice;
           const incrementalNet = incrementalGross - incrementalTax;
           const netPerShare = incrementalNet / candidateShares;
           if (netPerShare > bestNetPerShare) {
@@ -408,7 +431,7 @@ export function computeEquityFundingPlan(input: EquityFundingInput): EquityFundi
         input.filingStatus,
         input.stateCode,
       );
-      const gross = bestBlockShares * input.currentPrice;
+      const gross = bestBlockShares * yearStates[bestYear].projectedPrice;
       const totalIncrementalTax = breakdown.federal + breakdown.stateT + breakdown.niit;
       const net = gross - totalIncrementalTax;
       cumulativeNet += net;
@@ -441,7 +464,7 @@ export function computeEquityFundingPlan(input: EquityFundingInput): EquityFundi
       const shares = salesMatrix[yi][li];
       if (shares <= 0) continue;
       const tax = taxMatrix[yi][li];
-      const gross = shares * input.currentPrice;
+      const gross = shares * ys.projectedPrice;
       const totalTaxThisSale = tax.federal + tax.stateT + tax.niit;
       sales.push({
         lotIndex: li,
@@ -513,7 +536,7 @@ export function computeEquityFundingPlan(input: EquityFundingInput): EquityFundi
           : 0,
     },
     remainingShares,
-    remainingPositionValue: round2(remainingShares * input.currentPrice),
+    remainingPositionValue: round2(remainingShares * projectPrice(input.currentPrice, growth, today, input.targetDate)),
   };
 
   if (!feasible) {
@@ -542,13 +565,17 @@ function computeSingleYearCounterfactual(
     // Fallback: caller's target date isn't in the inferred year. Re-anchor.
   }
   const cfInventory: LotInventory[] = input.lots.map((lot) => ({ sharesRemaining: lot.shares }));
+  const cfToday = input.today ?? new Date();
+  const cfGrowth = input.expectedAnnualGrowth ?? 0;
+  const cfProjected = projectPrice(input.currentPrice, cfGrowth, cfToday, input.targetDate);
   const ys: YearState = {
     year: input.targetDate.getUTCFullYear(),
     saleDate: input.targetDate,
+    projectedPrice: cfProjected,
     longTermGainSoFar: 0,
     shortTermGainSoFar: 0,
     lotMeta: input.lots.map((lot) => ({
-      gainPerShare: input.currentPrice - lot.costBasisPerShare,
+      gainPerShare: cfProjected - lot.costBasisPerShare,
       isLongTerm: isLongTermFor(lot.acquisitionDate, input.targetDate),
       acquired: lot.acquisitionDate.getTime() <= input.targetDate.getTime(),
     })),
@@ -583,7 +610,7 @@ function computeSingleYearCounterfactual(
           input.filingStatus,
           input.stateCode,
         );
-        const incrementalGross = candidateShares * input.currentPrice;
+        const incrementalGross = candidateShares * ys.projectedPrice;
         const incrementalNet = incrementalGross - incrementalTax;
         const netPerShare = incrementalNet / candidateShares;
         if (netPerShare > bestNetPerShare) {
@@ -606,7 +633,7 @@ function computeSingleYearCounterfactual(
         input.filingStatus,
         input.stateCode,
       );
-      const gross = bestBlockShares * input.currentPrice;
+      const gross = bestBlockShares * ys.projectedPrice;
       const tax = breakdown.federal + breakdown.stateT + breakdown.niit;
       cumulativeNet += gross - tax;
       totalFed += breakdown.federal;

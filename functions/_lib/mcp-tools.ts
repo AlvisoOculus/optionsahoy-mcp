@@ -619,7 +619,11 @@ export const TOOLS: McpTool[] = [
         currentPrice: {
           type: 'number',
           minimum: 0,
-          description: 'Current share price, USD. The plan assumes prices stay roughly constant across the horizon — there is no growth-path projection in v1. The model SHOULD NOT invent this; pass the user\'s current price.',
+          description: 'Current share price, USD. Anchors year-1 of the projected-price path; future years compound at `expectedAnnualGrowth`. The model SHOULD NOT invent this; pass the user\'s current price.',
+        },
+        expectedAnnualGrowth: {
+          type: 'number',
+          description: 'Annual expected stock-price growth as a decimal (0.10 = 10%/yr). Optional; defaults to 0 (constant-price assumption). Each future year\'s projected sale price is `currentPrice × (1 + expectedAnnualGrowth)^Δyears`. Negative values model a decline scenario.',
         },
         ordinaryIncome: {
           type: 'number',

@@ -154,6 +154,45 @@ describe('computeEquityFundingPlan', () => {
     expect(result.totalTaxes.niit).toBeGreaterThan(0);
   });
 
+  it('expectedAnnualGrowth=0 matches v1.5 constant-price behavior', () => {
+    const v15 = computeEquityFundingPlan(baseInput());
+    const withZero = computeEquityFundingPlan(baseInput({ expectedAnnualGrowth: 0 }));
+    expect(withZero.totalAfterTaxAchieved).toBeCloseTo(v15.totalAfterTaxAchieved, 0);
+    expect(withZero.totalSharesSold).toBe(v15.totalSharesSold);
+  });
+
+  it('positive growth needs fewer shares to hit the same after-tax target', () => {
+    const base = computeEquityFundingPlan(baseInput({ targetAfterTax: 300_000 }));
+    const grew = computeEquityFundingPlan(
+      baseInput({ targetAfterTax: 300_000, expectedAnnualGrowth: 0.2 }),
+    );
+    expect(grew.feasible).toBe(true);
+    expect(grew.totalSharesSold).toBeLessThan(base.totalSharesSold);
+  });
+
+  it('negative growth needs more shares (or flips feasibility)', () => {
+    const decline = computeEquityFundingPlan(
+      baseInput({ targetAfterTax: 300_000, expectedAnnualGrowth: -0.2 }),
+    );
+    const flat = computeEquityFundingPlan(baseInput({ targetAfterTax: 300_000 }));
+    if (decline.feasible && flat.feasible) {
+      expect(decline.totalSharesSold).toBeGreaterThanOrEqual(flat.totalSharesSold);
+    } else {
+      expect(decline.feasible).toBe(false);
+    }
+  });
+
+  it('remainingPositionValue uses the projected price at target date', () => {
+    const result = computeEquityFundingPlan(
+      baseInput({
+        targetAfterTax: 100_000,
+        expectedAnnualGrowth: 0.5,
+      }),
+    );
+    const naive = result.remainingShares * 100;
+    expect(result.remainingPositionValue).toBeGreaterThan(naive);
+  });
+
   it('low income → low or zero NIIT', () => {
     // Low income, modest sale: NIIT shouldn't apply.
     const result = computeEquityFundingPlan(
