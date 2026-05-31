@@ -182,6 +182,122 @@ describe('computeEquityFundingPlan', () => {
     }
   });
 
+  it('multi-stack: equivalent to single-stack when only one stack is provided', () => {
+    const legacy = computeEquityFundingPlan(baseInput());
+    const multi = computeEquityFundingPlan({
+      targetAfterTax: 500_000,
+      targetDate: new Date('2027-08-01T00:00:00Z'),
+      stacks: [
+        {
+          currentPrice: 100,
+          lots: [
+            { shares: 10_000, costBasisPerShare: 20, acquisitionDate: new Date('2023-01-15T00:00:00Z') },
+          ],
+        },
+      ],
+      ordinaryIncome: 250_000,
+      filingStatus: 'single',
+      stateCode: 'CA',
+      today: new Date('2026-05-31T00:00:00Z'),
+    });
+    expect(multi.totalAfterTaxAchieved).toBeCloseTo(legacy.totalAfterTaxAchieved, 0);
+    expect(multi.totalSharesSold).toBe(legacy.totalSharesSold);
+  });
+
+  it('multi-stack: planner prefers the stack with cheaper tax per dollar of cash', () => {
+    // Two stacks, both long-term, same total shares. Stack 0 has $20 basis
+    // (high gain); Stack 1 has $90 basis (low gain). Stack 1 yields more
+    // net per share, so the planner should sell from it first.
+    const result = computeEquityFundingPlan({
+      targetAfterTax: 50_000,
+      targetDate: new Date('2027-06-01T00:00:00Z'),
+      stacks: [
+        {
+          ticker: 'HIGHGAIN',
+          currentPrice: 100,
+          lots: [
+            { shares: 500, costBasisPerShare: 20, acquisitionDate: new Date('2020-01-01T00:00:00Z') },
+          ],
+        },
+        {
+          ticker: 'LOWGAIN',
+          currentPrice: 100,
+          lots: [
+            { shares: 500, costBasisPerShare: 90, acquisitionDate: new Date('2020-01-01T00:00:00Z') },
+          ],
+        },
+      ],
+      ordinaryIncome: 250_000,
+      filingStatus: 'single',
+      stateCode: 'CA',
+      today: new Date('2026-05-31T00:00:00Z'),
+    });
+    expect(result.feasible).toBe(true);
+    const fromHigh = result.schedule.reduce(
+      (a, y) => a + y.sales.filter((s) => s.stackIndex === 0).reduce((b, s) => b + s.shares, 0),
+      0,
+    );
+    const fromLow = result.schedule.reduce(
+      (a, y) => a + y.sales.filter((s) => s.stackIndex === 1).reduce((b, s) => b + s.shares, 0),
+      0,
+    );
+    expect(fromLow).toBeGreaterThan(fromHigh);
+  });
+
+  it('multi-stack: each stack carries its own price + growth', () => {
+    // Stack 0 at $100 with 0% growth; Stack 1 at $50 with 50% growth. By
+    // 2027 Stack 1's projected price (~$65 in 8 months) is below Stack 0.
+    // Per-share NET still favors Stack 1 if its basis is much lower.
+    const result = computeEquityFundingPlan({
+      targetAfterTax: 80_000,
+      targetDate: new Date('2027-06-01T00:00:00Z'),
+      stacks: [
+        {
+          ticker: 'FLAT',
+          currentPrice: 100,
+          expectedAnnualGrowth: 0,
+          lots: [
+            { shares: 1000, costBasisPerShare: 50, acquisitionDate: new Date('2020-01-01T00:00:00Z') },
+          ],
+        },
+        {
+          ticker: 'GROW',
+          currentPrice: 50,
+          expectedAnnualGrowth: 0.5,
+          lots: [
+            { shares: 1000, costBasisPerShare: 10, acquisitionDate: new Date('2020-01-01T00:00:00Z') },
+          ],
+        },
+      ],
+      ordinaryIncome: 250_000,
+      filingStatus: 'single',
+      stateCode: 'CA',
+      today: new Date('2026-05-31T00:00:00Z'),
+    });
+    expect(result.feasible).toBe(true);
+    // SaleEntry should carry stackIndex + ticker so callers can show
+    // per-stack lines.
+    for (const y of result.schedule) {
+      for (const s of y.sales) {
+        expect([0, 1]).toContain(s.stackIndex);
+        expect(['FLAT', 'GROW']).toContain(s.ticker);
+      }
+    }
+  });
+
+  it('throws when neither `stacks` nor legacy `lots` is provided', () => {
+    expect(() =>
+      computeEquityFundingPlan({
+        targetAfterTax: 100_000,
+        targetDate: new Date('2027-08-01T00:00:00Z'),
+        ordinaryIncome: 200_000,
+        filingStatus: 'single',
+        stateCode: 'CA',
+        today: new Date('2026-05-31T00:00:00Z'),
+      } as never),
+    ).toThrow();
+  });
+
   it('remainingPositionValue uses the projected price at target date', () => {
     const result = computeEquityFundingPlan(
       baseInput({

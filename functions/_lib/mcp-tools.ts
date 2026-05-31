@@ -581,10 +581,10 @@ export const TOOLS: McpTool[] = [
     name: 'equity_funding_plan',
     annotations: { title: 'House-Funding Sell Schedule', ...CALC_HINTS },
     description:
-      'Plans the minimum-tax sell schedule to net a target after-tax dollar amount by a target date from existing already-vested public stock lots (single ticker, one or more cost-basis lots). Use this tool when an equity holder needs cash by a deadline (down payment, tuition, surgery, etc.) and is liquidating existing holdings; for the upstream tax math on RSU/NSO/ISO events that PRODUCED the holdings, use `rsu_sell_vs_hold` / `nso_calculate` / `amt_iso_optimize` first. Algorithm: bracket-aware greedy. Considers every (year, lot) cell from now through targetDate, classifies each by long-term vs short-term capital gains for that year, computes the marginal tax cost per share (federal LTCG bracket walk + NIIT 3.8% above MAGI threshold + state ordinary or LTCG depending on state code), and greedily allocates sales to the lowest-tax cells until cumulative net cash meets the target. Returns per-year schedule with lot-by-lot detail, total taxes, savings vs the all-in-one-year counterfactual, and shortfall data when the target can\'t be reached. Pure deterministic computation: no network, no PII retention, tax tables compiled in. Out of scope: FICA (no wage events — already-vested-and-held shares don\'t trigger FICA on sale), AMT (no ISO exercise), multi-stack joint plans (use the upstream tools per stack). Example call: {targetAfterTax: 600000, targetDate: "2027-08-01", lots: [{shares: 8000, costBasisPerShare: 25, acquisitionDate: "2023-06-15"}], currentPrice: 110, ordinaryIncome: 280000, filingStatus: "married_joint", stateCode: "CA"}.' + STRICT_INPUT_NOTE_NO_TICKER,
+      'Plans the minimum-tax sell schedule to net a target after-tax dollar amount by a target date from existing already-vested public stock holdings. Supports either a single equity position (legacy single-stack input) OR multiple positions across different tickers (v1.7+ multi-stack input). Use this tool when an equity holder needs cash by a deadline (down payment, tuition, surgery, etc.) and is liquidating existing holdings; for the upstream tax math on RSU/NSO/ISO events that PRODUCED the holdings, use `rsu_sell_vs_hold` / `nso_calculate` / `amt_iso_optimize` first. Algorithm: bracket-aware greedy across every (year, stack, lot) cell from now through targetDate. Each cell\'s projected price compounds at the stack\'s expectedAnnualGrowth. Computes marginal tax per share (federal LTCG bracket walk + NIIT 3.8% above MAGI threshold + state ordinary or LTCG) and allocates sales to the lowest-tax cells until cumulative net cash meets the target. Returns per-year schedule with stack-and-lot-by-lot detail (each SaleEntry carries stackIndex + ticker + lotIndex), total taxes, savings vs the all-in-one-year counterfactual, and shortfall data when infeasible. Pure deterministic, no network, no PII retention. Out of scope: FICA (no wage events), AMT (no ISO exercise), QSBS-aware tax routing (use qsbs_check separately). Example multi-stack call: {targetAfterTax: 600000, targetDate: "2027-08-01", stacks: [{ticker: "FIGMA", currentPrice: 110, expectedAnnualGrowth: 0.08, lots: [{shares: 8000, costBasisPerShare: 25, acquisitionDate: "2023-06-15"}]}, {ticker: "SPY", currentPrice: 540, lots: [{shares: 200, costBasisPerShare: 450, acquisitionDate: "2022-03-01"}]}], ordinaryIncome: 280000, filingStatus: "married_joint", stateCode: "CA"}. Legacy single-stack callers can keep using {lots, currentPrice, expectedAnnualGrowth} at top level instead of `stacks`.' + STRICT_INPUT_NOTE_NO_TICKER,
     inputSchema: {
       type: 'object',
-      required: ['targetAfterTax', 'targetDate', 'lots', 'currentPrice', 'ordinaryIncome', 'filingStatus', 'stateCode'],
+      required: ['targetAfterTax', 'targetDate', 'ordinaryIncome', 'filingStatus', 'stateCode'],
       properties: {
         targetAfterTax: {
           type: 'number',
@@ -595,10 +595,37 @@ export const TOOLS: McpTool[] = [
           ...ISO_DATE,
           description: 'Date by which the user needs the net cash (YYYY-MM-DD). Bounds the planning horizon. Sales in non-target years happen on Dec 31; the target year\'s sale happens on this exact date.',
         },
+        stacks: {
+          type: 'array',
+          minItems: 1,
+          description: 'v1.7+ multi-stack input. Each stack is one equity position (one ticker) with its own currentPrice, growth assumption, and lot list. Use this when the user holds multiple tickers (e.g. current-employer RSUs + index fund + prior-employer holdings). For a single position, provide an array with one entry — OR omit `stacks` and use the legacy top-level `lots` + `currentPrice` fields.',
+          items: {
+            type: 'object',
+            required: ['currentPrice', 'lots'],
+            properties: {
+              ticker: { type: 'string', description: 'Optional display label echoed in the schedule output.' },
+              currentPrice: { type: 'number', minimum: 0, description: 'Current price for this stack\'s shares, USD.' },
+              expectedAnnualGrowth: { type: 'number', description: 'Optional per-stack growth decimal (e.g. 0.08 = 8%/yr). Defaults to 0.' },
+              lots: {
+                type: 'array',
+                minItems: 1,
+                items: {
+                  type: 'object',
+                  required: ['shares', 'costBasisPerShare', 'acquisitionDate'],
+                  properties: {
+                    shares: { type: 'integer', minimum: 1 },
+                    costBasisPerShare: { type: 'number', minimum: 0 },
+                    acquisitionDate: { ...ISO_DATE },
+                  },
+                },
+              },
+            },
+          },
+        },
         lots: {
           type: 'array',
           minItems: 1,
-          description: 'The user\'s already-vested public-stock lots. Each lot is one cost-basis cohort (e.g. one RSU vest tranche, one ESPP purchase, one open-market buy). Required even for a single lot.',
+          description: 'Legacy single-stack input (v1.5 / v1.6). Provide either `stacks` (v1.7+) or these legacy fields, not both. Lot is one cost-basis cohort (one RSU vest tranche, one ESPP purchase, one open-market buy).',
           items: {
             type: 'object',
             required: ['shares', 'costBasisPerShare', 'acquisitionDate'],
@@ -607,11 +634,11 @@ export const TOOLS: McpTool[] = [
               costBasisPerShare: {
                 type: 'number',
                 minimum: 0,
-                description: 'Per-share cost basis, USD. For RSU vests this is the FMV at vest (already taxed as ordinary). For ESPP/open-market this is the purchase price.',
+                description: 'Per-share cost basis, USD. For RSU vests this is the FMV at vest. For ESPP/open-market this is the purchase price.',
               },
               acquisitionDate: {
                 ...ISO_DATE,
-                description: 'Date the lot was acquired (vest date / purchase date). Drives the long-term-vs-short-term classification at each candidate sale date (1-year holding cliff).',
+                description: 'Date the lot was acquired. Drives the 1-year long-term-vs-short-term classification at each candidate sale date.',
               },
             },
           },
@@ -619,11 +646,11 @@ export const TOOLS: McpTool[] = [
         currentPrice: {
           type: 'number',
           minimum: 0,
-          description: 'Current share price, USD. Anchors year-1 of the projected-price path; future years compound at `expectedAnnualGrowth`. The model SHOULD NOT invent this; pass the user\'s current price.',
+          description: 'Legacy single-stack current share price, USD. Pair with legacy `lots` (omit `stacks`). The model SHOULD NOT invent this; pass the user\'s current price.',
         },
         expectedAnnualGrowth: {
           type: 'number',
-          description: 'Annual expected stock-price growth as a decimal (0.10 = 10%/yr). Optional; defaults to 0 (constant-price assumption). Each future year\'s projected sale price is `currentPrice × (1 + expectedAnnualGrowth)^Δyears`. Negative values model a decline scenario.',
+          description: 'Legacy single-stack annual growth decimal. Optional; defaults to 0. Each future year\'s projected price is `currentPrice × (1 + expectedAnnualGrowth)^Δyears`. Negative values model decline.',
         },
         ordinaryIncome: {
           type: 'number',

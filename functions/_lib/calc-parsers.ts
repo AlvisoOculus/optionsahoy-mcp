@@ -12,7 +12,7 @@ import type { RsuInput } from '../../lib/calc/rsu';
 import type { ConcentrationInputs } from '../../lib/calc/concentration';
 import type { ProtectivePutInputs } from '../../lib/calc/protectivePut';
 import type { QsbsInputs } from '../../lib/calc/qsbs';
-import type { EquityFundingInput, EquityFundingLot } from '../../lib/calc/equityFunding';
+import type { EquityFundingInput, EquityFundingLot, EquityFundingStack } from '../../lib/calc/equityFunding';
 
 import { asObject, p, FILING_STATUSES, type Obj } from './api';
 import { getTrailingReturn } from '../../lib/data/trailing-returns';
@@ -235,26 +235,58 @@ function parseEquityFundingLot(raw: unknown, index: number): EquityFundingLot {
   };
 }
 
-export function parseEquityFundingInput(raw: unknown): EquityFundingInput {
-  const o = asObject(raw);
+function parseEquityFundingStack(raw: unknown, index: number): EquityFundingStack {
+  if (raw === null || typeof raw !== 'object') {
+    throw new Error(`stacks[${index}] must be an object with currentPrice and lots`);
+  }
+  const o = raw as Obj;
   const lotsRaw = o.lots;
   if (!Array.isArray(lotsRaw) || lotsRaw.length === 0) {
-    throw new Error('field "lots" must be a non-empty array of {shares, costBasisPerShare, acquisitionDate}');
+    throw new Error(`stacks[${index}].lots must be a non-empty array`);
   }
-  const lots = lotsRaw.map((lot, idx) => parseEquityFundingLot(lot, idx));
-  const out: EquityFundingInput = {
+  const stack: EquityFundingStack = {
+    currentPrice: p.num(o, 'currentPrice'),
+    lots: lotsRaw.map((lot, idx) => parseEquityFundingLot(lot, idx)),
+  };
+  if (o.ticker !== undefined) stack.ticker = p.str(o, 'ticker');
+  if (o.expectedAnnualGrowth !== undefined) {
+    stack.expectedAnnualGrowth = p.num(o, 'expectedAnnualGrowth');
+  }
+  return stack;
+}
+
+export function parseEquityFundingInput(raw: unknown): EquityFundingInput {
+  const o = asObject(raw);
+  const base: EquityFundingInput = {
     targetAfterTax: p.num(o, 'targetAfterTax'),
     targetDate: p.date(o, 'targetDate'),
-    lots,
-    currentPrice: p.num(o, 'currentPrice'),
     ordinaryIncome: p.num(o, 'ordinaryIncome'),
     filingStatus: p.enum(o, 'filingStatus', FILING_STATUSES),
     stateCode: p.str(o, 'stateCode'),
   };
-  if (o.expectedAnnualGrowth !== undefined) {
-    out.expectedAnnualGrowth = p.num(o, 'expectedAnnualGrowth');
+
+  // v1.7+ multi-stack input
+  if (o.stacks !== undefined) {
+    if (!Array.isArray(o.stacks) || o.stacks.length === 0) {
+      throw new Error('field "stacks" must be a non-empty array of {currentPrice, lots[, ticker, expectedAnnualGrowth]}');
+    }
+    base.stacks = o.stacks.map((s, idx) => parseEquityFundingStack(s, idx));
+    return base;
   }
-  return out;
+
+  // Legacy v1.5/v1.6 single-stack input: lots + currentPrice at top level.
+  const lotsRaw = o.lots;
+  if (!Array.isArray(lotsRaw) || lotsRaw.length === 0) {
+    throw new Error(
+      'either "stacks" (v1.7+) or legacy "lots" + "currentPrice" required',
+    );
+  }
+  base.lots = lotsRaw.map((lot, idx) => parseEquityFundingLot(lot, idx));
+  base.currentPrice = p.num(o, 'currentPrice');
+  if (o.expectedAnnualGrowth !== undefined) {
+    base.expectedAnnualGrowth = p.num(o, 'expectedAnnualGrowth');
+  }
+  return base;
 }
 
 export function parseQsbsInput(raw: unknown): QsbsInputs {

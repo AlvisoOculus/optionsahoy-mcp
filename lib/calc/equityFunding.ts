@@ -34,14 +34,35 @@ export interface EquityFundingLot {
   acquisitionDate: Date;
 }
 
+/**
+ * One equity position (one ticker / company). Multiple stacks may be
+ * supplied to plan a multi-position liquidation.
+ */
+export interface EquityFundingStack {
+  /** Optional display label; doesn't affect math. */
+  ticker?: string;
+  currentPrice: number;
+  /** See EquityFundingInput.expectedAnnualGrowth. */
+  expectedAnnualGrowth?: number;
+  lots: EquityFundingLot[];
+}
+
 export interface EquityFundingInput {
   targetAfterTax: number;
   targetDate: Date;
-  lots: EquityFundingLot[];
-  currentPrice: number;
-  ordinaryIncome: number;
-  filingStatus: FilingStatus;
-  stateCode: string;
+  /**
+   * Multi-stack input (v1.7+). When `stacks` is provided, the legacy
+   * top-level `lots` / `currentPrice` / `expectedAnnualGrowth` fields
+   * are ignored.
+   */
+  stacks?: EquityFundingStack[];
+  /**
+   * Legacy single-stack input (v1.5 / v1.6). Auto-promoted to a single
+   * stack at compute time. Provide either `stacks` (v1.7+) or these
+   * three fields (legacy) — not both.
+   */
+  lots?: EquityFundingLot[];
+  currentPrice?: number;
   /**
    * Annual expected stock-price growth as a decimal (0.10 = 10%/yr).
    * Defaults to 0 (constant-price assumption, matches v1.5 behavior).
@@ -50,6 +71,9 @@ export interface EquityFundingInput {
    * model a decline scenario.
    */
   expectedAnnualGrowth?: number;
+  ordinaryIncome: number;
+  filingStatus: FilingStatus;
+  stateCode: string;
   /**
    * Optional reference "now" — defaults to new Date(). Tests pass an
    * explicit value to keep year-classification deterministic.
@@ -58,6 +82,11 @@ export interface EquityFundingInput {
 }
 
 export interface SaleEntry {
+  /** Index into the input's `stacks` array. Single-stack inputs always 0. */
+  stackIndex: number;
+  /** Optional ticker echoed from the stack, for display. */
+  ticker?: string;
+  /** Index into the stack's `lots` array. */
   lotIndex: number;
   shares: number;
   grossProceeds: number;
@@ -129,20 +158,54 @@ function projectPrice(currentPrice: number, growthAnnual: number, today: Date, s
 }
 
 // Per-year running state. Lets us compute marginal incremental tax for
-// "sell ONE more share from lot L in year Y" without re-walking
+// "sell ONE more share from flat-lot L in year Y" without re-walking
 // everything each iteration. sharesRemaining is NOT here — lot inventory
 // is global (shared across years).
 interface YearState {
   year: number;
   saleDate: Date;
-  /** Projected $/share at this year's sale date (currentPrice × growth^Δyears). */
-  projectedPrice: number;
+  /** Projected $/share at this year's sale date, indexed by stack. */
+  projectedPriceByStack: number[];
   longTermGainSoFar: number;
   shortTermGainSoFar: number;
-  // gain-per-share per lot (= projectedPrice − basisPerShare) + LT/ST
-  // classification for this year's sale date + whether the lot is
-  // acquired yet by this year's sale date.
+  // gain-per-share per FLAT lot (= projectedPrice − basisPerShare) + LT/ST
+  // classification + whether the lot is acquired yet at this year's sale.
+  // Index matches flatLots[].
   lotMeta: Array<{ gainPerShare: number; isLongTerm: boolean; acquired: boolean }>;
+}
+
+// A flattened (stack, lot) entry — the algorithm treats stacks × lots as
+// a single linear lot list with extra stackIndex bookkeeping for the
+// result reporting.
+interface FlatLot {
+  stackIndex: number;
+  lotIndexInStack: number;
+  shares: number;
+  costBasisPerShare: number;
+  acquisitionDate: Date;
+}
+
+// Normalize either input shape (v1.5/v1.6 single-stack at top level OR
+// v1.7+ explicit `stacks`) into the v1.7 form.
+function normalizeStacks(input: EquityFundingInput): EquityFundingStack[] {
+  if (input.stacks !== undefined) {
+    if (input.stacks.length === 0) {
+      throw new Error('field "stacks" must be a non-empty array');
+    }
+    return input.stacks;
+  }
+  if (input.lots !== undefined && input.currentPrice !== undefined) {
+    return [
+      {
+        currentPrice: input.currentPrice,
+        expectedAnnualGrowth: input.expectedAnnualGrowth,
+        lots: input.lots,
+      },
+    ];
+  }
+  throw new Error(
+    'EquityFundingInput requires either `stacks` (v1.7+) or legacy `lots` + `currentPrice`',
+  );
 }
 
 // Global inventory: how many shares of each lot are still un-sold.
@@ -325,40 +388,58 @@ function commitBlock(
 export function computeEquityFundingPlan(input: EquityFundingInput): EquityFundingResult {
   const today = input.today ?? new Date();
   const years = enumerateYears(today, input.targetDate);
+  const stacks = normalizeStacks(input);
 
-  // Global lot inventory — shared across all years. Selling 100 shares
-  // from lot L in year 2026 reduces the SAME counter that year 2027 sees.
-  const inventory: LotInventory[] = input.lots.map((lot) => ({ sharesRemaining: lot.shares }));
+  // Flatten (stack, lot) into a single linear list. flatLots[i] knows its
+  // stackIndex + lotIndexInStack, so result reporting can break sales out
+  // per stack.
+  const flatLots: FlatLot[] = [];
+  for (let si = 0; si < stacks.length; si += 1) {
+    const stack = stacks[si];
+    for (let li = 0; li < stack.lots.length; li += 1) {
+      const lot = stack.lots[li];
+      flatLots.push({
+        stackIndex: si,
+        lotIndexInStack: li,
+        shares: lot.shares,
+        costBasisPerShare: lot.costBasisPerShare,
+        acquisitionDate: lot.acquisitionDate,
+      });
+    }
+  }
 
-  // Build per-year state. Each year sees the SAME lots but with year-
-  // specific long-term classification and "is this lot acquired yet at
-  // this year's sale date" flag.
-  const growth = input.expectedAnnualGrowth ?? 0;
+  // Global lot inventory — shared across all years. Index matches flatLots[].
+  const inventory: LotInventory[] = flatLots.map((fl) => ({ sharesRemaining: fl.shares }));
+
+  // Build per-year state. Each year has a projected price PER STACK and a
+  // gain-per-share for each flat lot computed against its stack's price.
   const yearStates: YearState[] = years.map((year) => {
     const saleDate = saleDateForYear(year, input.targetDate);
-    const projectedPrice = projectPrice(input.currentPrice, growth, today, saleDate);
-    const lotMeta = input.lots.map((lot) => ({
-      gainPerShare: projectedPrice - lot.costBasisPerShare,
-      isLongTerm: isLongTermFor(lot.acquisitionDate, saleDate),
-      acquired: lot.acquisitionDate.getTime() <= saleDate.getTime(),
+    const projectedPriceByStack = stacks.map((s) =>
+      projectPrice(s.currentPrice, s.expectedAnnualGrowth ?? 0, today, saleDate),
+    );
+    const lotMeta = flatLots.map((fl) => ({
+      gainPerShare: projectedPriceByStack[fl.stackIndex] - fl.costBasisPerShare,
+      isLongTerm: isLongTermFor(fl.acquisitionDate, saleDate),
+      acquired: fl.acquisitionDate.getTime() <= saleDate.getTime(),
     }));
     return {
       year,
       saleDate,
-      projectedPrice,
+      projectedPriceByStack,
       longTermGainSoFar: 0,
       shortTermGainSoFar: 0,
       lotMeta,
     };
   });
 
-  // Track sales per (year, lot) for the final report.
-  const salesMatrix: number[][] = years.map(() => input.lots.map(() => 0));
+  // Track sales per (year, flat-lot) for the final report.
+  const salesMatrix: number[][] = years.map(() => flatLots.map(() => 0));
   const taxMatrix: Array<Array<{ federal: number; stateT: number; niit: number; gain: number }>> =
-    years.map(() => input.lots.map(() => ({ federal: 0, stateT: 0, niit: 0, gain: 0 })));
+    years.map(() => flatLots.map(() => ({ federal: 0, stateT: 0, niit: 0, gain: 0 })));
 
   // Sanity guard.
-  const totalSharesAvailable = input.lots.reduce((acc, l) => acc + l.shares, 0);
+  const totalSharesAvailable = flatLots.reduce((acc, l) => acc + l.shares, 0);
   if (totalSharesAvailable <= 0) {
     return emptyResult(input);
   }
@@ -401,7 +482,7 @@ export function computeEquityFundingPlan(input: EquityFundingInput): EquityFundi
             input.filingStatus,
             input.stateCode,
           );
-          const incrementalGross = candidateShares * ys.projectedPrice;
+          const incrementalGross = candidateShares * ys.projectedPriceByStack[flatLots[li].stackIndex];
           const incrementalNet = incrementalGross - incrementalTax;
           const netPerShare = incrementalNet / candidateShares;
           if (netPerShare > bestNetPerShare) {
@@ -431,7 +512,7 @@ export function computeEquityFundingPlan(input: EquityFundingInput): EquityFundi
         input.filingStatus,
         input.stateCode,
       );
-      const gross = bestBlockShares * yearStates[bestYear].projectedPrice;
+      const gross = bestBlockShares * yearStates[bestYear].projectedPriceByStack[flatLots[bestLot].stackIndex];
       const totalIncrementalTax = breakdown.federal + breakdown.stateT + breakdown.niit;
       const net = gross - totalIncrementalTax;
       cumulativeNet += net;
@@ -460,14 +541,17 @@ export function computeEquityFundingPlan(input: EquityFundingInput): EquityFundi
     const sales: SaleEntry[] = [];
     let yearGross = 0;
     let yearTax = 0;
-    for (let li = 0; li < input.lots.length; li += 1) {
+    for (let li = 0; li < flatLots.length; li += 1) {
       const shares = salesMatrix[yi][li];
       if (shares <= 0) continue;
       const tax = taxMatrix[yi][li];
-      const gross = shares * ys.projectedPrice;
+      const fl = flatLots[li];
+      const gross = shares * ys.projectedPriceByStack[fl.stackIndex];
       const totalTaxThisSale = tax.federal + tax.stateT + tax.niit;
       sales.push({
-        lotIndex: li,
+        stackIndex: fl.stackIndex,
+        ticker: stacks[fl.stackIndex].ticker,
+        lotIndex: fl.lotIndexInStack,
         shares,
         grossProceeds: gross,
         gainAmount: tax.gain,
@@ -501,11 +585,20 @@ export function computeEquityFundingPlan(input: EquityFundingInput): EquityFundi
 
   const feasible = cumulativeNet >= input.targetAfterTax - 0.5;
   const totalAfterTax = totalGross - (totalFed + totalState + totalNiit);
-  const remainingShares = input.lots.reduce(
-    (acc, lot, idx) =>
-      acc + lot.shares - salesMatrix.reduce((s, yearRow) => s + yearRow[idx], 0),
+  const remainingShares = flatLots.reduce(
+    (acc, fl, idx) =>
+      acc + fl.shares - salesMatrix.reduce((s, yearRow) => s + yearRow[idx], 0),
     0,
   );
+  // Per-stack projected price at targetDate, used to value leftover shares.
+  const targetProjectedByStack = stacks.map((s) =>
+    projectPrice(s.currentPrice, s.expectedAnnualGrowth ?? 0, today, input.targetDate),
+  );
+  const remainingPositionValue = flatLots.reduce((acc, fl, idx) => {
+    const remaining =
+      fl.shares - salesMatrix.reduce((s, yearRow) => s + yearRow[idx], 0);
+    return acc + remaining * targetProjectedByStack[fl.stackIndex];
+  }, 0);
 
   const result: EquityFundingResult = {
     feasible,
@@ -536,7 +629,7 @@ export function computeEquityFundingPlan(input: EquityFundingInput): EquityFundi
           : 0,
     },
     remainingShares,
-    remainingPositionValue: round2(remainingShares * projectPrice(input.currentPrice, growth, today, input.targetDate)),
+    remainingPositionValue: round2(remainingPositionValue),
   };
 
   if (!feasible) {
@@ -564,20 +657,35 @@ function computeSingleYearCounterfactual(
   if (years.length !== 1) {
     // Fallback: caller's target date isn't in the inferred year. Re-anchor.
   }
-  const cfInventory: LotInventory[] = input.lots.map((lot) => ({ sharesRemaining: lot.shares }));
+  const cfStacks = normalizeStacks(input);
+  const cfFlatLots: FlatLot[] = [];
+  for (let si = 0; si < cfStacks.length; si += 1) {
+    for (let li = 0; li < cfStacks[si].lots.length; li += 1) {
+      const lot = cfStacks[si].lots[li];
+      cfFlatLots.push({
+        stackIndex: si,
+        lotIndexInStack: li,
+        shares: lot.shares,
+        costBasisPerShare: lot.costBasisPerShare,
+        acquisitionDate: lot.acquisitionDate,
+      });
+    }
+  }
+  const cfInventory: LotInventory[] = cfFlatLots.map((fl) => ({ sharesRemaining: fl.shares }));
   const cfToday = input.today ?? new Date();
-  const cfGrowth = input.expectedAnnualGrowth ?? 0;
-  const cfProjected = projectPrice(input.currentPrice, cfGrowth, cfToday, input.targetDate);
+  const cfProjectedByStack = cfStacks.map((s) =>
+    projectPrice(s.currentPrice, s.expectedAnnualGrowth ?? 0, cfToday, input.targetDate),
+  );
   const ys: YearState = {
     year: input.targetDate.getUTCFullYear(),
     saleDate: input.targetDate,
-    projectedPrice: cfProjected,
+    projectedPriceByStack: cfProjectedByStack,
     longTermGainSoFar: 0,
     shortTermGainSoFar: 0,
-    lotMeta: input.lots.map((lot) => ({
-      gainPerShare: cfProjected - lot.costBasisPerShare,
-      isLongTerm: isLongTermFor(lot.acquisitionDate, input.targetDate),
-      acquired: lot.acquisitionDate.getTime() <= input.targetDate.getTime(),
+    lotMeta: cfFlatLots.map((fl) => ({
+      gainPerShare: cfProjectedByStack[fl.stackIndex] - fl.costBasisPerShare,
+      isLongTerm: isLongTermFor(fl.acquisitionDate, input.targetDate),
+      acquired: fl.acquisitionDate.getTime() <= input.targetDate.getTime(),
     })),
   };
 
@@ -610,7 +718,7 @@ function computeSingleYearCounterfactual(
           input.filingStatus,
           input.stateCode,
         );
-        const incrementalGross = candidateShares * ys.projectedPrice;
+        const incrementalGross = candidateShares * ys.projectedPriceByStack[cfFlatLots[li].stackIndex];
         const incrementalNet = incrementalGross - incrementalTax;
         const netPerShare = incrementalNet / candidateShares;
         if (netPerShare > bestNetPerShare) {
@@ -633,7 +741,7 @@ function computeSingleYearCounterfactual(
         input.filingStatus,
         input.stateCode,
       );
-      const gross = bestBlockShares * ys.projectedPrice;
+      const gross = bestBlockShares * ys.projectedPriceByStack[cfFlatLots[bestLot].stackIndex];
       const tax = breakdown.federal + breakdown.stateT + breakdown.niit;
       cumulativeNet += gross - tax;
       totalFed += breakdown.federal;
