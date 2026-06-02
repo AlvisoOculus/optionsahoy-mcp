@@ -14,6 +14,7 @@ import { computeRsuResult } from '../../lib/calc/rsu';
 import { calculate as computeConcentration } from '../../lib/calc/concentration';
 import { calculateProtectivePut } from '../../lib/calc/protectivePut';
 import { evaluateQsbs } from '../../lib/calc/qsbs';
+import { computeEquityFundingComparison } from '../../lib/calc/equityFunding';
 
 import { FILING_STATUSES } from './api';
 import {
@@ -23,6 +24,7 @@ import {
   parseConcentrationInput,
   parseProtectivePutInput,
   parseQsbsInput,
+  parseEquityFundingInput,
 } from './calc-parsers';
 
 export type McpToolAnnotations = {
@@ -320,5 +322,78 @@ export const TOOLS: McpTool[] = [
       },
     },
     handler: (args) => evaluateQsbs(parseQsbsInput(args)),
+  },
+  {
+    name: 'equity_funding_optimize',
+    annotations: { title: 'Equity Funding Plan', ...CALC_HINTS },
+    description:
+      'Multi-year, multi-stack sell-down plan for hitting a target after-tax dollar amount by a deadline (down payment, tax bill, expansion check). Inputs are one or more equity positions (stacks), each with a current price, optional ticker, and a list of cost-basis lots (with optional RSU vest dates). Returns four named plans on a risk/wealth frontier: Lock-in-now (sell today, zero price risk), Balanced (bracket-aware spread across months), Hold-for-growth (sell at target date, max upside), and the Recommended plan (highest at-target wealth among feasible plans within the user\'s shortfall tolerance). Each plan reports the schedule, total federal + state + NIIT tax, after-tax cash, retained shares, wealth at target, and lognormal shortfall probability.' + STRICT_INPUT_NOTE,
+    inputSchema: {
+      type: 'object',
+      required: [
+        'targetAfterTax', 'targetDate', 'stacks', 'ordinaryIncome', 'filingStatus', 'stateCode',
+      ],
+      properties: {
+        targetAfterTax: { type: 'number', minimum: 0, description: 'Dollars the user needs net of all tax by the target date.' },
+        targetDate: { ...ISO_DATE, description: 'Deadline by which targetAfterTax must be raised.' },
+        ordinaryIncome: { type: 'number', minimum: 0, description: 'Annual W-2 / 1099 income excluding the planned sales.' },
+        filingStatus: FILING_SCHEMA,
+        stateCode: STATE_SCHEMA,
+        cashInterestRate: {
+          type: 'number',
+          description: 'Annualized pre-tax yield on cash held between each sale and the target date. The calc compounds at the after-tax marginal rate. Defaults to 0 (interest ignored).',
+        },
+        riskToleranceShortfall: {
+          type: 'number',
+          minimum: 0,
+          maximum: 1,
+          description: 'Max acceptable P(realized cash < target) under the lognormal price model. The Recommended plan is the wealthiest feasible plan with shortfall ≤ this. Default 0.10 (10%).',
+        },
+        defaultVolatility: {
+          type: 'number',
+          minimum: 0,
+          description: 'Annualized volatility used for stacks that do not specify their own. Default 0.30.',
+        },
+        stacks: {
+          type: 'array',
+          minItems: 1,
+          description: 'One entry per equity position (ticker / company). Each stack carries its own current price, growth assumption, and lot list.',
+          items: {
+            type: 'object',
+            required: ['currentPrice', 'lots'],
+            properties: {
+              ticker: TICKER_SCHEMA,
+              currentPrice: { type: 'number', minimum: 0, description: '$/share today.' },
+              expectedAnnualGrowth: {
+                type: 'number',
+                description: 'Decimal annual growth (0.10 = 10%/yr). Required unless `ticker` resolves it from trailing CAGR. Defaults to 0 (flat) when neither is supplied.',
+              },
+              volatility: {
+                type: 'number',
+                minimum: 0,
+                description: 'Per-stack annualized σ. Overrides `defaultVolatility` for this stack\'s shortfall contribution.',
+              },
+              lots: {
+                type: 'array',
+                minItems: 1,
+                description: 'Cost-basis lots. Already-vested by default; set `vestDate` to model an RSU tranche that vests in the future.',
+                items: {
+                  type: 'object',
+                  required: ['shares', 'costBasisPerShare', 'acquisitionDate'],
+                  properties: {
+                    shares: { type: 'number', minimum: 1, description: 'Share count in this lot.' },
+                    costBasisPerShare: { type: 'number', minimum: 0, description: '$/share basis (RSU: FMV at vest; ISO/NSO: exercise price; purchased: cost).' },
+                    acquisitionDate: { ...ISO_DATE, description: 'Date used for the 12-month long-term-capital-gains clock.' },
+                    vestDate: { ...ISO_DATE, description: 'Optional: future vest date for unvested RSUs. The lot is excluded from sales whose date precedes this.' },
+                  },
+                },
+              },
+            },
+          },
+        },
+        today: { ...ISO_DATE, description: 'Optional override for "now". Defaults to the server\'s current date. Tests use this.' },
+      },
+    },
+    handler: (args) => computeEquityFundingComparison(parseEquityFundingInput(args)),
   },
 ];

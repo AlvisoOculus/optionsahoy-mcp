@@ -183,6 +183,25 @@
           "405": { "$ref": "#/components/responses/MethodNotAllowed" }
         }
       }
+    },
+    "/api/v1/equity-funding": {
+      "post": {
+        "summary": "Multi-year equity-funding plan",
+        "description": "Returns a four-plan comparison for raising a target after-tax dollar amount by a deadline (down payment, tax bill, expansion check) from one or more equity positions. Plans span Lock-in-now (zero price risk), Balanced (bracket-aware spread), Hold-for-growth (max upside), and the wealth-optimal plan within the user's shortfall tolerance.",
+        "operationId": "optimizeEquityFunding",
+        "tags": ["EquityFunding"],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": { "schema": { "$ref": "#/components/schemas/EquityFundingInput" } }
+          }
+        },
+        "responses": {
+          "200": { "$ref": "#/components/responses/CalculatorSuccess" },
+          "400": { "$ref": "#/components/responses/BadRequest" },
+          "405": { "$ref": "#/components/responses/MethodNotAllowed" }
+        }
+      }
     }
   },
   "components": {
@@ -372,6 +391,51 @@
           "tenorYears": { "type": "number", "minimum": 0.25, "description": "Option tenor in years." },
           "expectedReturn": { "type": "number", "description": "Override sector long-run drift μ." },
           "tickerLabel": { "type": "string", "description": "Optional ticker for warning copy (e.g. \"AAPL\")." }
+        }
+      },
+      "EquityFundingLot": {
+        "type": "object",
+        "required": ["shares", "costBasisPerShare", "acquisitionDate"],
+        "properties": {
+          "shares": { "type": "number", "minimum": 1, "description": "Share count in this lot." },
+          "costBasisPerShare": { "type": "number", "minimum": 0, "description": "Cost basis per share, USD. RSU = fair market value at vest; ISO/NSO = exercise price; purchased = cost." },
+          "acquisitionDate": { "$ref": "#/components/schemas/IsoDate", "description": "Date used for the 12-month long-term-capital-gains clock." },
+          "vestDate": { "$ref": "#/components/schemas/IsoDate", "description": "Optional: future vest date for unvested RSUs. The lot is excluded from sales whose date precedes this." }
+        }
+      },
+      "EquityFundingStack": {
+        "type": "object",
+        "required": ["currentPrice", "lots"],
+        "properties": {
+          "ticker": { "$ref": "#/components/schemas/Ticker" },
+          "currentPrice": { "type": "number", "minimum": 0, "description": "Today's price per share, USD." },
+          "expectedAnnualGrowth": { "type": "number", "description": "Decimal annual growth (0.10 = 10%/yr). Required unless `ticker` resolves it from trailing CAGR. Defaults to 0 (flat) when neither is supplied." },
+          "volatility": { "type": "number", "minimum": 0, "description": "Per-stack annualized σ. Overrides `defaultVolatility` for this stack's shortfall contribution." },
+          "lots": {
+            "type": "array",
+            "minItems": 1,
+            "items": { "$ref": "#/components/schemas/EquityFundingLot" }
+          }
+        }
+      },
+      "EquityFundingInput": {
+        "type": "object",
+        "required": ["targetAfterTax", "targetDate", "stacks", "ordinaryIncome", "filingStatus", "stateCode"],
+        "properties": {
+          "targetAfterTax": { "type": "number", "minimum": 0, "description": "Dollars the user needs net of all tax by the target date." },
+          "targetDate": { "$ref": "#/components/schemas/IsoDate", "description": "Deadline by which targetAfterTax must be raised." },
+          "stacks": {
+            "type": "array",
+            "minItems": 1,
+            "items": { "$ref": "#/components/schemas/EquityFundingStack" }
+          },
+          "ordinaryIncome": { "type": "number", "minimum": 0, "description": "Annual W-2 / 1099 income excluding the planned sales." },
+          "filingStatus": { "$ref": "#/components/schemas/FilingStatus" },
+          "stateCode": { "$ref": "#/components/schemas/StateCode" },
+          "cashInterestRate": { "type": "number", "description": "Annualized pre-tax yield on cash held between each sale and the target date. The calc compounds at the after-tax marginal rate. Defaults to 0." },
+          "riskToleranceShortfall": { "type": "number", "minimum": 0, "maximum": 1, "description": "Max acceptable P(realized cash < target) under the lognormal price model. Default 0.10." },
+          "defaultVolatility": { "type": "number", "minimum": 0, "description": "Annualized σ used for stacks that omit their own. Default 0.30." },
+          "today": { "$ref": "#/components/schemas/IsoDate", "description": "Optional override for \"now\". Defaults to the server's current date." }
         }
       },
       "QsbsInput": {

@@ -49,6 +49,12 @@ const ENDPOINTS = [
     path: '/api/v1/qsbs',
     description: 'Section 1202 qualified small business stock (QSBS) qualification check.',
   },
+  {
+    method: 'POST',
+    path: '/api/v1/equity-funding',
+    description:
+      'Multi-year equity-funding plan for hitting a target after-tax amount by a deadline. Returns four named plans on the risk/wealth frontier.',
+  },
 ];
 
 export const onRequest: PagesFunction = ({ request }) => {

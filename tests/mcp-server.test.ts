@@ -100,7 +100,7 @@ describe('POST /mcp — tools/list', () => {
   // `title` + the appropriate readOnlyHint or destructiveHint. Missing title
   // is the #1 cause of submission rejection — keep this assertion live so a
   // future refactor can't drop it silently.
-  it('lists 6 calculator tools with annotations (title + readOnlyHint + destructiveHint required for Anthropic submission)', async () => {
+  it('lists 7 calculator tools with annotations (title + readOnlyHint + destructiveHint required for Anthropic submission)', async () => {
     type ToolListItem = {
       name: string;
       description: string;
@@ -116,6 +116,7 @@ describe('POST /mcp — tools/list', () => {
     expect(names).toEqual([
       'amt_iso_optimize',
       'concentration_analyze',
+      'equity_funding_optimize',
       'nso_calculate',
       'protective_put_price',
       'qsbs_check',
@@ -408,7 +409,7 @@ describe('POST /mcp — error paths', () => {
     expect(res.status).toBe(200);
     const json = (await res.json()) as { name: string; tools: string[]; resources: string[]; prompts: string[] };
     expect(json.name).toMatch(/OptionsAhoy/);
-    expect(json.tools.length).toBe(6);
+    expect(json.tools.length).toBe(7);
     expect(json.resources.length).toBe(6);
     expect(json.prompts.length).toBe(6);
   });

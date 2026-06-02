@@ -12,6 +12,11 @@ import type { RsuInput } from '../../lib/calc/rsu';
 import type { ConcentrationInputs } from '../../lib/calc/concentration';
 import type { ProtectivePutInputs } from '../../lib/calc/protectivePut';
 import type { QsbsInputs } from '../../lib/calc/qsbs';
+import type {
+  EquityFundingComparisonInput,
+  EquityFundingLot,
+  EquityFundingStack,
+} from '../../lib/calc/equityFunding';
 
 import { asObject, p, FILING_STATUSES, type Obj } from './api';
 import { getTrailingReturn } from '../../lib/data/trailing-returns';
@@ -207,6 +212,102 @@ export function parseProtectivePutInput(raw: unknown): ProtectivePutInputs {
   if (o.expectedReturn !== undefined) base.expectedReturn = p.num(o, 'expectedReturn');
   if (o.tickerLabel !== undefined) base.tickerLabel = p.str(o, 'tickerLabel');
   return base;
+}
+
+// Resolve a per-stack annual growth rate: explicit `expectedAnnualGrowth`
+// wins; else fall back to the stack's `ticker` resolved against trailing
+// returns over the horizon from today → targetDate. Throws with the
+// standard "field required" error pattern when neither yields a value.
+function resolveStackGrowth(
+  stackObj: Obj,
+  stackIndex: number,
+  horizonYears: number,
+): number | undefined {
+  if (stackObj.expectedAnnualGrowth !== undefined) return p.num(stackObj, 'expectedAnnualGrowth');
+  if (stackObj.ticker !== undefined) {
+    const ticker = p.str(stackObj, 'ticker');
+    const r = getTrailingReturn(ticker, horizonYears);
+    if (r !== null) return r;
+    throw new Error(
+      `field "stacks[${stackIndex}].expectedAnnualGrowth" required: ticker "${ticker}" is not in our trailing-returns table (~90 covered). Pass "expectedAnnualGrowth" explicitly or use a covered public-stock symbol. ${ASK_USER_HINT}`,
+    );
+  }
+  // EquityFundingStack treats undefined growth as 0 (flat price). Leave
+  // it undefined here so the calc applies its own default.
+  return undefined;
+}
+
+function parseLot(rawLot: unknown, stackIndex: number, lotIndex: number): EquityFundingLot {
+  const lot = asObject(rawLot);
+  const out: EquityFundingLot = {
+    shares: p.num(lot, 'shares'),
+    costBasisPerShare: p.num(lot, 'costBasisPerShare'),
+    acquisitionDate: p.date(lot, 'acquisitionDate'),
+  };
+  if (lot.vestDate !== undefined) out.vestDate = p.date(lot, 'vestDate');
+  if (!Number.isFinite(out.shares) || out.shares <= 0) {
+    throw new Error(`field "stacks[${stackIndex}].lots[${lotIndex}].shares" must be a positive number`);
+  }
+  return out;
+}
+
+export function parseEquityFundingInput(raw: unknown): EquityFundingComparisonInput {
+  const o = asObject(raw);
+  const targetDate = p.date(o, 'targetDate');
+  const today = o.today !== undefined ? p.date(o, 'today') : new Date();
+  const horizonYears = Math.max(
+    0.25,
+    (targetDate.getTime() - today.getTime()) / (365.25 * 86_400_000),
+  );
+
+  const stacksRaw = o.stacks;
+  if (!Array.isArray(stacksRaw) || stacksRaw.length === 0) {
+    throw new Error('field "stacks" must be a non-empty array');
+  }
+
+  const stacks: EquityFundingStack[] = [];
+  const stackVolatilities: (number | null)[] = [];
+  let anyStackVolSet = false;
+
+  stacksRaw.forEach((rs, si) => {
+    const stackObj = asObject(rs);
+    const lotsRaw = stackObj.lots;
+    if (!Array.isArray(lotsRaw) || lotsRaw.length === 0) {
+      throw new Error(`field "stacks[${si}].lots" must be a non-empty array`);
+    }
+    const stack: EquityFundingStack = {
+      currentPrice: p.num(stackObj, 'currentPrice'),
+      lots: lotsRaw.map((rl, li) => parseLot(rl, si, li)),
+    };
+    if (stackObj.ticker !== undefined) stack.ticker = p.str(stackObj, 'ticker');
+    const growth = resolveStackGrowth(stackObj, si, horizonYears);
+    if (growth !== undefined) stack.expectedAnnualGrowth = growth;
+    stacks.push(stack);
+
+    if (stackObj.volatility !== undefined) {
+      stackVolatilities.push(p.num(stackObj, 'volatility'));
+      anyStackVolSet = true;
+    } else {
+      stackVolatilities.push(null);
+    }
+  });
+
+  const out: EquityFundingComparisonInput = {
+    targetAfterTax: p.num(o, 'targetAfterTax'),
+    targetDate,
+    stacks,
+    ordinaryIncome: p.num(o, 'ordinaryIncome'),
+    filingStatus: p.enum(o, 'filingStatus', FILING_STATUSES),
+    stateCode: p.str(o, 'stateCode'),
+  };
+  if (o.cashInterestRate !== undefined) out.cashInterestRate = p.num(o, 'cashInterestRate');
+  if (o.today !== undefined) out.today = today;
+  if (o.riskToleranceShortfall !== undefined) {
+    out.riskToleranceShortfall = p.num(o, 'riskToleranceShortfall');
+  }
+  if (o.defaultVolatility !== undefined) out.defaultVolatility = p.num(o, 'defaultVolatility');
+  if (anyStackVolSet) out.stackVolatilities = stackVolatilities;
+  return out;
 }
 
 export function parseQsbsInput(raw: unknown): QsbsInputs {
