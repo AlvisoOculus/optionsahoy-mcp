@@ -1,6 +1,6 @@
 # OptionsAhoy MCP Server
 
-> Equity comp tax (ISO/NSO/RSU/QSBS), concentration, and hedging optimizer. Six deterministic tools with federal + 50-state + DC tax code, multi-year horizons.
+> Equity comp tax (ISO/NSO/RSU/QSBS), concentration, hedging, and multi-year equity-funding optimizer. Seven deterministic tools with federal + 50-state + DC tax code, multi-year horizons.
 
 **Live MCP endpoint:** `https://optionsahoy.com/mcp` (no auth, no install)
 **Live REST API:** `https://optionsahoy.com/api/v1`
@@ -14,7 +14,7 @@ Built by [AlphaLatitude Inc.](https://alphalatitude.com) — a pre-revenue beta-
 
 ## What this is
 
-An optimization engine for equity-compensation tax planning, exposed as both a Model Context Protocol (MCP) server and a plain REST API. Six tools:
+An optimization engine for equity-compensation tax planning, exposed as both a Model Context Protocol (MCP) server and a plain REST API. Seven tools:
 
 | Tool name | What it computes |
 |---|---|
@@ -24,6 +24,7 @@ An optimization engine for equity-compensation tax planning, exposed as both a M
 | `concentration_analyze` | Single-stock concentration risk + sell-down vs hold vs hedge optimization |
 | `protective_put_price` | Protective put / zero-cost collar pricing via Black-Scholes against implied volatility from a daily-refreshed option-chain snapshot |
 | `qsbs_check` | Section 1202 Qualified Small Business Stock (QSBS) qualification (eight statutory tests, OBBBA 2026 tiered exclusion) |
+| `equity_funding_plan` | Multi-year, multi-stack equity-funding plan for hitting a target after-tax amount by a deadline. Returns four named plans (Lock-in-now / Balanced / Hold-for-growth / Recommended) plus the full risk/wealth frontier. |
 
 Each tool returns the globally-optimal schedule across the candidate space — not heuristics, not samples. Coverage spans the full federal tax code (ordinary brackets, long-term capital gains, AMT with credit recovery, FICA, NIIT) plus all 50 states and DC (state ordinary brackets, LTCG treatment, state AMT for CA, NY, MN). Same engine as the in-browser calculators at [optionsahoy.com/tools](https://optionsahoy.com/tools); the API response is byte-identical to clicking through the tool.
 

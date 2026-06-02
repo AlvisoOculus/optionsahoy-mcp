@@ -12,7 +12,11 @@ import type { RsuInput } from '../../lib/calc/rsu';
 import type { ConcentrationInputs } from '../../lib/calc/concentration';
 import type { ProtectivePutInputs } from '../../lib/calc/protectivePut';
 import type { QsbsInputs } from '../../lib/calc/qsbs';
-import type { EquityFundingInput, EquityFundingLot, EquityFundingStack } from '../../lib/calc/equityFunding';
+import type {
+  EquityFundingComparisonInput,
+  EquityFundingLot,
+  EquityFundingStack,
+} from '../../lib/calc/equityFunding';
 
 import { asObject, p, FILING_STATUSES, type Obj } from './api';
 import { getTrailingReturn } from '../../lib/data/trailing-returns';
@@ -228,14 +232,23 @@ function parseEquityFundingLot(raw: unknown, index: number): EquityFundingLot {
     throw new Error(`lots[${index}] must be an object with shares, costBasisPerShare, acquisitionDate`);
   }
   const o = raw as Obj;
-  return {
+  const lot: EquityFundingLot = {
     shares: p.num(o, 'shares'),
     costBasisPerShare: p.num(o, 'costBasisPerShare'),
     acquisitionDate: p.date(o, 'acquisitionDate'),
   };
+  if (o.vestDate !== undefined) lot.vestDate = p.date(o, 'vestDate');
+  return lot;
 }
 
-function parseEquityFundingStack(raw: unknown, index: number): EquityFundingStack {
+// Each stack collects its own optional volatility into the parser's caller,
+// which translates the per-stack values into the top-level
+// `stackVolatilities` array the comparison calc expects.
+function parseEquityFundingStack(
+  raw: unknown,
+  index: number,
+  horizonYears: number,
+): { stack: EquityFundingStack; volatility: number | null } {
   if (raw === null || typeof raw !== 'object') {
     throw new Error(`stacks[${index}] must be an object with currentPrice and lots`);
   }
@@ -251,26 +264,60 @@ function parseEquityFundingStack(raw: unknown, index: number): EquityFundingStac
   if (o.ticker !== undefined) stack.ticker = p.str(o, 'ticker');
   if (o.expectedAnnualGrowth !== undefined) {
     stack.expectedAnnualGrowth = p.num(o, 'expectedAnnualGrowth');
+  } else if (o.ticker !== undefined) {
+    const r = getTrailingReturn(stack.ticker!, horizonYears);
+    if (r === null) {
+      throw new Error(
+        `field "stacks[${index}].expectedAnnualGrowth" required: ticker "${stack.ticker}" is not in our trailing-returns table (~90 covered). Pass "expectedAnnualGrowth" explicitly or use a covered public-stock symbol. ${ASK_USER_HINT}`,
+      );
+    }
+    stack.expectedAnnualGrowth = r;
   }
-  return stack;
+  // Leave growth undefined when neither field is set; the calc defaults to 0
+  // (flat price), matching legacy v1.5 behavior.
+  const volatility = o.volatility !== undefined ? p.num(o, 'volatility') : null;
+  return { stack, volatility };
 }
 
-export function parseEquityFundingInput(raw: unknown): EquityFundingInput {
+export function parseEquityFundingInput(raw: unknown): EquityFundingComparisonInput {
   const o = asObject(raw);
-  const base: EquityFundingInput = {
+  const targetDate = p.date(o, 'targetDate');
+  const today = o.today !== undefined ? p.date(o, 'today') : new Date();
+  const horizonYears = Math.max(
+    0.25,
+    (targetDate.getTime() - today.getTime()) / (365.25 * 86_400_000),
+  );
+
+  const base: EquityFundingComparisonInput = {
     targetAfterTax: p.num(o, 'targetAfterTax'),
-    targetDate: p.date(o, 'targetDate'),
+    targetDate,
     ordinaryIncome: p.num(o, 'ordinaryIncome'),
     filingStatus: p.enum(o, 'filingStatus', FILING_STATUSES),
     stateCode: p.str(o, 'stateCode'),
   };
+  if (o.today !== undefined) base.today = today;
+  if (o.cashInterestRate !== undefined) base.cashInterestRate = p.num(o, 'cashInterestRate');
+  if (o.riskToleranceShortfall !== undefined) {
+    base.riskToleranceShortfall = p.num(o, 'riskToleranceShortfall');
+  }
+  if (o.defaultVolatility !== undefined) base.defaultVolatility = p.num(o, 'defaultVolatility');
 
   // v1.7+ multi-stack input
   if (o.stacks !== undefined) {
     if (!Array.isArray(o.stacks) || o.stacks.length === 0) {
-      throw new Error('field "stacks" must be a non-empty array of {currentPrice, lots[, ticker, expectedAnnualGrowth]}');
+      throw new Error('field "stacks" must be a non-empty array of {currentPrice, lots[, ticker, expectedAnnualGrowth, volatility]}');
     }
-    base.stacks = o.stacks.map((s, idx) => parseEquityFundingStack(s, idx));
+    const stacksOut: EquityFundingStack[] = [];
+    const vols: (number | null)[] = [];
+    let anyVolSet = false;
+    o.stacks.forEach((s, idx) => {
+      const parsed = parseEquityFundingStack(s, idx, horizonYears);
+      stacksOut.push(parsed.stack);
+      vols.push(parsed.volatility);
+      if (parsed.volatility !== null) anyVolSet = true;
+    });
+    base.stacks = stacksOut;
+    if (anyVolSet) base.stackVolatilities = vols;
     return base;
   }
 

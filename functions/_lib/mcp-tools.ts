@@ -14,7 +14,7 @@ import { computeRsuResult } from '../../lib/calc/rsu';
 import { calculate as computeConcentration } from '../../lib/calc/concentration';
 import { calculateProtectivePut } from '../../lib/calc/protectivePut';
 import { evaluateQsbs } from '../../lib/calc/qsbs';
-import { computeEquityFundingPlan } from '../../lib/calc/equityFunding';
+import { computeEquityFundingComparison } from '../../lib/calc/equityFunding';
 
 import { FILING_STATUSES } from './api';
 import {
@@ -579,9 +579,9 @@ export const TOOLS: McpTool[] = [
   },
   {
     name: 'equity_funding_plan',
-    annotations: { title: 'House-Funding Sell Schedule', ...CALC_HINTS },
+    annotations: { title: 'Equity-Funding Plan Comparison', ...CALC_HINTS },
     description:
-      'Plans the minimum-tax sell schedule to net a target after-tax dollar amount by a target date from existing already-vested public stock holdings. Supports either a single equity position (legacy single-stack input) OR multiple positions across different tickers (v1.7+ multi-stack input). Use this tool when an equity holder needs cash by a deadline (down payment, tuition, surgery, etc.) and is liquidating existing holdings; for the upstream tax math on RSU/NSO/ISO events that PRODUCED the holdings, use `rsu_sell_vs_hold` / `nso_calculate` / `amt_iso_optimize` first. Algorithm: bracket-aware greedy across every (year, stack, lot) cell from now through targetDate. Each cell\'s projected price compounds at the stack\'s expectedAnnualGrowth. Computes marginal tax per share (federal LTCG bracket walk + NIIT 3.8% above MAGI threshold + state ordinary or LTCG) and allocates sales to the lowest-tax cells until cumulative net cash meets the target. Returns per-year schedule with stack-and-lot-by-lot detail (each SaleEntry carries stackIndex + ticker + lotIndex), total taxes, savings vs the all-in-one-year counterfactual, and shortfall data when infeasible. Pure deterministic, no network, no PII retention. Out of scope: FICA (no wage events), AMT (no ISO exercise), QSBS-aware tax routing (use qsbs_check separately). Example multi-stack call: {targetAfterTax: 600000, targetDate: "2027-08-01", stacks: [{ticker: "FIGMA", currentPrice: 110, expectedAnnualGrowth: 0.08, lots: [{shares: 8000, costBasisPerShare: 25, acquisitionDate: "2023-06-15"}]}, {ticker: "SPY", currentPrice: 540, lots: [{shares: 200, costBasisPerShare: 450, acquisitionDate: "2022-03-01"}]}], ordinaryIncome: 280000, filingStatus: "married_joint", stateCode: "CA"}. Legacy single-stack callers can keep using {lots, currentPrice, expectedAnnualGrowth} at top level instead of `stacks`.' + STRICT_INPUT_NOTE_NO_TICKER,
+      'Plans the after-tax sell schedule to net a target dollar amount by a deadline from existing already-vested public stock holdings, evaluated across four named plans on the risk/wealth frontier: `lockInNow` (sell today, zero price risk), `balanced` (bracket-aware spread across months), `holdForGrowth` (sell at target date, maximum upside), and `recommended` (the wealth-maximal plan among feasible plans whose lognormal shortfall probability is at or below `riskToleranceShortfall`, default 10%). Also returns the full hybrid `frontier` (Lock-in-now → Balanced lock-in fractions) for trade-off inspection. Supports either a single equity position (legacy top-level `lots` + `currentPrice`) OR multiple positions across different tickers (v1.7+ `stacks`). Use this tool when an equity holder needs cash by a deadline (down payment, tuition, surgery, etc.); for the upstream tax math on RSU/NSO/ISO events that PRODUCED the holdings, use `rsu_sell_vs_hold` / `nso_calculate` / `amt_iso_optimize` first. Engine: bracket-aware greedy over (year, month, stack, lot) cells; future projected prices compound at each stack\'s `expectedAnnualGrowth`; marginal tax = federal LTCG bracket walk + NIIT 3.8% above MAGI threshold + state ordinary or LTCG. Shortfall model: lognormal price exposure σ × √Δt per scheduled sale, with after-tax value of retained shares acting as a backstop the user can liquidate at target. Wealth-at-target compares plans apples-to-apples on after-tax basis (cash netted plus after-tax retained-share value, both compounded at the after-tax cash-interest rate). Each NamedPlan in the output reports: `plan` (full schedule, totals, after-tax cash, retained shares), `wealthAtTarget`, `totalTax`, `shortfallProbability`. Pure deterministic, no network, no PII. Out of scope: FICA (no wage events), AMT (no ISO exercise), QSBS-aware routing (use qsbs_check). Example: {targetAfterTax: 400000, targetDate: "2028-06-01", stacks: [{ticker: "NVDA", currentPrice: 140, expectedAnnualGrowth: 0.15, volatility: 0.45, lots: [{shares: 4000, costBasisPerShare: 60, acquisitionDate: "2023-06-15"}]}], ordinaryIncome: 280000, filingStatus: "married_joint", stateCode: "CA", cashInterestRate: 0.04, riskToleranceShortfall: 0.10}.' + STRICT_INPUT_NOTE_NO_TICKER,
     inputSchema: {
       type: 'object',
       required: ['targetAfterTax', 'targetDate', 'ordinaryIncome', 'filingStatus', 'stateCode'],
@@ -603,9 +603,10 @@ export const TOOLS: McpTool[] = [
             type: 'object',
             required: ['currentPrice', 'lots'],
             properties: {
-              ticker: { type: 'string', description: 'Optional display label echoed in the schedule output.' },
+              ticker: { type: 'string', description: 'Optional ticker label. When set without `expectedAnnualGrowth`, the tool resolves growth from the trailing-CAGR table (~90 covered public-stock symbols).' },
               currentPrice: { type: 'number', minimum: 0, description: 'Current price for this stack\'s shares, USD.' },
-              expectedAnnualGrowth: { type: 'number', description: 'Optional per-stack growth decimal (e.g. 0.08 = 8%/yr). Defaults to 0.' },
+              expectedAnnualGrowth: { type: 'number', description: 'Optional per-stack growth decimal (e.g. 0.08 = 8%/yr). Defaults to 0 unless `ticker` resolves it.' },
+              volatility: { type: 'number', minimum: 0, description: 'Optional per-stack annualized σ used in the shortfall calculation. Overrides `defaultVolatility` for this stack.' },
               lots: {
                 type: 'array',
                 minItems: 1,
@@ -616,6 +617,7 @@ export const TOOLS: McpTool[] = [
                     shares: { type: 'integer', minimum: 1 },
                     costBasisPerShare: { type: 'number', minimum: 0 },
                     acquisitionDate: { ...ISO_DATE },
+                    vestDate: { ...ISO_DATE, description: 'Optional. Future vest date for unvested RSU tranches; the lot is excluded from sales whose date precedes this.' },
                   },
                 },
               },
@@ -665,8 +667,27 @@ export const TOOLS: McpTool[] = [
           ...STATE_SCHEMA,
           description: 'Two-letter US state code (e.g. CA, NY, TX). Drives state ordinary or LTCG treatment depending on state (CA taxes LTCG as ordinary; WA has no LTCG tax under $250K; TX/FL/etc. have no state income tax).',
         },
+        cashInterestRate: {
+          type: 'number',
+          description: 'Annualized pre-tax yield on cash held between each sale and the target date (money-market / short-term Treasury). The tool compounds at the after-tax marginal rate (interest is ordinary income). Defaults to 0 if omitted.',
+        },
+        riskToleranceShortfall: {
+          type: 'number',
+          minimum: 0,
+          maximum: 1,
+          description: 'Max acceptable P(realized cash < target) under the lognormal price model. The `recommended` plan is the wealth-maximal plan whose shortfall ≤ this value. Default 0.10 (10%).',
+        },
+        defaultVolatility: {
+          type: 'number',
+          minimum: 0,
+          description: 'Annualized σ used for stacks that omit their own `volatility`. Default 0.30.',
+        },
+        today: {
+          ...ISO_DATE,
+          description: 'Optional override for "now". Defaults to the server\'s current date.',
+        },
       },
     },
-    handler: (args) => computeEquityFundingPlan(parseEquityFundingInput(args)),
+    handler: (args) => computeEquityFundingComparison(parseEquityFundingInput(args)),
   },
 ];
