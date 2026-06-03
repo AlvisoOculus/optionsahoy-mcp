@@ -2,7 +2,7 @@
   "name": "optionsahoy-mcp",
   "version": "1.8.0",
   "private": false,
-  "description": "Equity comp tax (ISO/NSO/RSU/QSBS), concentration, and hedging optimizer. MCP server + REST API with federal + 50-state + DC tax code, multi-year horizons.",
+  "description": "Equity-compensation optimizer. ISO/AMT, NSO, RSU, QSBS, single-stock concentration, protective puts/collars, and equity-funding plans. MCP server + REST API with federal + 50-state + DC tax code.",
   "license": "MIT",
   "type": "module",
   "scripts": {

@@ -1,6 +1,6 @@
 # OptionsAhoy MCP Server
 
-> Equity comp tax (ISO/NSO/RSU/QSBS), concentration, hedging, and multi-year equity-funding optimizer. Seven deterministic tools with federal + 50-state + DC tax code, multi-year horizons.
+> Equity-compensation optimizer. ISO/AMT, NSO, RSU, QSBS, single-stock concentration, protective puts/collars, and equity-funding plans. Seven deterministic tools across the federal + 50-state + DC tax code.
 
 **Live MCP endpoint:** `https://optionsahoy.com/mcp` (no auth, no install)
 **Live REST API:** `https://optionsahoy.com/api/v1`
