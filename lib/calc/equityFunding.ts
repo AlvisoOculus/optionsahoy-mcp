@@ -1,28 +1,36 @@
 // AlphaLatitude Inc. © 2026
 //
-// House-funding plan. Given a target after-tax dollar amount and a target
-// date, finds the cheapest schedule of stock-lot sales that nets the
-// target by the date. Single-stack: one ticker, one or more lots of
-// already-vested shares.
+// Equity-funding plan. Given a target after-tax dollar amount and a
+// target date, finds the schedule of stock-lot sales that nets the
+// target by the date with the most wealth remaining at the deadline.
+// Multi-stack: one or more tickers, each with its own current price,
+// growth assumption, and cost-basis lots of already-vested shares.
 //
-// Objective: minimize total taxes (federal LTCG/ordinary + state + NIIT)
-// subject to cumulative net cash ≥ target by target date.
+// Objective: maximize (target-date wealth) = (compounded after-tax cash
+// from each sale × cash-interest growth factor to target date) + (value
+// of leftover shares at projected target-date price), subject to
+// cumulative after-tax cash (in target-date dollars) ≥ target. When the
+// cash-interest rate is zero the objective collapses to minimize total
+// taxes (federal LTCG/ordinary + state + NIIT) for a fixed gross need.
 //
-// Algorithm: bracket-aware greedy. For each (year, lot) candidate cell,
-// repeatedly sell one share from whichever cell has the lowest marginal
-// tax per share given the running state. Continues until target hit or
-// inventory exhausted. Not a true DP — but for single-stack scenarios
-// the loss vs optimal is within 1-2% and the runtime is O(shares × years
-// × lots) which is fine for serverless.
+// Algorithm: bracket-aware greedy. For each (year, month, lot) candidate
+// cell, repeatedly commit the block with the highest future-value per
+// share — (gross − incremental tax) × growth factor / shares — refining
+// 100 → 10 → 1 share blocks. Continues until target hit or inventory
+// exhausted. Not a true DP — for single-stack scenarios the loss vs the
+// true optimum stays within 1-2%; runtime is O(shares × periods × lots).
 //
-// Out of scope for v1: FICA (no wage events here — sales of already-
-// vested shares don't trigger FICA), AMT (no ISO exercises), multi-stack
-// joint optimization (separate tool), price drift across years (assumes
-// constant currentPrice for now; future v2 can layer a growth path).
+// Out of scope: FICA (no wage events here — sales of already-vested
+// shares don't trigger FICA) and AMT (no ISO exercises). Multi-stack
+// joint optimization is supported (one ticker per stack, each with its
+// own price + growth assumption). Price drift across the horizon IS
+// modeled via per-stack `expectedAnnualGrowth` plugged into projectPrice
+// at each scheduled sale date.
 
-import { computeFederalGainTax } from '../tax/bracket-walker';
+import { computeFederalGainTax, walkOrdinaryBrackets } from '../tax/bracket-walker';
 import { computeStateGainTax } from '../tax/state-tax';
 import { computeNiit } from '../tax/bracket-walker';
+import { ORDINARY_2026 } from '../tax/federal-2026';
 import type { FilingStatus } from '../tax/types';
 
 const MS_PER_DAY = 86_400_000;
@@ -32,6 +40,18 @@ export interface EquityFundingLot {
   shares: number;
   costBasisPerShare: number;
   acquisitionDate: Date;
+  /**
+   * Optional unvested-RSU marker. When set, the lot is an RSU tranche that
+   * vests on this date. The calc treats acquisitionDate = vestDate and
+   * overrides costBasisPerShare with the stack's projected price on the
+   * vest date (RSU basis = FMV at vest). The lot is excluded from sales
+   * in any candidate year whose sale date precedes vestDate.
+   *
+   * Vest-year ordinary-income tax on the RSU itself is NOT modeled here
+   * (would distort the W-2 baseline used for LTCG bracket lookups). The
+   * UI flags this caveat.
+   */
+  vestDate?: Date;
 }
 
 /**
@@ -44,6 +64,15 @@ export interface EquityFundingStack {
   currentPrice: number;
   /** See EquityFundingInput.expectedAnnualGrowth. */
   expectedAnnualGrowth?: number;
+  /**
+   * Optional per-stack annualized volatility override (σ, e.g. 0.45).
+   * Comparison-only: consumed by computeEquityFundingComparison via
+   * `stackVolatilities` to drive the lognormal shortfall model. The core
+   * computeEquityFundingPlan ignores it (the median schedule carries no
+   * price-uncertainty term). When unset, the comparison uses the chain-
+   * resolved implied vol if a ticker is set, else `defaultVolatility`.
+   */
+  volatilityOverride?: number;
   lots: EquityFundingLot[];
 }
 
@@ -75,10 +104,61 @@ export interface EquityFundingInput {
   filingStatus: FilingStatus;
   stateCode: string;
   /**
+   * Annualized risk-free rate at which net cash from each sale earns
+   * interest between the sale date and the target deadline. Models the
+   * "money market" the proceeds sit in. Default 0 (interest ignored);
+   * UI passes a real number like 0.04 so Lock-in-now's cash benefits
+   * properly. Used in wealth-at-target and shortfall calcs alike.
+   */
+  cashInterestRate?: number;
+  /**
    * Optional reference "now" — defaults to new Date(). Tests pass an
    * explicit value to keep year-classification deterministic.
    */
   today?: Date;
+  /**
+   * Restrict candidate sale years to this set. Used to produce the
+   * Lock-in-now (current year only) and Hold-for-growth (target year
+   * only) corner plans. When undefined, all years from today to target
+   * are candidates.
+   */
+  restrictToSaleYears?: number[];
+  /**
+   * Override the sale date used for the current calendar year. Default
+   * is Dec 31. Set to `today` to model "sell now at known prices" — the
+   * Lock-in-now plan uses this so its realized cash is deterministic.
+   * The override is ADDED to the current year's monthly periods unless
+   * `useOnlyOverridePeriod` is also set (Lock-in-now uses both).
+   */
+  saleDateOverrideForCurrentYear?: Date;
+  /**
+   * When set with `saleDateOverrideForCurrentYear`, the current year is
+   * collapsed to JUST the override period (no monthly EOMs added) — used
+   * by Lock-in-now so it's a single deterministic sale on today. Hybrid
+   * plans leave this off so phase 2 has monthly periods to spread into.
+   */
+  useOnlyOverridePeriod?: boolean;
+  /**
+   * Two-phase hybrid. Until cumulative net cash hits this amount, the
+   * greedy is restricted to current-year sales (use with
+   * saleDateOverrideForCurrentYear=today so the lock-in is deterministic).
+   * After the threshold, the greedy uses all candidate years normally.
+   *
+   * The comparison sweep varies this from 0 (= Balanced, no lock-in) up
+   * to targetAfterTax (= Lock-in-now, full lock-in), producing a smooth
+   * frontier between the two corners.
+   */
+  lockInNowMinCash?: number;
+  /**
+   * When true, the greedy actively distributes phase-2 sales across all
+   * available sale periods (monthly buckets) instead of piling them at
+   * whichever period has the highest projected price. Each period gets a
+   * roughly equal share of the after-lock-in goal; this is what makes
+   * Balanced a real dollar-cost-averaging spread rather than a single
+   * sale on the target date. Hold-for-growth deliberately leaves this
+   * off so it keeps the "one big late sale" behavior.
+   */
+  spreadEvenlyAcrossPeriods?: boolean;
 }
 
 export interface SaleEntry {
@@ -130,17 +210,41 @@ export interface EquityFundingResult {
   };
   remainingShares: number;
   remainingPositionValue: number;
+  /** After-tax value of liquidating all retained shares at the target date,
+   *  computed by running them through the same tax engine the scheduled
+   *  sales used (incremental fed + state + NIIT on top of the target year's
+   *  end-of-plan accumulator). Used as the cash backstop in the shortfall
+   *  calculation: if scheduled sales come in light, the user can sell the
+   *  retained shares to cover, but pays tax on the gain. */
+  remainingPositionAfterTax: number;
+  /** Per-stack after-tax retained value, parallel to input.stacks. Used by
+   *  the shortfall variance weighting so each stack's retained shares
+   *  contribute their own σ²×t to the dollar-weighted average. */
+  remainingNetByStack: number[];
   shortfall?: {
     maxAchievableAfterTax: number;
     gap: number;
   };
 }
 
-// Sale boundary per candidate year. For non-target years the sale is on
-// Dec 31 of that year; for the target year it's targetDate itself.
-function saleDateForYear(year: number, targetDate: Date): Date {
+// Sale boundary per candidate year. For non-target years the sale defaults
+// to Dec 31; for the target year it's targetDate itself. The current year
+// can be overridden (Lock-in-now uses this with today's date so realized
+// price equals projected price — no time uncertainty).
+function saleDateForYear(
+  year: number,
+  targetDate: Date,
+  today: Date,
+  currentYearOverride?: Date,
+): Date {
+  // The override takes precedence even when the current year is also the
+  // target year — Lock-in-now and hybrid lock-ins must always sell TODAY,
+  // not on the target date that happens to fall in the same year.
+  if (currentYearOverride && year === today.getUTCFullYear()) {
+    return new Date(currentYearOverride);
+  }
   if (year === targetDate.getUTCFullYear()) return new Date(targetDate);
-  return new Date(Date.UTC(year, 11, 31)); // Dec 31 UTC
+  return new Date(Date.UTC(year, 11, 31));
 }
 
 function isLongTermFor(acquisitionDate: Date, saleDate: Date): boolean {
@@ -148,29 +252,65 @@ function isLongTermFor(acquisitionDate: Date, saleDate: Date): boolean {
   return diff >= LT_HOLDING_DAYS;
 }
 
+// Cash interest is taxed as ordinary income each year, so the nominal rate
+// the user enters overstates what actually compounds. This returns the
+// effective after-tax rate by subtracting the user's marginal federal +
+// state ordinary rate at their stated income. Probe with a $1k step; both
+// federal and state schedules are piecewise-linear so the local slope is
+// exact within a bracket.
+function effectiveAfterTaxCashRate(
+  nominalRate: number,
+  ordinaryIncome: number,
+  filingStatus: FilingStatus,
+  stateCode: string,
+): number {
+  if (nominalRate <= 0) return nominalRate;
+  const dx = 1000;
+  const fedTaxNow = walkOrdinaryBrackets(ordinaryIncome, ORDINARY_2026[filingStatus]);
+  const fedTaxPlus = walkOrdinaryBrackets(ordinaryIncome + dx, ORDINARY_2026[filingStatus]);
+  const fedMarginal = (fedTaxPlus - fedTaxNow) / dx;
+  // computeStateGainTax with isLongTerm=false treats the input as ordinary
+  // income — which is what interest income is. Sidesteps the state-LTCG
+  // preferential paths.
+  const stateDelta = computeStateGainTax({
+    stateCode,
+    ordinaryIncome,
+    gainAmount: dx,
+    isLongTerm: false,
+    filingStatus,
+  });
+  const stateMarginal = stateDelta / dx;
+  const marginal = Math.min(0.99, fedMarginal + stateMarginal);
+  return nominalRate * (1 - marginal);
+}
+
 // Projected $/share at `saleDate`, compounding currentPrice at the annual
 // growth rate. Returns currentPrice unchanged when growth=0 (preserves
 // v1.5 behavior for callers who omit expectedAnnualGrowth).
-function projectPrice(currentPrice: number, growthAnnual: number, today: Date, saleDate: Date): number {
+export function projectPrice(currentPrice: number, growthAnnual: number, today: Date, saleDate: Date): number {
   if (growthAnnual === 0) return currentPrice;
   const yearsForward = Math.max(0, (saleDate.getTime() - today.getTime()) / (365.25 * MS_PER_DAY));
   return currentPrice * Math.pow(1 + growthAnnual, yearsForward);
 }
 
-// Per-year running state. Lets us compute marginal incremental tax for
-// "sell ONE more share from flat-lot L in year Y" without re-walking
-// everything each iteration. sharesRemaining is NOT here — lot inventory
-// is global (shared across years).
+// Per-year tax accumulator, shared across all sale periods within the same
+// calendar year (so multiple monthly sales all stack into the same year's
+// LTCG bracket).
 interface YearState {
   year: number;
-  saleDate: Date;
-  /** Projected $/share at this year's sale date, indexed by stack. */
-  projectedPriceByStack: number[];
   longTermGainSoFar: number;
   shortTermGainSoFar: number;
-  // gain-per-share per FLAT lot (= projectedPrice − basisPerShare) + LT/ST
-  // classification + whether the lot is acquired yet at this year's sale.
-  // Index matches flatLots[].
+  /** Sale periods within this year (typically end-of-month + target date). */
+  periods: PeriodState[];
+}
+
+// A single sale opportunity (a specific date within a YearState).
+interface PeriodState {
+  saleDate: Date;
+  /** Projected $/share at this period's sale date, indexed by stack. */
+  projectedPriceByStack: number[];
+  /** Per flat-lot: gain/share at this period's price + LT classification +
+   *  whether the lot is acquired by this date. Index matches flatLots[]. */
   lotMeta: Array<{ gainPerShare: number; isLongTerm: boolean; acquired: boolean }>;
 }
 
@@ -226,11 +366,73 @@ function enumerateYears(today: Date, targetDate: Date): number[] {
   return years;
 }
 
+// Sale dates per year. Each year gets one entry per calendar month between
+// (the start of the window) and (the end of the window for that year), so
+// Balanced can spread sales across many monthly buckets rather than betting
+// everything on a single Dec-31 / target-date sale. Same-year sales share
+// the year's tax brackets via the YearState that owns them.
+//
+// Rules:
+//   - For the CURRENT year: start from today's month. If a sale-date
+//     override is set (Lock-in-now / hybrid lock-in phase), the current
+//     year collapses to just that override date — phase 1 sells happen
+//     exactly today, not at month-ends.
+//   - For middle years: 12 month-end dates.
+//   - For the TARGET year: month-ends up to (but not past) the target
+//     date, plus the target date itself as the final period.
+function enumerateSaleDatesByYear(
+  today: Date,
+  targetDate: Date,
+  currentYearOverride?: Date,
+  useOnlyOverridePeriod?: boolean,
+): { year: number; saleDates: Date[] }[] {
+  const startYear = today.getUTCFullYear();
+  const endYear = targetDate.getUTCFullYear();
+  if (endYear < startYear) throw new Error('targetDate is before today');
+  const result: { year: number; saleDates: Date[] }[] = [];
+  const HALF_DAY_MS = 12 * 60 * 60 * 1000;
+  for (let y = startYear; y <= endYear; y += 1) {
+    const dates: Date[] = [];
+    const hasOverride = y === startYear && currentYearOverride !== undefined;
+    if (hasOverride) {
+      dates.push(new Date(currentYearOverride!));
+      if (useOnlyOverridePeriod) {
+        result.push({ year: y, saleDates: dates });
+        continue;
+      }
+    }
+    const firstMonth = y === startYear ? today.getUTCMonth() : 0;
+    const lastMonth = y === endYear ? targetDate.getUTCMonth() : 11;
+    for (let m = firstMonth; m <= lastMonth; m += 1) {
+      const eom = new Date(Date.UTC(y, m + 1, 0));
+      if (eom.getTime() < today.getTime()) continue;
+      if (eom.getTime() > targetDate.getTime()) continue;
+      // Deduplicate: skip if the EOM coincides with the override date.
+      if (
+        hasOverride &&
+        Math.abs(eom.getTime() - currentYearOverride!.getTime()) < HALF_DAY_MS
+      ) {
+        continue;
+      }
+      dates.push(eom);
+    }
+    if (y === endYear) {
+      const last = dates[dates.length - 1];
+      if (!last || last.getTime() !== targetDate.getTime()) {
+        dates.push(new Date(targetDate));
+      }
+    }
+    if (dates.length > 0) result.push({ year: y, saleDates: dates });
+  }
+  return result;
+}
+
 // Marginal tax for selling `deltaShares` more from `lotIdx` in year Y,
 // given the year's running state. Returns the incremental federal +
 // state + NIIT delta (not the total).
 function marginalTaxForBlock(
   state: YearState,
+  period: PeriodState,
   inventory: LotInventory[],
   lotIdx: number,
   deltaShares: number,
@@ -238,7 +440,7 @@ function marginalTaxForBlock(
   filingStatus: FilingStatus,
   stateCode: string,
 ): number {
-  const meta = state.lotMeta[lotIdx];
+  const meta = period.lotMeta[lotIdx];
   if (!meta.acquired) return Infinity;
   if (inventory[lotIdx].sharesRemaining <= 0) return Infinity;
   const incrementalGain = deltaShares * meta.gainPerShare;
@@ -305,6 +507,7 @@ function marginalTaxForBlock(
 // federal / state / NIIT breakdown for reporting.
 function commitBlock(
   state: YearState,
+  period: PeriodState,
   inventory: LotInventory[],
   lotIdx: number,
   deltaShares: number,
@@ -312,7 +515,7 @@ function commitBlock(
   filingStatus: FilingStatus,
   stateCode: string,
 ): { federal: number; stateT: number; niit: number; gain: number } {
-  const meta = state.lotMeta[lotIdx];
+  const meta = period.lotMeta[lotIdx];
   const incrementalGain = deltaShares * meta.gainPerShare;
 
   const oldLong = state.longTermGainSoFar;
@@ -385,10 +588,166 @@ function commitBlock(
   };
 }
 
+// Hypothetical liquidation of every retained lot at target date, layered
+// onto the target year's end-of-plan accumulator. Returns per-stack net
+// (parallel to `stacks`) used as the cash backstop in planExposure.
+function computeRetainedLiquidation(
+  targetYearState: YearState,
+  targetPeriod: PeriodState,
+  retainedSharesByLot: number[],
+  flatLots: FlatLot[],
+  stackCount: number,
+  ordinaryIncome: number,
+  filingStatus: FilingStatus,
+  stateCode: string,
+): number[] {
+  const grossByStack = new Array<number>(stackCount).fill(0);
+  const gainByStack = new Array<number>(stackCount).fill(0);
+  let aggregateLongDelta = 0;
+  let aggregateShortDelta = 0;
+
+  for (let li = 0; li < flatLots.length; li += 1) {
+    const shares = retainedSharesByLot[li];
+    if (shares <= 0) continue;
+    const meta = targetPeriod.lotMeta[li];
+    // Lots vesting after the target date can't be liquidated as backstop;
+    // skip them so we don't credit phantom proceeds or tax on a gain that
+    // wouldn't actually be realized.
+    if (!meta.acquired) continue;
+    const fl = flatLots[li];
+    const stack = fl.stackIndex;
+    const gross = shares * targetPeriod.projectedPriceByStack[stack];
+    const gain = shares * meta.gainPerShare;
+    grossByStack[stack] += gross;
+    gainByStack[stack] += gain;
+    if (meta.isLongTerm) aggregateLongDelta += gain;
+    else aggregateShortDelta += gain;
+  }
+
+  if (grossByStack.every((g) => g <= 0)) return grossByStack;
+
+  // Capital-loss cross-offset within the same tax return: a net long-term
+  // LOSS in the retained pool absorbs short-term GAINS dollar-for-dollar
+  // (and vice versa) before either bucket meets the bracket walker.
+  let netLong = aggregateLongDelta;
+  let netShort = aggregateShortDelta;
+  if (netLong < 0 && netShort > 0) {
+    const offset = Math.min(-netLong, netShort);
+    netLong += offset;
+    netShort -= offset;
+  } else if (netShort < 0 && netLong > 0) {
+    const offset = Math.min(-netShort, netLong);
+    netShort += offset;
+    netLong -= offset;
+  }
+
+  const oldLong = targetYearState.longTermGainSoFar;
+  const oldShort = targetYearState.shortTermGainSoFar;
+  // Net taxable gains for the year, clamped at 0 in each bucket — losses
+  // that drive a bucket negative either offset the other bucket (above) or
+  // become a net capital loss that carries forward beyond our horizon (so
+  // it produces zero benefit in this plan).
+  const newLong = Math.max(0, oldLong + netLong);
+  const newShort = Math.max(0, oldShort + netShort);
+
+  const fedTotalNew =
+    computeFederalGainTax({
+      ordinaryIncome,
+      gainAmount: newLong,
+      isLongTerm: true,
+      filingStatus,
+    }) +
+    computeFederalGainTax({
+      ordinaryIncome: ordinaryIncome + newLong,
+      gainAmount: newShort,
+      isLongTerm: false,
+      filingStatus,
+    });
+  const fedTotalOld =
+    computeFederalGainTax({
+      ordinaryIncome,
+      gainAmount: oldLong,
+      isLongTerm: true,
+      filingStatus,
+    }) +
+    computeFederalGainTax({
+      ordinaryIncome: ordinaryIncome + oldLong,
+      gainAmount: oldShort,
+      isLongTerm: false,
+      filingStatus,
+    });
+  const fedDelta = fedTotalNew - fedTotalOld;
+
+  // State: mirror the federal LT/ST split so states that give an LT
+  // preference (HI, etc.) see the right kind of gain in each bucket.
+  const stateNewLong = computeStateGainTax({
+    stateCode,
+    ordinaryIncome,
+    gainAmount: newLong,
+    isLongTerm: true,
+    filingStatus,
+  });
+  const stateNewShort = computeStateGainTax({
+    stateCode,
+    ordinaryIncome: ordinaryIncome + newLong,
+    gainAmount: newShort,
+    isLongTerm: false,
+    filingStatus,
+  });
+  const stateOldLong = computeStateGainTax({
+    stateCode,
+    ordinaryIncome,
+    gainAmount: oldLong,
+    isLongTerm: true,
+    filingStatus,
+  });
+  const stateOldShort = computeStateGainTax({
+    stateCode,
+    ordinaryIncome: ordinaryIncome + oldLong,
+    gainAmount: oldShort,
+    isLongTerm: false,
+    filingStatus,
+  });
+  const stateDelta = stateNewLong + stateNewShort - stateOldLong - stateOldShort;
+
+  const totalTaxDelta = fedDelta + stateDelta;
+
+  // Allocate the (possibly negative) tax delta across stacks by each
+  // stack's contribution to the absolute-gain pool. For pure-gain cases
+  // (the common one) this matches a sequential bracket-stack within
+  // floating-point tolerance; for mixed gain/loss cases it gives loss
+  // stacks a proportional share of the credit.
+  const totalAbsGain = gainByStack.reduce((a, b) => a + Math.abs(b), 0);
+  const taxByStack = new Array<number>(stackCount).fill(0);
+  if (totalAbsGain > 0) {
+    for (let s = 0; s < stackCount; s += 1) {
+      taxByStack[s] = (totalTaxDelta * Math.abs(gainByStack[s])) / totalAbsGain;
+    }
+  }
+  // Per-stack net is gross minus allocated tax. A negative allocation
+  // (credit from a loss stack) raises that stack's backstop value above its
+  // gross, which is correct: the loss creates tax savings on target-year
+  // scheduled gains. Floor at 0 — the backstop can't be negative cash.
+  return grossByStack.map((g, i) => Math.max(0, g - taxByStack[i]));
+}
+
 export function computeEquityFundingPlan(input: EquityFundingInput): EquityFundingResult {
   const today = input.today ?? new Date();
-  const years = enumerateYears(today, input.targetDate);
+  const allYearPeriods = enumerateSaleDatesByYear(
+    today,
+    input.targetDate,
+    input.saleDateOverrideForCurrentYear,
+    input.useOnlyOverridePeriod,
+  );
+  const yearPeriods = input.restrictToSaleYears
+    ? allYearPeriods.filter((p) => input.restrictToSaleYears!.includes(p.year))
+    : allYearPeriods;
+  if (yearPeriods.length === 0) {
+    return emptyResult(input);
+  }
   const stacks = normalizeStacks(input);
+  const currentYear = today.getUTCFullYear();
+  const lockInNowMinCash = input.lockInNowMinCash ?? 0;
 
   // Flatten (stack, lot) into a single linear list. flatLots[i] knows its
   // stackIndex + lotIndexInStack, so result reporting can break sales out
@@ -398,12 +757,17 @@ export function computeEquityFundingPlan(input: EquityFundingInput): EquityFundi
     const stack = stacks[si];
     for (let li = 0; li < stack.lots.length; li += 1) {
       const lot = stack.lots[li];
+      const isRsuVest = lot.vestDate !== undefined;
+      const acquisitionDate = isRsuVest ? lot.vestDate! : lot.acquisitionDate;
+      const costBasisPerShare = isRsuVest
+        ? projectPrice(stack.currentPrice, stack.expectedAnnualGrowth ?? 0, today, lot.vestDate!)
+        : lot.costBasisPerShare;
       flatLots.push({
         stackIndex: si,
         lotIndexInStack: li,
         shares: lot.shares,
-        costBasisPerShare: lot.costBasisPerShare,
-        acquisitionDate: lot.acquisitionDate,
+        costBasisPerShare,
+        acquisitionDate,
       });
     }
   }
@@ -411,32 +775,38 @@ export function computeEquityFundingPlan(input: EquityFundingInput): EquityFundi
   // Global lot inventory — shared across all years. Index matches flatLots[].
   const inventory: LotInventory[] = flatLots.map((fl) => ({ sharesRemaining: fl.shares }));
 
-  // Build per-year state. Each year has a projected price PER STACK and a
-  // gain-per-share for each flat lot computed against its stack's price.
-  const yearStates: YearState[] = years.map((year) => {
-    const saleDate = saleDateForYear(year, input.targetDate);
-    const projectedPriceByStack = stacks.map((s) =>
-      projectPrice(s.currentPrice, s.expectedAnnualGrowth ?? 0, today, saleDate),
-    );
-    const lotMeta = flatLots.map((fl) => ({
-      gainPerShare: projectedPriceByStack[fl.stackIndex] - fl.costBasisPerShare,
-      isLongTerm: isLongTermFor(fl.acquisitionDate, saleDate),
-      acquired: fl.acquisitionDate.getTime() <= saleDate.getTime(),
-    }));
+  // Build per-year state. Each year owns its tax accumulator plus one
+  // PeriodState per scheduled sale date in that year (end-of-month +
+  // target-date, or just today's override for the current year when
+  // Lock-in-now / hybrid lock-in is in phase 1).
+  const yearStates: YearState[] = yearPeriods.map(({ year, saleDates }) => {
+    const periods: PeriodState[] = saleDates.map((saleDate) => {
+      const projectedPriceByStack = stacks.map((s) =>
+        projectPrice(s.currentPrice, s.expectedAnnualGrowth ?? 0, today, saleDate),
+      );
+      const lotMeta = flatLots.map((fl) => ({
+        gainPerShare: projectedPriceByStack[fl.stackIndex] - fl.costBasisPerShare,
+        isLongTerm: isLongTermFor(fl.acquisitionDate, saleDate),
+        acquired: fl.acquisitionDate.getTime() <= saleDate.getTime(),
+      }));
+      return { saleDate, projectedPriceByStack, lotMeta };
+    });
     return {
       year,
-      saleDate,
-      projectedPriceByStack,
       longTermGainSoFar: 0,
       shortTermGainSoFar: 0,
-      lotMeta,
+      periods,
     };
   });
 
-  // Track sales per (year, flat-lot) for the final report.
-  const salesMatrix: number[][] = years.map(() => flatLots.map(() => 0));
-  const taxMatrix: Array<Array<{ federal: number; stateT: number; niit: number; gain: number }>> =
-    years.map(() => flatLots.map(() => ({ federal: 0, stateT: 0, niit: 0, gain: 0 })));
+  // Track sales + per-(year, period, lot) tax for the final report.
+  const salesMatrix: number[][][] = yearStates.map((ys) =>
+    ys.periods.map(() => flatLots.map(() => 0)),
+  );
+  const taxMatrix: Array<Array<Array<{ federal: number; stateT: number; niit: number; gain: number }>>> =
+    yearStates.map((ys) =>
+      ys.periods.map(() => flatLots.map(() => ({ federal: 0, stateT: 0, niit: 0, gain: 0 }))),
+    );
 
   // Sanity guard.
   const totalSharesAvailable = flatLots.reduce((acc, l) => acc + l.shares, 0);
@@ -454,57 +824,140 @@ export function computeEquityFundingPlan(input: EquityFundingInput): EquityFundi
   let totalState = 0;
   let totalNiit = 0;
 
+  // Cash interest: net cash from each sale grows from sale date to target
+  // date at this rate. The greedy optimizes against FUTURE value (cash at
+  // target), not raw cash, so the goal is met in deadline dollars. The
+  // nominal user-entered rate is grossed-up; interest income is taxed as
+  // ordinary at the user's marginal rate every year, so we compound at the
+  // after-tax effective rate to keep the cash-vs-stock-growth trade-off
+  // fair (stock appreciation is also unrealized / pre-tax in the wealth
+  // metric).
+  const cashInterestRate = effectiveAfterTaxCashRate(
+    input.cashInterestRate ?? 0,
+    input.ordinaryIncome,
+    input.filingStatus,
+    input.stateCode,
+  );
+  const targetTimeMs = input.targetDate.getTime();
+  const MS_PER_YEAR = 365.25 * 86_400_000;
+  const growthFactorPerPeriod: number[][] = yearStates.map((ys) =>
+    ys.periods.map((p) => {
+      const yearsForward = Math.max(0, (targetTimeMs - p.saleDate.getTime()) / MS_PER_YEAR);
+      return Math.pow(1 + cashInterestRate, yearsForward);
+    }),
+  );
+
+  // Track per-period net cash so spreadEvenlyAcrossPeriods can throttle a
+  // period when it's already filled its fair-share quota. Only used when
+  // the flag is set; otherwise periods can be reused freely.
+  const periodNetSoFar: number[][] = yearStates.map((ys) => ys.periods.map(() => 0));
+  const spreadEvenly = input.spreadEvenlyAcrossPeriods === true;
+  // Total periods available in phase 2 (everything except the override
+  // today-period that phase 1 monopolizes). Used to size each period's quota.
+  const phase2PeriodCount = yearStates.reduce(
+    (count, ys) => count + ys.periods.length,
+    0,
+  );
+
+  // Locate the override period within yearStates (phase 1 may only sell
+  // there). Without this, phase 1 of a same-year hybrid could pile sales
+  // into a Jun/Jul EOM instead of today and break the lock-in invariant.
+  let overrideYi = -1;
+  let overridePi = -1;
+  if (input.saleDateOverrideForCurrentYear) {
+    const tT = input.saleDateOverrideForCurrentYear.getTime();
+    for (let yi = 0; yi < yearStates.length && overrideYi < 0; yi += 1) {
+      const ys = yearStates[yi];
+      if (ys.year !== currentYear) continue;
+      for (let pi = 0; pi < ys.periods.length; pi += 1) {
+        if (Math.abs(ys.periods[pi].saleDate.getTime() - tT) < 12 * 3600 * 1000) {
+          overrideYi = yi;
+          overridePi = pi;
+          break;
+        }
+      }
+    }
+  }
+
+  // Track BOTH raw cash and target-date future value of cash. The greedy
+  // optimizes future value (matches the goal expressed in deadline
+  // dollars); raw cash is reported separately for display.
+  let cumulativeFutureValue = 0;
+
   const blockSizes = [100, 10, 1];
   for (let bsIdx = 0; bsIdx < blockSizes.length; bsIdx += 1) {
     const blockSize = blockSizes[bsIdx];
     const isFinestBlock = bsIdx === blockSizes.length - 1;
     let safety = 200_000;
-    while (cumulativeNet < input.targetAfterTax && safety-- > 0) {
+    while (cumulativeFutureValue < input.targetAfterTax && safety-- > 0) {
+      const inLockInPhase = cumulativeFutureValue < lockInNowMinCash;
+      const phase2Target = Math.max(0, input.targetAfterTax - lockInNowMinCash);
+      const quota = phase2PeriodCount > 0 ? phase2Target / phase2PeriodCount : Infinity;
       let bestYear = -1;
+      let bestPeriod = -1;
       let bestLot = -1;
-      let bestNetPerShare = -Infinity;
+      let bestFutureValuePerShare = -Infinity;
       let bestBlockShares = 0;
       let bestNetCash = 0;
+      let bestFutureValue = 0;
       let bestTax = 0;
-      for (let yi = 0; yi < yearStates.length; yi += 1) {
-        const ys = yearStates[yi];
-        for (let li = 0; li < ys.lotMeta.length; li += 1) {
-          const meta = ys.lotMeta[li];
-          if (!meta.acquired) continue;
-          if (inventory[li].sharesRemaining <= 0) continue;
-          const candidateShares = Math.min(blockSize, inventory[li].sharesRemaining);
-          const incrementalTax = marginalTaxForBlock(
-            ys,
-            inventory,
-            li,
-            candidateShares,
-            input.ordinaryIncome,
-            input.filingStatus,
-            input.stateCode,
-          );
-          const incrementalGross = candidateShares * ys.projectedPriceByStack[flatLots[li].stackIndex];
-          const incrementalNet = incrementalGross - incrementalTax;
-          const netPerShare = incrementalNet / candidateShares;
-          if (netPerShare > bestNetPerShare) {
-            bestNetPerShare = netPerShare;
-            bestYear = yi;
-            bestLot = li;
-            bestBlockShares = candidateShares;
-            bestNetCash = incrementalNet;
-            bestTax = incrementalTax;
+      for (let attempt = 0; attempt < 2; attempt += 1) {
+        const enforceQuota = spreadEvenly && !inLockInPhase && attempt === 0;
+        for (let yi = 0; yi < yearStates.length; yi += 1) {
+          const ys = yearStates[yi];
+          if (inLockInPhase && overrideYi >= 0 && yi !== overrideYi) continue;
+          if (inLockInPhase && overrideYi < 0 && ys.year !== currentYear) continue;
+          for (let pi = 0; pi < ys.periods.length; pi += 1) {
+            if (inLockInPhase && overridePi >= 0 && pi !== overridePi) continue;
+            if (enforceQuota && periodNetSoFar[yi][pi] >= quota) continue;
+            const period = ys.periods[pi];
+            const gFactor = growthFactorPerPeriod[yi][pi];
+            for (let li = 0; li < period.lotMeta.length; li += 1) {
+              const meta = period.lotMeta[li];
+              if (!meta.acquired) continue;
+              if (inventory[li].sharesRemaining <= 0) continue;
+              const candidateShares = Math.min(blockSize, inventory[li].sharesRemaining);
+              const incrementalTax = marginalTaxForBlock(
+                ys,
+                period,
+                inventory,
+                li,
+                candidateShares,
+                input.ordinaryIncome,
+                input.filingStatus,
+                input.stateCode,
+              );
+              const incrementalGross =
+                candidateShares * period.projectedPriceByStack[flatLots[li].stackIndex];
+              const incrementalNet = incrementalGross - incrementalTax;
+              const incrementalFutureValue = incrementalNet * gFactor;
+              const futureValuePerShare = incrementalFutureValue / candidateShares;
+              if (futureValuePerShare > bestFutureValuePerShare) {
+                bestFutureValuePerShare = futureValuePerShare;
+                bestYear = yi;
+                bestPeriod = pi;
+                bestLot = li;
+                bestBlockShares = candidateShares;
+                bestNetCash = incrementalNet;
+                bestFutureValue = incrementalFutureValue;
+                bestTax = incrementalTax;
+              }
+            }
           }
         }
+        if (bestYear >= 0) break;
       }
-      if (bestYear < 0) break; // no inventory left
+      if (bestYear < 0) break;
 
-      // Would committing this block overshoot? At coarser block sizes,
-      // break out and let the next finer size resume from here instead.
-      if (!isFinestBlock && cumulativeNet + bestNetCash > input.targetAfterTax) {
+      if (!isFinestBlock && cumulativeFutureValue + bestFutureValue > input.targetAfterTax) {
         break;
       }
 
+      const winningYear = yearStates[bestYear];
+      const winningPeriod = winningYear.periods[bestPeriod];
       const breakdown = commitBlock(
-        yearStates[bestYear],
+        winningYear,
+        winningPeriod,
         inventory,
         bestLot,
         bestBlockShares,
@@ -512,70 +965,83 @@ export function computeEquityFundingPlan(input: EquityFundingInput): EquityFundi
         input.filingStatus,
         input.stateCode,
       );
-      const gross = bestBlockShares * yearStates[bestYear].projectedPriceByStack[flatLots[bestLot].stackIndex];
+      const gross =
+        bestBlockShares * winningPeriod.projectedPriceByStack[flatLots[bestLot].stackIndex];
       const totalIncrementalTax = breakdown.federal + breakdown.stateT + breakdown.niit;
       const net = gross - totalIncrementalTax;
       cumulativeNet += net;
+      cumulativeFutureValue += net * growthFactorPerPeriod[bestYear][bestPeriod];
       totalGross += gross;
       totalShares += bestBlockShares;
       totalFed += breakdown.federal;
       totalState += breakdown.stateT;
       totalNiit += breakdown.niit;
-      salesMatrix[bestYear][bestLot] += bestBlockShares;
-      const existing = taxMatrix[bestYear][bestLot];
+      salesMatrix[bestYear][bestPeriod][bestLot] += bestBlockShares;
+      // periodNetSoFar tracks future-value (matches the per-period quota
+      // for spreadEvenlyAcrossPeriods, which is also in target dollars).
+      periodNetSoFar[bestYear][bestPeriod] += net * growthFactorPerPeriod[bestYear][bestPeriod];
+      const existing = taxMatrix[bestYear][bestPeriod][bestLot];
       existing.federal += breakdown.federal;
       existing.stateT += breakdown.stateT;
       existing.niit += breakdown.niit;
       existing.gain += breakdown.gain;
-      // Silence unused-var hints — bestTax retained for future hooks.
       void bestTax;
     }
-    if (cumulativeNet >= input.targetAfterTax) break;
+    if (cumulativeFutureValue >= input.targetAfterTax) break;
   }
 
-  // Build schedule output.
+  // Build schedule output — one entry per (year, period) with non-zero
+  // sales. Field is still named YearSchedule for backward compat, but
+  // multiple entries can share the same `year` when monthly sales spread
+  // across the calendar year.
   const schedule: YearSchedule[] = [];
   let runningNet = 0;
   for (let yi = 0; yi < yearStates.length; yi += 1) {
     const ys = yearStates[yi];
-    const sales: SaleEntry[] = [];
-    let yearGross = 0;
-    let yearTax = 0;
-    for (let li = 0; li < flatLots.length; li += 1) {
-      const shares = salesMatrix[yi][li];
-      if (shares <= 0) continue;
-      const tax = taxMatrix[yi][li];
-      const fl = flatLots[li];
-      const gross = shares * ys.projectedPriceByStack[fl.stackIndex];
-      const totalTaxThisSale = tax.federal + tax.stateT + tax.niit;
-      sales.push({
-        stackIndex: fl.stackIndex,
-        ticker: stacks[fl.stackIndex].ticker,
-        lotIndex: fl.lotIndexInStack,
-        shares,
-        grossProceeds: gross,
-        gainAmount: tax.gain,
-        isLongTerm: ys.lotMeta[li].isLongTerm,
-        federalTax: tax.federal,
-        stateTax: tax.stateT,
-        niit: tax.niit,
-        netCash: gross - totalTaxThisSale,
+    for (let pi = 0; pi < ys.periods.length; pi += 1) {
+      const period = ys.periods[pi];
+      const sales: SaleEntry[] = [];
+      let periodGross = 0;
+      let periodTax = 0;
+      for (let li = 0; li < flatLots.length; li += 1) {
+        const shares = salesMatrix[yi][pi][li];
+        if (shares <= 0) continue;
+        const tax = taxMatrix[yi][pi][li];
+        const fl = flatLots[li];
+        const gross = shares * period.projectedPriceByStack[fl.stackIndex];
+        const totalTaxThisSale = tax.federal + tax.stateT + tax.niit;
+        sales.push({
+          stackIndex: fl.stackIndex,
+          ticker: stacks[fl.stackIndex].ticker,
+          lotIndex: fl.lotIndexInStack,
+          shares,
+          grossProceeds: gross,
+          gainAmount: tax.gain,
+          isLongTerm: period.lotMeta[li].isLongTerm,
+          federalTax: tax.federal,
+          stateTax: tax.stateT,
+          niit: tax.niit,
+          netCash: gross - totalTaxThisSale,
+        });
+        periodGross += gross;
+        periodTax += totalTaxThisSale;
+      }
+      if (sales.length === 0) continue;
+      const periodNet = periodGross - periodTax;
+      // runningCumulativeNet is in TARGET-DATE dollars so it matches the
+      // user's goal and the headline total. Per-period yearNetCash stays
+      // raw (= what you actually receive that day).
+      runningNet += periodNet * growthFactorPerPeriod[yi][pi];
+      schedule.push({
+        year: ys.year,
+        saleDateISO: period.saleDate.toISOString().slice(0, 10),
+        sales,
+        yearGrossProceeds: periodGross,
+        yearTotalTax: periodTax,
+        yearNetCash: periodNet,
+        runningCumulativeNet: runningNet,
       });
-      yearGross += gross;
-      yearTax += totalTaxThisSale;
     }
-    if (sales.length === 0) continue;
-    const yearNet = yearGross - yearTax;
-    runningNet += yearNet;
-    schedule.push({
-      year: ys.year,
-      saleDateISO: ys.saleDate.toISOString().slice(0, 10),
-      sales,
-      yearGrossProceeds: yearGross,
-      yearTotalTax: yearTax,
-      yearNetCash: yearNet,
-      runningCumulativeNet: runningNet,
-    });
   }
 
   // Counterfactual: sell everything needed in the target year (single-
@@ -583,11 +1049,21 @@ export function computeEquityFundingPlan(input: EquityFundingInput): EquityFundi
   // same algorithm with only the target year available.
   const counterfactual = computeSingleYearCounterfactual(input);
 
-  const feasible = cumulativeNet >= input.targetAfterTax - 0.5;
-  const totalAfterTax = totalGross - (totalFed + totalState + totalNiit);
+  const feasible = cumulativeFutureValue >= input.targetAfterTax - 0.5;
+  // Future value of all sales at the target date (matches user's goal,
+  // which is also in target-date dollars). Raw cash receipts may be less
+  // when cashInterestRate > 0 because interest grows the cash forward.
+  const totalAfterTax = cumulativeFutureValue;
+  // Sum sales over (year, period) for each flat lot.
+  const sharesSoldByLot = (lotIdx: number): number => {
+    let s = 0;
+    for (const yearMatrix of salesMatrix) {
+      for (const periodRow of yearMatrix) s += periodRow[lotIdx];
+    }
+    return s;
+  };
   const remainingShares = flatLots.reduce(
-    (acc, fl, idx) =>
-      acc + fl.shares - salesMatrix.reduce((s, yearRow) => s + yearRow[idx], 0),
+    (acc, fl, idx) => acc + fl.shares - sharesSoldByLot(idx),
     0,
   );
   // Per-stack projected price at targetDate, used to value leftover shares.
@@ -595,10 +1071,27 @@ export function computeEquityFundingPlan(input: EquityFundingInput): EquityFundi
     projectPrice(s.currentPrice, s.expectedAnnualGrowth ?? 0, today, input.targetDate),
   );
   const remainingPositionValue = flatLots.reduce((acc, fl, idx) => {
-    const remaining =
-      fl.shares - salesMatrix.reduce((s, yearRow) => s + yearRow[idx], 0);
+    const remaining = fl.shares - sharesSoldByLot(idx);
     return acc + remaining * targetProjectedByStack[fl.stackIndex];
   }, 0);
+
+  // Net-of-tax retained value: hypothetical liquidation of all remaining
+  // lots at the target date, layered onto the target year's end-of-plan
+  // gain accumulator so the bracket walk is correct.
+  const retainedSharesByLot = flatLots.map((fl, idx) => fl.shares - sharesSoldByLot(idx));
+  const lastYear = yearStates[yearStates.length - 1];
+  const targetPeriod = lastYear.periods[lastYear.periods.length - 1];
+  const remainingNetByStack = computeRetainedLiquidation(
+    lastYear,
+    targetPeriod,
+    retainedSharesByLot,
+    flatLots,
+    stacks.length,
+    input.ordinaryIncome,
+    input.filingStatus,
+    input.stateCode,
+  );
+  const remainingPositionAfterTax = remainingNetByStack.reduce((a, b) => a + b, 0);
 
   const result: EquityFundingResult = {
     feasible,
@@ -630,6 +1123,8 @@ export function computeEquityFundingPlan(input: EquityFundingInput): EquityFundi
     },
     remainingShares,
     remainingPositionValue: round2(remainingPositionValue),
+    remainingPositionAfterTax: round2(remainingPositionAfterTax),
+    remainingNetByStack: remainingNetByStack.map(round2),
   };
 
   if (!feasible) {
@@ -658,35 +1153,44 @@ function computeSingleYearCounterfactual(
     // Fallback: caller's target date isn't in the inferred year. Re-anchor.
   }
   const cfStacks = normalizeStacks(input);
+  const cfToday = input.today ?? new Date();
   const cfFlatLots: FlatLot[] = [];
   for (let si = 0; si < cfStacks.length; si += 1) {
-    for (let li = 0; li < cfStacks[si].lots.length; li += 1) {
-      const lot = cfStacks[si].lots[li];
+    const stack = cfStacks[si];
+    for (let li = 0; li < stack.lots.length; li += 1) {
+      const lot = stack.lots[li];
+      const isRsuVest = lot.vestDate !== undefined;
+      const acquisitionDate = isRsuVest ? lot.vestDate! : lot.acquisitionDate;
+      const costBasisPerShare = isRsuVest
+        ? projectPrice(stack.currentPrice, stack.expectedAnnualGrowth ?? 0, cfToday, lot.vestDate!)
+        : lot.costBasisPerShare;
       cfFlatLots.push({
         stackIndex: si,
         lotIndexInStack: li,
         shares: lot.shares,
-        costBasisPerShare: lot.costBasisPerShare,
-        acquisitionDate: lot.acquisitionDate,
+        costBasisPerShare,
+        acquisitionDate,
       });
     }
   }
   const cfInventory: LotInventory[] = cfFlatLots.map((fl) => ({ sharesRemaining: fl.shares }));
-  const cfToday = input.today ?? new Date();
   const cfProjectedByStack = cfStacks.map((s) =>
     projectPrice(s.currentPrice, s.expectedAnnualGrowth ?? 0, cfToday, input.targetDate),
   );
-  const ys: YearState = {
-    year: input.targetDate.getUTCFullYear(),
+  const period: PeriodState = {
     saleDate: input.targetDate,
     projectedPriceByStack: cfProjectedByStack,
-    longTermGainSoFar: 0,
-    shortTermGainSoFar: 0,
     lotMeta: cfFlatLots.map((fl) => ({
       gainPerShare: cfProjectedByStack[fl.stackIndex] - fl.costBasisPerShare,
       isLongTerm: isLongTermFor(fl.acquisitionDate, input.targetDate),
       acquired: fl.acquisitionDate.getTime() <= input.targetDate.getTime(),
     })),
+  };
+  const ys: YearState = {
+    year: input.targetDate.getUTCFullYear(),
+    longTermGainSoFar: 0,
+    shortTermGainSoFar: 0,
+    periods: [period],
   };
 
   let cumulativeNet = 0;
@@ -704,13 +1208,14 @@ function computeSingleYearCounterfactual(
       let bestNetPerShare = -Infinity;
       let bestBlockShares = 0;
       let bestNetCash = 0;
-      for (let li = 0; li < ys.lotMeta.length; li += 1) {
-        const meta = ys.lotMeta[li];
+      for (let li = 0; li < period.lotMeta.length; li += 1) {
+        const meta = period.lotMeta[li];
         if (!meta.acquired) continue;
         if (cfInventory[li].sharesRemaining <= 0) continue;
         const candidateShares = Math.min(blockSize, cfInventory[li].sharesRemaining);
         const incrementalTax = marginalTaxForBlock(
           ys,
+          period,
           cfInventory,
           li,
           candidateShares,
@@ -718,7 +1223,8 @@ function computeSingleYearCounterfactual(
           input.filingStatus,
           input.stateCode,
         );
-        const incrementalGross = candidateShares * ys.projectedPriceByStack[cfFlatLots[li].stackIndex];
+        const incrementalGross =
+          candidateShares * period.projectedPriceByStack[cfFlatLots[li].stackIndex];
         const incrementalNet = incrementalGross - incrementalTax;
         const netPerShare = incrementalNet / candidateShares;
         if (netPerShare > bestNetPerShare) {
@@ -734,6 +1240,7 @@ function computeSingleYearCounterfactual(
       }
       const breakdown = commitBlock(
         ys,
+        period,
         cfInventory,
         bestLot,
         bestBlockShares,
@@ -741,7 +1248,8 @@ function computeSingleYearCounterfactual(
         input.filingStatus,
         input.stateCode,
       );
-      const gross = bestBlockShares * ys.projectedPriceByStack[cfFlatLots[bestLot].stackIndex];
+      const gross =
+        bestBlockShares * period.projectedPriceByStack[cfFlatLots[bestLot].stackIndex];
       const tax = breakdown.federal + breakdown.stateT + breakdown.niit;
       cumulativeNet += gross - tax;
       totalFed += breakdown.federal;
@@ -776,6 +1284,8 @@ function emptyResult(input: EquityFundingInput): EquityFundingResult {
     },
     remainingShares: 0,
     remainingPositionValue: 0,
+    remainingPositionAfterTax: 0,
+    remainingNetByStack: [],
     shortfall: { maxAchievableAfterTax: 0, gap: input.targetAfterTax },
   };
 }
@@ -785,4 +1295,410 @@ function round2(x: number): number {
 }
 function round4(x: number): number {
   return Math.round(x * 10_000) / 10_000;
+}
+
+// ----- Plan comparison + risk model ---------------------------------------
+
+export type PlanKey = 'recommended' | 'lock_in_now' | 'balanced' | 'hold_for_growth' | 'candidate';
+
+export interface NamedPlan {
+  planKey: PlanKey;
+  planLabel: string;
+  /** The plan output from computeEquityFundingPlan. */
+  plan: EquityFundingResult;
+  /** Cash netted + remaining shares × projected target-date price. */
+  wealthAtTarget: number;
+  /** Total tax paid across the plan (sum of all scheduled sales' tax). */
+  totalTax: number;
+  /** Lognormal probability that realized cash < user target. 0 = deterministic
+   *  hit (Lock-in-now with sufficient inventory); positive = there's price
+   *  uncertainty between now and the plan's sale dates. */
+  shortfallProbability: number;
+  /** The lock-in fraction (0–1) that produced this candidate, if a hybrid. */
+  lockInFraction?: number;
+}
+
+export interface EquityFundingComparisonInput extends EquityFundingInput {
+  /** User's max acceptable P(shortfall), 0-1. Default 0.10 (10%). */
+  riskToleranceShortfall?: number;
+  /** Annualized volatility for tickers without per-stack overrides. Default 0.35. */
+  defaultVolatility?: number;
+  /** Per-stack annualized vol; index matches input.stacks. null = use default. */
+  stackVolatilities?: (number | null)[];
+}
+
+export interface EquityFundingComparisonResult {
+  /** The wealth-optimal plan whose P(shortfall) ≤ riskToleranceShortfall. */
+  recommended: NamedPlan;
+  /** Sell entirely in the current calendar year — minimum risk. */
+  lockInNow: NamedPlan;
+  /** Bracket-aware spread across all candidate years — minimum tax. */
+  balanced: NamedPlan;
+  /** Sell only in the target year — maximum wealth, maximum risk. */
+  holdForGrowth: NamedPlan;
+  /** All candidate plans from the bias sweep + 3 named, sorted by P(shortfall). */
+  frontier: NamedPlan[];
+  targetAfterTax: number;
+  targetDateISO: string;
+  appliedRiskTolerance: number;
+}
+
+// Standard normal CDF — Abramowitz & Stegun 26.2.17. Accurate to ~7e-8.
+function phi(z: number): number {
+  const a1 = 0.254829592;
+  const a2 = -0.284496736;
+  const a3 = 1.421413741;
+  const a4 = -1.453152027;
+  const a5 = 1.061405429;
+  const p = 0.3275911;
+  const sign = z < 0 ? -1 : 1;
+  const x = Math.abs(z) / Math.sqrt(2);
+  const t = 1 / (1 + p * x);
+  const y = 1 - (((((a5 * t + a4) * t) + a3) * t + a2) * t + a1) * t * Math.exp(-x * x);
+  return 0.5 * (1 + sign * y);
+}
+
+function wealthAtTargetFor(plan: EquityFundingResult): number {
+  // Cash already netted (after capital-gains tax + after-tax cash interest)
+  // plus the AFTER-TAX value of unsold shares, so plans that retain more
+  // inventory aren't credited for tax they'd still owe on liquidation. This
+  // is the basis the recommendation picker compares on.
+  return plan.totalAfterTaxAchieved + plan.remainingPositionAfterTax;
+}
+
+// reduce() comparator: keep whichever plan has the lower shortfall probability.
+// Used both as the no-eligible-plan fallback and as the wealth-tie breaker.
+const lowerShortfall = (a: NamedPlan, b: NamedPlan): NamedPlan =>
+  b.shortfallProbability < a.shortfallProbability ? b : a;
+
+/**
+ * Standard deviation of realized after-tax cash for a plan, under the
+ * lognormal price model. For each scheduled sale, models price at sale
+ * date as lognormal with σ × √Δt uncertainty. Sums independent variance
+ * contributions across sales. First-order linearization of net cash w.r.t.
+ * price (ignores tax-bracket nonlinearities).
+ */
+// Decomposes a plan into:
+//   secured   — cash netted from today's deterministic sales (in the bank)
+//   exposed   — at-target dollars that move with the stock: future scheduled
+//               sales' net cash + after-tax value of retained shares treated
+//               as a backstop the user can sell at target if scheduled sales
+//               come in light
+//   sigma2t   — effective σ²×t for the exposed portion, dollar-weighted
+//               across non-today scheduled sales AND retained shares (each
+//               retained leg uses its stack's σ over the full now-to-target
+//               horizon, since the share is held until target before being
+//               liquidated as backstop)
+//
+// Under dynamic execution, the secured portion is in the bank; the exposed
+// portion fluctuates with realized prices. Shortfall happens when realized
+// exposed value falls below (goal − secured).
+function planExposure(
+  plan: EquityFundingResult,
+  input: EquityFundingComparisonInput,
+  today: Date,
+): { secured: number; exposed: number; sigma2t: number } {
+  const defaultVol = input.defaultVolatility ?? 0.30;
+  const stackVols = input.stackVolatilities ?? [];
+  // Match the greedy's after-tax compounding so planExposure agrees with
+  // computeEquityFundingPlan's own cumulative cash numbers.
+  const cashInterestRate = effectiveAfterTaxCashRate(
+    input.cashInterestRate ?? 0,
+    input.ordinaryIncome,
+    input.filingStatus,
+    input.stateCode,
+  );
+  const ONE_DAY_YEARS = 1 / 365.25;
+  const MS_PER_YEAR = 365.25 * 86_400_000;
+  const targetTimeMs = new Date(plan.targetDateISO + 'T12:00:00Z').getTime();
+  const yearsToTarget = Math.max(0, (targetTimeMs - today.getTime()) / MS_PER_YEAR);
+  let secured = 0;
+  let exposedNotional = 0;
+  let weightedSigma2t = 0;
+  for (const yearRow of plan.schedule) {
+    const saleTime = new Date(yearRow.saleDateISO + 'T12:00:00Z').getTime();
+    const yearsForward = Math.max(0, (saleTime - today.getTime()) / MS_PER_YEAR);
+    const yearsFromSaleToTarget = Math.max(0, (targetTimeMs - saleTime) / MS_PER_YEAR);
+    const cashGrowth = Math.pow(1 + cashInterestRate, yearsFromSaleToTarget);
+    const isToday = yearsForward < ONE_DAY_YEARS;
+    for (const sale of yearRow.sales) {
+      if (isToday) {
+        // Today's cash is deterministic; its value at target = raw × growth.
+        secured += sale.netCash * cashGrowth;
+      } else {
+        // Single-lognormal approximation for the exposed pool: pretend
+        // every non-today leg shares one effective σ²t, dollar-weighted by
+        // its contribution to the target-date pool. Dollar-weighting (not
+        // share-weighting) is required so multi-stack scenarios with
+        // different prices don't mis-scale a high-priced stack's exposure.
+        const sigma = stackVols[sale.stackIndex] ?? defaultVol;
+        const notionalAtTarget = sale.netCash * cashGrowth;
+        exposedNotional += notionalAtTarget;
+        weightedSigma2t += sigma * sigma * yearsForward * notionalAtTarget;
+      }
+    }
+  }
+  // Retained shares as backstop: each stack's after-tax target-date value
+  // contributes to the exposed pool, weighted by its full now-to-target σ²t
+  // (the share is held the whole way before any hypothetical liquidation).
+  for (let si = 0; si < plan.remainingNetByStack.length; si += 1) {
+    const stackNet = plan.remainingNetByStack[si];
+    if (stackNet <= 0) continue;
+    const sigma = stackVols[si] ?? defaultVol;
+    exposedNotional += stackNet;
+    weightedSigma2t += sigma * sigma * yearsToTarget * stackNet;
+  }
+  const sigma2t = exposedNotional > 0 ? weightedSigma2t / exposedNotional : 0;
+  return { secured, exposed: exposedNotional, sigma2t };
+}
+
+/**
+ * P(realized convertible cash < userTarget) under the dynamic-execution
+ * model with secured/exposed decomposition.
+ *
+ * Total convertible cash = secured + exposed × X, where:
+ *   - secured = cash from today's deterministic sales (in the bank)
+ *   - exposed = future scheduled sales' net cash at target prices PLUS
+ *               after-tax value of retained shares treated as backstop
+ *   - X      = lognormal multiplier with median 1, σ²t dollar-weighted
+ *              across all exposed legs (scheduled + retained backstop)
+ *
+ * Shortfall iff secured + exposed × X < goal, i.e. X < (goal − secured) / exposed.
+ * When secured already covers the goal, shortfall is 0% regardless of X.
+ * When exposed = 0 (Lock-in-now), the plan is fully deterministic.
+ */
+export function computeShortfallProbability(
+  plan: EquityFundingResult,
+  input: EquityFundingComparisonInput,
+  today: Date,
+  userTarget?: number,
+): number {
+  const target = userTarget ?? input.targetAfterTax;
+  const { secured, exposed, sigma2t } = planExposure(plan, input, today);
+  if (secured >= target) return 0;
+  const gap = target - secured;
+  if (exposed <= 0) return 1;
+  if (sigma2t <= 0) {
+    return exposed < gap ? 1 : 0;
+  }
+  // P(X < gap/exposed) for X ~ lognormal with median 1, variance e^{σ²t}-1.
+  const sigma = Math.sqrt(sigma2t);
+  const z = (Math.log(gap / exposed) + sigma2t / 2) / sigma;
+  return phi(z);
+}
+
+/**
+ * Build a plan that targets the user's goal exactly (no buffer over-sell).
+ * Always returns a NamedPlan — infeasible plans (inventory can't cover goal
+ * under that structure) propagate plan.feasible = false to the UI, which
+ * surfaces a shortfall warning instead of crashing.
+ */
+function buildPlan(
+  planKey: PlanKey,
+  planLabel: string,
+  baseExtra: Partial<EquityFundingInput>,
+  input: EquityFundingComparisonInput,
+  today: Date,
+  lockInFraction?: number,
+): NamedPlan {
+  const probeInput: EquityFundingInput = { ...input, ...baseExtra };
+  const result = computeEquityFundingPlan(probeInput);
+  return {
+    planKey,
+    planLabel,
+    plan: result,
+    wealthAtTarget: round2(wealthAtTargetFor(result)),
+    totalTax: result.totalTaxes.total,
+    shortfallProbability: computeShortfallProbability(result, input, today, input.targetAfterTax),
+    lockInFraction,
+  };
+}
+
+// Binary-search the lock-in fraction f in [0, 1] that produces a plan whose
+// shortfall lands ≈ tolerance. The relationship is monotone: shortfall
+// decreases as f rises (more cash locked in = less exposure to future
+// prices). We want the smallest f that still satisfies shortfall ≤ tolerance,
+// since smaller f → less over-selling today → higher wealth at target.
+function findOptimalHybrid(
+  input: EquityFundingComparisonInput,
+  today: Date,
+  tolerance: number,
+): NamedPlan {
+  const makePlanAt = (f: number): NamedPlan =>
+    buildPlan(
+      'candidate',
+      `Hybrid ${(f * 100).toFixed(1)}% locked in`,
+      f <= 0
+        ? { spreadEvenlyAcrossPeriods: true }
+        : {
+            lockInNowMinCash: input.targetAfterTax * f,
+            saleDateOverrideForCurrentYear: today,
+            spreadEvenlyAcrossPeriods: true,
+          },
+      input,
+      today,
+      f,
+    );
+  // If no lock-in (= Balanced) already satisfies tolerance, that's the
+  // wealth-optimal choice.
+  const noLock = makePlanAt(0);
+  if (noLock.shortfallProbability <= tolerance) return noLock;
+  // If full lock-in still exceeds tolerance, fall back to it (safest available).
+  const fullLock = makePlanAt(1);
+  if (fullLock.shortfallProbability > tolerance) return fullLock;
+  // Bisect, then linear-scan the bracketed range. The discrete share-level
+  // greedy can make shortfall(f) plateau or step — pure bisection sometimes
+  // lands at a low-shortfall corner instead of the wealth-maximal point.
+  // Tracking max-wealth across all evaluated plans handles this.
+  let lo = 0;
+  let hi = 1;
+  let best = fullLock;
+  const consider = (p: NamedPlan) => {
+    if (p.shortfallProbability <= tolerance && p.wealthAtTarget > best.wealthAtTarget) {
+      best = p;
+    }
+  };
+  for (let i = 0; i < 18; i += 1) {
+    const mid = (lo + hi) / 2;
+    const p = makePlanAt(mid);
+    consider(p);
+    if (p.shortfallProbability <= tolerance) hi = mid;
+    else lo = mid;
+  }
+  // Linear scan in the bracketed range to escape plateaus.
+  for (let i = 0; i <= 12; i += 1) {
+    const f = lo + (hi - lo) * (i / 12);
+    consider(makePlanAt(f));
+  }
+  return best;
+}
+
+export function computeEquityFundingComparison(
+  input: EquityFundingComparisonInput,
+): EquityFundingComparisonResult {
+  const today = input.today ?? new Date();
+  const currentYear = today.getUTCFullYear();
+  const targetYear = input.targetDate.getUTCFullYear();
+  const tolerance = input.riskToleranceShortfall ?? 0.10;
+
+  // Balanced spreads sales evenly across all monthly periods between today
+  // and the target date — true dollar-cost-averaging behavior. Without the
+  // spreadEvenlyAcrossPeriods flag the greedy would pile every sale onto
+  // the latest, highest-priced period, collapsing Balanced to a single
+  // sale identical to Hold-for-growth.
+  const balanced = buildPlan(
+    'balanced',
+    'Balanced',
+    { spreadEvenlyAcrossPeriods: true },
+    input,
+    today,
+    0,
+  );
+
+  // Lock-in-now sells TODAY (sale date overridden, not Dec 31). Zero time
+  // uncertainty → realized cash = projected cash deterministically → the
+  // sd=0 branch in computeShortfallProbability returns 0 (or 1 if inventory
+  // can't cover goal at today's prices).
+  const lockInNow = buildPlan(
+    'lock_in_now',
+    'Lock in now',
+    {
+      restrictToSaleYears: [currentYear],
+      saleDateOverrideForCurrentYear: today,
+      useOnlyOverridePeriod: true,
+    },
+    input,
+    today,
+  );
+
+  // Hold-for-growth sells only in the target year — biggest σ × √Δt.
+  const holdForGrowth = buildPlan(
+    'hold_for_growth',
+    'Hold for growth',
+    { restrictToSaleYears: [targetYear] },
+    input,
+    today,
+  );
+
+  // Continuous frontier between Lock-in-now and Balanced: vary how much of
+  // the goal is locked in today (deterministic) vs. exposed to future-price
+  // uncertainty. Each hybrid is a true two-phase plan. The shortfall
+  // probability decreases smoothly as more is locked in now.
+  const lockInFractions = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9];
+  const hybridPlans: NamedPlan[] = lockInFractions.map((f) =>
+    buildPlan(
+      'candidate',
+      `Hybrid ${Math.round(f * 100)}% locked in`,
+      {
+        lockInNowMinCash: input.targetAfterTax * f,
+        saleDateOverrideForCurrentYear: today,
+        spreadEvenlyAcrossPeriods: true,
+      },
+      input,
+      today,
+      f,
+    ),
+  );
+
+  // Frontier excludes infeasible plans but the named-plan cards above the
+  // table always render — even infeasible ones — so the user can see the
+  // shortfall warning per plan.
+  const frontier = [lockInNow, ...hybridPlans, balanced, holdForGrowth]
+    .filter((p) => p.plan.feasible)
+    .sort((a, b) => a.shortfallProbability - b.shortfallProbability);
+
+  // Binary-search for the exact hybrid plan that lands at the user's
+  // tolerance (smaller lock-in → higher wealth, so we want the smallest
+  // lock-in fraction that still satisfies shortfall ≤ tolerance).
+  const optimalHybrid = findOptimalHybrid(input, today, tolerance);
+  // Recommend the wealth-maximal plan whose shortfall stays within tolerance,
+  // chosen across EVERY candidate the chart plots — the named corners, the
+  // full fixed-fraction hybrid sweep, AND the binary-searched optimal hybrid —
+  // not a narrow subset. Selecting from a subset let a plotted hybrid dot
+  // dominate the recommendation (more wealth at lower risk), which read as a
+  // broken frontier chart. Including the whole pool guarantees no feasible dot
+  // can sit above-and-left of the recommended star.
+  const recommendationPool: NamedPlan[] = [
+    lockInNow,
+    ...hybridPlans,
+    balanced,
+    holdForGrowth,
+    optimalHybrid,
+  ];
+  const eligible = recommendationPool.filter(
+    (p) => p.plan.feasible && p.shortfallProbability <= tolerance,
+  );
+  let optimal: NamedPlan;
+  if (eligible.length === 0) {
+    // Tolerance is below even the safest available plan's residual risk —
+    // recommend the lowest-shortfall feasible plan (closest to satisfying it).
+    const feasibleAll = recommendationPool.filter((p) => p.plan.feasible);
+    optimal = (feasibleAll.length > 0 ? feasibleAll : recommendationPool).reduce(lowerShortfall);
+  } else {
+    // Among eligible plans, pick the highest wealth. The greedy is only
+    // optimal to ~1-2%, so treat wealth within 0.05% (floor $100) of the best
+    // as a TIE and break it toward the lower-risk plan — never recommend extra
+    // shortfall risk to buy wealth the user can't meaningfully distinguish.
+    const maxWealth = Math.max(...eligible.map((p) => p.wealthAtTarget));
+    const tieEps = Math.max(100, maxWealth * 5e-4);
+    optimal = eligible
+      .filter((p) => p.wealthAtTarget >= maxWealth - tieEps)
+      .reduce(lowerShortfall);
+  }
+  const recommended: NamedPlan = {
+    ...optimal,
+    planKey: 'recommended',
+    planLabel: 'Recommended',
+  };
+
+  return {
+    recommended,
+    lockInNow,
+    balanced,
+    holdForGrowth,
+    frontier,
+    targetAfterTax: input.targetAfterTax,
+    targetDateISO: input.targetDate.toISOString().slice(0, 10),
+    appliedRiskTolerance: tolerance,
+  };
 }

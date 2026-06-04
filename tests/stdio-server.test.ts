@@ -329,10 +329,14 @@ describe('local stdio MCP server', () => {
         stateCode: 'CA',
       },
       check: (r: Record<string, unknown>) => {
-        expect(typeof r.feasible).toBe('boolean');
-        expect(typeof r.totalAfterTaxAchieved).toBe('number');
-        expect(Array.isArray(r.schedule)).toBe(true);
-        expect((r.totalTaxes as Record<string, number>).total).toBeGreaterThan(0);
+        expect(r.recommended).toBeDefined();
+        expect(r.lockInNow).toBeDefined();
+        expect(r.balanced).toBeDefined();
+        expect(r.holdForGrowth).toBeDefined();
+        expect(Array.isArray(r.frontier)).toBe(true);
+        const recommended = r.recommended as Record<string, unknown>;
+        expect(typeof recommended.wealthAtTarget).toBe('number');
+        expect(typeof recommended.shortfallProbability).toBe('number');
       },
     },
   ])('calls $tool successfully', async ({ tool, args, check }) => {

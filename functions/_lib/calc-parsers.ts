@@ -12,7 +12,11 @@ import type { RsuInput } from '../../lib/calc/rsu';
 import type { ConcentrationInputs } from '../../lib/calc/concentration';
 import type { ProtectivePutInputs } from '../../lib/calc/protectivePut';
 import type { QsbsInputs } from '../../lib/calc/qsbs';
-import type { EquityFundingInput, EquityFundingLot, EquityFundingStack } from '../../lib/calc/equityFunding';
+import type {
+  EquityFundingComparisonInput,
+  EquityFundingLot,
+  EquityFundingStack,
+} from '../../lib/calc/equityFunding';
 
 import { asObject, p, FILING_STATUSES, type Obj } from './api';
 import { getTrailingReturn } from '../../lib/data/trailing-returns';
@@ -228,14 +232,20 @@ function parseEquityFundingLot(raw: unknown, index: number): EquityFundingLot {
     throw new Error(`lots[${index}] must be an object with shares, costBasisPerShare, acquisitionDate`);
   }
   const o = raw as Obj;
-  return {
+  const lot: EquityFundingLot = {
     shares: p.num(o, 'shares'),
     costBasisPerShare: p.num(o, 'costBasisPerShare'),
     acquisitionDate: p.date(o, 'acquisitionDate'),
   };
+  if (o.vestDate !== undefined) lot.vestDate = p.date(o, 'vestDate');
+  return lot;
 }
 
-function parseEquityFundingStack(raw: unknown, index: number): EquityFundingStack {
+function parseEquityFundingStack(
+  raw: unknown,
+  index: number,
+  horizonYears: number,
+): { stack: EquityFundingStack; volatility: number | null } {
   if (raw === null || typeof raw !== 'object') {
     throw new Error(`stacks[${index}] must be an object with currentPrice and lots`);
   }
@@ -249,28 +259,58 @@ function parseEquityFundingStack(raw: unknown, index: number): EquityFundingStac
     lots: lotsRaw.map((lot, idx) => parseEquityFundingLot(lot, idx)),
   };
   if (o.ticker !== undefined) stack.ticker = p.str(o, 'ticker');
+  // Growth is optional; leave undefined when neither explicit field nor ticker
+  // fallback resolves it (the calc defaults to flat-price). Throw only when a
+  // ticker is supplied but unknown to the trailing-returns table.
   if (o.expectedAnnualGrowth !== undefined) {
     stack.expectedAnnualGrowth = p.num(o, 'expectedAnnualGrowth');
+  } else if (o.ticker !== undefined) {
+    const r = getTrailingReturn(stack.ticker!, horizonYears);
+    if (r === null) {
+      throw new Error(
+        `field "stacks[${index}].expectedAnnualGrowth" required: ticker "${stack.ticker}" is not in our trailing-returns table (~90 covered). Pass "expectedAnnualGrowth" explicitly or use a covered public-stock symbol. ${ASK_USER_HINT}`,
+      );
+    }
+    stack.expectedAnnualGrowth = r;
   }
-  return stack;
+  // Volatility is sidecar (returned next to the stack) because the calc
+  // consumes it via the parallel `stackVolatilities` array, not via a
+  // per-stack field. Caller assembles the array from this stream.
+  const volatility = o.volatility !== undefined ? p.num(o, 'volatility') : null;
+  return { stack, volatility };
 }
 
-export function parseEquityFundingInput(raw: unknown): EquityFundingInput {
+export function parseEquityFundingInput(raw: unknown): EquityFundingComparisonInput {
   const o = asObject(raw);
-  const base: EquityFundingInput = {
+  const targetDate = p.date(o, 'targetDate');
+  const today = o.today !== undefined ? p.date(o, 'today') : new Date();
+  const horizonYears = Math.max(
+    0.25,
+    (targetDate.getTime() - today.getTime()) / (365.25 * 86_400_000),
+  );
+
+  const base: EquityFundingComparisonInput = {
     targetAfterTax: p.num(o, 'targetAfterTax'),
-    targetDate: p.date(o, 'targetDate'),
+    targetDate,
+    today,
     ordinaryIncome: p.num(o, 'ordinaryIncome'),
     filingStatus: p.enum(o, 'filingStatus', FILING_STATUSES),
     stateCode: p.str(o, 'stateCode'),
   };
+  if (o.cashInterestRate !== undefined) base.cashInterestRate = p.num(o, 'cashInterestRate');
+  if (o.riskToleranceShortfall !== undefined) {
+    base.riskToleranceShortfall = p.num(o, 'riskToleranceShortfall');
+  }
+  if (o.defaultVolatility !== undefined) base.defaultVolatility = p.num(o, 'defaultVolatility');
 
-  // v1.7+ multi-stack input
   if (o.stacks !== undefined) {
     if (!Array.isArray(o.stacks) || o.stacks.length === 0) {
-      throw new Error('field "stacks" must be a non-empty array of {currentPrice, lots[, ticker, expectedAnnualGrowth]}');
+      throw new Error('field "stacks" must be a non-empty array of {currentPrice, lots[, ticker, expectedAnnualGrowth, volatility]}');
     }
-    base.stacks = o.stacks.map((s, idx) => parseEquityFundingStack(s, idx));
+    const parsed = o.stacks.map((s, idx) => parseEquityFundingStack(s, idx, horizonYears));
+    base.stacks = parsed.map((p) => p.stack);
+    const vols = parsed.map((p) => p.volatility);
+    if (vols.some((v) => v !== null)) base.stackVolatilities = vols;
     return base;
   }
 
