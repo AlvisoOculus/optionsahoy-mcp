@@ -884,6 +884,21 @@ export function computeEquityFundingPlan(input: EquityFundingInput): EquityFundi
   // dollars); raw cash is reported separately for display.
   let cumulativeFutureValue = 0;
 
+  // Value of KEEPING each share to the target date = its projected target-date
+  // price. The greedy ranks candidate sales by conversion benefit — cash-now
+  // future value minus this hold value — so it funds the goal from the shares
+  // you'd least want to keep first (e.g. a stack projected to DECLINE), rather
+  // than simply the highest-priced shares. When two candidates have the same
+  // forward value (same stack, or same price+growth), the hold value cancels
+  // and the ranking reduces to cash-per-share — i.e. the prior tax-efficiency
+  // ordering (sell the lowest-gain, lowest-tax shares first) is preserved.
+  const targetProjectedByStack = stacks.map((s) =>
+    projectPrice(s.currentPrice, s.expectedAnnualGrowth ?? 0, today, input.targetDate),
+  );
+  const holdValuePerShareByLot = flatLots.map(
+    (fl) => targetProjectedByStack[fl.stackIndex],
+  );
+
   const blockSizes = [100, 10, 1];
   for (let bsIdx = 0; bsIdx < blockSizes.length; bsIdx += 1) {
     const blockSize = blockSizes[bsIdx];
@@ -896,7 +911,7 @@ export function computeEquityFundingPlan(input: EquityFundingInput): EquityFundi
       let bestYear = -1;
       let bestPeriod = -1;
       let bestLot = -1;
-      let bestFutureValuePerShare = -Infinity;
+      let bestBenefitPerShare = -Infinity;
       let bestBlockShares = 0;
       let bestNetCash = 0;
       let bestFutureValue = 0;
@@ -931,9 +946,16 @@ export function computeEquityFundingPlan(input: EquityFundingInput): EquityFundi
                 candidateShares * period.projectedPriceByStack[flatLots[li].stackIndex];
               const incrementalNet = incrementalGross - incrementalTax;
               const incrementalFutureValue = incrementalNet * gFactor;
-              const futureValuePerShare = incrementalFutureValue / candidateShares;
-              if (futureValuePerShare > bestFutureValuePerShare) {
-                bestFutureValuePerShare = futureValuePerShare;
+              // Rank by conversion benefit: future value of selling now minus
+              // the after-tax value of keeping these shares to the target.
+              // Selling a share you'd otherwise keep at a higher value is a net
+              // wealth loss (negative benefit); selling a declining holding is
+              // a net gain. Maximizing benefit per share fills the cash goal
+              // from the shares you least want to retain.
+              const holdValue = candidateShares * holdValuePerShareByLot[li];
+              const benefitPerShare = (incrementalFutureValue - holdValue) / candidateShares;
+              if (benefitPerShare > bestBenefitPerShare) {
+                bestBenefitPerShare = benefitPerShare;
                 bestYear = yi;
                 bestPeriod = pi;
                 bestLot = li;
@@ -1066,10 +1088,8 @@ export function computeEquityFundingPlan(input: EquityFundingInput): EquityFundi
     (acc, fl, idx) => acc + fl.shares - sharesSoldByLot(idx),
     0,
   );
-  // Per-stack projected price at targetDate, used to value leftover shares.
-  const targetProjectedByStack = stacks.map((s) =>
-    projectPrice(s.currentPrice, s.expectedAnnualGrowth ?? 0, today, input.targetDate),
-  );
+  // targetProjectedByStack (projected $/share at targetDate) is computed once
+  // before the greedy and reused here to value leftover shares.
   const remainingPositionValue = flatLots.reduce((acc, fl, idx) => {
     const remaining = fl.shares - sharesSoldByLot(idx);
     return acc + remaining * targetProjectedByStack[fl.stackIndex];
@@ -1079,11 +1099,34 @@ export function computeEquityFundingPlan(input: EquityFundingInput): EquityFundi
   // lots at the target date, layered onto the target year's end-of-plan
   // gain accumulator so the bracket walk is correct.
   const retainedSharesByLot = flatLots.map((fl, idx) => fl.shares - sharesSoldByLot(idx));
-  const lastYear = yearStates[yearStates.length - 1];
-  const targetPeriod = lastYear.periods[lastYear.periods.length - 1];
+  // Value the leftover shares at the TARGET DATE, not at the last scheduled
+  // sale period. For restrictToSaleYears plans (Lock-in-now sells only in the
+  // current year; its last period is *today*) that distinction is the whole
+  // ballgame: pricing leftovers at today's price and stacking their tax on the
+  // current year's realized gains badly mis-valued retained inventory (it even
+  // produced after-tax > pre-tax for a held gain). Build a period at the
+  // target date and stack the hypothetical liquidation on the TARGET year's
+  // accumulator — zero when the plan scheduled no sales in the target year.
+  const targetYear = input.targetDate.getUTCFullYear();
+  const retainedPeriod: PeriodState = {
+    saleDate: input.targetDate,
+    projectedPriceByStack: targetProjectedByStack,
+    lotMeta: flatLots.map((fl) => ({
+      gainPerShare: targetProjectedByStack[fl.stackIndex] - fl.costBasisPerShare,
+      isLongTerm: isLongTermFor(fl.acquisitionDate, input.targetDate),
+      acquired: fl.acquisitionDate.getTime() <= input.targetDate.getTime(),
+    })),
+  };
+  const retainedYearState: YearState =
+    yearStates.find((ys) => ys.year === targetYear) ?? {
+      year: targetYear,
+      longTermGainSoFar: 0,
+      shortTermGainSoFar: 0,
+      periods: [],
+    };
   const remainingNetByStack = computeRetainedLiquidation(
-    lastYear,
-    targetPeriod,
+    retainedYearState,
+    retainedPeriod,
     retainedSharesByLot,
     flatLots,
     stacks.length,
