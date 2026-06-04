@@ -64,6 +64,15 @@ export interface EquityFundingStack {
   currentPrice: number;
   /** See EquityFundingInput.expectedAnnualGrowth. */
   expectedAnnualGrowth?: number;
+  /**
+   * Optional per-stack annualized volatility override (σ, e.g. 0.45).
+   * Comparison-only: consumed by computeEquityFundingComparison via
+   * `stackVolatilities` to drive the lognormal shortfall model. The core
+   * computeEquityFundingPlan ignores it (the median schedule carries no
+   * price-uncertainty term). When unset, the comparison uses the chain-
+   * resolved implied vol if a ticker is set, else `defaultVolatility`.
+   */
+  volatilityOverride?: number;
   lots: EquityFundingLot[];
 }
 
@@ -1637,15 +1646,41 @@ export function computeEquityFundingComparison(
   // tolerance (smaller lock-in → higher wealth, so we want the smallest
   // lock-in fraction that still satisfies shortfall ≤ tolerance).
   const optimalHybrid = findOptimalHybrid(input, today, tolerance);
-  // The hybrid frontier only spans Lock-in-now → Balanced. Hold-for-growth
-  // (target-year sales only) can dominate Balanced on wealth and still meet
-  // tolerance. Pick max-wealth across every feasible candidate ≤ tolerance.
-  const recommendationPool: NamedPlan[] = [lockInNow, balanced, holdForGrowth, optimalHybrid];
-  let optimal = optimalHybrid;
-  for (const p of recommendationPool) {
-    if (!p.plan.feasible) continue;
-    if (p.shortfallProbability > tolerance) continue;
-    if (p.wealthAtTarget > optimal.wealthAtTarget) optimal = p;
+  // Recommend the wealth-maximal plan whose shortfall stays within tolerance,
+  // chosen across EVERY candidate the chart plots — the named corners, the
+  // full fixed-fraction hybrid sweep, AND the binary-searched optimal hybrid —
+  // not a narrow subset. Selecting from a subset let a plotted hybrid dot
+  // dominate the recommendation (more wealth at lower risk), which read as a
+  // broken frontier chart. Including the whole pool guarantees no feasible dot
+  // can sit above-and-left of the recommended star.
+  const recommendationPool: NamedPlan[] = [
+    lockInNow,
+    ...hybridPlans,
+    balanced,
+    holdForGrowth,
+    optimalHybrid,
+  ];
+  const eligible = recommendationPool.filter(
+    (p) => p.plan.feasible && p.shortfallProbability <= tolerance,
+  );
+  let optimal: NamedPlan;
+  if (eligible.length === 0) {
+    // Tolerance is below even the safest available plan's residual risk —
+    // recommend the lowest-shortfall feasible plan (closest to satisfying it).
+    const feasibleAll = recommendationPool.filter((p) => p.plan.feasible);
+    optimal = (feasibleAll.length > 0 ? feasibleAll : recommendationPool).reduce((a, b) =>
+      b.shortfallProbability < a.shortfallProbability ? b : a,
+    );
+  } else {
+    // Among eligible plans, pick the highest wealth. The greedy is only
+    // optimal to ~1-2%, so treat wealth within 0.05% (floor $100) of the best
+    // as a TIE and break it toward the lower-risk plan — never recommend extra
+    // shortfall risk to buy wealth the user can't meaningfully distinguish.
+    const maxWealth = Math.max(...eligible.map((p) => p.wealthAtTarget));
+    const tieEps = Math.max(100, maxWealth * 5e-4);
+    optimal = eligible
+      .filter((p) => p.wealthAtTarget >= maxWealth - tieEps)
+      .reduce((a, b) => (b.shortfallProbability < a.shortfallProbability ? b : a));
   }
   const recommended: NamedPlan = {
     ...optimal,

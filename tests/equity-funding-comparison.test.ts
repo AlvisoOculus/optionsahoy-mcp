@@ -62,6 +62,46 @@ describe('equity_funding_plan comparison output (v1.8)', () => {
     );
   });
 
+  it('recommended is never dominated by a feasible frontier plan (efficient-frontier invariant)', () => {
+    // Regression ported from optionsahoy_web: recommended was selected from a
+    // narrow pool excluding the hybrid sweep, so a feasible frontier plan could
+    // dominate it (more wealth at equal-or-lower shortfall). Sweep tolerances.
+    for (const tol of [0.005, 0.01, 0.02, 0.05, 0.1, 0.3]) {
+      const out = computeEquityFundingComparison(
+        parseEquityFundingInput({ ...BASE, riskToleranceShortfall: tol }),
+      );
+      const rec = out.recommended;
+      const maxW = Math.max(...out.frontier.map((p) => p.wealthAtTarget), rec.wealthAtTarget);
+      const tieEps = Math.max(100, maxW * 5e-4);
+      for (const p of out.frontier) {
+        if (!p.plan.feasible) continue;
+        if (p.shortfallProbability > tol + 1e-9) continue;
+        const dominates =
+          p.wealthAtTarget > rec.wealthAtTarget + tieEps &&
+          p.shortfallProbability <= rec.shortfallProbability + 1e-9;
+        expect(dominates).toBe(false);
+      }
+    }
+  });
+
+  it('recommended breaks wealth ties toward lower shortfall risk', () => {
+    for (const tol of [0.01, 0.05, 0.1, 0.3]) {
+      const out = computeEquityFundingComparison(
+        parseEquityFundingInput({ ...BASE, riskToleranceShortfall: tol }),
+      );
+      const rec = out.recommended;
+      const maxW = Math.max(...out.frontier.map((p) => p.wealthAtTarget), rec.wealthAtTarget);
+      const tieEps = Math.max(100, maxW * 5e-4);
+      for (const p of out.frontier) {
+        if (!p.plan.feasible) continue;
+        if (p.shortfallProbability > tol + 1e-9) continue;
+        if (Math.abs(p.wealthAtTarget - rec.wealthAtTarget) <= tieEps) {
+          expect(p.shortfallProbability).toBeGreaterThanOrEqual(rec.shortfallProbability - 1e-9);
+        }
+      }
+    }
+  });
+
   it('parses ticker into stack expectedAnnualGrowth via trailing CAGR', () => {
     const nvdaCagr = getTrailingReturn('NVDA', 2);
     expect(nvdaCagr).not.toBeNull();
