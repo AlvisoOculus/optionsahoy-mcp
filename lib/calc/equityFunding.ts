@@ -971,6 +971,25 @@ export function computeEquityFundingPlan(input: EquityFundingInput): EquityFundi
       }
       if (bestYear < 0) break;
 
+      // Lock-in precision: cap the winning block so the secured-today total
+      // lands on lockInNowMinCash instead of overshooting it by up to a whole
+      // coarse (100-share) block. Without this the amount locked in quantizes
+      // to ~100-share steps, so shortfall-vs-lock-in-fraction moves in cliffs
+      // that the findOptimalHybrid binary search can't bisect — leaving the
+      // recommendation stranded well short of the user's risk ceiling. Only
+      // the boundary block is capped (the bulk fills coarsely), and commitBlock
+      // recomputes the tax for the capped size, so this stays fast and exact.
+      if (
+        inLockInPhase &&
+        bestBlockShares > 1 &&
+        cumulativeFutureValue + bestFutureValue > lockInNowMinCash
+      ) {
+        const perShareFutureValue = bestFutureValue / bestBlockShares;
+        const room = lockInNowMinCash - cumulativeFutureValue;
+        const capped = Math.max(1, Math.floor(room / perShareFutureValue));
+        bestBlockShares = Math.min(bestBlockShares, capped);
+      }
+
       if (!isFinestBlock && cumulativeFutureValue + bestFutureValue > input.targetAfterTax) {
         break;
       }
