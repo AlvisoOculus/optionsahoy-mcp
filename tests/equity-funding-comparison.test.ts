@@ -184,3 +184,99 @@ describe('equity_funding_plan comparison output (v1.8)', () => {
     expect(out.recommended).toBeDefined();
   });
 });
+
+describe('parseEquityFundingInput error paths', () => {
+  it('throws when ticker is supplied but unknown to the trailing-returns table', () => {
+    expect(() =>
+      parseEquityFundingInput({
+        ...BASE,
+        stacks: [
+          {
+            ticker: 'NOSUCHTKR',
+            currentPrice: 100,
+            lots: [{ shares: 3000, costBasisPerShare: 20, acquisitionDate: '2022-03-15' }],
+          },
+        ],
+      }),
+    ).toThrow(/stacks\[0\]\.expectedAnnualGrowth.*NOSUCHTKR.*not in our trailing-returns/);
+  });
+
+  it('throws on empty stacks array', () => {
+    expect(() => parseEquityFundingInput({ ...BASE, stacks: [] })).toThrow(/stacks.*non-empty/);
+  });
+
+  it('throws on non-array stacks', () => {
+    expect(() => parseEquityFundingInput({ ...BASE, stacks: 'not-an-array' })).toThrow(/stacks.*non-empty/);
+  });
+
+  it('throws on empty lots within a stack', () => {
+    expect(() =>
+      parseEquityFundingInput({
+        ...BASE,
+        stacks: [{ currentPrice: 100, expectedAnnualGrowth: 0.05, lots: [] }],
+      }),
+    ).toThrow(/stacks\[0\]\.lots.*non-empty/);
+  });
+
+  it('throws on invalid filingStatus', () => {
+    expect(() =>
+      parseEquityFundingInput({ ...BASE, filingStatus: 'bogus' }),
+    ).toThrow(/filingStatus.*one of/);
+  });
+
+  it('throws on missing required top-level field', () => {
+    const { ordinaryIncome: _drop, ...without } = BASE;
+    expect(() => parseEquityFundingInput(without)).toThrow(/ordinaryIncome.*finite number/);
+  });
+
+  it('throws when neither stacks nor legacy lots are supplied', () => {
+    expect(() =>
+      parseEquityFundingInput({
+        targetAfterTax: 200_000,
+        targetDate: '2028-06-01',
+        ordinaryIncome: 250_000,
+        filingStatus: 'single',
+        stateCode: 'CA',
+      }),
+    ).toThrow(/stacks.*or legacy.*lots.*required/);
+  });
+
+  it('throws on invalid date format', () => {
+    expect(() =>
+      parseEquityFundingInput({ ...BASE, targetDate: 'tomorrow' }),
+    ).toThrow(/targetDate.*not a valid date/);
+  });
+
+  it('throws on body that is not a JSON object', () => {
+    expect(() => parseEquityFundingInput(null)).toThrow(/body must be a JSON object/);
+    expect(() => parseEquityFundingInput([])).toThrow(/body must be a JSON object/);
+  });
+});
+
+describe('extreme tolerance behavior', () => {
+  it('tolerance=0 forces the recommendation to a zero-shortfall plan', () => {
+    // Lock-in-now is always zero-shortfall, but a hybrid that locks in just
+    // enough to hit the goal in cash while letting the rest ride can also be
+    // zero-shortfall and beat lock-in on wealth. The constraint is only on
+    // the shortfall, not on plan identity.
+    const out = computeEquityFundingComparison(
+      parseEquityFundingInput({ ...BASE, riskToleranceShortfall: 0 }),
+    );
+    if (out.lockInNow.plan.feasible) {
+      expect(out.recommended.shortfallProbability).toBe(0);
+      expect(out.recommended.wealthAtTarget).toBeGreaterThanOrEqual(out.lockInNow.wealthAtTarget - 1);
+    }
+  });
+
+  it('tolerance=1 lets the recommendation reach maximum wealth', () => {
+    const out = computeEquityFundingComparison(
+      parseEquityFundingInput({ ...BASE, riskToleranceShortfall: 1 }),
+    );
+    const maxWealth = Math.max(
+      out.lockInNow.wealthAtTarget,
+      out.balanced.wealthAtTarget,
+      out.holdForGrowth.wealthAtTarget,
+    );
+    expect(out.recommended.wealthAtTarget).toBeGreaterThanOrEqual(maxWealth - 1);
+  });
+});
