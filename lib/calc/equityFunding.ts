@@ -1366,6 +1366,11 @@ function wealthAtTargetFor(plan: EquityFundingResult): number {
   return plan.totalAfterTaxAchieved + plan.remainingPositionAfterTax;
 }
 
+// reduce() comparator: keep whichever plan has the lower shortfall probability.
+// Used both as the no-eligible-plan fallback and as the wealth-tie breaker.
+const lowerShortfall = (a: NamedPlan, b: NamedPlan): NamedPlan =>
+  b.shortfallProbability < a.shortfallProbability ? b : a;
+
 /**
  * Standard deviation of realized after-tax cash for a plan, under the
  * lognormal price model. For each scheduled sale, models price at sale
@@ -1668,9 +1673,7 @@ export function computeEquityFundingComparison(
     // Tolerance is below even the safest available plan's residual risk —
     // recommend the lowest-shortfall feasible plan (closest to satisfying it).
     const feasibleAll = recommendationPool.filter((p) => p.plan.feasible);
-    optimal = (feasibleAll.length > 0 ? feasibleAll : recommendationPool).reduce((a, b) =>
-      b.shortfallProbability < a.shortfallProbability ? b : a,
-    );
+    optimal = (feasibleAll.length > 0 ? feasibleAll : recommendationPool).reduce(lowerShortfall);
   } else {
     // Among eligible plans, pick the highest wealth. The greedy is only
     // optimal to ~1-2%, so treat wealth within 0.05% (floor $100) of the best
@@ -1680,7 +1683,7 @@ export function computeEquityFundingComparison(
     const tieEps = Math.max(100, maxWealth * 5e-4);
     optimal = eligible
       .filter((p) => p.wealthAtTarget >= maxWealth - tieEps)
-      .reduce((a, b) => (b.shortfallProbability < a.shortfallProbability ? b : a));
+      .reduce(lowerShortfall);
   }
   const recommended: NamedPlan = {
     ...optimal,
