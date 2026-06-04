@@ -1,546 +1,546 @@
 {
   "_doc": "Trailing 5y/10y CAGRs from Yahoo v8 chart endpoint. Refreshed daily by .github/workflows/etl-daily.yml.",
-  "_refreshedAt": "2026-05-25",
+  "_refreshedAt": "2026-06-03",
   "tickers": {
     "NTSK": {
       "return5y": null,
       "return10y": null,
       "earliestSpanYears": 0.7,
-      "asOf": "2026-05-22"
+      "asOf": "2026-06-02"
     },
     "KLAR": {
       "return5y": null,
       "return10y": null,
       "earliestSpanYears": 0.7,
-      "asOf": "2026-05-22"
+      "asOf": "2026-06-02"
     },
     "FIG": {
       "return5y": null,
       "return10y": null,
       "earliestSpanYears": 0.8,
-      "asOf": "2026-05-22"
+      "asOf": "2026-06-02"
     },
     "CHYM": {
       "return5y": null,
       "return10y": null,
-      "earliestSpanYears": 0.9,
-      "asOf": "2026-05-22"
+      "earliestSpanYears": 1,
+      "asOf": "2026-06-02"
     },
     "CRCL": {
       "return5y": null,
       "return10y": null,
       "earliestSpanYears": 1,
-      "asOf": "2026-05-22"
+      "asOf": "2026-06-02"
     },
     "ETOR": {
       "return5y": null,
       "return10y": null,
-      "earliestSpanYears": 1,
-      "asOf": "2026-05-22"
+      "earliestSpanYears": 1.1,
+      "asOf": "2026-06-02"
     },
     "MNTN": {
       "return5y": null,
       "return10y": null,
       "earliestSpanYears": 1,
-      "asOf": "2026-05-22"
+      "asOf": "2026-06-02"
     },
     "HNGE": {
       "return5y": null,
       "return10y": null,
       "earliestSpanYears": 1,
-      "asOf": "2026-05-22"
+      "asOf": "2026-06-02"
     },
     "CRWV": {
       "return5y": null,
       "return10y": null,
-      "earliestSpanYears": 1.1,
-      "asOf": "2026-05-22"
+      "earliestSpanYears": 1.2,
+      "asOf": "2026-06-02"
     },
     "SAIL": {
       "return5y": null,
       "return10y": null,
       "earliestSpanYears": 1.3,
-      "asOf": "2026-05-22"
+      "asOf": "2026-06-02"
     },
     "TTAN": {
       "return5y": null,
       "return10y": null,
-      "earliestSpanYears": 1.4,
-      "asOf": "2026-05-22"
+      "earliestSpanYears": 1.5,
+      "asOf": "2026-06-02"
     },
     "NBIS": {
       "return5y": null,
       "return10y": null,
       "earliestSpanYears": 1.6,
-      "asOf": "2026-05-22"
+      "asOf": "2026-06-02"
     },
     "TEM": {
       "return5y": null,
       "return10y": null,
-      "earliestSpanYears": 1.9,
-      "asOf": "2026-05-22"
+      "earliestSpanYears": 2,
+      "asOf": "2026-06-02"
     },
     "RBRK": {
       "return5y": null,
       "return10y": null,
       "earliestSpanYears": 2.1,
-      "asOf": "2026-05-22"
+      "asOf": "2026-06-02"
     },
     "RDDT": {
       "return5y": null,
       "return10y": null,
       "earliestSpanYears": 2.2,
-      "asOf": "2026-05-22"
+      "asOf": "2026-06-02"
     },
     "ALAB": {
       "return5y": null,
       "return10y": null,
       "earliestSpanYears": 2.2,
-      "asOf": "2026-05-22"
+      "asOf": "2026-06-02"
     },
     "KVYO": {
       "return5y": null,
       "return10y": null,
       "earliestSpanYears": 2.7,
-      "asOf": "2026-05-22"
+      "asOf": "2026-06-02"
     },
     "CART": {
       "return5y": null,
       "return10y": null,
       "earliestSpanYears": 2.7,
-      "asOf": "2026-05-22"
+      "asOf": "2026-06-02"
     },
     "IOT": {
       "return5y": null,
       "return10y": null,
-      "earliestSpanYears": 4.4,
-      "asOf": "2026-05-22"
+      "earliestSpanYears": 4.5,
+      "asOf": "2026-06-02"
     },
     "BRZE": {
       "return5y": null,
       "return10y": null,
       "earliestSpanYears": 4.5,
-      "asOf": "2026-05-22"
+      "asOf": "2026-06-02"
     },
     "GTLB": {
       "return5y": null,
       "return10y": null,
       "earliestSpanYears": 4.6,
-      "asOf": "2026-05-22"
+      "asOf": "2026-06-02"
     },
     "AMPL": {
       "return5y": null,
       "return10y": null,
-      "earliestSpanYears": 4.6,
-      "asOf": "2026-05-22"
+      "earliestSpanYears": 4.7,
+      "asOf": "2026-06-02"
     },
     "TOST": {
       "return5y": null,
       "return10y": null,
       "earliestSpanYears": 4.7,
-      "asOf": "2026-05-22"
+      "asOf": "2026-06-02"
     },
     "ACHR": {
-      "return5y": -0.08498297467722771,
+      "return5y": -0.07420962220103566,
       "return10y": null,
-      "earliestSpanYears": 5.4,
-      "asOf": "2026-05-22"
+      "earliestSpanYears": 5.5,
+      "asOf": "2026-06-02"
     },
     "RKLB": {
-      "return5y": 0.6879407604881826,
+      "return5y": 0.6505572917331222,
       "return10y": null,
       "earliestSpanYears": 5.5,
-      "asOf": "2026-05-22"
+      "asOf": "2026-06-02"
     },
     "JOBY": {
-      "return5y": 0.019624347333579317,
+      "return5y": 0.03529973087526672,
       "return10y": null,
-      "earliestSpanYears": 5.5,
-      "asOf": "2026-05-22"
+      "earliestSpanYears": 5.6,
+      "asOf": "2026-06-02"
     },
     "HOOD": {
-      "return5y": 0.16837614096142595,
+      "return5y": 0.21143435242927722,
       "return10y": null,
       "earliestSpanYears": 4.8,
-      "asOf": "2026-05-22"
+      "asOf": "2026-06-02"
     },
     "S": {
-      "return5y": -0.15438684075144415,
+      "return5y": -0.16639666262120822,
       "return10y": null,
       "earliestSpanYears": 4.9,
-      "asOf": "2026-05-22"
+      "asOf": "2026-06-02"
     },
     "MNDY": {
-      "return5y": -0.152142549915681,
-      "return10y": null,
-      "earliestSpanYears": 4.9,
-      "asOf": "2026-05-22"
-    },
-    "SOFI": {
-      "return5y": -0.04618171046615527,
-      "return10y": null,
-      "earliestSpanYears": 5.4,
-      "asOf": "2026-05-22"
-    },
-    "PCOR": {
-      "return5y": -0.11495562276143567,
+      "return5y": -0.125978647614295,
       "return10y": null,
       "earliestSpanYears": 5,
-      "asOf": "2026-05-22"
+      "asOf": "2026-06-02"
+    },
+    "SOFI": {
+      "return5y": -0.05234010596209526,
+      "return10y": null,
+      "earliestSpanYears": 5.4,
+      "asOf": "2026-06-02"
+    },
+    "PCOR": {
+      "return5y": -0.09451191768472267,
+      "return10y": null,
+      "earliestSpanYears": 5,
+      "asOf": "2026-06-02"
     },
     "PATH": {
-      "return5y": -0.3370240284244719,
+      "return5y": -0.3154425126677307,
       "return10y": null,
       "earliestSpanYears": 5.1,
-      "asOf": "2026-05-22"
+      "asOf": "2026-06-02"
     },
     "COIN": {
-      "return5y": -0.03870586654874297,
+      "return5y": -0.0626857480682933,
       "return10y": null,
       "earliestSpanYears": 5.1,
-      "asOf": "2026-05-22"
+      "asOf": "2026-06-02"
     },
     "RBLX": {
-      "return5y": -0.11616939030343598,
+      "return5y": -0.14738158041169125,
       "return10y": null,
       "earliestSpanYears": 5.2,
-      "asOf": "2026-05-22"
+      "asOf": "2026-06-02"
     },
     "AFRM": {
-      "return5y": 0.041831372838300185,
+      "return5y": 0.017096419199716495,
       "return10y": null,
       "earliestSpanYears": 5.4,
-      "asOf": "2026-05-22"
+      "asOf": "2026-06-02"
     },
     "ABNB": {
-      "return5y": -0.005301038890962673,
+      "return5y": -0.02309853860567701,
       "return10y": null,
-      "earliestSpanYears": 5.4,
-      "asOf": "2026-05-22"
+      "earliestSpanYears": 5.5,
+      "asOf": "2026-06-02"
     },
     "DASH": {
-      "return5y": 0.026746411598040476,
+      "return5y": 0.009329710896294419,
       "return10y": null,
-      "earliestSpanYears": 5.4,
-      "asOf": "2026-05-22"
+      "earliestSpanYears": 5.5,
+      "asOf": "2026-06-02"
     },
     "AI": {
-      "return5y": -0.3107618138506266,
+      "return5y": -0.3187107063271193,
       "return10y": null,
-      "earliestSpanYears": 5.4,
-      "asOf": "2026-05-22"
+      "earliestSpanYears": 5.5,
+      "asOf": "2026-06-02"
     },
     "PLTR": {
-      "return5y": 0.4525084407573796,
+      "return5y": 0.44155685143233403,
       "return10y": null,
-      "earliestSpanYears": 5.6,
-      "asOf": "2026-05-22"
+      "earliestSpanYears": 5.7,
+      "asOf": "2026-06-02"
     },
     "ASAN": {
-      "return5y": -0.2861152670082385,
+      "return5y": -0.2511830206207232,
       "return10y": null,
-      "earliestSpanYears": 5.6,
-      "asOf": "2026-05-22"
+      "earliestSpanYears": 5.7,
+      "asOf": "2026-06-02"
     },
     "U": {
-      "return5y": -0.23328551698069866,
+      "return5y": -0.1993537591651946,
       "return10y": null,
       "earliestSpanYears": 5.7,
-      "asOf": "2026-05-22"
+      "asOf": "2026-06-02"
     },
     "SNOW": {
-      "return5y": -0.05949667218525023,
+      "return5y": 0.014354975924294688,
       "return10y": null,
       "earliestSpanYears": 5.7,
-      "asOf": "2026-05-22"
+      "asOf": "2026-06-02"
     },
     "GTM": {
-      "return5y": -0.3907074025655948,
+      "return5y": -0.3985161007316077,
       "return10y": null,
       "earliestSpanYears": 6,
-      "asOf": "2026-05-22"
+      "asOf": "2026-06-02"
     },
     "BILL": {
-      "return5y": -0.24665210955181993,
+      "return5y": -0.24418363897839257,
       "return10y": null,
-      "earliestSpanYears": 6.4,
-      "asOf": "2026-05-22"
+      "earliestSpanYears": 6.5,
+      "asOf": "2026-06-02"
     },
     "DDOG": {
-      "return5y": 0.19915774556718668,
+      "return5y": 0.24058391883417451,
       "return10y": null,
       "earliestSpanYears": 6.7,
-      "asOf": "2026-05-22"
+      "asOf": "2026-06-02"
     },
     "NET": {
-      "return5y": 0.22369651534383572,
+      "return5y": 0.2659814336086983,
       "return10y": null,
       "earliestSpanYears": 6.7,
-      "asOf": "2026-05-22"
+      "asOf": "2026-06-02"
     },
     "DT": {
-      "return5y": -0.040612885984199876,
+      "return5y": -0.027623578061240495,
       "return10y": null,
       "earliestSpanYears": 6.8,
-      "asOf": "2026-05-22"
+      "asOf": "2026-06-02"
     },
     "CRWD": {
-      "return5y": 0.2538896292609989,
+      "return5y": 0.28375232958870633,
       "return10y": null,
-      "earliestSpanYears": 6.9,
-      "asOf": "2026-05-22"
+      "earliestSpanYears": 7,
+      "asOf": "2026-06-02"
     },
     "ZM": {
-      "return5y": -0.19980836603270635,
+      "return5y": -0.19313854219392967,
       "return10y": null,
       "earliestSpanYears": 7.1,
-      "asOf": "2026-05-22"
+      "asOf": "2026-06-02"
     },
     "PINS": {
-      "return5y": -0.21078404816467167,
+      "return5y": -0.20097529004592896,
       "return10y": null,
       "earliestSpanYears": 7.1,
-      "asOf": "2026-05-22"
+      "asOf": "2026-06-02"
     },
     "PD": {
-      "return5y": -0.279628032224863,
+      "return5y": -0.2475837982629635,
       "return10y": null,
       "earliestSpanYears": 7.1,
-      "asOf": "2026-05-22"
+      "asOf": "2026-06-02"
     },
     "LYFT": {
-      "return5y": -0.23599325837672724,
+      "return5y": -0.24748227156353986,
       "return10y": null,
-      "earliestSpanYears": 7.1,
-      "asOf": "2026-05-22"
+      "earliestSpanYears": 7.2,
+      "asOf": "2026-06-02"
     },
     "DOCU": {
-      "return5y": -0.24041747902772126,
+      "return5y": -0.22771235883791763,
       "return10y": null,
       "earliestSpanYears": 8.1,
-      "asOf": "2026-05-22"
+      "asOf": "2026-06-02"
     },
     "DBX": {
-      "return5y": 0.002056700181456872,
+      "return5y": 0.002144696980495464,
       "return10y": null,
       "earliestSpanYears": 8.2,
-      "asOf": "2026-05-22"
+      "asOf": "2026-06-02"
     },
     "ZS": {
-      "return5y": 0.008988397164030548,
+      "return5y": -0.055072679964467075,
       "return10y": null,
       "earliestSpanYears": 8.2,
-      "asOf": "2026-05-22"
+      "asOf": "2026-06-02"
     },
     "MDB": {
-      "return5y": 0.026089378306607625,
+      "return5y": 0.06738978753840952,
       "return10y": null,
       "earliestSpanYears": 8.6,
-      "asOf": "2026-05-22"
+      "asOf": "2026-06-02"
     },
     "OKTA": {
-      "return5y": -0.17602046148687855,
+      "return5y": -0.089087431654028,
       "return10y": null,
-      "earliestSpanYears": 9.1,
-      "asOf": "2026-05-22"
+      "earliestSpanYears": 9.2,
+      "asOf": "2026-06-02"
     },
     "NTNX": {
-      "return5y": 0.08760126703402515,
-      "return10y": 0.025398115985336034,
-      "earliestSpanYears": 9.6,
-      "asOf": "2026-05-22"
+      "return5y": 0.10814165329194236,
+      "return10y": 0.042801863984668564,
+      "earliestSpanYears": 9.7,
+      "asOf": "2026-06-02"
     },
     "ESTC": {
-      "return5y": -0.1412183650370531,
+      "return5y": -0.10550331279711689,
       "return10y": null,
-      "earliestSpanYears": 7.6,
-      "asOf": "2026-05-22"
+      "earliestSpanYears": 7.7,
+      "asOf": "2026-06-02"
     },
     "HUBS": {
-      "return5y": -0.16830183897097506,
-      "return10y": 0.16094088119656558,
+      "return5y": -0.1305494937267263,
+      "return10y": 0.16569729727833282,
       "earliestSpanYears": 10,
-      "asOf": "2026-05-22"
+      "asOf": "2026-06-02"
     },
     "GOOGL": {
-      "return5y": 0.265739611422422,
-      "return10y": 0.2646696577178609,
+      "return5y": 0.25012573756080414,
+      "return10y": 0.25694746542236113,
       "earliestSpanYears": 10,
-      "asOf": "2026-05-22"
+      "asOf": "2026-06-02"
     },
     "MSFT": {
-      "return5y": 0.10802594293226653,
-      "return10y": 0.23305523627309332,
+      "return5y": 0.12282174838614801,
+      "return10y": 0.23904766589761017,
       "earliestSpanYears": 10,
-      "asOf": "2026-05-22"
+      "asOf": "2026-06-02"
     },
     "AAPL": {
-      "return5y": 0.19455760742576578,
-      "return10y": 0.288764848207933,
+      "return5y": 0.20310783496998663,
+      "return10y": 0.2912878858110448,
       "earliestSpanYears": 10,
-      "asOf": "2026-05-22"
+      "asOf": "2026-06-02"
     },
     "AMZN": {
-      "return5y": 0.10432571322125805,
-      "return10y": 0.22443001060242262,
+      "return5y": 0.09670039128028529,
+      "return10y": 0.21614087414098382,
       "earliestSpanYears": 10,
-      "asOf": "2026-05-22"
+      "asOf": "2026-06-02"
     },
     "META": {
-      "return5y": 0.13473089778399427,
-      "return10y": 0.1790244210390759,
+      "return5y": 0.12671688194350628,
+      "return10y": 0.1757399504875734,
       "earliestSpanYears": 10,
-      "asOf": "2026-05-22"
+      "asOf": "2026-06-02"
     },
     "NVDA": {
-      "return5y": 0.6912599333311491,
-      "return10y": 0.6904612195355302,
+      "return5y": 0.6775375951757101,
+      "return10y": 0.6918762488675485,
       "earliestSpanYears": 10,
-      "asOf": "2026-05-22"
+      "asOf": "2026-06-02"
     },
     "TSLA": {
-      "return5y": 0.16099544763569007,
-      "return10y": 0.4022449540798496,
+      "return5y": 0.1600712615060349,
+      "return10y": 0.4006729499380044,
       "earliestSpanYears": 10,
-      "asOf": "2026-05-22"
+      "asOf": "2026-06-02"
     },
     "NFLX": {
-      "return5y": 0.12008528852891986,
-      "return10y": 0.24662280578611906,
+      "return5y": 0.10791003506002683,
+      "return10y": 0.23679144232883997,
       "earliestSpanYears": 10,
-      "asOf": "2026-05-22"
+      "asOf": "2026-06-02"
     },
     "ORCL": {
-      "return5y": 0.19357274906656108,
-      "return10y": 0.17030125591603462,
+      "return5y": 0.2496453837070507,
+      "return10y": 0.20131564700391857,
       "earliestSpanYears": 10,
-      "asOf": "2026-05-22"
+      "asOf": "2026-06-02"
     },
     "CRM": {
-      "return5y": -0.04531055985875476,
-      "return10y": 0.08091231857963077,
+      "return5y": -0.030617471632810478,
+      "return10y": 0.09302268423969151,
       "earliestSpanYears": 10,
-      "asOf": "2026-05-22"
+      "asOf": "2026-06-02"
     },
     "ADBE": {
-      "return5y": -0.13252732108002485,
-      "return10y": 0.09411196637336205,
+      "return5y": -0.11969516498966748,
+      "return10y": 0.1026408283748006,
       "earliestSpanYears": 10,
-      "asOf": "2026-05-22"
+      "asOf": "2026-06-02"
     },
     "NOW": {
-      "return5y": 0.014016571313691939,
-      "return10y": 0.2183089380984975,
+      "return5y": 0.06447788722024339,
+      "return10y": 0.24134124140415292,
       "earliestSpanYears": 10,
-      "asOf": "2026-05-22"
+      "asOf": "2026-06-02"
     },
     "WDAY": {
-      "return5y": -0.1136010160844867,
-      "return10y": 0.052369918879790145,
+      "return5y": -0.08077427800358106,
+      "return10y": 0.06392191616226595,
       "earliestSpanYears": 10,
-      "asOf": "2026-05-22"
+      "asOf": "2026-06-02"
     },
     "INTU": {
-      "return5y": -0.06198878022894583,
-      "return10y": 0.11551478548388494,
+      "return5y": -0.06276772077828696,
+      "return10y": 0.11610079475110724,
       "earliestSpanYears": 10,
-      "asOf": "2026-05-22"
+      "asOf": "2026-06-02"
     },
     "IBM": {
-      "return5y": 0.1292176638114415,
-      "return10y": 0.060008756342644354,
+      "return5y": 0.18771602731588333,
+      "return10y": 0.08462519771531452,
       "earliestSpanYears": 10,
-      "asOf": "2026-05-22"
+      "asOf": "2026-06-02"
     },
     "INTC": {
-      "return5y": 0.16060933147454648,
-      "return10y": 0.14466973097347946,
+      "return5y": 0.13431213160390532,
+      "return10y": 0.1306805868320282,
       "earliestSpanYears": 10,
-      "asOf": "2026-05-22"
+      "asOf": "2026-06-02"
     },
     "AMD": {
-      "return5y": 0.4333681467595605,
-      "return10y": 0.6024863482562819,
+      "return5y": 0.4479332385779726,
+      "return10y": 0.6214577338712521,
       "earliestSpanYears": 10,
-      "asOf": "2026-05-22"
+      "asOf": "2026-06-02"
     },
     "CSCO": {
-      "return5y": 0.1768677706546058,
-      "return10y": 0.15523518264299252,
+      "return5y": 0.19306167427725063,
+      "return10y": 0.15961376467520405,
       "earliestSpanYears": 10,
-      "asOf": "2026-05-22"
+      "asOf": "2026-06-02"
     },
     "AVGO": {
-      "return5y": 0.5533402784352068,
-      "return10y": 0.39249875927480193,
+      "return5y": 0.5902056198656,
+      "return10y": 0.4035407768998225,
       "earliestSpanYears": 10,
-      "asOf": "2026-05-22"
+      "asOf": "2026-06-02"
     },
     "TEAM": {
-      "return5y": -0.17452437438072232,
-      "return10y": 0.1412049733413654,
+      "return5y": -0.13967098666742572,
+      "return10y": 0.16283385725268573,
       "earliestSpanYears": 10,
-      "asOf": "2026-05-22"
+      "asOf": "2026-06-02"
     },
     "XYZ": {
-      "return5y": -0.20265397638580607,
-      "return10y": 0.20991483430767888,
+      "return5y": -0.19580194684084518,
+      "return10y": 0.22873644907169233,
       "earliestSpanYears": 10,
-      "asOf": "2026-05-22"
+      "asOf": "2026-06-02"
     },
     "PYPL": {
-      "return5y": -0.2970722146961222,
-      "return10y": 0.012880515386364255,
+      "return5y": -0.2985562483428379,
+      "return10y": 0.015112228469184696,
       "earliestSpanYears": 10,
-      "asOf": "2026-05-22"
+      "asOf": "2026-06-02"
     },
     "HAWK": {
       "return5y": null,
       "return10y": null,
-      "earliestSpanYears": 0,
-      "asOf": "2026-05-22"
+      "earliestSpanYears": 0.1,
+      "asOf": "2026-06-02"
     },
     "FUSE": {
       "return5y": null,
       "return10y": null,
       "earliestSpanYears": 4.2,
-      "asOf": "2026-05-22"
+      "asOf": "2026-06-02"
     },
     "VRHI": {
-      "return5y": -0.13806076479505858,
-      "return10y": 0.1280378870780241,
+      "return5y": -0.13792049188577382,
+      "return10y": 0.1280006634490518,
       "earliestSpanYears": 10,
-      "asOf": "2026-05-22"
+      "asOf": "2026-06-02"
     },
     "RIME": {
-      "return5y": -0.8018756288442141,
-      "return10y": -0.5385099136382763,
+      "return5y": -0.7967053250627862,
+      "return10y": -0.5406554053092865,
       "earliestSpanYears": 10,
-      "asOf": "2026-05-22"
+      "asOf": "2026-06-02"
     },
     "VEEA": {
-      "return5y": -0.4293723594870228,
+      "return5y": -0.43841430089596767,
       "return10y": null,
-      "earliestSpanYears": 5,
-      "asOf": "2026-05-22"
+      "earliestSpanYears": 5.1,
+      "asOf": "2026-06-02"
     },
     "BRUN": {
       "return5y": null,
       "return10y": null,
       "earliestSpanYears": 1.4,
-      "asOf": "2026-05-22"
+      "asOf": "2026-06-02"
     },
     "SPY": {
-      "return5y": 0.12224973592047306,
-      "return10y": 0.1363490043372464,
+      "return5y": 0.12564779089250133,
+      "return10y": 0.1371032477672025,
       "earliestSpanYears": 10,
-      "asOf": "2026-05-22"
+      "asOf": "2026-06-02"
     },
     "QQQ": {
-      "return5y": 0.1665159661645481,
-      "return10y": 0.20813051676435435,
+      "return5y": 0.17480182642748043,
+      "return10y": 0.21102858574879635,
       "earliestSpanYears": 10,
-      "asOf": "2026-05-22"
+      "asOf": "2026-06-02"
     }
   }
 }
