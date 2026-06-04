@@ -241,9 +241,6 @@ function parseEquityFundingLot(raw: unknown, index: number): EquityFundingLot {
   return lot;
 }
 
-// Each stack collects its own optional volatility into the parser's caller,
-// which translates the per-stack values into the top-level
-// `stackVolatilities` array the comparison calc expects.
 function parseEquityFundingStack(
   raw: unknown,
   index: number,
@@ -262,6 +259,9 @@ function parseEquityFundingStack(
     lots: lotsRaw.map((lot, idx) => parseEquityFundingLot(lot, idx)),
   };
   if (o.ticker !== undefined) stack.ticker = p.str(o, 'ticker');
+  // Growth is optional; leave undefined when neither explicit field nor ticker
+  // fallback resolves it (the calc defaults to flat-price). Throw only when a
+  // ticker is supplied but unknown to the trailing-returns table.
   if (o.expectedAnnualGrowth !== undefined) {
     stack.expectedAnnualGrowth = p.num(o, 'expectedAnnualGrowth');
   } else if (o.ticker !== undefined) {
@@ -273,8 +273,9 @@ function parseEquityFundingStack(
     }
     stack.expectedAnnualGrowth = r;
   }
-  // Leave growth undefined when neither field is set; the calc defaults to 0
-  // (flat price), matching legacy v1.5 behavior.
+  // Volatility is sidecar (returned next to the stack) because the calc
+  // consumes it via the parallel `stackVolatilities` array, not via a
+  // per-stack field. Caller assembles the array from this stream.
   const volatility = o.volatility !== undefined ? p.num(o, 'volatility') : null;
   return { stack, volatility };
 }
@@ -291,33 +292,25 @@ export function parseEquityFundingInput(raw: unknown): EquityFundingComparisonIn
   const base: EquityFundingComparisonInput = {
     targetAfterTax: p.num(o, 'targetAfterTax'),
     targetDate,
+    today,
     ordinaryIncome: p.num(o, 'ordinaryIncome'),
     filingStatus: p.enum(o, 'filingStatus', FILING_STATUSES),
     stateCode: p.str(o, 'stateCode'),
   };
-  if (o.today !== undefined) base.today = today;
   if (o.cashInterestRate !== undefined) base.cashInterestRate = p.num(o, 'cashInterestRate');
   if (o.riskToleranceShortfall !== undefined) {
     base.riskToleranceShortfall = p.num(o, 'riskToleranceShortfall');
   }
   if (o.defaultVolatility !== undefined) base.defaultVolatility = p.num(o, 'defaultVolatility');
 
-  // v1.7+ multi-stack input
   if (o.stacks !== undefined) {
     if (!Array.isArray(o.stacks) || o.stacks.length === 0) {
       throw new Error('field "stacks" must be a non-empty array of {currentPrice, lots[, ticker, expectedAnnualGrowth, volatility]}');
     }
-    const stacksOut: EquityFundingStack[] = [];
-    const vols: (number | null)[] = [];
-    let anyVolSet = false;
-    o.stacks.forEach((s, idx) => {
-      const parsed = parseEquityFundingStack(s, idx, horizonYears);
-      stacksOut.push(parsed.stack);
-      vols.push(parsed.volatility);
-      if (parsed.volatility !== null) anyVolSet = true;
-    });
-    base.stacks = stacksOut;
-    if (anyVolSet) base.stackVolatilities = vols;
+    const parsed = o.stacks.map((s, idx) => parseEquityFundingStack(s, idx, horizonYears));
+    base.stacks = parsed.map((p) => p.stack);
+    const vols = parsed.map((p) => p.volatility);
+    if (vols.some((v) => v !== null)) base.stackVolatilities = vols;
     return base;
   }
 

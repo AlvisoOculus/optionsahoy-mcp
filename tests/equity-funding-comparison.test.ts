@@ -1,12 +1,7 @@
 // AlphaLatitude Inc. © 2026
 //
-// MCP / REST wiring for equity_funding_plan v1.8: the tool now returns
-// the comparison output (Lock-in-now / Balanced / Hold-for-growth /
-// Recommended + frontier) instead of the single-plan output.
-//
-// Math correctness is exercised by the existing calc-equity-funding test
-// (18 tests on `computeEquityFundingPlan`) and by the parallel test suite
-// in optionsahoy_web (71 tests covering computeEquityFundingComparison).
+// Math correctness for computeEquityFundingComparison is exercised by the
+// 73-test parallel suite in optionsahoy_web (calc files are byte-identical).
 // Here we only verify the parser + comparison wiring at the MCP edge.
 
 import { describe, it, expect } from 'vitest';
