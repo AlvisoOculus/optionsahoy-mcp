@@ -5,18 +5,55 @@
   "description": "Equity-compensation optimizer. ISO/AMT, NSO, RSU, QSBS, single-stock concentration, protective puts/collars, and equity-funding plans. MCP server + REST API with federal + 50-state + DC tax code.",
   "license": "MIT",
   "type": "module",
+  "bin": {
+    "optionsahoy-mcp": "./dist/stdio-server.js"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AlvisoOculus/optionsahoy-mcp.git"
+  },
+  "homepage": "https://optionsahoy.com/for-agents",
+  "bugs": {
+    "url": "https://github.com/AlvisoOculus/optionsahoy-mcp/issues"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "claude",
+    "cursor",
+    "vscode",
+    "tax",
+    "equity",
+    "iso",
+    "amt",
+    "rsu",
+    "nso",
+    "qsbs",
+    "options",
+    "stock-options",
+    "equity-compensation"
+  ],
   "scripts": {
     "start": "tsx src/stdio-server.ts",
+    "build": "esbuild src/stdio-server.ts --bundle --platform=node --target=node20 --outfile=dist/stdio-server.js --format=esm --banner:js='#!/usr/bin/env node' && chmod +x dist/stdio-server.js",
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "npm run typecheck && npm test && npm run build"
   },
   "devDependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
     "@types/node": "^25.9.1",
+    "esbuild": "^0.25.12",
+    "tsx": "^4.22.3",
     "typescript": "^5.5.4",
     "vitest": "^3.2.4"
-  },
-  "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.29.0",
-    "tsx": "^4.22.3"
   }
 }

@@ -60,6 +60,8 @@ A benchmark of five frontier large language models on the same multi-year ISO ex
 
 ## Use from Claude / ChatGPT / Perplexity / any MCP client
 
+### Hosted (no install)
+
 Add the server as a remote HTTP MCP connection:
 
 ```
@@ -71,6 +73,29 @@ Or via the [`add-mcp`](https://github.com/neon-solutions/add-mcp) CLI:
 ```bash
 npx add-mcp https://optionsahoy.com/mcp
 ```
+
+### Local stdio (npm)
+
+For clients that only support local stdio servers (Claude Desktop without `mcp-remote`, some IDE integrations):
+
+```bash
+npx -y optionsahoy-mcp
+```
+
+Or add to a Claude Desktop / Cline / Goose config file:
+
+```json
+{
+  "mcpServers": {
+    "optionsahoy": {
+      "command": "npx",
+      "args": ["-y", "optionsahoy-mcp"]
+    }
+  }
+}
+```
+
+The local server returns byte-identical responses to the hosted endpoint at `https://optionsahoy.com/mcp`. Source for both lives in [`functions/_lib/mcp-tools.ts`](functions/_lib/mcp-tools.ts); the stdio entry point is [`src/stdio-server.ts`](src/stdio-server.ts).
 
 ## Use the REST API directly
 
