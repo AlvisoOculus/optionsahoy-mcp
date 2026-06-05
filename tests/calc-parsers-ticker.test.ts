@@ -253,13 +253,10 @@ describe('parseConcentrationInput — volatility -> drag derivation', () => {
   });
 });
 
-// ─────────────────────────────────────────────────────────────────────
-// trailing-vols.json ticker → sigma resolution (v1.9.0)
-// Mirrors the trailing-returns ticker tests above: explicit volatility
-// wins; ticker substitutes when no explicit sigma; unknown ticker
-// throws (drag-bearing tools) or falls through to sector default
-// (protective put).
-// ─────────────────────────────────────────────────────────────────────
+// Ticker → ATM 1y IV resolution.
+// Mirrors the trailing-returns ticker tests above: explicit volatility wins;
+// ticker substitutes when no explicit sigma; unknown ticker throws for the
+// drag-bearing tools, falls through to sector default for protective put.
 
 describe('parseAmtIsoInput — ticker → sigma resolution', () => {
   it('substitutes the ticker\'s ATM 1y IV when volatility is omitted', () => {
@@ -282,7 +279,7 @@ describe('parseAmtIsoInput — ticker → sigma resolution', () => {
   it('throws when ticker is set but unknown', () => {
     const { volatility: _v, ...NO_VOL } = AMT_ISO_BASE;
     expect(() => parseAmtIsoInput({ ...NO_VOL, expectedGrowth: 0.17, ticker: 'BOGUS' })).toThrow(
-      /trailing-vols table.*MUST NOT invent/i,
+      /implied-vol table.*MUST NOT invent/i,
     );
   });
 });

@@ -28,26 +28,28 @@ import { lognormalHaircut } from '../../lib/calc/volatility-drag';
 const ASK_USER_HINT =
   'The model invoking this tool MUST NOT invent this value — ask the user.';
 
-// Caller may pass any of three ways to specify sigma, in priority order:
-//   1. The pre-computed drag-at-horizon field (legacy REST clients).
-//   2. An explicit `volatility` (annualized sigma).
-//   3. A `ticker` covered by our daily ATM-1y IV table, in which case
-//      the cached sigma is substituted.
+// Returns the cached sigma for `o.ticker`, or null when no ticker is set
+// or the ticker isn't covered. Callers decide how to handle null (throw,
+// or fall through to a default).
+function resolveSigmaFromTicker(o: Obj): number | null {
+  if (o.ticker === undefined) return null;
+  return getTrailingVol(p.str(o, 'ticker'));
+}
+
 function resolveDragFromVolatility(o: Obj, dragField: string, horizonYears: number): number {
   if (o[dragField] !== undefined) return p.num(o, dragField);
   if (o.volatility !== undefined) {
     return lognormalHaircut(p.num(o, 'volatility'), horizonYears);
   }
   if (o.ticker !== undefined) {
-    const ticker = p.str(o, 'ticker');
-    const sigma = getTrailingVol(ticker);
+    const sigma = resolveSigmaFromTicker(o);
     if (sigma !== null) return lognormalHaircut(sigma, horizonYears);
     throw new Error(
-      `field "volatility" required: ticker "${ticker}" is not in our trailing-vols table (~85 covered). Pass "volatility" explicitly (annualized sigma, e.g. 0.30 for 30%) or use a covered public-stock symbol. ${ASK_USER_HINT}`,
+      `field "volatility" required: ticker "${p.str(o, 'ticker')}" is not in our cached implied-vol table. Pass "volatility" explicitly (annualized sigma, e.g. 0.30 for 30%) or use a covered public-stock symbol. ${ASK_USER_HINT}`,
     );
   }
   throw new Error(
-    `field "volatility" required: annualized sigma of the stock as a decimal (e.g. 0.30 for 30%). Or set "ticker" to a covered public-stock symbol (e.g. "NVDA") to derive from our daily ATM 1y IV table. ${ASK_USER_HINT}`,
+    `field "volatility" required: annualized sigma of the stock as a decimal (e.g. 0.30 for 30%). Or set "ticker" to a covered public-stock symbol (e.g. "NVDA") to derive from the cached implied-vol table. ${ASK_USER_HINT}`,
   );
 }
 
@@ -207,16 +209,9 @@ export function parseConcentrationInput(raw: unknown): ConcentrationInputs {
     expectedMarketReturn: resolveMarketReturn(o, CONCENTRATION_HORIZON_YEARS),
     volatilityDrag: resolveDragFromVolatility(o, 'volatilityDrag', CONCENTRATION_HORIZON_YEARS),
   };
-  // Set base.volatility so the hedge-pricing path can use it. Falls back
-  // to ticker-IV resolution when no explicit volatility was supplied,
-  // matching the drag's resolution path so both sigma uses (drag + hedge)
-  // stay consistent regardless of input source.
-  if (o.volatility !== undefined) {
-    base.volatility = p.num(o, 'volatility');
-  } else if (o.ticker !== undefined) {
-    const sigma = getTrailingVol(p.str(o, 'ticker'));
-    if (sigma !== null) base.volatility = sigma;
-  }
+  // Mirror the drag's sigma source so hedge pricing uses the same value.
+  const sigma = o.volatility !== undefined ? p.num(o, 'volatility') : resolveSigmaFromTicker(o);
+  if (sigma !== null) base.volatility = sigma;
   if (o.hedgeChoice !== undefined) {
     const hc = asObject(o.hedgeChoice);
     const hedge: NonNullable<ConcentrationInputs['hedgeChoice']> = {
@@ -233,24 +228,11 @@ export function parseConcentrationInput(raw: unknown): ConcentrationInputs {
 export function parseProtectivePutInput(raw: unknown): ProtectivePutInputs {
   const o = asObject(raw);
   const sector = p.enum(o, 'sector', SECTORS) as SectorKey;
-  // Three resolution paths in priority order:
-  //   1. Explicit `volatility` (user-stated, highest priority).
-  //   2. `ticker` covered by our daily ATM-1y IV table.
-  //   3. Sector default × IV-over-RV multiplier (existing fallback).
-  let volatility: number;
-  if (o.volatility !== undefined) {
-    volatility = p.num(o, 'volatility');
-  } else if (o.ticker !== undefined) {
-    const ticker = p.str(o, 'ticker');
-    const sigma = getTrailingVol(ticker);
-    if (sigma !== null) {
-      volatility = sigma;
-    } else {
-      volatility = SECTOR_STATS[sector].annualVol * IV_OVER_RV_MULTIPLIER;
-    }
-  } else {
-    volatility = SECTOR_STATS[sector].annualVol * IV_OVER_RV_MULTIPLIER;
-  }
+  const sectorDefault = SECTOR_STATS[sector].annualVol * IV_OVER_RV_MULTIPLIER;
+  const volatility =
+    o.volatility !== undefined
+      ? p.num(o, 'volatility')
+      : resolveSigmaFromTicker(o) ?? sectorDefault;
   const base: ProtectivePutInputs = {
     positionValue: p.num(o, 'positionValue'),
     sector,
