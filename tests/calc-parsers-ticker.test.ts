@@ -23,6 +23,7 @@ import {
   parseRsuInput,
 } from '../functions/_lib/calc-parsers';
 import { getTrailingReturn } from '../lib/data/trailing-returns';
+import { getTrailingVol } from '../lib/data/trailing-vols';
 import { SECTOR_STATS } from '../lib/markets/sector-stats';
 import { lognormalHaircut } from '@/lib/calc/volatility-drag';
 
@@ -249,5 +250,100 @@ describe('parseConcentrationInput — volatility -> drag derivation', () => {
     });
     expect(out.volatilityDrag).toBeCloseTo(lognormalHaircut(sigma, 3), 10);
     expect(out.volatility).toBe(sigma);
+  });
+});
+
+// Ticker → ATM 1y IV resolution.
+// Mirrors the trailing-returns ticker tests above: explicit volatility wins;
+// ticker substitutes when no explicit sigma; unknown ticker throws for the
+// drag-bearing tools, falls through to sector default for protective put.
+
+describe('parseAmtIsoInput — ticker → sigma resolution', () => {
+  it('substitutes the ticker\'s ATM 1y IV when volatility is omitted', () => {
+    const { volatility: _v, ...NO_VOL } = AMT_ISO_BASE;
+    const out = parseAmtIsoInput({ ...NO_VOL, expectedGrowth: 0.17, ticker: 'NVDA' });
+    const sigma = getTrailingVol('NVDA')!;
+    expect(out.volatilityDrag).toBeCloseTo(lognormalHaircut(sigma, AMT_ISO_BASE.horizon), 10);
+  });
+
+  it('prefers explicit volatility over ticker', () => {
+    const out = parseAmtIsoInput({
+      ...AMT_ISO_BASE,
+      expectedGrowth: 0.17,
+      ticker: 'NVDA',
+      volatility: 0.99,
+    });
+    expect(out.volatilityDrag).toBeCloseTo(lognormalHaircut(0.99, AMT_ISO_BASE.horizon), 10);
+  });
+
+  it('throws when ticker is set but unknown', () => {
+    const { volatility: _v, ...NO_VOL } = AMT_ISO_BASE;
+    expect(() => parseAmtIsoInput({ ...NO_VOL, expectedGrowth: 0.17, ticker: 'BOGUS' })).toThrow(
+      /implied-vol table.*MUST NOT invent/i,
+    );
+  });
+});
+
+describe('parseConcentrationInput — ticker → sigma resolution', () => {
+  it('substitutes the ticker\'s ATM 1y IV when volatility is omitted', () => {
+    const { volatility: _v, ...NO_VOL } = CONCENTRATION_BASE;
+    const out = parseConcentrationInput({
+      ...NO_VOL,
+      expectedPositionReturn: 0.10,
+      ticker: 'NVDA',
+    });
+    const sigma = getTrailingVol('NVDA')!;
+    expect(out.volatility).toBe(sigma);
+  });
+});
+
+describe('parseNsoInput / parseRsuInput — ticker → sigma resolution', () => {
+  it('NSO substitutes the ticker IV when volatility is omitted', () => {
+    const { volatility: _v, ...NO_VOL } = NSO_BASE;
+    const out = parseNsoInput({ ...NO_VOL, ticker: 'AAPL', expectedSalePrice: 80 });
+    const sigma = getTrailingVol('AAPL')!;
+    expect(out.haircut).toBeCloseTo(lognormalHaircut(sigma, NSO_BASE.holdYears), 10);
+  });
+
+  it('RSU substitutes the ticker IV when volatility is omitted', () => {
+    const { volatility: _v, ...NO_VOL } = RSU_BASE;
+    const out = parseRsuInput({ ...NO_VOL, ticker: 'MSFT', expectedSalePrice: 100 });
+    const sigma = getTrailingVol('MSFT')!;
+    expect(out.haircut).toBeCloseTo(lognormalHaircut(sigma, RSU_BASE.holdYears), 10);
+  });
+});
+
+describe('parseProtectivePutInput — ticker → sigma resolution', () => {
+  const PUT_BASE = {
+    positionValue: 100000,
+    sector: 'tech_software',
+    protectionLevel: 0.2,
+    tenorYears: 1,
+  };
+
+  it('uses the ticker IV when volatility is omitted', () => {
+    const out = parseProtectivePutInput({ ...PUT_BASE, ticker: 'NVDA' });
+    const sigma = getTrailingVol('NVDA')!;
+    expect(out.volatility).toBe(sigma);
+  });
+
+  it('prefers explicit volatility over ticker', () => {
+    const out = parseProtectivePutInput({ ...PUT_BASE, ticker: 'NVDA', volatility: 0.99 });
+    expect(out.volatility).toBe(0.99);
+  });
+
+  it('falls through to sector default when ticker is unknown (no throw)', () => {
+    const out = parseProtectivePutInput({ ...PUT_BASE, ticker: 'BOGUS' });
+    expect(out.volatility).toBeCloseTo(SECTOR_STATS.tech_software.annualVol * 1.20, 10);
+  });
+
+  it('echoes ticker as tickerLabel when tickerLabel is not provided', () => {
+    const out = parseProtectivePutInput({ ...PUT_BASE, ticker: 'NVDA' });
+    expect(out.tickerLabel).toBe('NVDA');
+  });
+
+  it('prefers explicit tickerLabel over ticker for display', () => {
+    const out = parseProtectivePutInput({ ...PUT_BASE, ticker: 'NVDA', tickerLabel: 'Nvidia' });
+    expect(out.tickerLabel).toBe('Nvidia');
   });
 });

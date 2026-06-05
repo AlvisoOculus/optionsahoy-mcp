@@ -20,6 +20,7 @@ import type {
 
 import { asObject, p, FILING_STATUSES, type Obj } from './api';
 import { getTrailingReturn } from '../../lib/data/trailing-returns';
+import { getTrailingVol } from '../../lib/data/trailing-vols';
 import { SECTOR_STATS, type SectorKey } from '../../lib/markets/sector-stats';
 import { HORIZON_YEARS as CONCENTRATION_HORIZON_YEARS, IV_OVER_RV_MULTIPLIER } from '../../lib/calc/concentration';
 import { lognormalHaircut } from '../../lib/calc/volatility-drag';
@@ -27,15 +28,28 @@ import { lognormalHaircut } from '../../lib/calc/volatility-drag';
 const ASK_USER_HINT =
   'The model invoking this tool MUST NOT invent this value — ask the user.';
 
-// Caller may pass either a pre-computed drag-at-horizon (legacy REST clients)
-// or annualized sigma. The drag-style field wins when both are supplied.
+// Returns the cached sigma for `o.ticker`, or null when no ticker is set
+// or the ticker isn't covered. Callers decide how to handle null (throw,
+// or fall through to a default).
+function resolveSigmaFromTicker(o: Obj): number | null {
+  if (o.ticker === undefined) return null;
+  return getTrailingVol(p.str(o, 'ticker'));
+}
+
 function resolveDragFromVolatility(o: Obj, dragField: string, horizonYears: number): number {
   if (o[dragField] !== undefined) return p.num(o, dragField);
   if (o.volatility !== undefined) {
     return lognormalHaircut(p.num(o, 'volatility'), horizonYears);
   }
+  if (o.ticker !== undefined) {
+    const sigma = resolveSigmaFromTicker(o);
+    if (sigma !== null) return lognormalHaircut(sigma, horizonYears);
+    throw new Error(
+      `field "volatility" required: ticker "${p.str(o, 'ticker')}" is not in our cached implied-vol table. Pass "volatility" explicitly (annualized sigma, e.g. 0.30 for 30%) or use a covered public-stock symbol. ${ASK_USER_HINT}`,
+    );
+  }
   throw new Error(
-    `field "volatility" required: annualized sigma of the stock as a decimal (e.g. 0.30 for 30%). ${ASK_USER_HINT}`,
+    `field "volatility" required: annualized sigma of the stock as a decimal (e.g. 0.30 for 30%). Or set "ticker" to a covered public-stock symbol (e.g. "NVDA") to derive from the cached implied-vol table. ${ASK_USER_HINT}`,
   );
 }
 
@@ -195,7 +209,9 @@ export function parseConcentrationInput(raw: unknown): ConcentrationInputs {
     expectedMarketReturn: resolveMarketReturn(o, CONCENTRATION_HORIZON_YEARS),
     volatilityDrag: resolveDragFromVolatility(o, 'volatilityDrag', CONCENTRATION_HORIZON_YEARS),
   };
-  if (o.volatility !== undefined) base.volatility = p.num(o, 'volatility');
+  // Mirror the drag's sigma source so hedge pricing uses the same value.
+  const sigma = o.volatility !== undefined ? p.num(o, 'volatility') : resolveSigmaFromTicker(o);
+  if (sigma !== null) base.volatility = sigma;
   if (o.hedgeChoice !== undefined) {
     const hc = asObject(o.hedgeChoice);
     const hedge: NonNullable<ConcentrationInputs['hedgeChoice']> = {
@@ -212,9 +228,11 @@ export function parseConcentrationInput(raw: unknown): ConcentrationInputs {
 export function parseProtectivePutInput(raw: unknown): ProtectivePutInputs {
   const o = asObject(raw);
   const sector = p.enum(o, 'sector', SECTORS) as SectorKey;
-  const volatility = o.volatility !== undefined
-    ? p.num(o, 'volatility')
-    : SECTOR_STATS[sector].annualVol * IV_OVER_RV_MULTIPLIER;
+  const sectorDefault = SECTOR_STATS[sector].annualVol * IV_OVER_RV_MULTIPLIER;
+  const volatility =
+    o.volatility !== undefined
+      ? p.num(o, 'volatility')
+      : resolveSigmaFromTicker(o) ?? sectorDefault;
   const base: ProtectivePutInputs = {
     positionValue: p.num(o, 'positionValue'),
     sector,
@@ -223,7 +241,14 @@ export function parseProtectivePutInput(raw: unknown): ProtectivePutInputs {
     tenorYears: p.num(o, 'tenorYears'),
   };
   if (o.expectedReturn !== undefined) base.expectedReturn = p.num(o, 'expectedReturn');
-  if (o.tickerLabel !== undefined) base.tickerLabel = p.str(o, 'tickerLabel');
+  // tickerLabel is the display surface in the response. Prefer an explicit
+  // tickerLabel; fall back to `ticker` (the sigma-resolution field) so
+  // callers passing only `ticker` still get it echoed back.
+  if (o.tickerLabel !== undefined) {
+    base.tickerLabel = p.str(o, 'tickerLabel');
+  } else if (o.ticker !== undefined) {
+    base.tickerLabel = p.str(o, 'ticker');
+  }
   return base;
 }
 
