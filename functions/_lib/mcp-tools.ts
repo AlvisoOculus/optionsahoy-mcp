@@ -71,15 +71,17 @@ const SECTOR_SCHEMA = {
 };
 const ISO_DATE = { type: 'string', format: 'date' };
 
-// Shared optional ticker field — the four growth-bearing calculators (ISO,
-// NSO, RSU, concentration) accept it as an alternative to passing explicit
-// expected-return / sale-price values. Resolved against the trailing-CAGR
-// table at lib/data/trailing-returns.json (~90 covered public-stock symbols,
-// refreshed daily).
+// Shared optional ticker field — the growth-bearing and volatility-bearing
+// calculators (ISO, NSO, RSU, concentration, protective put) accept it as an
+// alternative to passing explicit expected-return / sale-price / volatility
+// numbers. Resolved against two bundled tables that the OptionsAhoy ETL
+// refreshes daily: trailing CAGR (lib/data/trailing-returns.json, ~90
+// symbols) and ATM 1y implied vol (lib/data/trailing-vols.json, ~85
+// symbols, intersection of trailing-returns ∩ R2-cached chains).
 const TICKER_SCHEMA = {
   type: 'string',
   description:
-    'Optional public-stock symbol (e.g. "NVDA", "AAPL"). When set, the tool substitutes the ticker\'s trailing CAGR for any unsupplied expected-return / sale-price field instead of requiring the caller to invent one. ~90 symbols covered; unknown tickers fall through to "required field" errors so the model knows to ask the user.',
+    'Optional public-stock symbol (e.g. "NVDA", "AAPL"). When set, the tool substitutes the ticker\'s trailing CAGR for any unsupplied expected-return / sale-price field AND the ticker\'s ATM 1y implied vol for any unsupplied volatility, instead of requiring the caller to invent either. ~90 symbols covered for returns; ~85 for vol. Unknown tickers fall through to "required field" errors so the model knows to ask the user.',
 };
 
 // Boilerplate appended to every growth-bearing tool's description. Tells the
@@ -102,7 +104,7 @@ const VOLATILITY_SCHEMA = {
   type: 'number',
   minimum: 0,
   description:
-    'Annualized volatility (sigma) of the stock as a decimal (0.72 = 72%). Pass the user-supplied volatility directly; the tool computes the horizon-cumulative drag internally. The model MUST NOT compute drag itself — the correct formula is horizon-dependent and most models get it wrong. If the user does not supply a volatility number, ASK them.',
+    'Annualized volatility (sigma) of the stock as a decimal (0.72 = 72%). Pass the user-supplied volatility directly; the tool computes the horizon-cumulative drag internally. The model MUST NOT compute drag itself — the correct formula is horizon-dependent and most models get it wrong. If the user does not supply a volatility number AND no `ticker` resolves it from our daily ATM 1y IV table (~85 symbols), ASK them.',
 };
 
 export const TOOLS: McpTool[] = [
@@ -404,7 +406,7 @@ export const TOOLS: McpTool[] = [
           type: 'number',
           minimum: 0,
           description:
-            'Annualized volatility (sigma) of the stock as a decimal (0.72 = 72%). Pass the user-supplied volatility directly; the tool uses it both for hedge pricing (as implied vol) and for the 3y horizon drag, computed internally. The model MUST NOT compute drag itself — the correct formula is horizon-dependent and most models get it wrong. If the user does not supply a volatility number, ASK them; only when neither is supplied does hedge pricing fall back to sector_stats.annualVol × 1.20.',
+            'Annualized volatility (sigma) of the stock as a decimal (0.72 = 72%). Pass the user-supplied volatility directly; the tool uses it both for hedge pricing (as implied vol) and for the 3y horizon drag, computed internally. The model MUST NOT compute drag itself — the correct formula is horizon-dependent and most models get it wrong. If the user does not supply a volatility number AND no `ticker` resolves it from our daily ATM 1y IV table (~85 symbols), ASK them; only as a last fallback does hedge pricing use sector_stats.annualVol × 1.20.',
         },
         hedgeChoice: {
           type: 'object',
@@ -464,7 +466,12 @@ export const TOOLS: McpTool[] = [
           type: 'number',
           minimum: 0,
           description:
-            'Annualized implied volatility (sigma) of the stock. Defaults to a sector-typical IV when omitted. The model SHOULD NOT invent this. Either pass an explicit value the user gave you, or omit it and let the sector default apply.',
+            'Annualized implied volatility (sigma) of the stock. Resolution order: (1) explicit `volatility` if passed; (2) ticker lookup if `ticker` is in our daily ATM 1y IV table (~85 symbols); (3) sector-typical IV as last fallback. The model SHOULD NOT invent this. Either pass an explicit value the user gave you, set a covered `ticker`, or omit and let the sector default apply.',
+        },
+        ticker: {
+          type: 'string',
+          description:
+            'Optional public-stock symbol (e.g. "NVDA"). When set without an explicit `volatility`, the tool substitutes the ticker\'s ATM 1y implied vol from our daily ETL table. Unknown tickers fall through to the sector default. Echoed to `tickerLabel` in the response.',
         },
         protectionLevel: {
           type: 'number',
