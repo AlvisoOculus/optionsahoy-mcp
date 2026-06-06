@@ -1,0 +1,19 @@
+# AlphaLatitude Inc. © 2026
+#
+# Continue.dev hub block: streamable-HTTP MCP server connection to
+# the hosted OptionsAhoy MCP at https://optionsahoy.com/mcp.
+#
+# When this repo is linked under "Source Control" at hub.continue.dev
+# the hub auto-imports this file as a public mcpServer block. The same
+# file doubles as a local Continue config — drop the repo into a
+# Continue workspace and the MCP shows up under available servers.
+#
+# Format reference: https://docs.continue.dev/customize/deep-dives/mcp
+
+name: optionsahoy-mcp
+version: 1.9.0
+schema: v1
+mcpServers:
+  - name: optionsahoy
+    type: streamable-http
+    url: https://optionsahoy.com/mcp
