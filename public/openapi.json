@@ -22,13 +22,34 @@
     }
   ],
   "tags": [
-    { "name": "Discovery", "description": "API inventory" },
-    { "name": "ISO", "description": "Incentive stock options" },
-    { "name": "NSO", "description": "Non-qualified stock options" },
-    { "name": "RSU", "description": "Restricted stock units" },
-    { "name": "Concentration", "description": "Single-stock concentration risk" },
-    { "name": "Hedging", "description": "Protective put / collar pricing" },
-    { "name": "QSBS", "description": "Section 1202 qualification" }
+    {
+      "name": "Discovery",
+      "description": "API inventory"
+    },
+    {
+      "name": "ISO",
+      "description": "Incentive stock options"
+    },
+    {
+      "name": "NSO",
+      "description": "Non-qualified stock options"
+    },
+    {
+      "name": "RSU",
+      "description": "Restricted stock units"
+    },
+    {
+      "name": "Concentration",
+      "description": "Single-stock concentration risk"
+    },
+    {
+      "name": "Hedging",
+      "description": "Protective put / collar pricing"
+    },
+    {
+      "name": "QSBS",
+      "description": "Section 1202 qualification"
+    }
   ],
   "paths": {
     "/api/v1": {
@@ -36,7 +57,9 @@
         "summary": "API discovery",
         "description": "Returns the API name, version, documentation URL, OpenAPI URL, and the array of endpoints. Cheap, public, no body required.",
         "operationId": "discover",
-        "tags": ["Discovery"],
+        "tags": [
+          "Discovery"
+        ],
         "responses": {
           "200": {
             "description": "Endpoint inventory",
@@ -44,21 +67,45 @@
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "required": ["name", "version", "endpoints"],
+                  "required": [
+                    "name",
+                    "version",
+                    "endpoints"
+                  ],
                   "properties": {
-                    "name": { "type": "string" },
-                    "version": { "type": "string" },
-                    "documentation": { "type": "string", "format": "uri" },
-                    "openapi": { "type": "string", "format": "uri" },
+                    "name": {
+                      "type": "string"
+                    },
+                    "version": {
+                      "type": "string"
+                    },
+                    "documentation": {
+                      "type": "string",
+                      "format": "uri"
+                    },
+                    "openapi": {
+                      "type": "string",
+                      "format": "uri"
+                    },
                     "endpoints": {
                       "type": "array",
                       "items": {
                         "type": "object",
-                        "required": ["method", "path", "description"],
+                        "required": [
+                          "method",
+                          "path",
+                          "description"
+                        ],
                         "properties": {
-                          "method": { "type": "string" },
-                          "path": { "type": "string" },
-                          "description": { "type": "string" }
+                          "method": {
+                            "type": "string"
+                          },
+                          "path": {
+                            "type": "string"
+                          },
+                          "description": {
+                            "type": "string"
+                          }
                         }
                       }
                     }
@@ -75,17 +122,29 @@
         "summary": "Multi-year ISO exercise schedule optimization",
         "description": "Returns the globally-optimal multi-year Incentive Stock Option (ISO) exercise schedule that minimizes federal and state Alternative Minimum Tax (AMT) across the horizon, accounting for AMT credit recovery in later years, qualifying-disposition timing, grant expiration, and the post-termination exercise window. Engine: chunk-grid search with one-share refinement across the full candidate space. Result is reproducible (same inputs → same schedule).",
         "operationId": "optimizeAmtIso",
-        "tags": ["ISO"],
+        "tags": [
+          "ISO"
+        ],
         "requestBody": {
           "required": true,
           "content": {
-            "application/json": { "schema": { "$ref": "#/components/schemas/AmtIsoInput" } }
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AmtIsoInput"
+              }
+            }
           }
         },
         "responses": {
-          "200": { "$ref": "#/components/responses/CalculatorSuccess" },
-          "400": { "$ref": "#/components/responses/BadRequest" },
-          "405": { "$ref": "#/components/responses/MethodNotAllowed" }
+          "200": {
+            "$ref": "#/components/responses/CalculatorSuccess"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "405": {
+            "$ref": "#/components/responses/MethodNotAllowed"
+          }
         }
       }
     },
@@ -94,17 +153,29 @@
         "summary": "NSO exercise tax + sell-vs-hold",
         "description": "Computes the after-tax payout on a non-qualified stock option (NSO) exercise: federal, state, FICA (Social Security + Medicare + Additional Medicare). Compares selling at exercise vs. holding for long-term capital gains across the chosen horizon.",
         "operationId": "calculateNso",
-        "tags": ["NSO"],
+        "tags": [
+          "NSO"
+        ],
         "requestBody": {
           "required": true,
           "content": {
-            "application/json": { "schema": { "$ref": "#/components/schemas/NsoInput" } }
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NsoInput"
+              }
+            }
           }
         },
         "responses": {
-          "200": { "$ref": "#/components/responses/CalculatorSuccess" },
-          "400": { "$ref": "#/components/responses/BadRequest" },
-          "405": { "$ref": "#/components/responses/MethodNotAllowed" }
+          "200": {
+            "$ref": "#/components/responses/CalculatorSuccess"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "405": {
+            "$ref": "#/components/responses/MethodNotAllowed"
+          }
         }
       }
     },
@@ -113,17 +184,29 @@
         "summary": "RSU sell-at-vest vs. hold-for-LTCG",
         "description": "Compares the after-tax payout from selling RSU shares at vest and reinvesting in the market versus holding the shares, including the 12-month short-term-vs-long-term-capital-gains cliff, state tax, FICA, and the optional growth assumption.",
         "operationId": "calculateRsu",
-        "tags": ["RSU"],
+        "tags": [
+          "RSU"
+        ],
         "requestBody": {
           "required": true,
           "content": {
-            "application/json": { "schema": { "$ref": "#/components/schemas/RsuInput" } }
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RsuInput"
+              }
+            }
           }
         },
         "responses": {
-          "200": { "$ref": "#/components/responses/CalculatorSuccess" },
-          "400": { "$ref": "#/components/responses/BadRequest" },
-          "405": { "$ref": "#/components/responses/MethodNotAllowed" }
+          "200": {
+            "$ref": "#/components/responses/CalculatorSuccess"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "405": {
+            "$ref": "#/components/responses/MethodNotAllowed"
+          }
         }
       }
     },
@@ -132,17 +215,29 @@
         "summary": "Single-stock concentration risk",
         "description": "Quantifies single-stock concentration risk: drawdown exposure at 30/50/70% scenarios and the after-tax comparison of selling down vs. holding vs. hedging, with multi-year tax math.",
         "operationId": "calculateConcentration",
-        "tags": ["Concentration"],
+        "tags": [
+          "Concentration"
+        ],
         "requestBody": {
           "required": true,
           "content": {
-            "application/json": { "schema": { "$ref": "#/components/schemas/ConcentrationInput" } }
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConcentrationInput"
+              }
+            }
           }
         },
         "responses": {
-          "200": { "$ref": "#/components/responses/CalculatorSuccess" },
-          "400": { "$ref": "#/components/responses/BadRequest" },
-          "405": { "$ref": "#/components/responses/MethodNotAllowed" }
+          "200": {
+            "$ref": "#/components/responses/CalculatorSuccess"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "405": {
+            "$ref": "#/components/responses/MethodNotAllowed"
+          }
         }
       }
     },
@@ -151,17 +246,29 @@
         "summary": "Protective put / zero-cost collar pricing",
         "description": "Prices a protective put or zero-cost collar on a single-stock position. Reports annual cost, maximum loss, upside cap, and bad-year coverage.",
         "operationId": "priceProtectivePut",
-        "tags": ["Hedging"],
+        "tags": [
+          "Hedging"
+        ],
         "requestBody": {
           "required": true,
           "content": {
-            "application/json": { "schema": { "$ref": "#/components/schemas/ProtectivePutInput" } }
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ProtectivePutInput"
+              }
+            }
           }
         },
         "responses": {
-          "200": { "$ref": "#/components/responses/CalculatorSuccess" },
-          "400": { "$ref": "#/components/responses/BadRequest" },
-          "405": { "$ref": "#/components/responses/MethodNotAllowed" }
+          "200": {
+            "$ref": "#/components/responses/CalculatorSuccess"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "405": {
+            "$ref": "#/components/responses/MethodNotAllowed"
+          }
         }
       }
     },
@@ -170,17 +277,29 @@
         "summary": "Section 1202 QSBS qualification check",
         "description": "Evaluates Section 1202 Qualified Small Business Stock (QSBS) against the eight statutory tests, returning the verdict, exclusion percentage, federal tax saved, and state conformity under OBBBA 2026 tiered exclusion rules.",
         "operationId": "checkQsbs",
-        "tags": ["QSBS"],
+        "tags": [
+          "QSBS"
+        ],
         "requestBody": {
           "required": true,
           "content": {
-            "application/json": { "schema": { "$ref": "#/components/schemas/QsbsInput" } }
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/QsbsInput"
+              }
+            }
           }
         },
         "responses": {
-          "200": { "$ref": "#/components/responses/CalculatorSuccess" },
-          "400": { "$ref": "#/components/responses/BadRequest" },
-          "405": { "$ref": "#/components/responses/MethodNotAllowed" }
+          "200": {
+            "$ref": "#/components/responses/CalculatorSuccess"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "405": {
+            "$ref": "#/components/responses/MethodNotAllowed"
+          }
         }
       }
     },
@@ -189,17 +308,125 @@
         "summary": "Multi-plan equity-funding comparison: Lock-in-now / Balanced / Hold-for-growth / Recommended",
         "description": "Returns four named plans on the risk/wealth frontier plus the full hybrid frontier. Bracket-aware greedy fills across (year, month, stack, lot) cells; lognormal price exposure drives the shortfall probability; after-tax retained-share value acts as a backstop in the shortfall calculation. The `recommended` plan is the wealth-maximal plan whose shortfall is at or below `riskToleranceShortfall` (default 0.10). Wealth-at-target is compared apples-to-apples on after-tax basis (cash netted plus after-tax retained-share value, both compounded at the after-tax cash-interest rate).",
         "operationId": "planEquityFunding",
-        "tags": ["EquityFunding"],
+        "tags": [
+          "EquityFunding"
+        ],
         "requestBody": {
           "required": true,
           "content": {
-            "application/json": { "schema": { "$ref": "#/components/schemas/EquityFundingInput" } }
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EquityFundingInput"
+              }
+            }
           }
         },
         "responses": {
-          "200": { "$ref": "#/components/responses/CalculatorSuccess" },
-          "400": { "$ref": "#/components/responses/BadRequest" },
-          "405": { "$ref": "#/components/responses/MethodNotAllowed" }
+          "200": {
+            "$ref": "#/components/responses/CalculatorSuccess"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "405": {
+            "$ref": "#/components/responses/MethodNotAllowed"
+          }
+        }
+      }
+    },
+    "/api/v1/stats": {
+      "get": {
+        "summary": "Public MCP usage summary",
+        "description": "Returns total tool calls, last 24h / 7d / 30d counts, the top 5 most-called tools, and the timestamp of the most recent call. PII-safe (no IPs, user agents, or arguments). Cached 60 seconds at the edge.",
+        "operationId": "stats",
+        "tags": [
+          "Discovery"
+        ],
+        "responses": {
+          "200": {
+            "description": "Usage summary",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "totalCalls",
+                    "last24h",
+                    "last7d",
+                    "last30d",
+                    "topTools",
+                    "asOf"
+                  ],
+                  "properties": {
+                    "totalCalls": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "last24h": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "last7d": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "last30d": {
+                      "type": "integer",
+                      "minimum": 0
+                    },
+                    "topTools": {
+                      "type": "array",
+                      "items": {
+                        "type": "object",
+                        "required": [
+                          "name",
+                          "count"
+                        ],
+                        "properties": {
+                          "name": {
+                            "type": "string"
+                          },
+                          "count": {
+                            "type": "integer",
+                            "minimum": 0
+                          }
+                        }
+                      }
+                    },
+                    "lastCallAt": {
+                      "type": [
+                        "string",
+                        "null"
+                      ],
+                      "format": "date-time"
+                    },
+                    "asOf": {
+                      "type": "string",
+                      "format": "date-time"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "405": {
+            "$ref": "#/components/responses/MethodNotAllowed"
+          },
+          "503": {
+            "description": "Stats binding not configured",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "error": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
         }
       }
     }
@@ -212,10 +439,19 @@
           "application/json": {
             "schema": {
               "type": "object",
-              "required": ["ok", "result"],
+              "required": [
+                "ok",
+                "result"
+              ],
               "properties": {
-                "ok": { "type": "boolean", "const": true },
-                "result": { "type": "object", "description": "Calculator output. Shape varies by endpoint." }
+                "ok": {
+                  "type": "boolean",
+                  "const": true
+                },
+                "result": {
+                  "type": "object",
+                  "description": "Calculator output. Shape varies by endpoint."
+                }
               }
             }
           }
@@ -227,8 +463,14 @@
           "application/json": {
             "schema": {
               "type": "object",
-              "required": ["error"],
-              "properties": { "error": { "type": "string" } }
+              "required": [
+                "error"
+              ],
+              "properties": {
+                "error": {
+                  "type": "string"
+                }
+              }
             }
           }
         }
@@ -239,8 +481,14 @@
           "application/json": {
             "schema": {
               "type": "object",
-              "required": ["error"],
-              "properties": { "error": { "type": "string" } }
+              "required": [
+                "error"
+              ],
+              "properties": {
+                "error": {
+                  "type": "string"
+                }
+              }
             }
           }
         }
@@ -249,7 +497,11 @@
     "schemas": {
       "FilingStatus": {
         "type": "string",
-        "enum": ["single", "married_joint", "head_household"],
+        "enum": [
+          "single",
+          "married_joint",
+          "head_household"
+        ],
         "description": "United States federal filing status."
       },
       "StateCode": {
@@ -284,178 +536,546 @@
       "AmtIsoInput": {
         "type": "object",
         "required": [
-          "shares", "strike", "fmv",
-          "filingStatus", "ordinaryIncome", "stateCode", "carryforwardCredit",
-          "horizon", "cashReturnRate", "grantDate", "hasLeftCompany", "terminationDate"
+          "shares",
+          "strike",
+          "fmv",
+          "filingStatus",
+          "ordinaryIncome",
+          "stateCode",
+          "carryforwardCredit",
+          "horizon",
+          "cashReturnRate",
+          "grantDate",
+          "hasLeftCompany",
+          "terminationDate"
         ],
         "properties": {
-          "shares": { "type": "integer", "minimum": 1, "description": "Total ISO shares to exercise across the horizon." },
-          "strike": { "type": "number", "minimum": 0, "description": "Strike price per share, USD." },
-          "fmv": { "type": "number", "minimum": 0, "description": "Fair market value per share today (year 1)." },
-          "expectedGrowth": { "type": "number", "description": "Arithmetic-mean annual growth rate, e.g. 0.10 for 10%/year. Required unless `ticker` resolves it from trailing CAGR." },
-          "ticker": { "$ref": "#/components/schemas/Ticker" },
-          "volatilityDrag": { "type": "number", "minimum": 0, "maximum": 0.99, "description": "Multiplicative haircut at the planning horizon. Either this OR `volatility` is required; if both are supplied, `volatilityDrag` wins." },
-          "volatility": { "type": "number", "minimum": 0, "description": "Annualized volatility (sigma) of the stock. Either this OR `volatilityDrag` is required; if both are supplied, `volatilityDrag` wins. Derived drag = 1 - exp(-(sigma^2 / 2) * horizon)." },
-          "filingStatus": { "$ref": "#/components/schemas/FilingStatus" },
-          "ordinaryIncome": { "type": "number", "minimum": 0, "description": "Annual W-2 / 1099 income excluding the exercise." },
-          "stateCode": { "$ref": "#/components/schemas/StateCode" },
-          "carryforwardCredit": { "type": "number", "minimum": 0, "description": "Existing federal AMT credit from prior years." },
-          "horizon": { "type": "integer", "minimum": 1, "maximum": 10, "description": "Planning horizon in years." },
-          "cashReturnRate": { "type": "number", "description": "Annual after-tax return on idle cash, used to time-value AMT premiums." },
-          "grantDate": { "$ref": "#/components/schemas/IsoDate", "description": "ISO grant date. Drives the 10-year expiration and 2-year qualifying-disposition gate." },
-          "hasLeftCompany": { "type": "boolean" },
-          "terminationDate": { "oneOf": [{ "$ref": "#/components/schemas/IsoDate" }, { "type": "null" }], "description": "Termination date if departed; null otherwise. When set, opens the 90-day post-termination exercise window." }
+          "shares": {
+            "type": "integer",
+            "minimum": 1,
+            "description": "Total ISO shares to exercise across the horizon."
+          },
+          "strike": {
+            "type": "number",
+            "minimum": 0,
+            "description": "Strike price per share, USD."
+          },
+          "fmv": {
+            "type": "number",
+            "minimum": 0,
+            "description": "Fair market value per share today (year 1)."
+          },
+          "expectedGrowth": {
+            "type": "number",
+            "description": "Arithmetic-mean annual growth rate, e.g. 0.10 for 10%/year. Required unless `ticker` resolves it from trailing CAGR."
+          },
+          "ticker": {
+            "$ref": "#/components/schemas/Ticker"
+          },
+          "volatilityDrag": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 0.99,
+            "description": "Multiplicative haircut at the planning horizon. Either this OR `volatility` is required; if both are supplied, `volatilityDrag` wins."
+          },
+          "volatility": {
+            "type": "number",
+            "minimum": 0,
+            "description": "Annualized volatility (sigma) of the stock. Either this OR `volatilityDrag` is required; if both are supplied, `volatilityDrag` wins. Derived drag = 1 - exp(-(sigma^2 / 2) * horizon)."
+          },
+          "filingStatus": {
+            "$ref": "#/components/schemas/FilingStatus"
+          },
+          "ordinaryIncome": {
+            "type": "number",
+            "minimum": 0,
+            "description": "Annual W-2 / 1099 income excluding the exercise."
+          },
+          "stateCode": {
+            "$ref": "#/components/schemas/StateCode"
+          },
+          "carryforwardCredit": {
+            "type": "number",
+            "minimum": 0,
+            "description": "Existing federal AMT credit from prior years."
+          },
+          "horizon": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 10,
+            "description": "Planning horizon in years."
+          },
+          "cashReturnRate": {
+            "type": "number",
+            "description": "Annual after-tax return on idle cash, used to time-value AMT premiums."
+          },
+          "grantDate": {
+            "$ref": "#/components/schemas/IsoDate",
+            "description": "ISO grant date. Drives the 10-year expiration and 2-year qualifying-disposition gate."
+          },
+          "hasLeftCompany": {
+            "type": "boolean"
+          },
+          "terminationDate": {
+            "oneOf": [
+              {
+                "$ref": "#/components/schemas/IsoDate"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "Termination date if departed; null otherwise. When set, opens the 90-day post-termination exercise window."
+          }
         }
       },
       "NsoInput": {
         "type": "object",
         "required": [
-          "shares", "strike", "currentPrice", "ordinaryIncome", "filingStatus",
-          "stateCode", "stillEmployed", "holdYears", "holdFunding"
+          "shares",
+          "strike",
+          "currentPrice",
+          "ordinaryIncome",
+          "filingStatus",
+          "stateCode",
+          "stillEmployed",
+          "holdYears",
+          "holdFunding"
         ],
         "properties": {
-          "shares": { "type": "integer", "minimum": 1 },
-          "strike": { "type": "number", "minimum": 0 },
-          "currentPrice": { "type": "number", "minimum": 0 },
-          "ordinaryIncome": { "type": "number", "minimum": 0 },
-          "filingStatus": { "$ref": "#/components/schemas/FilingStatus" },
-          "stateCode": { "$ref": "#/components/schemas/StateCode" },
-          "stillEmployed": { "type": "boolean", "description": "FICA applies only when true." },
-          "holdYears": { "type": "number", "minimum": 1, "description": "Hold horizon. Sub-1-year is short-term and out of scope." },
-          "expectedSalePrice": { "type": "number", "minimum": 0, "description": "Expected sale price at horizon, USD per share. Required unless `ticker` resolves it from currentPrice × (1 + trailing CAGR)^holdYears." },
-          "haircut": { "type": "number", "minimum": 0, "maximum": 1, "description": "Volatility-drag haircut on expectedSalePrice. Either this OR `volatility` is required; if both are supplied, `haircut` wins." },
-          "volatility": { "type": "number", "minimum": 0, "description": "Annualized volatility (sigma). Either this OR `haircut` is required; if both are supplied, `haircut` wins. Derived haircut = 1 - exp(-(sigma^2 / 2) * holdYears)." },
-          "expectedMarketReturn": { "type": "number", "description": "Per-year median market return rate (vol-drag pre-applied). Defaults to SPY trailing CAGR for holdYears if omitted." },
-          "ticker": { "$ref": "#/components/schemas/Ticker" },
-          "holdFunding": { "type": "string", "enum": ["sell-to-cover", "cash"] }
+          "shares": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "strike": {
+            "type": "number",
+            "minimum": 0
+          },
+          "currentPrice": {
+            "type": "number",
+            "minimum": 0
+          },
+          "ordinaryIncome": {
+            "type": "number",
+            "minimum": 0
+          },
+          "filingStatus": {
+            "$ref": "#/components/schemas/FilingStatus"
+          },
+          "stateCode": {
+            "$ref": "#/components/schemas/StateCode"
+          },
+          "stillEmployed": {
+            "type": "boolean",
+            "description": "FICA applies only when true."
+          },
+          "holdYears": {
+            "type": "number",
+            "minimum": 1,
+            "description": "Hold horizon. Sub-1-year is short-term and out of scope."
+          },
+          "expectedSalePrice": {
+            "type": "number",
+            "minimum": 0,
+            "description": "Expected sale price at horizon, USD per share. Required unless `ticker` resolves it from currentPrice × (1 + trailing CAGR)^holdYears."
+          },
+          "haircut": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1,
+            "description": "Volatility-drag haircut on expectedSalePrice. Either this OR `volatility` is required; if both are supplied, `haircut` wins."
+          },
+          "volatility": {
+            "type": "number",
+            "minimum": 0,
+            "description": "Annualized volatility (sigma). Either this OR `haircut` is required; if both are supplied, `haircut` wins. Derived haircut = 1 - exp(-(sigma^2 / 2) * holdYears)."
+          },
+          "expectedMarketReturn": {
+            "type": "number",
+            "description": "Per-year median market return rate (vol-drag pre-applied). Defaults to SPY trailing CAGR for holdYears if omitted."
+          },
+          "ticker": {
+            "$ref": "#/components/schemas/Ticker"
+          },
+          "holdFunding": {
+            "type": "string",
+            "enum": [
+              "sell-to-cover",
+              "cash"
+            ]
+          }
         }
       },
       "RsuInput": {
         "type": "object",
         "required": [
-          "shares", "currentPrice", "ordinaryIncome", "filingStatus", "stateCode",
-          "stillEmployed", "holdYears"
+          "shares",
+          "currentPrice",
+          "ordinaryIncome",
+          "filingStatus",
+          "stateCode",
+          "stillEmployed",
+          "holdYears"
         ],
         "properties": {
-          "shares": { "type": "integer", "minimum": 1 },
-          "currentPrice": { "type": "number", "minimum": 0, "description": "Fair market value at vest." },
-          "ordinaryIncome": { "type": "number", "minimum": 0 },
-          "filingStatus": { "$ref": "#/components/schemas/FilingStatus" },
-          "stateCode": { "$ref": "#/components/schemas/StateCode" },
-          "stillEmployed": { "type": "boolean" },
-          "holdYears": { "type": "number", "minimum": 0.25, "maximum": 5 },
-          "expectedSalePrice": { "type": "number", "minimum": 0, "description": "Projected $/share at end of holdYears. Required unless `ticker` resolves it from currentPrice × (1 + trailing CAGR)^holdYears." },
-          "haircut": { "type": "number", "minimum": 0, "maximum": 1, "description": "Volatility-drag haircut on expectedSalePrice. Either this OR `volatility` is required; if both are supplied, `haircut` wins." },
-          "volatility": { "type": "number", "minimum": 0, "description": "Annualized volatility (sigma). Either this OR `haircut` is required; if both are supplied, `haircut` wins. Derived haircut = 1 - exp(-(sigma^2 / 2) * holdYears)." },
-          "expectedMarketReturn": { "type": "number", "description": "Per-year reinvestment rate. Defaults to SPY trailing CAGR for holdYears if omitted." },
-          "ticker": { "$ref": "#/components/schemas/Ticker" }
+          "shares": {
+            "type": "integer",
+            "minimum": 1
+          },
+          "currentPrice": {
+            "type": "number",
+            "minimum": 0,
+            "description": "Fair market value at vest."
+          },
+          "ordinaryIncome": {
+            "type": "number",
+            "minimum": 0
+          },
+          "filingStatus": {
+            "$ref": "#/components/schemas/FilingStatus"
+          },
+          "stateCode": {
+            "$ref": "#/components/schemas/StateCode"
+          },
+          "stillEmployed": {
+            "type": "boolean"
+          },
+          "holdYears": {
+            "type": "number",
+            "minimum": 0.25,
+            "maximum": 5
+          },
+          "expectedSalePrice": {
+            "type": "number",
+            "minimum": 0,
+            "description": "Projected $/share at end of holdYears. Required unless `ticker` resolves it from currentPrice × (1 + trailing CAGR)^holdYears."
+          },
+          "haircut": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1,
+            "description": "Volatility-drag haircut on expectedSalePrice. Either this OR `volatility` is required; if both are supplied, `haircut` wins."
+          },
+          "volatility": {
+            "type": "number",
+            "minimum": 0,
+            "description": "Annualized volatility (sigma). Either this OR `haircut` is required; if both are supplied, `haircut` wins. Derived haircut = 1 - exp(-(sigma^2 / 2) * holdYears)."
+          },
+          "expectedMarketReturn": {
+            "type": "number",
+            "description": "Per-year reinvestment rate. Defaults to SPY trailing CAGR for holdYears if omitted."
+          },
+          "ticker": {
+            "$ref": "#/components/schemas/Ticker"
+          }
         }
       },
       "ConcentrationInput": {
         "type": "object",
         "required": [
-          "positionValue", "costBasis", "acquisitionDate", "sector", "stateCode",
-          "filingStatus", "ordinaryIncome", "totalAssets"
+          "positionValue",
+          "costBasis",
+          "acquisitionDate",
+          "sector",
+          "stateCode",
+          "filingStatus",
+          "ordinaryIncome",
+          "totalAssets"
         ],
         "properties": {
-          "positionValue": { "type": "number", "minimum": 0, "description": "Current value of the concentrated position, USD." },
-          "costBasis": { "type": "number", "minimum": 0 },
-          "acquisitionDate": { "$ref": "#/components/schemas/IsoDate" },
-          "sector": { "$ref": "#/components/schemas/SectorKey" },
-          "stateCode": { "$ref": "#/components/schemas/StateCode" },
-          "filingStatus": { "$ref": "#/components/schemas/FilingStatus" },
-          "ordinaryIncome": { "type": "number", "minimum": 0 },
-          "totalAssets": { "type": "number", "minimum": 0, "description": "Total investable portfolio in dollars (concentrated position + everything else). User-supplied; never inferred." },
-          "expectedPositionReturn": { "type": "number", "description": "Annual return on the concentrated stock. Required unless `ticker` resolves it from trailing CAGR." },
-          "expectedMarketReturn": { "type": "number", "description": "Annual return on diversified holdings + reinvested proceeds. Defaults to SPY trailing CAGR for the 3-year horizon if omitted." },
-          "ticker": { "$ref": "#/components/schemas/Ticker" },
-          "volatilityDrag": { "type": "number", "minimum": 0, "maximum": 0.99, "description": "Multiplicative haircut on the 3y stock-price path. Either this OR `volatility` is required for drag; if both are supplied, `volatilityDrag` wins." },
-          "volatility": { "type": "number", "minimum": 0, "description": "Annualized volatility (sigma). Used for the Black-Scholes hedging path AND, when `volatilityDrag` is omitted, derives drag = 1 - exp(-(sigma^2 / 2) * 3). Either this OR `volatilityDrag` is required for drag." },
+          "positionValue": {
+            "type": "number",
+            "minimum": 0,
+            "description": "Current value of the concentrated position, USD."
+          },
+          "costBasis": {
+            "type": "number",
+            "minimum": 0
+          },
+          "acquisitionDate": {
+            "$ref": "#/components/schemas/IsoDate"
+          },
+          "sector": {
+            "$ref": "#/components/schemas/SectorKey"
+          },
+          "stateCode": {
+            "$ref": "#/components/schemas/StateCode"
+          },
+          "filingStatus": {
+            "$ref": "#/components/schemas/FilingStatus"
+          },
+          "ordinaryIncome": {
+            "type": "number",
+            "minimum": 0
+          },
+          "totalAssets": {
+            "type": "number",
+            "minimum": 0,
+            "description": "Total investable portfolio in dollars (concentrated position + everything else). User-supplied; never inferred."
+          },
+          "expectedPositionReturn": {
+            "type": "number",
+            "description": "Annual return on the concentrated stock. Required unless `ticker` resolves it from trailing CAGR."
+          },
+          "expectedMarketReturn": {
+            "type": "number",
+            "description": "Annual return on diversified holdings + reinvested proceeds. Defaults to SPY trailing CAGR for the 3-year horizon if omitted."
+          },
+          "ticker": {
+            "$ref": "#/components/schemas/Ticker"
+          },
+          "volatilityDrag": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 0.99,
+            "description": "Multiplicative haircut on the 3y stock-price path. Either this OR `volatility` is required for drag; if both are supplied, `volatilityDrag` wins."
+          },
+          "volatility": {
+            "type": "number",
+            "minimum": 0,
+            "description": "Annualized volatility (sigma). Used for the Black-Scholes hedging path AND, when `volatilityDrag` is omitted, derives drag = 1 - exp(-(sigma^2 / 2) * 3). Either this OR `volatilityDrag` is required for drag."
+          },
           "hedgeChoice": {
             "type": "object",
-            "required": ["kind", "protectionLevel", "tenorYears"],
+            "required": [
+              "kind",
+              "protectionLevel",
+              "tenorYears"
+            ],
             "properties": {
-              "kind": { "type": "string", "enum": ["put", "collar"] },
-              "protectionLevel": { "type": "number", "minimum": 0.05, "maximum": 0.5 },
-              "tenorYears": { "type": "number", "minimum": 0.25 },
-              "upsideCapPct": { "type": "number" }
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "put",
+                  "collar"
+                ]
+              },
+              "protectionLevel": {
+                "type": "number",
+                "minimum": 0.05,
+                "maximum": 0.5
+              },
+              "tenorYears": {
+                "type": "number",
+                "minimum": 0.25
+              },
+              "upsideCapPct": {
+                "type": "number"
+              }
             }
           }
         }
       },
       "ProtectivePutInput": {
         "type": "object",
-        "required": ["positionValue", "sector", "protectionLevel", "tenorYears"],
+        "required": [
+          "positionValue",
+          "sector",
+          "protectionLevel",
+          "tenorYears"
+        ],
         "properties": {
-          "positionValue": { "type": "number", "minimum": 0 },
-          "sector": { "$ref": "#/components/schemas/SectorKey" },
-          "volatility": { "type": "number", "minimum": 0, "description": "Annualized implied volatility (σ). Defaults to a sector-typical IV (sector_stats.annualVol × 1.20) when omitted." },
-          "protectionLevel": { "type": "number", "minimum": 0.05, "maximum": 0.5, "description": "Drawdown the put protects against, as a fraction (e.g. 0.20 = 20% below current)." },
-          "tenorYears": { "type": "number", "minimum": 0.25, "description": "Option tenor in years." },
-          "expectedReturn": { "type": "number", "description": "Override sector long-run drift μ." },
-          "tickerLabel": { "type": "string", "description": "Optional ticker for warning copy (e.g. \"AAPL\")." }
+          "positionValue": {
+            "type": "number",
+            "minimum": 0
+          },
+          "sector": {
+            "$ref": "#/components/schemas/SectorKey"
+          },
+          "volatility": {
+            "type": "number",
+            "minimum": 0,
+            "description": "Annualized implied volatility (σ). Defaults to a sector-typical IV (sector_stats.annualVol × 1.20) when omitted."
+          },
+          "protectionLevel": {
+            "type": "number",
+            "minimum": 0.05,
+            "maximum": 0.5,
+            "description": "Drawdown the put protects against, as a fraction (e.g. 0.20 = 20% below current)."
+          },
+          "tenorYears": {
+            "type": "number",
+            "minimum": 0.25,
+            "description": "Option tenor in years."
+          },
+          "expectedReturn": {
+            "type": "number",
+            "description": "Override sector long-run drift μ."
+          },
+          "tickerLabel": {
+            "type": "string",
+            "description": "Optional ticker for warning copy (e.g. \"AAPL\")."
+          }
         }
       },
       "QsbsInput": {
         "type": "object",
         "required": [
-          "acquisitionDate", "saleDate", "entityType", "acquisitionMethod",
-          "assetCategory", "industry", "activeBusiness", "adjustedBasis",
-          "expectedGain", "stateCode", "ordinaryIncome", "filingStatus"
+          "acquisitionDate",
+          "saleDate",
+          "entityType",
+          "acquisitionMethod",
+          "assetCategory",
+          "industry",
+          "activeBusiness",
+          "adjustedBasis",
+          "expectedGain",
+          "stateCode",
+          "ordinaryIncome",
+          "filingStatus"
         ],
         "properties": {
-          "acquisitionDate": { "$ref": "#/components/schemas/IsoDate" },
-          "saleDate": { "$ref": "#/components/schemas/IsoDate" },
-          "entityType": { "type": "string", "enum": ["us-c-corp", "other"] },
-          "acquisitionMethod": { "type": "string", "enum": ["original-issuance", "gift-or-inheritance", "secondary", "unsure"] },
-          "assetCategory": { "type": "string", "enum": ["under-50m", "50m-to-75m", "over-75m", "unsure"] },
+          "acquisitionDate": {
+            "$ref": "#/components/schemas/IsoDate"
+          },
+          "saleDate": {
+            "$ref": "#/components/schemas/IsoDate"
+          },
+          "entityType": {
+            "type": "string",
+            "enum": [
+              "us-c-corp",
+              "other"
+            ]
+          },
+          "acquisitionMethod": {
+            "type": "string",
+            "enum": [
+              "original-issuance",
+              "gift-or-inheritance",
+              "secondary",
+              "unsure"
+            ]
+          },
+          "assetCategory": {
+            "type": "string",
+            "enum": [
+              "under-50m",
+              "50m-to-75m",
+              "over-75m",
+              "unsure"
+            ]
+          },
           "industry": {
             "type": "string",
             "enum": [
-              "tech-software", "manufacturing", "biotech-research", "retail-wholesale",
-              "health-services", "law", "engineering", "architecture",
-              "accounting-actuarial", "consulting", "finance", "farming",
-              "extraction", "hospitality", "performing-arts", "other-services", "unsure"
+              "tech-software",
+              "manufacturing",
+              "biotech-research",
+              "retail-wholesale",
+              "health-services",
+              "law",
+              "engineering",
+              "architecture",
+              "accounting-actuarial",
+              "consulting",
+              "finance",
+              "farming",
+              "extraction",
+              "hospitality",
+              "performing-arts",
+              "other-services",
+              "unsure"
             ]
           },
-          "activeBusiness": { "type": "string", "enum": ["yes", "no", "unsure"] },
-          "adjustedBasis": { "type": "number", "minimum": 0 },
-          "expectedGain": { "type": "number" },
-          "stateCode": { "$ref": "#/components/schemas/StateCode" },
-          "ordinaryIncome": { "type": "number", "minimum": 0 },
-          "filingStatus": { "$ref": "#/components/schemas/FilingStatus" }
+          "activeBusiness": {
+            "type": "string",
+            "enum": [
+              "yes",
+              "no",
+              "unsure"
+            ]
+          },
+          "adjustedBasis": {
+            "type": "number",
+            "minimum": 0
+          },
+          "expectedGain": {
+            "type": "number"
+          },
+          "stateCode": {
+            "$ref": "#/components/schemas/StateCode"
+          },
+          "ordinaryIncome": {
+            "type": "number",
+            "minimum": 0
+          },
+          "filingStatus": {
+            "$ref": "#/components/schemas/FilingStatus"
+          }
         }
       },
       "EquityFundingInput": {
         "type": "object",
         "description": "Either `stacks` (v1.7+ multi-stack) OR legacy top-level `lots` + `currentPrice` (single-stack) must be provided.",
-        "required": ["targetAfterTax", "targetDate", "ordinaryIncome", "filingStatus", "stateCode"],
+        "required": [
+          "targetAfterTax",
+          "targetDate",
+          "ordinaryIncome",
+          "filingStatus",
+          "stateCode"
+        ],
         "properties": {
-          "targetAfterTax": { "type": "number", "minimum": 0 },
-          "targetDate": { "$ref": "#/components/schemas/IsoDate" },
+          "targetAfterTax": {
+            "type": "number",
+            "minimum": 0
+          },
+          "targetDate": {
+            "$ref": "#/components/schemas/IsoDate"
+          },
           "stacks": {
             "type": "array",
             "minItems": 1,
             "description": "v1.7+ multi-stack input. Each stack is one ticker.",
             "items": {
               "type": "object",
-              "required": ["currentPrice", "lots"],
+              "required": [
+                "currentPrice",
+                "lots"
+              ],
               "properties": {
-                "ticker": { "type": "string", "description": "Optional ticker label. When set without `expectedAnnualGrowth`, the server resolves growth from the trailing-CAGR table." },
-                "currentPrice": { "type": "number", "minimum": 0 },
-                "expectedAnnualGrowth": { "type": "number" },
-                "volatility": { "type": "number", "minimum": 0, "description": "Per-stack annualized σ. Overrides `defaultVolatility` for this stack." },
+                "ticker": {
+                  "type": "string",
+                  "description": "Optional ticker label. When set without `expectedAnnualGrowth`, the server resolves growth from the trailing-CAGR table."
+                },
+                "currentPrice": {
+                  "type": "number",
+                  "minimum": 0
+                },
+                "expectedAnnualGrowth": {
+                  "type": "number"
+                },
+                "volatility": {
+                  "type": "number",
+                  "minimum": 0,
+                  "description": "Per-stack annualized σ. Overrides `defaultVolatility` for this stack."
+                },
                 "lots": {
                   "type": "array",
                   "minItems": 1,
                   "items": {
                     "type": "object",
-                    "required": ["shares", "costBasisPerShare", "acquisitionDate"],
+                    "required": [
+                      "shares",
+                      "costBasisPerShare",
+                      "acquisitionDate"
+                    ],
                     "properties": {
-                      "shares": { "type": "integer", "minimum": 1 },
-                      "costBasisPerShare": { "type": "number", "minimum": 0 },
-                      "acquisitionDate": { "$ref": "#/components/schemas/IsoDate" },
-                      "vestDate": { "$ref": "#/components/schemas/IsoDate", "description": "Optional. Future vest date for unvested RSU tranches; excluded from sales whose date precedes this." }
+                      "shares": {
+                        "type": "integer",
+                        "minimum": 1
+                      },
+                      "costBasisPerShare": {
+                        "type": "number",
+                        "minimum": 0
+                      },
+                      "acquisitionDate": {
+                        "$ref": "#/components/schemas/IsoDate"
+                      },
+                      "vestDate": {
+                        "$ref": "#/components/schemas/IsoDate",
+                        "description": "Optional. Future vest date for unvested RSU tranches; excluded from sales whose date precedes this."
+                      }
                     }
                   }
                 }
@@ -468,23 +1088,64 @@
             "description": "Legacy single-stack input (v1.5 / v1.6). Pair with top-level currentPrice.",
             "items": {
               "type": "object",
-              "required": ["shares", "costBasisPerShare", "acquisitionDate"],
+              "required": [
+                "shares",
+                "costBasisPerShare",
+                "acquisitionDate"
+              ],
               "properties": {
-                "shares": { "type": "integer", "minimum": 1 },
-                "costBasisPerShare": { "type": "number", "minimum": 0 },
-                "acquisitionDate": { "$ref": "#/components/schemas/IsoDate" }
+                "shares": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "costBasisPerShare": {
+                  "type": "number",
+                  "minimum": 0
+                },
+                "acquisitionDate": {
+                  "$ref": "#/components/schemas/IsoDate"
+                }
               }
             }
           },
-          "currentPrice": { "type": "number", "minimum": 0, "description": "Legacy single-stack current share price." },
-          "expectedAnnualGrowth": { "type": "number", "description": "Legacy single-stack annual growth decimal." },
-          "ordinaryIncome": { "type": "number", "minimum": 0 },
-          "filingStatus": { "$ref": "#/components/schemas/FilingStatus" },
-          "stateCode": { "$ref": "#/components/schemas/StateCode" },
-          "cashInterestRate": { "type": "number", "description": "Annualized pre-tax yield on cash held between each sale and the target date. The server compounds at the after-tax marginal rate. Defaults to 0." },
-          "riskToleranceShortfall": { "type": "number", "minimum": 0, "maximum": 1, "description": "Max acceptable P(realized cash < target) under the lognormal price model. The `recommended` plan is the wealth-maximal plan whose shortfall is at or below this value. Default 0.10." },
-          "defaultVolatility": { "type": "number", "minimum": 0, "description": "Annualized σ used for stacks that omit their own `volatility`. Default 0.30." },
-          "today": { "$ref": "#/components/schemas/IsoDate", "description": "Optional override for \"now\". Defaults to the server's current date." }
+          "currentPrice": {
+            "type": "number",
+            "minimum": 0,
+            "description": "Legacy single-stack current share price."
+          },
+          "expectedAnnualGrowth": {
+            "type": "number",
+            "description": "Legacy single-stack annual growth decimal."
+          },
+          "ordinaryIncome": {
+            "type": "number",
+            "minimum": 0
+          },
+          "filingStatus": {
+            "$ref": "#/components/schemas/FilingStatus"
+          },
+          "stateCode": {
+            "$ref": "#/components/schemas/StateCode"
+          },
+          "cashInterestRate": {
+            "type": "number",
+            "description": "Annualized pre-tax yield on cash held between each sale and the target date. The server compounds at the after-tax marginal rate. Defaults to 0."
+          },
+          "riskToleranceShortfall": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1,
+            "description": "Max acceptable P(realized cash < target) under the lognormal price model. The `recommended` plan is the wealth-maximal plan whose shortfall is at or below this value. Default 0.10."
+          },
+          "defaultVolatility": {
+            "type": "number",
+            "minimum": 0,
+            "description": "Annualized σ used for stacks that omit their own `volatility`. Default 0.30."
+          },
+          "today": {
+            "$ref": "#/components/schemas/IsoDate",
+            "description": "Optional override for \"now\". Defaults to the server's current date."
+          }
         }
       }
     }
