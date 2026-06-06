@@ -49,6 +49,12 @@ const ENDPOINTS = [
     path: '/api/v1/qsbs',
     description: 'Section 1202 qualified small business stock (QSBS) qualification check.',
   },
+  {
+    method: 'GET',
+    path: '/api/v1/stats',
+    description:
+      'Public summary of MCP server usage: total calls, last 24h / 7d / 30d, top tools. Cached 60s.',
+  },
 ];
 
 export const onRequest: PagesFunction = ({ request }) => {
