@@ -1,0 +1,12 @@
+{
+  "name": "optionsahoy-mcp-quickstart",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Minimal example: call OptionsAhoy MCP tools from a Node script.",
+  "type": "module",
+  "scripts": {
+    "list": "node list-tools.mjs",
+    "concentration": "node call-concentration.mjs",
+    "amt-iso": "node call-amt-iso.mjs"
+  }
+}
