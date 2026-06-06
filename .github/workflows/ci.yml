@@ -18,3 +18,4 @@ jobs:
       - run: npm install --no-audit
       - run: npm run typecheck
       - run: npm test
+      - run: npm run build
