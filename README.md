@@ -117,6 +117,7 @@ npm run typecheck
 - [Smithery](https://smithery.ai/server/@alphalatitudeops/optionsahoy)
 - [add-mcp curated registry](https://github.com/neon-solutions/add-mcp)
 - [PulseMCP](https://www.pulsemcp.com) (cascades from Official Registry)
+- [Continue.dev hub](https://hub.continue.dev/andrews-workspace-73/optionsahoy-mcp) — block YAML lives at [`.continue/mcpServers/optionsahoy.yaml`](.continue/mcpServers/optionsahoy.yaml)
 
 ## Use from Google Cloud (Gemini agents)
 
