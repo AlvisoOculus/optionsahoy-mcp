@@ -8,7 +8,8 @@ import { describe, it, expect } from 'vitest';
 import {
   onRequest,
   zeroFillDaily,
-  bucketCumulative,
+  cumulativePerDay,
+  resampleToWidth,
   renderColumns,
   sparkline,
 } from '../functions/mcp/usage';
@@ -32,21 +33,34 @@ describe('zeroFillDaily', () => {
   });
 });
 
-describe('bucketCumulative', () => {
-  it('produces a monotonic running total ending at the grand total', () => {
-    const { cols, total } = bucketCumulative([1, 2, 3, 4], 56);
-    expect(cols).toEqual([1, 3, 6, 10]);
-    expect(total).toBe(10);
-    for (let i = 1; i < cols.length; i++) expect(cols[i]).toBeGreaterThanOrEqual(cols[i - 1]);
+describe('cumulativePerDay', () => {
+  it('returns the running total', () => {
+    expect(cumulativePerDay([1, 2, 3, 4])).toEqual([1, 3, 6, 10]);
+    expect(cumulativePerDay([])).toEqual([]);
+  });
+});
+
+describe('resampleToWidth (constant-width)', () => {
+  it('expands fewer values across a fixed width, pinning endpoints', () => {
+    const out = resampleToWidth([1, 3, 6, 10], 8);
+    expect(out).toHaveLength(8);
+    expect(out[0]).toBe(1); // first column = first value
+    expect(out[out.length - 1]).toBe(10); // last column = grand total
+    for (let i = 1; i < out.length; i++) expect(out[i]).toBeGreaterThanOrEqual(out[i - 1]); // monotonic
   });
 
-  it('compresses to at most maxCols columns and widens the bucket', () => {
-    const counts = Array.from({ length: 200 }, () => 1);
-    const { cols, bucketDays, total } = bucketCumulative(counts, 56);
-    expect(cols.length).toBeLessThanOrEqual(56);
-    expect(bucketDays).toBe(Math.ceil(200 / 56)); // 4
-    expect(total).toBe(200);
-    expect(cols[cols.length - 1]).toBe(200);
+  it('compresses more values into a fixed width, still ending at the total', () => {
+    const cum = Array.from({ length: 200 }, (_, i) => i + 1); // 1..200
+    const out = resampleToWidth(cum, 56);
+    expect(out).toHaveLength(56);
+    expect(out[0]).toBe(1);
+    expect(out[out.length - 1]).toBe(200);
+  });
+
+  it('always returns exactly `width` columns regardless of input length', () => {
+    expect(resampleToWidth([42], 56)).toHaveLength(56);
+    expect(resampleToWidth([1, 2, 3], 3)).toEqual([1, 2, 3]);
+    expect(resampleToWidth([5], 56).every((v) => v === 5)).toBe(true);
   });
 });
 
