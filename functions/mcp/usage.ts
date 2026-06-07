@@ -3,8 +3,8 @@
 // GET /mcp/usage — public, no-auth adoption page.
 //
 // Renders a text-based (ASCII) graph of MCP tool-call adoption from the
-// MCP_STATS D1 table: a cumulative curve over all history (bucketed to a
-// fixed width so it never outgrows the page) plus a per-day sparkline for
+// MCP_STATS D1 table: a cumulative curve over all history (resampled to a
+// constant width, expanding or compressing to fill it) plus a per-day sparkline for
 // recent momentum. Styled in OptionsAhoy marine. The real numbers are also
 // emitted in an sr-only block for screen readers and crawlers.
 //
@@ -30,7 +30,7 @@ const SQL_DAILY =
   "SELECT date(ts/1000, 'unixepoch') AS day, COUNT(*) AS n FROM mcp_calls GROUP BY day ORDER BY day";
 const SQL_LAST = 'SELECT MAX(ts) AS t FROM mcp_calls';
 
-const MAX_COLS = 56; // cumulative chart width; bucket widens as history grows
+const GRAPH_COLS = 56; // constant chart width; days are resampled to fill it
 const HEIGHT = 8; // cumulative chart rows
 const SPARK_DAYS = 60; // per-day window
 const BLOCKS = [' ', '▁', '▂', '▃', '▄', '▅', '▆', '▇', '█'];
@@ -55,22 +55,33 @@ export function zeroFillDaily(rows: DayRow[], todayIso: string): { days: string[
   return { days, counts };
 }
 
-// Bucket the daily counts into <= MAX_COLS columns and return the running
-// (cumulative) total at the end of each bucket. Monotonic by construction, so
-// the chart always reads up-and-to-the-right.
-export function bucketCumulative(
-  counts: number[],
-  maxCols = MAX_COLS,
-): { cols: number[]; bucketDays: number; total: number } {
-  if (counts.length === 0) return { cols: [], bucketDays: 1, total: 0 };
-  const bucketDays = Math.max(1, Math.ceil(counts.length / maxCols));
-  const cols: number[] = [];
+// Running cumulative total, one entry per day.
+export function cumulativePerDay(counts: number[]): number[] {
+  const out: number[] = [];
   let running = 0;
-  for (let i = 0; i < counts.length; i += bucketDays) {
-    for (let j = i; j < Math.min(i + bucketDays, counts.length); j++) running += counts[j];
-    cols.push(running);
+  for (const c of counts) {
+    running += c;
+    out.push(running);
   }
-  return { cols, bucketDays, total: running };
+  return out;
+}
+
+// Resample a series to exactly `width` columns by nearest-index mapping with
+// the endpoints pinned (first column = values[0], last column = values[last]).
+// Fewer days than columns repeats each day across several columns (expand);
+// more days than columns samples down (compress). Cumulative input stays
+// monotonic either way, and the final column always equals the grand total.
+export function resampleToWidth(values: number[], width: number): number[] {
+  if (values.length === 0 || width <= 0) return [];
+  if (values.length === 1) return Array.from({ length: width }, () => values[0]);
+  if (values.length === width) return values.slice();
+  const last = values.length - 1;
+  const out: number[] = [];
+  for (let i = 0; i < width; i++) {
+    const idx = width === 1 ? last : Math.round((i * last) / (width - 1));
+    out.push(values[idx]);
+  }
+  return out;
 }
 
 // Vertical block-bar chart: `height` rows of eighth-blocks, bottom-anchored.
@@ -181,10 +192,13 @@ export const onRequest: PagesFunction = async (ctx) => {
   }
 
   const { days, counts } = zeroFillDaily(rows, today);
-  const { cols, bucketDays, total } = bucketCumulative(counts);
+  const cum = cumulativePerDay(counts);
+  const total = cum[cum.length - 1] ?? 0;
+  const cols = resampleToWidth(cum, GRAPH_COLS);
   const cumRows = renderColumns(cols);
   const sparkWindow = counts.slice(-SPARK_DAYS);
-  const spark = sparkline(sparkWindow);
+  const spark = sparkline(resampleToWidth(sparkWindow, GRAPH_COLS));
+  const numDays = days.length;
   const firstDay = days[0];
   const lastTs = lastRes.results?.[0]?.t ?? null;
 
@@ -199,7 +213,11 @@ export const onRequest: PagesFunction = async (ctx) => {
   const gap = Math.max(1, cols.length - firstDay.length - today.length);
   const xaxis = `<span class="axis">${' '.repeat(labelW + 2)}${esc(firstDay)}${' '.repeat(gap)}${esc(today)}</span>`;
 
-  const bucketLabel = bucketDays === 1 ? '1 day' : `${bucketDays} days`;
+  const perCol = Math.ceil(numDays / GRAPH_COLS);
+  const colCaption =
+    numDays >= GRAPH_COLS
+      ? `${numDays} days, 1 column ≈ ${perCol} day${perCol === 1 ? '' : 's'}`
+      : `${numDays} day${numDays === 1 ? '' : 's'}`;
   const sparkFrom = days[Math.max(0, days.length - SPARK_DAYS)];
 
   // sr-only: real numbers for screen readers and crawlers (last 30 days).
@@ -211,7 +229,7 @@ export const onRequest: PagesFunction = async (ctx) => {
   const inner = `<h1>OptionsAhoy MCP &mdash; adoption</h1>
 <p class="meta">${totalStr} total tool calls &middot; ${esc(firstDay)} &rarr; ${esc(today)} &middot; last call ${relativeAge(lastTs)} &middot; live, refreshes every 5 min</p>
 
-<h2>Cumulative calls (1 column = ${bucketLabel})</h2>
+<h2>Cumulative calls (${colCaption})</h2>
 <pre>${esc(chart)}
 ${esc(baseline)}
 ${xaxis}</pre>
