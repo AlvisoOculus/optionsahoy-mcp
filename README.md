@@ -28,7 +28,7 @@ An optimization engine for equity-compensation tax planning, exposed as both a M
 | `qsbs_check` | Section 1202 Qualified Small Business Stock (QSBS) qualification (eight statutory tests, OBBBA 2026 tiered exclusion) |
 | `equity_funding_plan` | Multi-year, multi-stack equity-funding plan for hitting a target after-tax amount by a deadline. Returns four named plans (Lock-in-now / Balanced / Hold-for-growth / Recommended) plus the full risk/wealth frontier. |
 
-Each tool returns the globally-optimal schedule across the candidate space — not heuristics, not samples. Coverage spans the full federal tax code (ordinary brackets, long-term capital gains, AMT with credit recovery, FICA, NIIT) plus all 50 states and DC (state ordinary brackets, LTCG treatment, state AMT for CA, CO, CT, MN). Same engine as the in-browser calculators at [optionsahoy.com/tools](https://optionsahoy.com/tools); the API response is byte-identical to clicking through the tool.
+The optimizers return the globally-optimal schedule across the candidate space; the calculators return exact deterministic results. No heuristics, no samples. Coverage spans the full federal tax code (ordinary brackets, long-term capital gains, AMT with credit recovery, FICA, NIIT) plus all 50 states and DC (state ordinary brackets, LTCG treatment, state AMT for CA, CO, CT, MN). Same engine as the in-browser calculators at [optionsahoy.com/tools](https://optionsahoy.com/tools); the API response is byte-identical to clicking through the tool.
 
 ### MCP resources (topical briefings)
 
@@ -45,7 +45,7 @@ Six markdown resources under `resources/list` give an LLM enough grounding to di
 
 ### MCP prompts (workflow scaffolds)
 
-Six prompts under `prompts/list` scaffold typical user questions and route to the right tool. In Claude Desktop they appear as named slash-commands; in any MCP client, `prompts/get { name, arguments }` returns a fully-templated user message.
+Seven prompts under `prompts/list` scaffold typical user questions and route to the right tool. In Claude Desktop they appear as named slash-commands; in any MCP client, `prompts/get { name, arguments }` returns a fully-templated user message.
 
 | Prompt name | Routes to |
 |---|---|
@@ -55,6 +55,7 @@ Six prompts under `prompts/list` scaffold typical user questions and route to th
 | `analyze-concentration` | `concentration_analyze` |
 | `price-protective-put` | `protective_put_price` |
 | `check-qsbs-eligibility` | `qsbs_check` |
+| `plan-equity-funding` | `equity_funding_plan` |
 
 ## Why use an optimizer
 
@@ -118,7 +119,7 @@ Request body shapes are documented in [`public/openapi.json`](public/openapi.jso
 ```
 functions/         Cloudflare Pages Functions (MCP server + REST API endpoints)
   mcp.ts           HTTP MCP server
-  api/v1/*.ts      Six REST endpoints + GET /api/v1 discovery
+  api/v1/*.ts      Seven tool endpoints + stats + GET /api/v1 discovery
   _lib/*.ts        Shared helpers, calc-input parsers, MCP tool descriptors
 lib/               Optimizer + tax-code logic
   calc/            Per-tool optimizer functions (computeAmtIso, etc.)
