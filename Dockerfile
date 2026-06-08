@@ -1,6 +1,6 @@
 # Local stdio MCP server for OptionsAhoy.
 #
-# Same six tools as the hosted endpoint at https://optionsahoy.com/mcp,
+# Same seven tools as the hosted endpoint at https://optionsahoy.com/mcp,
 # packaged as a runnable stdio MCP server. Use this image for MCP clients
 # that only support stdio servers (Glama installer, Claude Desktop without
 # mcp-remote, Cline marketplace installs, etc.). For HTTP / streamable
