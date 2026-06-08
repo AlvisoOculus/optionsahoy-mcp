@@ -1,5 +1,7 @@
 # OptionsAhoy MCP Server
 
+[![optionsahoy-mcp MCP server](https://glama.ai/mcp/servers/AlvisoOculus/optionsahoy-mcp/badges/score.svg)](https://glama.ai/mcp/servers/AlvisoOculus/optionsahoy-mcp)
+
 > Equity-compensation optimizer. ISO/AMT, NSO, RSU, QSBS, single-stock concentration, protective puts/collars, and equity-funding plans. Seven deterministic tools across the federal + 50-state + DC tax code.
 
 **Live MCP endpoint:** `https://optionsahoy.com/mcp` (no auth, no install)
