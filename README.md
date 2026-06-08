@@ -24,11 +24,11 @@ An optimization engine for equity-compensation tax planning, exposed as both a M
 | `nso_calculate` | Non-qualified Stock Option (NSO) exercise tax + sell-vs-hold-for-LTCG comparison |
 | `rsu_sell_vs_hold` | RSU sell-at-vest vs hold-for-long-term-capital-gains decision |
 | `concentration_analyze` | Single-stock concentration risk + sell-down vs hold vs hedge optimization |
-| `protective_put_price` | Protective put / zero-cost collar pricing via Black-Scholes against implied volatility from a daily-refreshed option-chain snapshot |
+| `protective_put_price` | Protective put / zero-cost collar pricing via Black-Scholes; volatility from a compiled sector-volatility table, or a caller-supplied value |
 | `qsbs_check` | Section 1202 Qualified Small Business Stock (QSBS) qualification (eight statutory tests, OBBBA 2026 tiered exclusion) |
 | `equity_funding_plan` | Multi-year, multi-stack equity-funding plan for hitting a target after-tax amount by a deadline. Returns four named plans (Lock-in-now / Balanced / Hold-for-growth / Recommended) plus the full risk/wealth frontier. |
 
-Each tool returns the globally-optimal schedule across the candidate space — not heuristics, not samples. Coverage spans the full federal tax code (ordinary brackets, long-term capital gains, AMT with credit recovery, FICA, NIIT) plus all 50 states and DC (state ordinary brackets, LTCG treatment, state AMT for CA, NY, MN). Same engine as the in-browser calculators at [optionsahoy.com/tools](https://optionsahoy.com/tools); the API response is byte-identical to clicking through the tool.
+Each tool returns the globally-optimal schedule across the candidate space — not heuristics, not samples. Coverage spans the full federal tax code (ordinary brackets, long-term capital gains, AMT with credit recovery, FICA, NIIT) plus all 50 states and DC (state ordinary brackets, LTCG treatment, state AMT for CA, CO, CT, MN). Same engine as the in-browser calculators at [optionsahoy.com/tools](https://optionsahoy.com/tools); the API response is byte-identical to clicking through the tool.
 
 ### MCP resources (topical briefings)
 
@@ -127,14 +127,14 @@ lib/               Optimizer + tax-code logic
   options/         Black-Scholes, risk-free rates
   data/            Type definitions for option-chain data
 public/            Static assets: OpenAPI spec, llms.txt, discovery manifests
-tests/             Vitest suites (873+ tests including byte-identity assertions)
+tests/             Vitest suites (172 tests including byte-identity assertions)
 ```
 
 ## Run tests
 
 ```bash
 npm install
-npm test         # 870+ tests, ~3s on a laptop
+npm test         # 172 tests, ~3s on a laptop
 npm run typecheck
 ```
 
