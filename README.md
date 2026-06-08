@@ -12,6 +12,12 @@
 
 Built by [AlphaLatitude Inc.](https://alphalatitude.com) — a pre-revenue beta-stage equity-compensation optimization product.
 
+## See it in action
+
+[![Demo: Claude Code installing and using the OptionsAhoy MCP](docs/demo-claude-code-poster.jpg)](docs/demo-claude-code.mp4)
+
+*Real Claude Code session, unedited. One `claude mcp add` line, a casual question about 1,200 vested Meta restricted stock units (RSU) and a mid-2027 mortgage paydown, and the optimizer returns a month-by-month sell schedule with after-tax net final value across three scenarios. 68 seconds. Click the poster to play.*
+
 ---
 
 ## What this is
