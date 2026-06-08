@@ -167,7 +167,7 @@ gcloud alpha agent-registry mcp-servers register \
   --tool-spec=<(curl -sSL https://optionsahoy.com/toolspec.json)
 ```
 
-The toolspec.json mirrors the MCP `tools/list` response with `readOnlyHint` and `idempotentHint` annotations on all six tools (all are pure deterministic calculators with no side effects). To regenerate after a tool-shape change:
+The toolspec.json mirrors the MCP `tools/list` response with `readOnlyHint` and `idempotentHint` annotations on all seven tools (all are pure deterministic calculators with no side effects). To regenerate after a tool-shape change:
 
 ```bash
 curl -sS -X POST https://optionsahoy.com/mcp \
@@ -193,7 +193,7 @@ The MCP server returns `isError: true` with a human-readable message when input 
 - Confirm the connector URL is exactly `https://optionsahoy.com/mcp` (no trailing slash, no `/v1`).
 - In Claude Desktop, restart the app after editing `claude_desktop_config.json`.
 - In Claude.ai, the connector toggle is per-chat: enable it in the attachments menu.
-- Check the live `tools/list` response (six tools expected): `curl -X POST https://optionsahoy.com/mcp -H 'content-type: application/json' -d '{"jsonrpc":"2.0","method":"tools/list","id":1}'`
+- Check the live `tools/list` response (seven tools expected): `curl -X POST https://optionsahoy.com/mcp -H 'content-type: application/json' -d '{"jsonrpc":"2.0","method":"tools/list","id":1}'`
 
 **CORS errors from a browser-based client**
 The server returns `access-control-allow-origin: *` on all responses including preflight, and accepts the standard MCP headers (`content-type`, `mcp-session-id`, `mcp-protocol-version`). If a browser still blocks, the client is likely sending a non-allowed header — verify the request headers against the `access-control-allow-headers` response.
