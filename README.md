@@ -1,6 +1,10 @@
 # OptionsAhoy MCP Server
 
-[![optionsahoy-mcp MCP server](https://glama.ai/mcp/servers/AlvisoOculus/optionsahoy-mcp/badges/score.svg)](https://glama.ai/mcp/servers/AlvisoOculus/optionsahoy-mcp)
+[![Glama quality score](https://glama.ai/mcp/servers/AlvisoOculus/optionsahoy-mcp/badges/score.svg)](https://glama.ai/mcp/servers/AlvisoOculus/optionsahoy-mcp)
+[![npm version](https://img.shields.io/npm/v/optionsahoy-mcp?logo=npm&label=npm)](https://www.npmjs.com/package/optionsahoy-mcp)
+[![MCPSafe security grade](https://api.mcpsafe.io/api/badge/pubfast497de7f7a5466f2a414a)](https://mcpsafe.io/scan/pubfast497de7f7a5466f2a414a)
+
+<sub>**Independently verified.** **[Glama](https://glama.ai/mcp/servers/AlvisoOculus/optionsahoy-mcp):** third-party MCP-directory quality score (tool docs, behavior, completeness). · **[npm](https://www.npmjs.com/package/optionsahoy-mcp):** published with build provenance, a signed [SLSA](https://slsa.dev) attestation that this package was built from this repo by GitHub Actions (verify with `npm audit signatures`). · **[MCPSafe](https://mcpsafe.io/scan/pubfast497de7f7a5466f2a414a):** independent 5-model-consensus security scan (AIVSS), Grade A with zero findings.</sub>
 
 > Equity-compensation optimizer. ISO/AMT, NSO, RSU, QSBS, single-stock concentration, protective puts/collars, and equity-funding plans. Seven deterministic tools across the federal + 50-state + DC tax code.
 
