@@ -14,13 +14,13 @@
 **Discovery manifests:** [`/.well-known/mcp.json`](https://optionsahoy.com/.well-known/mcp.json) · [`/.well-known/openapi.json`](https://optionsahoy.com/.well-known/openapi.json)
 **Agent integration docs:** [optionsahoy.com/for-agents](https://optionsahoy.com/for-agents)
 
-Built by [AlphaLatitude Inc.](https://alphalatitude.com) — a pre-revenue beta-stage equity-compensation optimization product.
+Built by [AlphaLatitude Inc.](https://alphalatitude.com), the company behind OptionsAhoy, a pre-revenue beta-stage equity-compensation optimization product.
 
 ## See it in action
 
 [![Demo: Claude Code installing and using the OptionsAhoy MCP](docs/demo-claude-code-poster.jpg)](docs/demo-claude-code.mp4)
 
-*Real Claude Code session, unedited. A multi-stack META question (10K ISOs + 6K vested RSUs + 2K fresh RSUs + $400K house in 2027) fires 4 OptionsAhoy MCP tools in parallel: concentration risk, equity funding plan, AMT/ISO optimization, protective put pricing. Claude synthesizes the outputs into one plan that overrides each tool's standalone pick because the user is 86% concentrated in META. 2:13. Click the poster to open the player.*
+*Real Claude Code session, unedited. A multi-stack META question (10K ISOs + 6K vested RSUs + 2K fresh RSUs + $400K house in 2027) fires 4 OptionsAhoy MCP tools in parallel: concentration risk, equity funding plan, AMT/ISO optimization, protective put pricing. Claude synthesizes the outputs into one plan that overrides each tool's standalone pick because the user is 86% concentrated in META. 2:13. Click the poster to open the video file.*
 
 ---
 
