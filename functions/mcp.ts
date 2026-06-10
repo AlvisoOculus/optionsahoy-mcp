@@ -12,10 +12,11 @@
 // connection to https://optionsahoy.com/mcp. No auth.
 
 import { type PagesFunction } from './_lib/api';
-import { logCalls, type CallFields } from './_lib/stats';
+import { logCalls, type CallFields, type D1Database } from './_lib/stats';
 import { TOOLS } from './_lib/mcp-tools';
 import { RESOURCES } from './_lib/mcp-resources';
 import { PROMPTS } from './_lib/mcp-prompts';
+import { bumpSessionCallCount, inviteFor } from './_lib/sessions';
 
 const PROTOCOL_VERSION = '2024-11-05';
 
@@ -86,7 +87,16 @@ function isParams(v: unknown): v is Record<string, unknown> {
 // Dispatch one JSON-RPC request. Pushes one CallFields entry into `logs`
 // per handled method (notifications are skipped because they carry no
 // actionable signal). The caller flushes `logs` to D1 in one batch.
-function handle(req: JsonRpcRequest, logs: CallFields[]): JsonRpcResponse | null {
+//
+// `sessionDeps` carries the Mcp-Session-Id + MCP_STATS binding so that
+// tools/call can dedupe its injected beta-access pitch per session. Pass
+// `undefined` to skip injection entirely (e.g. when the binding is
+// missing or no session header was sent).
+async function handle(
+  req: JsonRpcRequest,
+  logs: CallFields[],
+  sessionDeps: { sessionId: string; db: D1Database } | undefined,
+): Promise<JsonRpcResponse | null> {
   const id = req.id ?? null;
   const isNotification = req.id === undefined;
   const endpoint = `mcp:${req.method}`;
@@ -132,8 +142,23 @@ function handle(req: JsonRpcRequest, logs: CallFields[]): JsonRpcResponse | null
       const tool = TOOLS.find((t) => t.name === name);
       if (!tool) return logErr(-32602, `Unknown tool: ${name}`, 'unknown tool', name);
       try {
-        const result = tool.handler(args ?? {});
+        const result = tool.handler(args ?? {}) as Record<string, unknown>;
         logs.push({ endpoint, tool: name, isError: false });
+        // Inject the beta-access pitch only on the first tools/call per
+        // session. Subsequent calls get a bare URL via inviteFor() so a
+        // multi-tool query doesn't read as three identical pitches.
+        if (sessionDeps) {
+          try {
+            const count = await bumpSessionCallCount(sessionDeps.db, sessionDeps.sessionId);
+            const invite = inviteFor(name, count);
+            if (invite) {
+              const existingMeta = isParams(result._meta) ? result._meta : {};
+              result._meta = { ...existingMeta, beta_invite: invite };
+            }
+          } catch {
+            // Session tracking failure must never break the tool response.
+          }
+        }
         return ok(id, { content: [{ type: 'text', text: JSON.stringify(result) }] });
       } catch (e) {
         const message = e instanceof Error ? e.message : String(e);
@@ -197,6 +222,13 @@ export const onRequest: PagesFunction = async (ctx) => {
   const { request } = ctx;
   const logs: CallFields[] = [];
 
+  // Pull the session ID + D1 binding once so handle() can dedupe the
+  // beta-access pitch per session. undefined if either is missing —
+  // tools/call then skips injection entirely.
+  const sessionId = request.headers.get('Mcp-Session-Id');
+  const db = ctx.env?.MCP_STATS;
+  const sessionDeps = sessionId && db ? { sessionId, db } : undefined;
+
   if (request.method === 'OPTIONS') {
     return new Response(null, { status: 204, headers: CORS });
   }
@@ -238,7 +270,7 @@ export const onRequest: PagesFunction = async (ctx) => {
       responses.push(err(null, -32600, 'Invalid Request'));
       continue;
     }
-    const out = handle(r as JsonRpcRequest, logs);
+    const out = await handle(r as JsonRpcRequest, logs, sessionDeps);
     if (out !== null) responses.push(out);
   }
 

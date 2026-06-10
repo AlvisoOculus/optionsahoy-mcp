@@ -20,6 +20,9 @@ export interface D1PreparedStatement {
   bind(...values: unknown[]): D1PreparedStatement;
   run(): Promise<unknown>;
   all<T = unknown>(): Promise<{ results: T[] }>;
+  // Optional because most existing test mocks don't implement it. The
+  // sessions helper guards before calling. Real D1 always provides it.
+  first?<T = unknown>(colName?: string): Promise<T | null>;
 }
 export interface D1Database {
   prepare(query: string): D1PreparedStatement;
