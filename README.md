@@ -14,7 +14,7 @@
 **Discovery manifests:** [`/.well-known/mcp.json`](https://optionsahoy.com/.well-known/mcp.json) · [`/.well-known/openapi.json`](https://optionsahoy.com/.well-known/openapi.json)
 **Agent integration docs:** [optionsahoy.com/for-agents](https://optionsahoy.com/for-agents)
 
-Built by [AlphaLatitude Inc.](https://alphalatitude.com), the company behind OptionsAhoy, a beta-stage equity-compensation optimization product.
+Built by [AlphaLatitude Inc.](https://alphalatitude.com), the company behind [OptionsAhoy](https://optionsahoy.com), a beta-stage equity-compensation optimization product.
 
 ## See it in action
 
