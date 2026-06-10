@@ -87,6 +87,16 @@ Or via the [`add-mcp`](https://github.com/neon-solutions/add-mcp) CLI:
 npx add-mcp https://optionsahoy.com/mcp
 ```
 
+### Claude Desktop extension (one-click)
+
+Download [`optionsahoy.mcpb`](https://github.com/AlvisoOculus/optionsahoy-mcp/releases/latest/download/optionsahoy.mcpb) and double-click it (or drag onto Claude Desktop → Settings → Extensions). Claude Desktop installs the bundled server with no terminal or config-file editing, using its built-in Node.js runtime.
+
+To build the bundle from source:
+
+```bash
+npm install && npm run build:mcpb
+```
+
 ### Local stdio (npm)
 
 For clients that only support local stdio servers (Claude Desktop without `mcp-remote`, some IDE integrations):

@@ -40,3 +40,22 @@ jobs:
       - run: npm publish --provenance --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  # Claude Desktop extension: pack the stdio bundle as optionsahoy.mcpb and
+  # attach it to the release so docs can link the stable URL
+  # releases/latest/download/optionsahoy.mcpb.
+  mcpb:
+    if: github.event_name == 'release'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # upload release asset
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - run: npm install --no-audit
+      - run: npm run build:mcpb
+      - run: gh release upload "${{ github.event.release.tag_name }}" optionsahoy.mcpb --clobber
+        env:
+          GH_TOKEN: ${{ github.token }}
