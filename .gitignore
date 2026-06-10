@@ -7,3 +7,5 @@ dist/
 *.log
 .env
 .env.local
+mcpb/server/
+*.mcpb
