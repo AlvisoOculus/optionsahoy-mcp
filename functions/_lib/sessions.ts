@@ -24,10 +24,14 @@ export async function bumpSessionCallCount(
   db: D1Database,
   sessionId: string,
 ): Promise<number> {
-  const row = await db
-    .prepare(UPSERT_SQL)
-    .bind(sessionId)
-    .first<{ tool_call_count: number }>();
+  const stmt = db.prepare(UPSERT_SQL).bind(sessionId);
+  // `first` is optional on our type shim because most legacy test mocks
+  // don't implement it. Real D1 always provides it; treat its absence as
+  // "tracking unavailable" — caller's catch will skip injection.
+  if (typeof stmt.first !== 'function') {
+    throw new Error('D1 binding does not support .first()');
+  }
+  const row = await stmt.first<{ tool_call_count: number }>();
   return row?.tool_call_count ?? 1;
 }
 
