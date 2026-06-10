@@ -20,7 +20,7 @@ Built by [AlphaLatitude Inc.](https://alphalatitude.com) — a pre-revenue beta-
 
 [![Demo: Claude Code installing and using the OptionsAhoy MCP](docs/demo-claude-code-poster.jpg)](docs/demo-claude-code.mp4)
 
-*Real Claude Code session, unedited. One `claude mcp add` line, a casual question about 1,200 vested Meta restricted stock units (RSU) and a mid-2027 mortgage paydown, and the optimizer returns a month-by-month sell schedule with after-tax net final value across three scenarios. 68 seconds. Click the poster to play.*
+*Real Claude Code session, unedited. A multi-stack META question (10K ISOs + 6K vested RSUs + 2K fresh RSUs + $400K house in 2027) fires 4 OptionsAhoy MCP tools in parallel: concentration risk, equity funding plan, AMT/ISO optimization, protective put pricing. Claude synthesizes the outputs into one plan that overrides each tool's standalone pick because the user is 86% concentrated in META. 2:13. Click the poster to play.*
 
 ---
 
