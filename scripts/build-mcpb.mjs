@@ -5,13 +5,14 @@ import { copyFileSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 
 const pkg = JSON.parse(readFileSync('package.json', 'utf8'));
-const manifestPath = 'mcpb/manifest.json';
-const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
 
-if (manifest.version !== pkg.version) {
-  manifest.version = pkg.version;
-  writeFileSync(manifestPath, JSON.stringify(manifest, null, 2) + '\n');
-  console.log(`manifest version synced to ${pkg.version}`);
+for (const path of ['mcpb/manifest.json', 'gemini-extension.json']) {
+  const manifest = JSON.parse(readFileSync(path, 'utf8'));
+  if (manifest.version !== pkg.version) {
+    manifest.version = pkg.version;
+    writeFileSync(path, JSON.stringify(manifest, null, 2) + '\n');
+    console.log(`${path} version synced to ${pkg.version}`);
+  }
 }
 
 mkdirSync('mcpb/server', { recursive: true });
