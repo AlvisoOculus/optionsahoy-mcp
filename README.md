@@ -97,6 +97,14 @@ To build the bundle from source:
 npm install && npm run build:mcpb
 ```
 
+### Gemini CLI extension
+
+```bash
+gemini extensions install https://github.com/AlvisoOculus/optionsahoy-mcp
+```
+
+This repo doubles as a [Gemini CLI extension](https://geminicli.com/docs/extensions/): `gemini-extension.json` wires the hosted MCP endpoint and `GEMINI.md` provides usage context to the model.
+
 ### Local stdio (npm)
 
 For clients that only support local stdio servers (Claude Desktop without `mcp-remote`, some IDE integrations):
@@ -226,6 +234,12 @@ The tax engine ships with 2026 inflation-adjusted brackets, OBBBA 2026 QSBS rule
 
 **Reporting a calculation bug or unexpected output**
 Email andrew@alphalatitude.com with: the exact JSON-RPC request body, the response, the expected value, and (if known) the IRS publication or state statute the expected value derives from.
+
+## Privacy Policy
+
+Full policy: [optionsahoy.com/privacy](https://optionsahoy.com/privacy).
+
+In short: tool inputs are processed to compute the result and are not stored. The hosted endpoint logs aggregate call counts per tool (no inputs, no outputs, no identifiers beyond an opaque session ID used to de-duplicate). The local stdio server and the Claude Desktop extension compute everything on your machine; the only network request is an option-chain lookup (ticker symbol only) for `protective_put_price`. No account is required and no PII is collected.
 
 ## License
 

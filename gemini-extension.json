@@ -1,0 +1,11 @@
+{
+  "name": "optionsahoy-mcp",
+  "version": "1.9.0",
+  "description": "Deterministic equity-compensation tax tools: ISO/AMT exercise scheduling, NSO, RSU, QSBS, concentration risk, hedging, and equity funding plans.",
+  "mcpServers": {
+    "optionsahoy": {
+      "httpUrl": "https://optionsahoy.com/mcp"
+    }
+  },
+  "contextFileName": "GEMINI.md"
+}
