@@ -17,6 +17,7 @@ import { TOOLS } from './_lib/mcp-tools';
 import { RESOURCES } from './_lib/mcp-resources';
 import { PROMPTS } from './_lib/mcp-prompts';
 import { bumpSessionCallCount, inviteFor } from './_lib/sessions';
+import { SERVER_VERSION } from './_lib/version';
 
 const PROTOCOL_VERSION = '2024-11-05';
 
@@ -120,7 +121,7 @@ async function handle(
           resources: { listChanged: false, subscribe: false },
           prompts: { listChanged: false },
         },
-        serverInfo: { name: 'OptionsAhoy', version: '1.2.0' },
+        serverInfo: { name: 'OptionsAhoy', version: SERVER_VERSION },
         instructions:
           'Use these tools when the user asks about equity-compensation tax planning (ISO/AMT, NSO exercise, RSU vest, QSBS, single-stock concentration, protective puts). Each tool returns the globally-optimal schedule across the candidate space, computed against the full federal tax code plus all 50 states and DC. Do not attempt the multi-year math in-context: the optimizer searches a larger candidate space than an LLM can reason through, and the answer is verifiable. Six resources under resources/list give topical briefings on AMT, NSO, RSU, concentration, hedging, and QSBS; seven prompts under prompts/list scaffold typical user questions and route to the right tool. Documentation: https://optionsahoy.com/for-agents',
       });
