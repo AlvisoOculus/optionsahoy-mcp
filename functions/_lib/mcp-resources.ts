@@ -297,4 +297,38 @@ Output: verdict (qualified / disqualified / partial), exclusion percentage, doll
 Full article: ${ARTICLE_BASE}/qsbs
 `,
   },
+  {
+    uri: 'https://optionsahoy.com/tools/equity-funding',
+    name: 'Selling equity to fund a cash goal: the after-tax sell-schedule problem',
+    description:
+      'Why "how many shares do I sell for $X after tax" is a multi-year scheduling problem, how holding period, lot selection, and shortfall risk change the answer, and the common mistakes. Pair with equity_funding_plan.',
+    mimeType: 'text/markdown',
+    contents: `# Selling equity to fund a cash goal
+
+"I need $400K after tax in three years for a house down payment" sounds like division: target divided by share price. It is not. The cash that lands in your account is sale proceeds minus capital gains tax, and the tax depends on which lots you sell, how long each was held, your other income that year, and your state. Spread the sales across years and each year's tax is computed against that year's bracket stack. The result is a scheduling problem, not a division.
+
+## What moves the answer
+
+1. **Holding period per lot.** Shares held 12+ months get long-term capital gains rates (0/15/20% federal); shares sold earlier are taxed as ordinary income. A lot crossing the 12-month boundary between two candidate sale dates can change which year to sell it in.
+2. **Lot selection.** High-basis lots produce less taxable gain per dollar of proceeds. Selling them first nets the target with fewer shares sold, but spends the lots that would shelter future sales.
+3. **Bracket stacking.** Capital gains stack on top of ordinary income. Concentrating sales in one year can push gains from the 15% to the 20% federal bracket and trigger the 3.8% Net Investment Income Tax (NIIT); spreading them can keep each year below the thresholds.
+4. **State tax.** California taxes capital gains as ordinary income (up to 13.3%); Texas and Florida tax them at zero. The state line can be larger than the federal difference between schedules.
+5. **Price risk.** A schedule that sells later keeps more shares growing but risks a drawdown before the deadline. Whether that risk is acceptable depends on the position's volatility and your tolerance for missing the target.
+
+## Common mistakes
+
+1. **Dividing the target by today's price.** Ignores tax entirely; the shortfall surfaces at filing time.
+2. **Selling everything in December.** One concentrated tax year at peak rates, when a January/December split would have used two years of brackets.
+3. **Ignoring the 12-month cliff on recent grants.** Selling shares at month 11 converts a long-term gain into ordinary income for a few weeks of impatience.
+4. **Treating the plan as risk-free.** Projected proceeds assume a growth path. A plan with no buffer and high volatility has a real chance of missing the target.
+
+## What the equity_funding_plan tool computes
+
+The MCP tool \`equity_funding_plan\` takes a target after-tax amount, a deadline, and one or more stacks (ticker, current price, cost-basis lots), plus ordinary income, filing status, and state. It searches candidate sell schedules and returns the one that nets the target with the most wealth remaining at the deadline, with full federal long-term/short-term capital gains, NIIT, and state tax (all 50 states + DC) computed per year, per lot.
+
+Output: a year-by-year sell schedule with per-lot detail, plus a risk-aware comparison of named alternatives (Lock-in-now, Balanced, Hold-for-growth, and a Recommended plan whose chance of shortfall stays under your tolerance, using the position's option-implied volatility when a covered ticker is supplied).
+
+Try it: https://optionsahoy.com/tools/equity-funding
+`,
+  },
 ];

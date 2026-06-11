@@ -146,12 +146,12 @@ describe('local stdio MCP server', () => {
     }
   });
 
-  it('lists all six resources', async () => {
+  it('lists all seven resources', async () => {
     const res = await session.request('resources/list');
     const resources = (res.result as { resources: Array<{ uri: string }> }).resources;
-    expect(resources).toHaveLength(6);
+    expect(resources).toHaveLength(7);
     for (const r of resources) {
-      expect(r.uri.startsWith('https://optionsahoy.com/learn/')).toBe(true);
+      expect(r.uri.startsWith('https://optionsahoy.com/')).toBe(true);
     }
   });
 
