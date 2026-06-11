@@ -130,7 +130,13 @@ describe('local stdio MCP server', () => {
 
   it('lists all seven tools', async () => {
     const res = await session.request('tools/list');
-    const tools = (res.result as { tools: Array<{ name: string; description: string }> }).tools;
+    const tools = (res.result as {
+      tools: Array<{
+        name: string;
+        description: string;
+        outputSchema?: { type: string; properties: Record<string, unknown> };
+      }>;
+    }).tools;
     expect(tools.map((t) => t.name).sort()).toEqual([
       'amt_iso_optimize',
       'concentration_analyze',
@@ -140,9 +146,13 @@ describe('local stdio MCP server', () => {
       'qsbs_check',
       'rsu_sell_vs_hold',
     ]);
-    // Every tool has the input-discipline note appended.
+    // Every tool has the input-discipline note appended and an outputSchema
+    // describing its structured result (required by OpenAI's app scanner).
     for (const t of tools) {
       expect(t.description).toContain('MUST NOT invent');
+      expect(t.outputSchema).toBeDefined();
+      expect(t.outputSchema!.type).toBe('object');
+      expect(Object.keys(t.outputSchema!.properties).length).toBeGreaterThan(0);
     }
   });
 
@@ -341,17 +351,29 @@ describe('local stdio MCP server', () => {
     },
   ])('calls $tool successfully', async ({ tool, args, check }) => {
     const res = await session.request('tools/call', { name: tool, arguments: args });
-    const result = res.result as { content: Array<{ type: string; text: string }>; isError?: boolean };
+    const result = res.result as {
+      content: Array<{ type: string; text: string }>;
+      structuredContent?: unknown;
+      isError?: boolean;
+    };
     expect(result.isError).not.toBe(true);
     const parsed = JSON.parse(result.content[0].text);
     check(parsed);
+    // structuredContent mirrors the text block exactly (same result object,
+    // serialized once into text and once as structured JSON).
+    expect(result.structuredContent).toEqual(parsed);
   });
 
   it('returns isError for an unknown tool', async () => {
     const res = await session.request('tools/call', { name: 'no_such_tool', arguments: {} });
-    const result = res.result as { content: Array<{ type: string; text: string }>; isError?: boolean };
+    const result = res.result as {
+      content: Array<{ type: string; text: string }>;
+      structuredContent?: unknown;
+      isError?: boolean;
+    };
     expect(result.isError).toBe(true);
     expect(result.content[0].text).toContain('unknown tool');
+    expect(result.structuredContent).toBeUndefined();
   });
 
   it('answers ping with an empty success result (no -32601)', async () => {

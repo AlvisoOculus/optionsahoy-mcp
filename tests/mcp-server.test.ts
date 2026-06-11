@@ -105,6 +105,7 @@ describe('POST /mcp — tools/list', () => {
       name: string;
       description: string;
       inputSchema: unknown;
+      outputSchema: { type: string; properties: Record<string, unknown>; required: string[] };
       annotations: McpToolAnnotations;
     };
     const { json } = await call<{ result: { tools: ToolListItem[] } }>({
@@ -125,6 +126,12 @@ describe('POST /mcp — tools/list', () => {
     for (const t of json.result.tools) {
       expect(t.description.length).toBeGreaterThan(20);
       expect(t.inputSchema).toBeDefined();
+      // OpenAI's app-submission scanner flags tools without an outputSchema;
+      // every tool must declare one describing its structured result.
+      expect(t.outputSchema).toBeDefined();
+      expect(t.outputSchema.type).toBe('object');
+      expect(Object.keys(t.outputSchema.properties).length).toBeGreaterThan(0);
+      expect(t.outputSchema.required.length).toBeGreaterThan(0);
       expect(t.annotations.title.length).toBeGreaterThan(3);
       expect(t.annotations.readOnlyHint).toBe(true);
       expect(t.annotations.idempotentHint).toBe(true);
@@ -136,7 +143,9 @@ describe('POST /mcp — tools/list', () => {
 
 describe('POST /mcp — tools/call dispatches to the right calc', () => {
   it('amt_iso_optimize matches in-process computeAmtIso', async () => {
-    const { json } = await call<{ result: { content: Array<{ type: string; text: string }>; isError?: boolean } }>({
+    const { json } = await call<{
+      result: { content: Array<{ type: string; text: string }>; structuredContent?: unknown; isError?: boolean };
+    }>({
       jsonrpc: '2.0',
       id: 3,
       method: 'tools/call',
@@ -151,10 +160,14 @@ describe('POST /mcp — tools/call dispatches to the right calc', () => {
       terminationDate: null,
     } as Parameters<typeof computeAmtIso>[0]);
     expect(text).toEqual(JSON.stringify(reference));
+    // structuredContent is the same result object the text block serializes.
+    expect(json.result.structuredContent).toEqual(JSON.parse(text));
   });
 
   it('qsbs_check matches in-process evaluateQsbs', async () => {
-    const { json } = await call<{ result: { content: Array<{ text: string }>; isError?: boolean } }>({
+    const { json } = await call<{
+      result: { content: Array<{ text: string }>; structuredContent?: unknown; isError?: boolean };
+    }>({
       jsonrpc: '2.0',
       id: 4,
       method: 'tools/call',
@@ -168,10 +181,13 @@ describe('POST /mcp — tools/call dispatches to the right calc', () => {
       saleDate: new Date('2026-03-15'),
     } as Parameters<typeof evaluateQsbs>[0]);
     expect(text).toEqual(JSON.stringify(reference));
+    expect(json.result.structuredContent).toEqual(JSON.parse(text));
   });
 
   it('returns isError content for invalid arguments (does not crash)', async () => {
-    const { json } = await call<{ result: { content: Array<{ text: string }>; isError?: boolean } }>({
+    const { json } = await call<{
+      result: { content: Array<{ text: string }>; structuredContent?: unknown; isError?: boolean };
+    }>({
       jsonrpc: '2.0',
       id: 5,
       method: 'tools/call',
@@ -179,6 +195,9 @@ describe('POST /mcp — tools/call dispatches to the right calc', () => {
     });
     expect(json.result.isError).toBe(true);
     expect(json.result.content[0]!.text).toMatch(/Error/);
+    // Error results carry no structuredContent; it is reserved for
+    // success results that conform to the tool's outputSchema.
+    expect(json.result.structuredContent).toBeUndefined();
   });
 
   it('returns JSON-RPC error for unknown tool', async () => {

@@ -79,6 +79,11 @@ check('initialize', init.serverInfo?.name === 'OptionsAhoy', `serverInfo=${JSON.
 
 const tools = (await rpc('tools/list', {})).tools;
 check('tools/list has 7 tools', tools.length === 7, tools.map((t) => t.name).join(','));
+check(
+  'tools/list: every tool has an outputSchema (type object)',
+  tools.every((t) => t.outputSchema?.type === 'object'),
+  tools.filter((t) => t.outputSchema?.type !== 'object').map((t) => t.name).join(',') || 'all present',
+);
 
 const resources = (await rpc('resources/list', {})).resources;
 check('resources/list has 7 resources', resources.length === 7);
@@ -96,6 +101,12 @@ for (const [name, args] of Object.entries(CALLS)) {
       `tools/call ${name}`,
       !result.isError && text.length > 50 && typeof parsed === 'object',
       `${Date.now() - t0}ms, ${text.length} bytes`,
+    );
+    check(
+      `tools/call ${name} returns structuredContent matching the text block`,
+      result.structuredContent !== undefined &&
+        typeof result.structuredContent === 'object' &&
+        JSON.stringify(result.structuredContent) === text,
     );
   } catch (err) {
     check(`tools/call ${name}`, false, String(err));

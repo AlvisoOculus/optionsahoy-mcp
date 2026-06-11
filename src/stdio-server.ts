@@ -39,6 +39,7 @@ const TOOLS_LIST = TOOLS.map((t) => ({
   name: t.name,
   description: t.description,
   inputSchema: t.inputSchema,
+  outputSchema: t.outputSchema,
   annotations: t.annotations,
 }));
 const RESOURCES_LIST = RESOURCES.map((r) => ({
@@ -76,7 +77,13 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
   }
   try {
     const result = tool.handler(req.params.arguments);
-    return { content: [{ type: 'text', text: JSON.stringify(result) }] };
+    // Per MCP spec, tools that declare an outputSchema return the result
+    // object as `structuredContent` plus a backwards-compatible serialized
+    // text block. Error results stay text-only (no structuredContent).
+    return {
+      content: [{ type: 'text', text: JSON.stringify(result) }],
+      structuredContent: result as Record<string, unknown>,
+    };
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     return { content: [{ type: 'text', text: `Error: ${msg}` }], isError: true };

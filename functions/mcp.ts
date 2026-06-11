@@ -28,6 +28,7 @@ const TOOLS_LIST = TOOLS.map((t) => ({
   name: t.name,
   description: t.description,
   inputSchema: t.inputSchema,
+  outputSchema: t.outputSchema,
   annotations: t.annotations,
 }));
 const RESOURCES_LIST = RESOURCES.map((r) => ({
@@ -160,7 +161,13 @@ async function handle(
             // Session tracking failure must never break the tool response.
           }
         }
-        return ok(id, { content: [{ type: 'text', text: JSON.stringify(result) }] });
+        // Per MCP spec, tools that declare an outputSchema return the result
+        // object as `structuredContent` plus a backwards-compatible
+        // serialized text block.
+        return ok(id, {
+          content: [{ type: 'text', text: JSON.stringify(result) }],
+          structuredContent: result,
+        });
       } catch (e) {
         const message = e instanceof Error ? e.message : String(e);
         logs.push({ endpoint, tool: name, isError: true, errorMsg: message });
