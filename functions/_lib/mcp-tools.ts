@@ -39,6 +39,9 @@ export type McpTool = {
   name: string;
   description: string;
   inputSchema: Record<string, unknown>;
+  // JSON Schema for the tool's success result (MCP `outputSchema`). The
+  // server returns the same object as `structuredContent` on tools/call.
+  outputSchema: Record<string, unknown>;
   annotations: McpToolAnnotations;
   handler: (args: unknown) => unknown;
 };
@@ -112,6 +115,721 @@ const VOLATILITY_SCHEMA = {
   minimum: 0,
   description:
     'Annualized volatility (sigma) of the stock as a decimal (0.72 = 72%). Pass the user-supplied volatility directly; the tool computes the horizon-cumulative drag internally. The model MUST NOT compute drag itself — the correct formula is horizon-dependent and most models get it wrong. If the user does not supply a volatility number AND no `ticker` resolves it from the cached implied-vol table, ASK them.',
+};
+
+// ---------------------------------------------------------------------
+// Output schemas (the MCP `outputSchema` field on each tool descriptor).
+//
+// Derived 1:1 from the calc return types in lib/calc/*.ts: every property
+// below maps to a field the calc actually returns; do not add fields here
+// without adding them to the calc first. Serialization notes that apply
+// throughout:
+//   - Date values serialize to ISO 8601 date-time strings.
+//   - Infinity serializes to null (JSON has no Infinity), so ratio fields
+//     that can divide by zero are typed ['number', 'null'].
+//   - additionalProperties is left open (JSON Schema default) so the
+//     hosted server's optional `_meta` injection and future additive
+//     fields never violate the schema.
+// ---------------------------------------------------------------------
+
+type JsonSchema = Record<string, unknown>;
+
+const num = (description: string): JsonSchema => ({ type: 'number', description });
+const int = (description: string): JsonSchema => ({ type: 'integer', description });
+const bool = (description: string): JsonSchema => ({ type: 'boolean', description });
+const str = (description: string): JsonSchema => ({ type: 'string', description });
+const dateStr = (description: string): JsonSchema => ({
+  type: 'string',
+  description: `${description} ISO 8601 date-time string.`,
+});
+
+// One calendar year of an ISO exercise schedule (amtIso.ts YearTax).
+const YEAR_TAX_SCHEMA: JsonSchema = {
+  type: 'object',
+  description: 'Exercise and tax detail for one calendar year of the schedule.',
+  properties: {
+    year: int('Schedule year, 1-indexed (1 = current year).'),
+    shares: num('ISO shares exercised this year.'),
+    bargain: num('Bargain element recognized this year in dollars: shares x (projected FMV - strike).'),
+    regularFederal: num('Regular federal income tax for the year in dollars (ordinary income only, before AMT).'),
+    regularState: num('Regular state income tax for the year in dollars.'),
+    tmtFederal: num('Federal tentative minimum tax for the year in dollars.'),
+    tmtState: num('State tentative minimum tax for the year in dollars (0 in states without AMT).'),
+    amtOwedFederal: num('Federal AMT owed above regular tax this year in dollars.'),
+    amtOwedState: num('State AMT owed above regular state tax this year in dollars.'),
+    creditRecovered: num('Federal AMT credit applied (recovered) this year in dollars.'),
+    cashTax: num('Total cash tax paid this year in dollars: federal + state, net of credit recovery.'),
+  },
+  required: [
+    'year', 'shares', 'bargain', 'regularFederal', 'regularState', 'tmtFederal', 'tmtState',
+    'amtOwedFederal', 'amtOwedState', 'creditRecovered', 'cashTax',
+  ],
+};
+
+// One full exercise schedule evaluated at the horizon (amtIso.ts Schedule).
+const AMT_SCHEDULE_SCHEMA: JsonSchema = {
+  type: 'object',
+  description: 'One exercise schedule evaluated at the planning horizon.',
+  properties: {
+    label: {
+      type: 'string',
+      enum: ['lump_sum', 'even_split', 'optimized'],
+      description: 'Which candidate plan this schedule represents.',
+    },
+    years: {
+      type: 'array',
+      items: YEAR_TAX_SCHEMA,
+      description: 'Per-year detail, one entry per year of the effective horizon.',
+    },
+    totalTax: num('Total cash tax paid across the horizon in dollars.'),
+    baselineRegularTax: num('Tax owed with no exercise at all (regular federal + state on ordinary income, summed across the horizon) in dollars.'),
+    exerciseTax: num('totalTax minus baselineRegularTax: the marginal tax cost of exercising, in dollars.'),
+    creditEarned: num('Federal AMT credit generated across the horizon in dollars.'),
+    creditRecovered: num('Federal AMT credit recovered across the horizon in dollars.'),
+    creditRemaining: num('Federal AMT credit still unrecovered at the horizon in dollars.'),
+    grossGain: num('shares x (projected FMV at horizon - strike): the LTCG-eligible gain in dollars.'),
+    federalLTCG: num('Federal long-term capital gains tax (including NIIT) on grossGain in dollars.'),
+    stateLTCG: num('State long-term capital gains tax on grossGain in dollars.'),
+    amtPremiumFV: num('Future-valued AMT premium stream (exercise tax paid above the no-exercise baseline, compounded at cashReturnRate to the horizon) in dollars.'),
+    nfv: num('After-tax Net Final Value at the horizon in dollars: grossGain - federalLTCG - stateLTCG - amtPremiumFV. The headline number to report.'),
+  },
+  required: [
+    'label', 'years', 'totalTax', 'baselineRegularTax', 'exerciseTax', 'creditEarned',
+    'creditRecovered', 'creditRemaining', 'grossGain', 'federalLTCG', 'stateLTCG',
+    'amtPremiumFV', 'nfv',
+  ],
+};
+
+const AMT_ISO_OUTPUT_SCHEMA: JsonSchema = {
+  type: 'object',
+  description: 'ISO/AMT exercise optimization result. All dollar amounts are USD.',
+  properties: {
+    crossoverShares: int('Maximum whole shares exercisable in year 1 before federal AMT exceeds regular tax (the AMT crossover).'),
+    crossoverBargain: num('Bargain element in dollars at the crossover share count: crossoverShares x (fmv - strike).'),
+    alreadyInAmt: bool('True when the user owes AMT even with zero exercise (regular tax below tentative minimum tax at baseline income).'),
+    schedules: {
+      type: 'object',
+      description: 'The three candidate exercise schedules, each evaluated at the effective horizon. Compare nfv across them; optimized is the recommended plan.',
+      properties: {
+        lumpSum: { ...AMT_SCHEDULE_SCHEMA, description: 'Exercise all shares in year 1.' },
+        evenSplit: { ...AMT_SCHEDULE_SCHEMA, description: 'Exercise shares/horizon shares each year.' },
+        optimized: { ...AMT_SCHEDULE_SCHEMA, description: 'The NFV-maximal per-year allocation found by the optimizer. The recommended plan.' },
+      },
+      required: ['lumpSum', 'evenSplit', 'optimized'],
+    },
+    stateHasAmt: bool('True when the user state levies its own AMT (CA, CO, CT, MN).'),
+    bargainPerShare: num('Year-1 bargain element per share in dollars: max(0, fmv - strike).'),
+    timing: {
+      type: 'object',
+      description: 'Timing constraints derived from grantDate and (when departed) terminationDate.',
+      properties: {
+        grantExpiration: dateStr('Grant expiration date: grantDate + 10 years (IRC 422 maximum ISO term).'),
+        qdEligibleDate: dateStr('Earliest qualifying-disposition date measured from grant: grantDate + 2 years.'),
+        exerciseWindowClose: {
+          type: ['string', 'null'],
+          description: 'Post-termination exercise deadline (terminationDate + 90 days) as an ISO 8601 date-time string; null while still employed.',
+        },
+        maxHorizon: int('Maximum usable planning horizon in years (1..10), capped by grant expiration or the post-termination window.'),
+        daysUntilWindowClose: {
+          type: ['number', 'null'],
+          description: 'Days until the post-termination exercise window closes (can be negative when already past); null while still employed.',
+        },
+        windowClosed: bool('True when the user departed and the 90-day exercise deadline has already passed.'),
+        qdNotYetEligible: bool('True when grantDate + 2 years is still in the future (a sale today could not be a qualifying disposition).'),
+      },
+      required: [
+        'grantExpiration', 'qdEligibleDate', 'exerciseWindowClose', 'maxHorizon',
+        'daysUntilWindowClose', 'windowClosed', 'qdNotYetEligible',
+      ],
+    },
+    effectiveHorizon: int('Horizon actually used by the schedules: min(requested horizon, timing.maxHorizon).'),
+    departedRecommendation: {
+      type: 'object',
+      description: 'Present only when hasLeftCompany=true and the 90-day post-termination window is still open: the partial-exercise quantity that maximizes expected after-tax value.',
+      properties: {
+        recommendedShares: int('Optimal share count to exercise within the window.'),
+        recommendedExerciseTax: num('AMT cost in dollars at the recommended share count.'),
+        recommendedNetValue: num('Expected after-tax value in dollars at the hold horizon for the recommended count.'),
+        fullExerciseShares: int('Total shares available (the exercise-everything alternative).'),
+        fullExerciseTax: num('AMT cost in dollars of exercising all shares.'),
+        fullExerciseNetValue: num('Expected after-tax value in dollars at the hold horizon if all shares are exercised.'),
+        holdYears: num('Post-exercise hold horizon in years used for the comparison.'),
+        futureFmvPerShare: num('Projected FMV per share in dollars at the hold horizon.'),
+        recommendedSchedule: { ...AMT_SCHEDULE_SCHEMA, description: 'Year-by-year tax schedule for the recommended share count.' },
+        curve: {
+          type: 'array',
+          description: 'Share-count vs after-tax-value curve sampled uniformly across [0, total shares], for charting.',
+          items: {
+            type: 'object',
+            properties: {
+              shares: num('Exercised share count at this sample point.'),
+              netValue: num('Expected after-tax value in dollars at this share count.'),
+              exerciseTax: num('AMT cost in dollars at this share count.'),
+            },
+            required: ['shares', 'netValue', 'exerciseTax'],
+          },
+        },
+      },
+      required: [
+        'recommendedShares', 'recommendedExerciseTax', 'recommendedNetValue', 'fullExerciseShares',
+        'fullExerciseTax', 'fullExerciseNetValue', 'holdYears', 'futureFmvPerShare',
+        'recommendedSchedule', 'curve',
+      ],
+    },
+  },
+  required: [
+    'crossoverShares', 'crossoverBargain', 'alreadyInAmt', 'schedules', 'stateHasAmt',
+    'bargainPerShare', 'timing', 'effectiveHorizon',
+  ],
+};
+
+// Shared by nso_calculate and rsu_sell_vs_hold (identical BracketJump type).
+const BRACKET_JUMP_SCHEMA: JsonSchema = {
+  type: ['object', 'null'],
+  description: 'Marginal federal bracket change caused by the new ordinary income; null when the income stays within one bracket.',
+  properties: {
+    fromRate: num('Marginal federal rate before the event, as a decimal (0.24 = 24%).'),
+    toRate: num('Marginal federal rate after the event, as a decimal.'),
+    thresholdAtJump: num('Taxable-income threshold in dollars where the bracket changes.'),
+  },
+  required: ['fromRate', 'toRate', 'thresholdAtJump'],
+};
+
+const NSO_OUTPUT_SCHEMA: JsonSchema = {
+  type: 'object',
+  description: 'NSO exercise sell-vs-hold result. All dollar amounts are USD.',
+  properties: {
+    exercise: {
+      type: 'object',
+      description: 'Tax bill at exercise on the bargain element (taxed as ordinary W-2 income).',
+      properties: {
+        bargainElement: num('shares x (currentPrice - strike) in dollars, taxed as ordinary income at exercise.'),
+        federal: num('Federal ordinary income tax on the bargain element in dollars.'),
+        state: num('State income tax on the bargain element in dollars.'),
+        socialSecurity: num('Social Security tax in dollars (0 when not employed or already past the wage base).'),
+        medicare: num('Medicare tax in dollars.'),
+        additionalMedicare: num('Additional Medicare (0.9%) tax in dollars.'),
+        total: num('Total tax at exercise in dollars.'),
+        netCashSellAll: num('bargainElement - total: net cash in dollars if every share is sold at exercise.'),
+      },
+      required: [
+        'bargainElement', 'federal', 'state', 'socialSecurity', 'medicare',
+        'additionalMedicare', 'total', 'netCashSellAll',
+      ],
+    },
+    bracketJump: BRACKET_JUMP_SCHEMA,
+    hold: {
+      type: 'object',
+      description: 'Exercise now and hold the shares holdYears for long-term capital gains treatment.',
+      properties: {
+        funding: {
+          type: 'string',
+          enum: ['sell-to-cover', 'cash'],
+          description: 'How strike cost and exercise tax are funded (echo of holdFunding).',
+        },
+        costBasis: num('Cost basis per share in dollars (the FMV at exercise).'),
+        strikeCost: num('Total strike cost in dollars: shares x strike.'),
+        cashNeededAtExercise: num('Outside cash required at exercise in dollars (strike + tax under cash funding; 0 under sell-to-cover).'),
+        sharesSoldToCover: num('Shares sold at exercise to cover strike + tax (sell-to-cover only; 0 in cash mode).'),
+        sharesRetained: num('Shares still held after funding the exercise.'),
+        effectiveSalePrice: num('Projected sale price per share in dollars at end of holdYears, after the volatility haircut.'),
+        expectedGain: num('Expected capital gain in dollars on the retained shares at sale.'),
+        ltcgFederal: num('Federal long-term capital gains tax (including NIIT) on the gain in dollars.'),
+        ltcgState: num('State capital gains tax on the gain in dollars.'),
+        ltcgTotal: num('Total capital gains tax at sale in dollars.'),
+        afterTaxProceedsAtSale: num('After-tax sale proceeds in dollars at end of holdYears.'),
+        y0OutflowGain: num('Opportunity-cost gain in dollars the year-0 cash outflow would have earned at the market rate (cash funding only; 0 for sell-to-cover).'),
+        y0OutflowLtcgFederal: num('Federal capital gains tax in dollars on the forgone market gain (cash funding only).'),
+        y0OutflowLtcgState: num('State capital gains tax in dollars on the forgone market gain (cash funding only).'),
+        y0OutflowLtcgTotal: num('Total capital gains tax in dollars on the forgone market gain (cash funding only).'),
+        y0OutflowForgoneNet: num('After-tax market growth forgone in dollars by spending cash at exercise: y0OutflowGain - y0OutflowLtcgTotal.'),
+        netAtYearN: num('Net after-tax value of the hold strategy in dollars at end of holdYears (after subtracting forgone market growth).'),
+      },
+      required: [
+        'funding', 'costBasis', 'strikeCost', 'cashNeededAtExercise', 'sharesSoldToCover',
+        'sharesRetained', 'effectiveSalePrice', 'expectedGain', 'ltcgFederal', 'ltcgState',
+        'ltcgTotal', 'afterTaxProceedsAtSale', 'y0OutflowGain', 'y0OutflowLtcgFederal',
+        'y0OutflowLtcgState', 'y0OutflowLtcgTotal', 'y0OutflowForgoneNet', 'netAtYearN',
+      ],
+    },
+    sellNowInvest: {
+      type: 'object',
+      description: 'Counterfactual: sell every share at exercise and reinvest the net cash at expectedMarketReturn for holdYears.',
+      properties: {
+        netCashAtY0: num('Net cash in dollars after exercise tax, available to reinvest.'),
+        marketGain: num('Market growth in dollars on the reinvested cash over holdYears.'),
+        ltcgFederal: num('Federal capital gains tax (including NIIT) in dollars on the market gain at the horizon.'),
+        ltcgState: num('State capital gains tax in dollars on the market gain.'),
+        ltcgTotal: num('Total capital gains tax in dollars on the market gain.'),
+        netAtYearN: num('Net after-tax value of sell-now-and-invest in dollars at end of holdYears.'),
+      },
+      required: ['netCashAtY0', 'marketGain', 'ltcgFederal', 'ltcgState', 'ltcgTotal', 'netAtYearN'],
+    },
+    holdMinusCashless: num('hold.netAtYearN - sellNowInvest.netAtYearN in dollars. Positive favors holding the shares; negative favors selling at exercise and reinvesting.'),
+  },
+  required: ['exercise', 'bracketJump', 'hold', 'sellNowInvest', 'holdMinusCashless'],
+};
+
+const RSU_OUTPUT_SCHEMA: JsonSchema = {
+  type: 'object',
+  description: 'RSU sell-at-vest vs hold result. All dollar amounts are USD.',
+  properties: {
+    vest: {
+      type: 'object',
+      description: 'Tax bill at vest on the full vest value (taxed as ordinary W-2 income).',
+      properties: {
+        vestValue: num('shares x currentPrice in dollars, taxed as ordinary income at vest.'),
+        federal: num('True federal ordinary income tax on the vest value in dollars (marginal bracket, not the withholding).'),
+        state: num('State income tax on the vest value in dollars.'),
+        socialSecurity: num('Social Security tax in dollars (0 when not employed or already past the wage base).'),
+        medicare: num('Medicare tax in dollars.'),
+        additionalMedicare: num('Additional Medicare (0.9%) tax in dollars.'),
+        total: num('Total tax at vest in dollars.'),
+        netCashAtVest: num('vestValue - total: net cash in dollars if every share is sold at vest.'),
+        federalWithheldAtVest: num('Mandatory federal supplemental withholding in dollars (22% on the first $1M of supplemental wages, 37% above). When less than vest.federal, the difference is owed at tax time.'),
+      },
+      required: [
+        'vestValue', 'federal', 'state', 'socialSecurity', 'medicare', 'additionalMedicare',
+        'total', 'netCashAtVest', 'federalWithheldAtVest',
+      ],
+    },
+    bracketJump: BRACKET_JUMP_SCHEMA,
+    hold: {
+      type: 'object',
+      description: 'Keep the after-tax shares for holdYears, then sell.',
+      properties: {
+        costBasis: num('Cost basis per share in dollars (FMV at vest).'),
+        effectiveSalePrice: num('Projected sale price per share in dollars at end of holdYears, after the volatility haircut.'),
+        sharesRetained: num('Shares kept after the sell-to-cover dollar-equivalent of the vest tax.'),
+        expectedGain: num('Expected capital gain in dollars on the retained shares: (effectiveSalePrice - costBasis) x sharesRetained.'),
+        capGainFederal: num('Federal capital gains tax in dollars on the gain: LTCG (including NIIT) when isLongTerm, else the marginal ordinary rate.'),
+        capGainState: num('State capital gains tax in dollars on the gain.'),
+        capGainTotal: num('Total capital gains tax in dollars at sale.'),
+        isLongTerm: bool('True when holdYears >= 1, so appreciation gets long-term capital gains treatment.'),
+        netAtYearN: num('Net after-tax value of holding in dollars at end of holdYears: sale proceeds - capGainTotal.'),
+      },
+      required: [
+        'costBasis', 'effectiveSalePrice', 'sharesRetained', 'expectedGain', 'capGainFederal',
+        'capGainState', 'capGainTotal', 'isLongTerm', 'netAtYearN',
+      ],
+    },
+    sellNowInvest: {
+      type: 'object',
+      description: 'Counterfactual: sell every share at vest and reinvest the net cash at expectedMarketReturn for holdYears.',
+      properties: {
+        netCashAtY0: num('Net cash in dollars at vest available to reinvest (equals vest.netCashAtVest).'),
+        marketGain: num('Market growth in dollars on the reinvested cash over holdYears.'),
+        capGainFederal: num('Federal capital gains tax in dollars on the market gain: LTCG (including NIIT) when isLongTerm, else the marginal ordinary rate.'),
+        capGainState: num('State capital gains tax in dollars on the market gain.'),
+        capGainTotal: num('Total capital gains tax in dollars on the market gain.'),
+        isLongTerm: bool('True when holdYears >= 1.'),
+        netAtYearN: num('Net after-tax value of sell-at-vest-and-invest in dollars at end of holdYears.'),
+      },
+      required: [
+        'netCashAtY0', 'marketGain', 'capGainFederal', 'capGainState', 'capGainTotal',
+        'isLongTerm', 'netAtYearN',
+      ],
+    },
+    holdMinusSell: num('hold.netAtYearN - sellNowInvest.netAtYearN in dollars. Positive favors holding the vested shares; negative favors selling at vest and reinvesting.'),
+  },
+  required: ['vest', 'bracketJump', 'hold', 'sellNowInvest', 'holdMinusSell'],
+};
+
+// concentration_analyze tax slice row (concentration.ts TaxBreakdownRow).
+const TAX_ROW_SCHEMA: JsonSchema = {
+  type: 'object',
+  description: 'One tax slice: a dollar amount taxed at one rate.',
+  properties: {
+    label: str('Tax line label, e.g. "Federal LTCG", "NIIT", "California".'),
+    rate: num('Rate applied to this slice as a decimal (0.15 = 15%).'),
+    amount: num('Dollars of gain in this slice.'),
+    tax: num('Tax in dollars: amount x rate.'),
+  },
+  required: ['label', 'rate', 'amount', 'tax'],
+};
+
+const CONCENTRATION_OUTPUT_SCHEMA: JsonSchema = {
+  type: 'object',
+  description: 'Single-stock concentration analysis. All dollar amounts are USD.',
+  properties: {
+    concentration: num('Position value / total assets, 0..1.'),
+    riskBand: {
+      type: 'string',
+      enum: ['Low', 'Moderate', 'Concentrated', 'Highly concentrated', 'Extreme'],
+      description: 'Qualitative concentration band for the position weight.',
+    },
+    isLongTermToday: bool('True when the position already qualifies for long-term capital gains treatment.'),
+    longTermDate: dateStr('Date the position turns long-term (acquisitionDate + 1 year).'),
+    daysUntilLongTerm: num('Days until long-term treatment; 0 when already long-term.'),
+    lossExposure: {
+      type: 'array',
+      description: 'Dollar damage at 30/50/70% single-stock drawdowns.',
+      items: {
+        type: 'object',
+        properties: {
+          drop: num('Modeled drawdown as a fraction of position value (0.30, 0.50, 0.70).'),
+          dollarLoss: num('Dollars lost at this drawdown.'),
+          newConcentration: num('Portfolio concentration (0..1) after the drawdown.'),
+        },
+        required: ['drop', 'dollarLoss', 'newConcentration'],
+      },
+    },
+    waitForLtInsight: {
+      type: ['object', 'null'],
+      description: 'Tax saved by waiting for long-term treatment before selling; null when already long-term or no sale is needed.',
+      properties: {
+        longTermDate: dateStr('Date the position turns long-term.'),
+        daysAway: num('Days until that date.'),
+        immediateLumpSumTax: num('Tax in dollars on the full sell-down executed today (short-term rates).'),
+        delayedLumpSumTax: num('Tax in dollars on the same sale executed after the long-term date.'),
+        savings: num('immediateLumpSumTax - delayedLumpSumTax in dollars (floored at 0).'),
+      },
+      required: ['longTermDate', 'daysAway', 'immediateLumpSumTax', 'delayedLumpSumTax', 'savings'],
+    },
+    schedule: {
+      type: 'array',
+      description: 'Sell-down plans over 1, 2, and 3 years; empty when the position is already at or below the target weight.',
+      items: {
+        type: 'object',
+        properties: {
+          planKey: { type: 'string', enum: ['lump_sum', 'two_year', 'three_year'], description: 'Plan identifier.' },
+          planLabel: str('Human-readable plan name, e.g. "Sell over 2 years".'),
+          yearlySales: {
+            type: 'array',
+            description: 'One entry per sale year: year (1-indexed), saleAmount, gainAmount, isLongTerm, federalTax, stateTax, totalTax in dollars, plus a per-slice breakdown.',
+            items: {
+              type: 'object',
+              properties: {
+                year: num('Sale year, 1-indexed.'),
+                saleAmount: num('Dollars sold this year.'),
+                gainAmount: num('Taxable gain in dollars within the sale.'),
+                isLongTerm: bool('True when this sale gets long-term capital gains treatment.'),
+                federalTax: num('Federal tax in dollars on this sale (including NIIT).'),
+                stateTax: num('State tax in dollars on this sale.'),
+                totalTax: num('Total tax in dollars on this sale.'),
+                breakdown: { type: 'array', items: TAX_ROW_SCHEMA, description: 'Per-rate tax slices for this sale.' },
+              },
+              required: ['year', 'saleAmount', 'gainAmount', 'isLongTerm', 'federalTax', 'stateTax', 'totalTax', 'breakdown'],
+            },
+          },
+          totalSale: num('Total nominal sale dollars across the plan years.'),
+          totalTax: num('Total tax in dollars across the plan years.'),
+          endOfHorizonWealth: num('Total after-tax wealth in dollars at the end of the 3-year comparison horizon.'),
+          savingsVsLumpSum: num('Raw tax saved in dollars vs selling everything today; positive means this plan pays less tax.'),
+          wealthVsLumpSum: num('End-of-horizon wealth delta in dollars vs the sell-everything-today baseline; positive means this plan ends wealthier.'),
+          year1IsShortTerm: bool('True when the first sale year would be taxed at short-term rates.'),
+          taxBreakdown: { type: 'array', items: TAX_ROW_SCHEMA, description: 'Plan-total tax slices, same-rate rows merged.' },
+          wealthByYear: {
+            type: 'array',
+            items: { type: 'number' },
+            description: 'Total wealth in dollars at the end of each year, t = 0..3 (4 points). For charting.',
+          },
+        },
+        required: [
+          'planKey', 'planLabel', 'yearlySales', 'totalSale', 'totalTax', 'endOfHorizonWealth',
+          'savingsVsLumpSum', 'wealthVsLumpSum', 'year1IsShortTerm', 'taxBreakdown', 'wealthByYear',
+        ],
+      },
+    },
+    hedging: {
+      type: 'object',
+      description: 'Black-Scholes cost of a 1-year 30%-OTM protective put covering the full position.',
+      properties: {
+        strike: num('Put strike in dollars (70% of position value).'),
+        putPrice: num('Put premium in dollars for the 1-year tenor.'),
+        sigma: num('Annualized volatility used in pricing (explicit/ticker implied vol, else sector realized vol x 1.20).'),
+        riskFreeRate: num('Annualized risk-free rate used in pricing, as a decimal.'),
+      },
+      required: ['strike', 'putPrice', 'sigma', 'riskFreeRate'],
+    },
+    sectorContextLine: str('One-line volatility/drawdown context for the chosen sector.'),
+    advisorBenchmarkLine: str('One-line comparison of the user weight vs the common advisor 10% single-name guideline.'),
+  },
+  required: [
+    'concentration', 'riskBand', 'isLongTermToday', 'longTermDate', 'daysUntilLongTerm',
+    'lossExposure', 'waitForLtInsight', 'schedule', 'hedging', 'sectorContextLine',
+    'advisorBenchmarkLine',
+  ],
+};
+
+const PROTECTIVE_PUT_OUTPUT_SCHEMA: JsonSchema = {
+  type: 'object',
+  description: 'Protective put and zero-cost collar pricing. All dollar amounts are USD.',
+  properties: {
+    inputs: {
+      type: 'object',
+      description: 'Echo of the resolved inputs actually priced: positionValue, sector, volatility (the sigma used after ticker/sector resolution), protectionLevel, tenorYears, plus expectedReturn and tickerLabel when supplied.',
+      properties: {
+        positionValue: num('Position value priced, in dollars.'),
+        sector: str('Sector tag used for defaults.'),
+        volatility: num('Annualized sigma actually used in pricing, as a decimal.'),
+        protectionLevel: num('Protection level as a fraction below spot (0.10 = 10% OTM put).'),
+        tenorYears: num('Option tenor in years.'),
+        expectedReturn: num('Caller-supplied annual expected return used for probability metrics. Omitted when not supplied.'),
+        tickerLabel: str('Display label echoed from the request (ticker or tickerLabel). Omitted when not supplied.'),
+      },
+      required: ['positionValue', 'sector', 'volatility', 'protectionLevel', 'tenorYears'],
+    },
+    riskFreeRate: num('Annualized risk-free rate used in Black-Scholes, looked up for the tenor, as a decimal.'),
+    realWorldDrift: num('Annual real-world drift used for the probability metrics: expectedReturn when supplied, else the sector long-run return. Does not affect premium math.'),
+    barePut: {
+      type: 'object',
+      description: 'Bare protective put: pay premium for a hard floor.',
+      properties: {
+        strike: num('Put strike in dollars: (1 - protectionLevel) x position value.'),
+        premium: num('Put premium in dollars for the full tenor.'),
+        annualCost: num('Premium annualized, in dollars per year.'),
+        annualCostPct: num('Annualized premium as a fraction of position value.'),
+        maxLoss: num('Worst-case loss in dollars with the put in place: position - strike + premium.'),
+        badYearPrice: num('Position value in dollars at the 10th-percentile (1-in-10 bad year) outcome under real-world drift.'),
+        badYearDropPct: num('Bad-year drawdown as a fraction of position value (always >= 0).'),
+        coveredLossAtBadYear: num('Dollars the put pays at the bad-year price; 0 when the bad-year drop never reaches the protection floor.'),
+        premiumToCoveredRatio: {
+          type: ['number', 'null'],
+          description: 'Premium per dollar of bad-year coverage. null (serialized from Infinity) when the put covers nothing at the bad-year price; above ~0.40 the floor is set too deep.',
+        },
+        expectedProfit: num('Expected position profit in dollars over the tenor under real-world drift.'),
+        premiumToExpectedProfitRatio: {
+          type: ['number', 'null'],
+          description: 'Fraction of typical-period expected profit consumed by the premium. null (serialized from Infinity) when expected profit is zero or negative; above ~0.50 the hedge eats most of the upside.',
+        },
+      },
+      required: [
+        'strike', 'premium', 'annualCost', 'annualCostPct', 'maxLoss', 'badYearPrice',
+        'badYearDropPct', 'coveredLossAtBadYear', 'premiumToCoveredRatio', 'expectedProfit',
+        'premiumToExpectedProfitRatio',
+      ],
+    },
+    collar: {
+      type: 'object',
+      description: 'Put financed by a short call: lower or zero net premium in exchange for capped upside.',
+      properties: {
+        putStrike: num('Long put strike in dollars (same floor as the bare put).'),
+        callStrike: num('Short call strike in dollars (the upside cap level).'),
+        netPremium: num('Net premium in dollars: put premium - call premium, floored at 0.'),
+        annualCost: num('Net premium annualized, in dollars per year.'),
+        annualCostPct: num('Annualized net premium as a fraction of position value.'),
+        maxLoss: num('Worst-case loss in dollars with the collar in place.'),
+        upsideCap: num('Maximum upside in dollars before the short call caps gains: callStrike - position value.'),
+        upsideCapPct: num('Maximum upside as a fraction of position value.'),
+        isZeroCost: bool('True when the solved call strike makes the collar effectively zero net premium.'),
+        capProbability: num('Real-world probability (0..1) the stock finishes above the call strike at expiration, i.e. the upside cap binds.'),
+      },
+      required: [
+        'putStrike', 'callStrike', 'netPremium', 'annualCost', 'annualCostPct', 'maxLoss',
+        'upsideCap', 'upsideCapPct', 'isZeroCost', 'capProbability',
+      ],
+    },
+    payoffTable: {
+      type: 'array',
+      description: 'Terminal P&L in dollars at each 10%-step drawdown across payoffRange, for the bare put, the collar, and the unhedged position.',
+      items: {
+        type: 'object',
+        properties: {
+          drawdownPct: num('Price move as a fraction of spot (-0.30 = down 30%, 0.2 = up 20%).'),
+          barePutPnl: num('Position + put P&L in dollars at this move.'),
+          collarPnl: num('Position + collar P&L in dollars at this move.'),
+          unhedgedPnl: num('Unhedged position P&L in dollars at this move.'),
+        },
+        required: ['drawdownPct', 'barePutPnl', 'collarPnl', 'unhedgedPnl'],
+      },
+    },
+    payoffRange: {
+      type: 'object',
+      description: 'Price-move range covered by payoffTable, extended at least 15% beyond each collar arm and at least +/-50%.',
+      properties: {
+        lowerPct: num('Lower bound of the modeled price move, as a fraction of spot (negative).'),
+        upperPct: num('Upper bound of the modeled price move, as a fraction of spot.'),
+      },
+      required: ['lowerPct', 'upperPct'],
+    },
+    recommended: {
+      type: 'string',
+      enum: ['collar', 'protective-put', 'none'],
+      description: 'Suggested structure: collar unless its cap binds too often (>20% probability); protective-put when the put is reasonably priced; none when neither is clean.',
+    },
+  },
+  required: [
+    'inputs', 'riskFreeRate', 'realWorldDrift', 'barePut', 'collar', 'payoffTable',
+    'payoffRange', 'recommended',
+  ],
+};
+
+const QSBS_OUTPUT_SCHEMA: JsonSchema = {
+  type: 'object',
+  description: 'Section 1202 QSBS qualification result. All dollar amounts are USD.',
+  properties: {
+    verdict: {
+      type: 'string',
+      enum: ['qualifies', 'partial', 'too-soon', 'caveats', 'disqualified'],
+      description: 'Overall verdict. "partial"/"caveats" mean some tests came back unsure; "too-soon" means the holding period has not reached an exclusion tier yet.',
+    },
+    exclusionPercent: {
+      type: 'number',
+      enum: [0, 0.5, 0.75, 1],
+      description: 'Fraction of the capped gain excludable from federal tax, per the era and holding-period tier.',
+    },
+    perIssuerCap: num('The $10M statutory per-issuer cap in dollars.'),
+    tenXBasisCap: num('10 x adjustedBasis cap in dollars.'),
+    applicableCap: num('max(perIssuerCap, tenXBasisCap): the exclusion cap actually applied, in dollars.'),
+    excludableGain: num('Portion of expectedGain excludable from federal tax in dollars.'),
+    taxableGain: num('Portion of expectedGain still federally taxable in dollars (overage above the cap plus any non-excluded fraction).'),
+    federalTaxSaved: num('Federal LTCG tax (including NIIT) avoided on the excluded gain, in dollars.'),
+    stateConforms: {
+      type: 'string',
+      enum: ['full', 'partial', 'none'],
+      description: 'Whether the user state conforms to the federal 1202 exclusion.',
+    },
+    stateNote: str('Per-state conformity explanation. May be omitted.'),
+    holdingYears: num('Calendar-aware years between acquisitionDate and saleDate.'),
+    yearsUntilFullExclusion: num('Additional years to hold before reaching the 100% exclusion tier; 0 when already reached.'),
+    era: {
+      type: 'string',
+      enum: ['pre-2009', 'pre-2010', 'pre-obbba', 'obbba'],
+      description: 'Acquisition-era classification that sets the exclusion schedule (50% pre-2009, 75% 2009-2010, 100% at 5y pre-OBBBA, tiered 50/75/100% at 3/4/5y under OBBBA).',
+    },
+    tests: {
+      type: 'array',
+      description: 'The eight statutory tests with per-test status, so an agent can show exactly which gate failed.',
+      items: {
+        type: 'object',
+        properties: {
+          id: str('Stable test identifier.'),
+          label: str('Human-readable test name.'),
+          status: {
+            type: 'string',
+            enum: ['pass', 'fail', 'unsure', 'wait'],
+            description: '"wait" means the test will pass with more holding time.',
+          },
+          detail: str('One-line explanation of the test outcome.'),
+        },
+        required: ['id', 'label', 'status', 'detail'],
+      },
+    },
+  },
+  required: [
+    'verdict', 'exclusionPercent', 'perIssuerCap', 'tenXBasisCap', 'applicableCap',
+    'excludableGain', 'taxableGain', 'federalTaxSaved', 'stateConforms', 'holdingYears',
+    'yearsUntilFullExclusion', 'era', 'tests',
+  ],
+};
+
+// One plan on the equity-funding risk/wealth frontier (equityFunding.ts NamedPlan).
+const NAMED_PLAN_SCHEMA: JsonSchema = {
+  type: 'object',
+  description: 'One sale plan on the risk/wealth frontier.',
+  properties: {
+    planKey: {
+      type: 'string',
+      enum: ['recommended', 'lock_in_now', 'balanced', 'hold_for_growth', 'candidate'],
+      description: 'Plan identifier. "candidate" entries appear only inside frontier.',
+    },
+    planLabel: str('Human-readable plan name.'),
+    plan: {
+      type: 'object',
+      description: 'The full sale schedule for this plan. Nested year/sale entries follow the shapes described here and may carry additional fields.',
+      properties: {
+        feasible: bool('True when the schedule reaches the after-tax target by the target date.'),
+        targetAfterTax: num('Echo of the requested net cash target in dollars.'),
+        targetDateISO: str('Echo of the target date as an ISO date string.'),
+        totalAfterTaxAchieved: num('Net after-tax cash in dollars the schedule produces by the target date (including after-tax cash interest when cashInterestRate is set).'),
+        totalSharesSold: num('Total shares sold across the schedule.'),
+        totalGrossProceeds: num('Total gross sale proceeds in dollars.'),
+        totalTaxes: {
+          type: 'object',
+          description: 'Tax totals across all scheduled sales, in dollars.',
+          properties: {
+            federal: num('Federal capital gains / ordinary tax in dollars.'),
+            state: num('State tax in dollars.'),
+            niit: num('Net Investment Income Tax (3.8%) in dollars.'),
+            total: num('Total tax in dollars.'),
+          },
+          required: ['federal', 'state', 'niit', 'total'],
+        },
+        schedule: {
+          type: 'array',
+          description: 'Per-year sale schedule. Each entry: year, saleDateISO, sales (array of per-lot entries: stackIndex, ticker, lotIndex, shares, grossProceeds, gainAmount, isLongTerm, federalTax, stateTax, niit, netCash), yearGrossProceeds, yearTotalTax, yearNetCash, runningCumulativeNet.',
+          items: { type: 'object', additionalProperties: true },
+        },
+        comparison: {
+          type: 'object',
+          description: 'This schedule vs the naive sell-everything-in-the-target-year alternative.',
+          properties: {
+            sellAllInTargetYearTotalTax: num('Tax in dollars if all needed shares were sold in the target year.'),
+            sellAllInTargetYearAfterTax: num('After-tax cash in dollars under that naive plan.'),
+            optimizedSavingsVsTargetYearSale: num('Tax saved in dollars by this schedule vs the naive plan.'),
+            optimizedSavingsPct: num('Tax saved as a fraction of the naive plan tax.'),
+          },
+          required: [
+            'sellAllInTargetYearTotalTax', 'sellAllInTargetYearAfterTax',
+            'optimizedSavingsVsTargetYearSale', 'optimizedSavingsPct',
+          ],
+        },
+        remainingShares: num('Shares retained after all scheduled sales.'),
+        remainingPositionValue: num('Market value in dollars of retained shares at the projected target-date price.'),
+        remainingPositionAfterTax: num('After-tax value in dollars of liquidating all retained shares at the target date (the cash backstop if scheduled sales come in light).'),
+        remainingNetByStack: {
+          type: 'array',
+          items: { type: 'number' },
+          description: 'Per-stack after-tax retained value in dollars, parallel to the input stacks array.',
+        },
+        shortfall: {
+          type: 'object',
+          description: 'Present only when the target is not reachable from the available inventory.',
+          properties: {
+            maxAchievableAfterTax: num('Maximum after-tax cash in dollars achievable by the target date.'),
+            gap: num('Dollars short of the target.'),
+          },
+          required: ['maxAchievableAfterTax', 'gap'],
+        },
+      },
+      required: [
+        'feasible', 'targetAfterTax', 'targetDateISO', 'totalAfterTaxAchieved', 'totalSharesSold',
+        'totalGrossProceeds', 'totalTaxes', 'schedule', 'comparison', 'remainingShares',
+        'remainingPositionValue', 'remainingPositionAfterTax', 'remainingNetByStack',
+      ],
+    },
+    wealthAtTarget: num('Total wealth in dollars at the target date: net cash plus retained shares at the projected price. The metric the recommendation maximizes.'),
+    totalTax: num('Total tax paid across the plan in dollars.'),
+    shortfallProbability: num('Lognormal probability (0..1) that realized cash lands below the target. 0 means a deterministic hit (sell everything today).'),
+    lockInFraction: num('Fraction (0..1) of the target locked in by an immediate sale, for hybrid candidates. Omitted on pure named plans.'),
+  },
+  required: ['planKey', 'planLabel', 'plan', 'wealthAtTarget', 'totalTax', 'shortfallProbability'],
+};
+
+const EQUITY_FUNDING_OUTPUT_SCHEMA: JsonSchema = {
+  type: 'object',
+  description: 'Equity-funding plan comparison: four named plans plus the full risk/wealth frontier. All dollar amounts are USD.',
+  properties: {
+    recommended: {
+      ...NAMED_PLAN_SCHEMA,
+      description: 'The wealth-maximal plan whose shortfall probability is at or below the applied risk tolerance. Present this plan first.',
+    },
+    lockInNow: {
+      ...NAMED_PLAN_SCHEMA,
+      description: 'Sell everything needed in the current calendar year: minimum price risk, usually highest tax.',
+    },
+    balanced: {
+      ...NAMED_PLAN_SCHEMA,
+      description: 'Bracket-aware spread across all candidate years: minimum tax.',
+    },
+    holdForGrowth: {
+      ...NAMED_PLAN_SCHEMA,
+      description: 'Sell only in the target year: maximum expected wealth, maximum price risk.',
+    },
+    frontier: {
+      type: 'array',
+      items: NAMED_PLAN_SCHEMA,
+      description: 'All candidate plans from the hybrid lock-in sweep plus the named plans, sorted by shortfall probability.',
+    },
+    targetAfterTax: num('Echo of the requested net cash target in dollars.'),
+    targetDateISO: str('Echo of the target date as an ISO date string.'),
+    appliedRiskTolerance: num('Shortfall-probability tolerance actually applied (default 0.10 when not supplied).'),
+  },
+  required: [
+    'recommended', 'lockInNow', 'balanced', 'holdForGrowth', 'frontier',
+    'targetAfterTax', 'targetDateISO', 'appliedRiskTolerance',
+  ],
 };
 
 export const TOOLS: McpTool[] = [
@@ -203,6 +921,7 @@ export const TOOLS: McpTool[] = [
         },
       },
     },
+    outputSchema: AMT_ISO_OUTPUT_SCHEMA,
     handler: (args) => computeAmtIso(parseAmtIsoInput(args)),
   },
   {
@@ -279,6 +998,7 @@ export const TOOLS: McpTool[] = [
         },
       },
     },
+    outputSchema: NSO_OUTPUT_SCHEMA,
     handler: (args) => computeNsoResult(parseNsoInput(args)),
   },
   {
@@ -344,6 +1064,7 @@ export const TOOLS: McpTool[] = [
         ticker: TICKER_SCHEMA,
       },
     },
+    outputSchema: RSU_OUTPUT_SCHEMA,
     handler: (args) => computeRsuResult(parseRsuInput(args)),
   },
   {
@@ -447,6 +1168,7 @@ export const TOOLS: McpTool[] = [
         },
       },
     },
+    outputSchema: CONCENTRATION_OUTPUT_SCHEMA,
     handler: (args) => computeConcentration(parseConcentrationInput(args)),
   },
   {
@@ -502,6 +1224,7 @@ export const TOOLS: McpTool[] = [
         },
       },
     },
+    outputSchema: PROTECTIVE_PUT_OUTPUT_SCHEMA,
     handler: (args) => calculateProtectivePut(parseProtectivePutInput(args)),
   },
   {
@@ -589,6 +1312,7 @@ export const TOOLS: McpTool[] = [
         },
       },
     },
+    outputSchema: QSBS_OUTPUT_SCHEMA,
     handler: (args) => evaluateQsbs(parseQsbsInput(args)),
   },
   {
@@ -703,6 +1427,7 @@ export const TOOLS: McpTool[] = [
         },
       },
     },
+    outputSchema: EQUITY_FUNDING_OUTPUT_SCHEMA,
     handler: (args) => computeEquityFundingComparison(parseEquityFundingInput(args)),
   },
 ];
