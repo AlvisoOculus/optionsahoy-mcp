@@ -97,6 +97,14 @@ To build the bundle from source:
 npm install && npm run build:mcpb
 ```
 
+### Smithery CLI (19 clients, one command)
+
+```bash
+npx @smithery/cli install alphalatitude/optionsahoy --client claude
+```
+
+Swap `claude` for any client Smithery supports: `claude-code`, `cursor`, `vscode`, `gemini-cli`, `codex`, `windsurf`, `cline`, `goose`, `opencode`, and 10 more. Listing: [smithery.ai/servers/alphalatitude/optionsahoy](https://smithery.ai/servers/alphalatitude/optionsahoy).
+
 ### Gemini CLI extension
 
 ```bash
