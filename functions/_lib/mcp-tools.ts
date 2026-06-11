@@ -1381,6 +1381,8 @@ export const TOOLS: McpTool[] = [
                 ...ISO_DATE,
                 description: 'Date the lot was acquired. Drives the 1-year long-term-vs-short-term classification at each candidate sale date.',
               },
+              vestDate: { ...ISO_DATE, description: 'Optional future vest date for an unvested RSU tranche. The lot is excluded from sales whose date precedes `vestDate`. For unvested RSUs, set `vestDate` to the future vest date and pass `costBasisPerShare: 0`; the calc overrides basis with the projected FMV at vest. Same semantics as `stacks[].lots[].vestDate`.',
+              },
             },
           },
         },
