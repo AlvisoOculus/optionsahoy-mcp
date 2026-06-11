@@ -6,7 +6,7 @@ import { execFileSync } from 'node:child_process';
 
 const pkg = JSON.parse(readFileSync('package.json', 'utf8'));
 
-for (const path of ['mcpb/manifest.json', 'gemini-extension.json']) {
+for (const path of ['mcpb/manifest.json', 'gemini-extension.json', 'server.json']) {
   const manifest = JSON.parse(readFileSync(path, 'utf8'));
   if (manifest.version !== pkg.version) {
     manifest.version = pkg.version;

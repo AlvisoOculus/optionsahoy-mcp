@@ -59,3 +59,20 @@ jobs:
       - run: gh release upload "${{ github.event.release.tag_name }}" optionsahoy.mcpb --clobber
         env:
           GH_TOKEN: ${{ github.token }}
+
+  # Official MCP registry (registry.modelcontextprotocol.io): republish
+  # server.json so the io.github.AlvisoOculus/optionsahoy-mcp entry tracks
+  # the released version. Auth is GitHub OIDC (no secrets) - the registry
+  # grants io.github.<owner>/* to workflows running in that owner's repos.
+  registry:
+    if: github.event_name == 'release'
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install mcp-publisher
+        run: curl -sL "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_$(uname -s | tr '[:upper:]' '[:lower:]')_$(uname -m | sed 's/x86_64/amd64/').tar.gz" | tar xz mcp-publisher
+      - run: ./mcp-publisher login github-oidc
+      - run: ./mcp-publisher publish
