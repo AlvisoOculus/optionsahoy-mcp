@@ -81,7 +81,7 @@ const tools = (await rpc('tools/list', {})).tools;
 check('tools/list has 7 tools', tools.length === 7, tools.map((t) => t.name).join(','));
 
 const resources = (await rpc('resources/list', {})).resources;
-check('resources/list has 6 resources', resources.length === 6);
+check('resources/list has 7 resources', resources.length === 7);
 
 const prompts = (await rpc('prompts/list', {})).prompts;
 check('prompts/list has 7 prompts', prompts.length === 7);

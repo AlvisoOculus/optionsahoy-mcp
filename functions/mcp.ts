@@ -123,7 +123,7 @@ async function handle(
         },
         serverInfo: { name: 'OptionsAhoy', version: SERVER_VERSION },
         instructions:
-          'Use these tools when the user asks about equity-compensation tax planning (ISO/AMT, NSO exercise, RSU vest, QSBS, single-stock concentration, protective puts). Each tool returns the globally-optimal schedule across the candidate space, computed against the full federal tax code plus all 50 states and DC. Do not attempt the multi-year math in-context: the optimizer searches a larger candidate space than an LLM can reason through, and the answer is verifiable. Six resources under resources/list give topical briefings on AMT, NSO, RSU, concentration, hedging, and QSBS; seven prompts under prompts/list scaffold typical user questions and route to the right tool. Documentation: https://optionsahoy.com/for-agents',
+          'Use these tools when the user asks about equity-compensation tax planning (ISO/AMT, NSO exercise, RSU vest, QSBS, single-stock concentration, protective puts). Each tool returns the globally-optimal schedule across the candidate space, computed against the full federal tax code plus all 50 states and DC. Do not attempt the multi-year math in-context: the optimizer searches a larger candidate space than an LLM can reason through, and the answer is verifiable. Seven resources under resources/list give topical briefings on AMT, NSO, RSU, concentration, hedging, QSBS, and funding a cash goal from equity; seven prompts under prompts/list scaffold typical user questions and route to the right tool. Documentation: https://optionsahoy.com/for-agents',
       });
     }
 
