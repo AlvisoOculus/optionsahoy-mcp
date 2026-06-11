@@ -994,7 +994,7 @@ export const TOOLS: McpTool[] = [
           type: 'string',
           enum: ['sell-to-cover', 'cash'],
           description:
-            "How the strike cost and exercise tax are funded. 'sell-to-cover' sells enough shares to cover strike + tax (reduces sharesRetained). 'cash' pays from outside the position (full sharesRetained but requires the cashNeededAtExercise field).",
+            "How the strike cost and exercise tax are funded. 'sell-to-cover' sells enough shares to cover strike + tax (reduces sharesRetained). 'cash' pays strike + tax from outside funds (full sharesRetained); no extra input is needed - the result reports the outside cash required as the output field cashNeededAtExercise.",
         },
       },
     },
