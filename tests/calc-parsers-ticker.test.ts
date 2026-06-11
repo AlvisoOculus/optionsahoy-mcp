@@ -347,3 +347,15 @@ describe('parseProtectivePutInput — ticker → sigma resolution', () => {
     expect(out.tickerLabel).toBe('Nvidia');
   });
 });
+
+describe('GOOG share-class alias', () => {
+  it('resolves GOOG to the same trailing return as GOOGL', () => {
+    expect(getTrailingReturn('GOOG', 3)).toEqual(getTrailingReturn('GOOGL', 3));
+    expect(getTrailingReturn('goog', 5)).toEqual(getTrailingReturn('GOOGL', 5));
+  });
+
+  it('parses concentration input with ticker GOOG without throwing', () => {
+    const out = parseConcentrationInput({ ...CONCENTRATION_BASE, ticker: 'GOOG' });
+    expect(out.expectedPositionReturn).toBe(getTrailingReturn('GOOGL', 3));
+  });
+});

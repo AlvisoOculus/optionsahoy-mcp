@@ -20,6 +20,17 @@ export type TrailingReturnEntry = {
 
 const TICKERS = data.tickers as Record<string, TrailingReturnEntry>;
 
+// Share-class aliases: user-typed ticker -> the class the daily ETL tracks.
+// Alphabet trades as GOOGL (class A, in the universe) and GOOG (class C);
+// the classes track within fractions of a percent, so GOOG resolves to
+// GOOGL's data rather than erroring as uncovered.
+const TICKER_ALIASES: Record<string, string> = { GOOG: 'GOOGL' };
+
+function canonicalTicker(ticker: string): string {
+  const t = ticker.toUpperCase();
+  return TICKER_ALIASES[t] ?? t;
+}
+
 // Horizon-weighted blend of return5y and return10y. Below 3y → 100% 5y;
 // at 10y+ → 100% 10y; linear blend in between. Returns null for unknown
 // tickers or missing data. The web reader skips short horizons in favor
@@ -27,7 +38,7 @@ const TICKERS = data.tickers as Record<string, TrailingReturnEntry>;
 // access, so 5y is the closest substitute for short windows.
 export function getTrailingReturn(ticker: string, horizonYears: number): number | null {
   if (!ticker || !Number.isFinite(horizonYears) || horizonYears <= 0) return null;
-  const entry = TICKERS[ticker.toUpperCase()];
+  const entry = TICKERS[canonicalTicker(ticker)];
   if (!entry) return null;
   const r5 = typeof entry.return5y === 'number' ? entry.return5y : null;
   const r10 = typeof entry.return10y === 'number' ? entry.return10y : null;
@@ -43,7 +54,7 @@ export function getTrailingReturn(ticker: string, horizonYears: number): number 
 // growth-rate input or fall through to "user must supply it" errors.
 export function hasTrailingReturn(ticker: string): boolean {
   if (!ticker) return false;
-  const entry = TICKERS[ticker.toUpperCase()];
+  const entry = TICKERS[canonicalTicker(ticker)];
   if (!entry) return false;
   return typeof entry.return5y === 'number' || typeof entry.return10y === 'number';
 }
