@@ -28,8 +28,9 @@ import {
 import { TOOLS } from '../functions/_lib/mcp-tools';
 import { RESOURCES } from '../functions/_lib/mcp-resources';
 import { PROMPTS } from '../functions/_lib/mcp-prompts';
+import { SERVER_VERSION } from '../functions/_lib/version';
 
-const SERVER_INFO = { name: 'optionsahoy', version: '1.9.0' };
+const SERVER_INFO = { name: 'optionsahoy', version: SERVER_VERSION };
 
 // Precomputed list projections + name lookups, mirroring the precomputation
 // in functions/mcp.ts so list calls don't allocate on every request and

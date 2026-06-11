@@ -170,7 +170,7 @@ npm run typecheck
 ## Registry listings
 
 - [Official MCP Registry](https://registry.modelcontextprotocol.io/v0/servers?search=optionsahoy) — `io.github.AlvisoOculus/optionsahoy-mcp` v1.0.0, status active
-- [Smithery](https://smithery.ai/server/@alphalatitudeops/optionsahoy)
+- [Smithery](https://smithery.ai/servers/alphalatitude/optionsahoy) — `alphalatitude/optionsahoy`
 - [add-mcp curated registry](https://github.com/neon-solutions/add-mcp)
 - [PulseMCP](https://www.pulsemcp.com) (cascades from Official Registry)
 - [Continue.dev hub](https://hub.continue.dev/andrews-workspace-73/optionsahoy-mcp) — block YAML lives at [`.continue/mcpServers/optionsahoy.yaml`](.continue/mcpServers/optionsahoy.yaml)
