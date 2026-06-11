@@ -19,13 +19,24 @@ export type TrailingVolEntry = {
 
 const TICKERS = data.tickers as Record<string, TrailingVolEntry>;
 
+// Share-class aliases: user-typed ticker -> the class the daily ETL tracks.
+// Alphabet trades as GOOGL (class A, in the universe) and GOOG (class C);
+// the classes track within fractions of a percent, so GOOG resolves to
+// GOOGL's data rather than erroring as uncovered.
+const TICKER_ALIASES: Record<string, string> = { GOOG: 'GOOGL' };
+
+function canonicalTicker(ticker: string): string {
+  const t = ticker.toUpperCase();
+  return TICKER_ALIASES[t] ?? t;
+}
+
 // Returns the cached ATM 1y IV for the given ticker, or null when the
 // ticker is unknown or its entry lacks a usable IV. Horizon argument is
 // reserved for future use (currently the table only stores a single
 // ~1y IV per ticker; horizon-blending would require multi-tenor cells).
 export function getTrailingVol(ticker: string): number | null {
   if (!ticker) return null;
-  const entry = TICKERS[ticker.toUpperCase()];
+  const entry = TICKERS[canonicalTicker(ticker)];
   if (!entry || typeof entry.atmIV1y !== 'number') return null;
   if (entry.atmIV1y <= 0 || entry.atmIV1y > 5) return null;
   return entry.atmIV1y;
