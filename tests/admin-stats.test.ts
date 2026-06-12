@@ -78,6 +78,27 @@ describe('admin /mcp-stats', () => {
     expect(html).toMatch(/2026-05-27/);
   });
 
+  it('returns structured JSON when format=json', async () => {
+    const env: Env = { ADMIN_TOKEN: 'secret', MCP_STATS: mockDb(SAMPLE_ROWS) };
+    const res = await onRequest(ctx(env, req('?token=secret&days=7&format=json')));
+    expect(res.status).toBe(200);
+    expect(res.headers.get('content-type')).toMatch(/application\/json/);
+    const body = await res.json();
+    expect(body.days).toBe(7);
+    expect(body.endpoints).toEqual([
+      { endpoint: 'mcp:tools/call', n: 42 },
+      { endpoint: 'mcp:initialize', n: 7 },
+    ]);
+    expect(body.tools[0].tool).toBe('concentration_analyze');
+    expect(body.clients[0].client_name).toBe('Claude.ai');
+    expect(body.daily.length).toBe(2);
+  });
+
+  it('still requires the token when format=json', async () => {
+    const res = await onRequest(ctx({ ADMIN_TOKEN: 'secret' }, req('?format=json')));
+    expect(res.status).toBe(401);
+  });
+
   it('clamps absurd day values to the default window', async () => {
     const env: Env = { ADMIN_TOKEN: 'secret', MCP_STATS: mockDb(SAMPLE_ROWS) };
     const res = await onRequest(ctx(env, req('?token=secret&days=999999')));

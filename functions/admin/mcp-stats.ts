@@ -1,11 +1,12 @@
 // AlphaLatitude Inc. © 2026
 //
-// GET /admin/mcp-stats?token=<ADMIN_TOKEN>&days=<N>
+// GET /admin/mcp-stats?token=<ADMIN_TOKEN>&days=<N>[&format=json]
 //
 // Token-gated dashboard for the MCP_STATS D1 table. Default 30-day window.
 // Returns plain HTML tables — no JS, no auth flow, no cookies. Andrew is
 // the only intended consumer; bookmark the URL with the token in the query
-// string.
+// string. format=json returns the same data as a JSON document; the ops
+// repo's daily snapshot job consumes it to build a local time series.
 //
 // Reachable directly on the Pages dev URL:
 //   https://optionsahoy-mcp.pages.dev/admin/mcp-stats?token=...
@@ -70,6 +71,17 @@ export const onRequest: PagesFunction = async (ctx) => {
     q<ClientRow>(db, SQL_CLIENTS, sinceMs),
     q<CountryRow>(db, SQL_COUNTRIES, sinceMs),
   ]);
+
+  if (url.searchParams.get('format') === 'json') {
+    const body = JSON.stringify({ days, endpoints, daily, tools, errors, clients, countries });
+    return new Response(body, {
+      status: 200,
+      headers: {
+        'content-type': 'application/json; charset=utf-8',
+        'cache-control': 'no-store',
+      },
+    });
+  }
 
   const html = renderHtml({ days, endpoints, daily, tools, errors, clients, countries });
   return new Response(html, {
