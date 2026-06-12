@@ -8,7 +8,7 @@
 
 Deterministic equity-compensation tax math that any Model Context Protocol (MCP) client can call: incentive stock option (ISO) exercise schedules under the alternative minimum tax (AMT), non-qualified stock option (NSO) and restricted stock unit (RSU) decisions, qualified small business stock (QSBS) qualification, single-stock concentration, protective-put hedging, and equity-funding goals. Full federal tax code plus all 50 states and DC, 2026 brackets. Built by [AlphaLatitude Inc.](https://alphalatitude.com), the company behind [OptionsAhoy](https://optionsahoy.com).
 
-**Why not just ask the model?** We benchmarked five frontier large language models (LLMs), 3 runs each, 15 trials total, on the same multi-year ISO exercise problem. Every trial overshot the true after-tax outcome, by 2x to 20x. Multi-year scheduling has a search space larger than an LLM can reason through in-context; these tools return the verifiable answer instead. Full methodology: [But can it do taxes though?](https://hackernoon.com/but-can-it-do-taxes-though-why-you-shouldnt-trust-chatbots-with-tax-optimization-math)
+**Why not just ask the model?** We benchmarked five frontier large language models (LLMs), 3 runs each, 15 trials total, on the same multi-year ISO exercise problem. Every trial overshot the true after-tax outcome, by 2x to 20x. Multi-year scheduling has a search space larger than an LLM can reason through in-context; these tools return the verifiable answer instead. Raw responses and scoring: [llm-iso-benchmark](https://github.com/AlvisoOculus/llm-iso-benchmark). Full write-up: [But can it do taxes though?](https://hackernoon.com/but-can-it-do-taxes-though-why-you-shouldnt-trust-chatbots-with-tax-optimization-math)
 
 ## Install in one line
 
