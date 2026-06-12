@@ -6,41 +6,56 @@
 
 <sub>**Independently verified.** **[Glama](https://glama.ai/mcp/servers/AlvisoOculus/optionsahoy-mcp):** third-party MCP-directory quality score (tool docs, behavior, completeness). · **[npm](https://www.npmjs.com/package/optionsahoy-mcp):** published with build provenance, a signed [SLSA](https://slsa.dev) attestation that this package was built from this repo by GitHub Actions (verify with `npm audit signatures`). · **[MCPSafe](https://mcpsafe.io/scan/pubfast497de7f7a5466f2a414a):** independent 5-model-consensus security scan (AIVSS), Grade A with zero findings.</sub>
 
-> Equity-compensation optimizer. ISO/AMT, NSO, RSU, QSBS, single-stock concentration, protective puts/collars, and equity-funding plans. Seven deterministic tools across the federal + 50-state + DC tax code.
+Deterministic equity-compensation tax math that any Model Context Protocol (MCP) client can call: incentive stock option (ISO) exercise schedules under the alternative minimum tax (AMT), non-qualified stock option (NSO) and restricted stock unit (RSU) decisions, qualified small business stock (QSBS) qualification, single-stock concentration, protective-put hedging, and equity-funding goals. Full federal tax code plus all 50 states and DC, 2026 brackets. Built by [AlphaLatitude Inc.](https://alphalatitude.com), the company behind [OptionsAhoy](https://optionsahoy.com).
 
-**Live MCP endpoint:** `https://optionsahoy.com/mcp` (no auth, no install)
-**Live REST API:** `https://optionsahoy.com/api/v1`
-**OpenAPI 3.1 spec:** [`/openapi.json`](https://optionsahoy.com/openapi.json)
-**Discovery manifests:** [`/.well-known/mcp.json`](https://optionsahoy.com/.well-known/mcp.json) · [`/.well-known/openapi.json`](https://optionsahoy.com/.well-known/openapi.json)
-**Agent integration docs:** [optionsahoy.com/for-agents](https://optionsahoy.com/for-agents)
+**Why not just ask the model?** We benchmarked five frontier large language models (LLMs), 3 runs each, 15 trials total, on the same multi-year ISO exercise problem. Every trial overshot the true after-tax outcome, by 2x to 20x. Multi-year scheduling has a search space larger than an LLM can reason through in-context; these tools return the verifiable answer instead. Full methodology: [But can it do taxes though?](https://hackernoon.com/but-can-it-do-taxes-though-why-you-shouldnt-trust-chatbots-with-tax-optimization-math)
 
-Built by [AlphaLatitude Inc.](https://alphalatitude.com), the company behind [OptionsAhoy](https://optionsahoy.com), a beta-stage equity-compensation optimization product.
+## Install in one line
 
-## See it in action
+The hosted endpoint is `https://optionsahoy.com/mcp` (HTTP, no auth, no account). Quickest paths:
+
+| Client | Install |
+|---|---|
+| Any MCP client | Add `https://optionsahoy.com/mcp` as a remote HTTP server, or `npx add-mcp https://optionsahoy.com/mcp` |
+| Claude Desktop | Download [`optionsahoy.mcpb`](https://github.com/AlvisoOculus/optionsahoy-mcp/releases/latest/download/optionsahoy.mcpb) and double-click it |
+| 19 clients via Smithery | `npx @smithery/cli install alphalatitude/optionsahoy --client claude` |
+| Local stdio (npm) | `npx -y optionsahoy-mcp` |
+
+Full install matrix (Gemini CLI extension, config-file JSON, REST API, Google Cloud Agent Registry): [optionsahoy.com/for-agents](https://optionsahoy.com/for-agents).
+
+## The seven tools
+
+| Tool name | What it computes |
+|---|---|
+| `amt_iso_optimize` | Multi-year ISO exercise schedule that maximizes after-tax net final value at the planning horizon, modeling AMT credit recovery, grant expiration, and the post-termination exercise window |
+| `nso_calculate` | After-tax payout on an NSO exercise (federal, state, FICA), comparing sell-at-exercise vs hold for long-term capital gains |
+| `rsu_sell_vs_hold` | RSU vest decision: sell at vest vs hold for long-term capital gains, including the gap between 22% supplemental withholding and your marginal bracket |
+| `concentration_analyze` | Single-stock concentration risk (drawdown exposure at 30/50/70% downside), comparing after-tax sell-down, hold, and hedge strategies |
+| `protective_put_price` | Protective put and zero-cost collar pricing via Black-Scholes: annualized hedge cost, maximum loss, upside cap, floor-hit probability |
+| `qsbs_check` | Section 1202 QSBS qualification across the eight statutory tests, with the OBBBA 2026 tiered exclusion and per-state conformity |
+| `equity_funding_plan` | Multi-year, multi-stack sell schedule to hit a target after-tax amount by a deadline; returns four named plans plus the full risk/wealth frontier |
+
+The optimizers return the globally-optimal schedule across the candidate space; the calculators return exact deterministic results. No heuristics, no samples. Coverage spans the full federal tax code (ordinary brackets, long-term capital gains, AMT with credit recovery, FICA, NIIT) plus all 50 states and DC (state ordinary brackets, LTCG treatment, state AMT for CA, CO, CT, MN). Same engine as the in-browser calculators at [optionsahoy.com/tools](https://optionsahoy.com/tools); the API response is byte-identical to clicking through the tool.
+
+## Try it without installing
+
+The live widget on [optionsahoy.com/for-agents](https://optionsahoy.com/for-agents) calls this same endpoint from your browser. No client, no config.
+
+Or watch a real session:
 
 [![Demo: Claude Code installing and using the OptionsAhoy MCP](docs/demo-claude-code-poster.jpg)](https://optionsahoy.com/for-agents#demo)
 
 *Real Claude Code session, unedited. A multi-stack META question (10K ISOs + 6K vested RSUs + 2K fresh RSUs + $400K house in 2027) fires 4 OptionsAhoy MCP tools in parallel: concentration risk, equity funding plan, AMT/ISO optimization, protective put pricing. Claude synthesizes the outputs into one plan that overrides each tool's standalone pick because the user is 86% concentrated in META. 2:13. Click the poster to play it on optionsahoy.com.*
 
----
+## Endpoints and discovery
 
-## What this is
+**Live MCP endpoint:** `https://optionsahoy.com/mcp`
+**Live REST API:** `https://optionsahoy.com/api/v1`
+**OpenAPI 3.1 spec:** [`/openapi.json`](https://optionsahoy.com/openapi.json)
+**Discovery manifests:** [`/.well-known/mcp.json`](https://optionsahoy.com/.well-known/mcp.json) · [`/.well-known/openapi.json`](https://optionsahoy.com/.well-known/openapi.json)
+**Agent integration docs:** [optionsahoy.com/for-agents](https://optionsahoy.com/for-agents)
 
-An optimization engine for equity-compensation tax planning, exposed as both a Model Context Protocol (MCP) server and a plain REST API. Seven tools:
-
-| Tool name | What it computes |
-|---|---|
-| `amt_iso_optimize` | Multi-year Incentive Stock Option (ISO) exercise schedule that minimizes federal and state Alternative Minimum Tax (AMT), with credit recovery across years |
-| `nso_calculate` | Non-qualified Stock Option (NSO) exercise tax + sell-vs-hold-for-LTCG comparison |
-| `rsu_sell_vs_hold` | RSU sell-at-vest vs hold-for-long-term-capital-gains decision |
-| `concentration_analyze` | Single-stock concentration risk + sell-down vs hold vs hedge optimization |
-| `protective_put_price` | Protective put / zero-cost collar pricing via Black-Scholes; volatility from a compiled sector-volatility table, or a caller-supplied value |
-| `qsbs_check` | Section 1202 Qualified Small Business Stock (QSBS) qualification (eight statutory tests, OBBBA 2026 tiered exclusion) |
-| `equity_funding_plan` | Multi-year, multi-stack equity-funding plan for hitting a target after-tax amount by a deadline. Returns four named plans (Lock-in-now / Balanced / Hold-for-growth / Recommended) plus the full risk/wealth frontier. |
-
-The optimizers return the globally-optimal schedule across the candidate space; the calculators return exact deterministic results. No heuristics, no samples. Coverage spans the full federal tax code (ordinary brackets, long-term capital gains, AMT with credit recovery, FICA, NIIT) plus all 50 states and DC (state ordinary brackets, LTCG treatment, state AMT for CA, CO, CT, MN). Same engine as the in-browser calculators at [optionsahoy.com/tools](https://optionsahoy.com/tools); the API response is byte-identical to clicking through the tool.
-
-### MCP resources (topical briefings)
+## MCP resources (topical briefings)
 
 Six markdown resources under `resources/list` give an LLM enough grounding to discuss the topic before picking a tool. Each maps 1:1 with a cornerstone article on [optionsahoy.com/learn](https://optionsahoy.com/learn) and the matching calculator.
 
@@ -53,7 +68,7 @@ Six markdown resources under `resources/list` give an LLM enough grounding to di
 | `https://optionsahoy.com/learn/zero-cost-collars` | Protective puts and zero-cost collars | `protective_put_price` |
 | `https://optionsahoy.com/learn/qsbs` | QSBS qualification and five ways to lose the exclusion | `qsbs_check` |
 
-### MCP prompts (workflow scaffolds)
+## MCP prompts (workflow scaffolds)
 
 Seven prompts under `prompts/list` scaffold typical user questions and route to the right tool. In Claude Desktop they appear as named slash-commands; in any MCP client, `prompts/get { name, arguments }` returns a fully-templated user message.
 
@@ -67,29 +82,11 @@ Seven prompts under `prompts/list` scaffold typical user questions and route to 
 | `check-qsbs-eligibility` | `qsbs_check` |
 | `plan-equity-funding` | `equity_funding_plan` |
 
-## Why use an optimizer
-
-A benchmark of five frontier large language models on the same multi-year ISO exercise problem found that every one of 15 trials overshot the achievable after-tax outcome by 2x to 20x. Multi-year scheduling has a search space larger than an LLM can reason through in-context. Full write-up: [HackerNoon — But can it do taxes though?](https://hackernoon.com/but-can-it-do-taxes-though-why-you-shouldnt-trust-chatbots-with-tax-optimization-math)
-
-## Use from Claude / ChatGPT / Perplexity / any MCP client
-
-### Hosted (no install)
-
-Add the server as a remote HTTP MCP connection:
-
-```
-https://optionsahoy.com/mcp
-```
-
-Or via the [`add-mcp`](https://github.com/neon-solutions/add-mcp) CLI:
-
-```bash
-npx add-mcp https://optionsahoy.com/mcp
-```
+## Install details
 
 ### Claude Desktop extension (one-click)
 
-Download [`optionsahoy.mcpb`](https://github.com/AlvisoOculus/optionsahoy-mcp/releases/latest/download/optionsahoy.mcpb) and double-click it (or drag onto Claude Desktop → Settings → Extensions). Claude Desktop installs the bundled server with no terminal or config-file editing, using its built-in Node.js runtime.
+The [`optionsahoy.mcpb`](https://github.com/AlvisoOculus/optionsahoy-mcp/releases/latest/download/optionsahoy.mcpb) bundle installs by double-click (or drag onto Claude Desktop → Settings → Extensions), with no terminal or config-file editing, using Claude Desktop's built-in Node.js runtime.
 
 To build the bundle from source:
 
