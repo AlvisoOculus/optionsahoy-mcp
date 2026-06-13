@@ -1,0 +1,36 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "langchain-optionsahoy"
+version = "0.1.0"
+description = "LangChain tools for the OptionsAhoy equity-compensation calculators."
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+authors = [{ name = "AlphaLatitude Inc." }]
+keywords = ["langchain", "tools", "equity-compensation", "iso", "amt", "nso", "rsu", "qsbs"]
+dependencies = [
+    "optionsahoy>=0.1.0",
+    "langchain-core>=0.3",
+    "pydantic>=2",
+]
+
+[project.urls]
+Homepage = "https://optionsahoy.com"
+Documentation = "https://optionsahoy.com/for-agents"
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "ruff>=0.5"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["langchain_optionsahoy"]
+
+[tool.ruff]
+line-length = 100
+
+# During local development the `optionsahoy` dependency is resolved from the
+# sibling path. Install both editable from the repo:
+#   pip install -e integrations/python/optionsahoy
+#   pip install -e integrations/python/langchain-optionsahoy

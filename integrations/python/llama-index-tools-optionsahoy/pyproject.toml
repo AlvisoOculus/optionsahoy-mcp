@@ -1,0 +1,35 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "llama-index-tools-optionsahoy"
+version = "0.1.0"
+description = "LlamaIndex tools for the OptionsAhoy equity-compensation calculators."
+readme = "README.md"
+requires-python = ">=3.9"
+license = { text = "MIT" }
+authors = [{ name = "AlphaLatitude Inc." }]
+keywords = ["llama-index", "tools", "equity-compensation", "iso", "amt", "nso", "rsu", "qsbs"]
+dependencies = [
+    "optionsahoy>=0.1.0",
+    "llama-index-core>=0.11",
+]
+
+[project.urls]
+Homepage = "https://optionsahoy.com"
+Documentation = "https://optionsahoy.com/for-agents"
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "ruff>=0.5"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["llama_index"]
+
+[tool.ruff]
+line-length = 100
+
+# During local development the `optionsahoy` dependency is resolved from the
+# sibling path. Install both editable from the repo:
+#   pip install -e integrations/python/optionsahoy
+#   pip install -e integrations/python/llama-index-tools-optionsahoy
