@@ -1,4 +1,4 @@
-# langchain-optionsahoy
+# optionsahoy-langchain
 
 LangChain tools for the OptionsAhoy equity-compensation calculators. Each tool is a
 `StructuredTool` with a pydantic `args_schema` mirroring an OptionsAhoy REST endpoint,
@@ -16,7 +16,7 @@ From this repository, install both packages editable:
 
 ```bash
 pip install -e integrations/python/optionsahoy
-pip install -e integrations/python/langchain-optionsahoy
+pip install -e integrations/python/optionsahoy-langchain
 ```
 
 ## Usage
