@@ -403,6 +403,10 @@
                     "asOf": {
                       "type": "string",
                       "format": "date-time"
+                    },
+                    "distinctClients30d": {
+                      "type": "integer",
+                      "minimum": 0
                     }
                   }
                 }
@@ -426,6 +430,71 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "/api/v1/badge": {
+      "get": {
+        "summary": "Shields.io usage badge",
+        "description": "Returns the shields.io endpoint-badge JSON (schemaVersion 1) for live MCP usage. Used by README badges; rendered via https://img.shields.io/endpoint?url=. PII-safe aggregate counts only. Cached 5 minutes at the edge. Always returns 200 (lightgrey n/a badge when the stats binding is unconfigured) so the badge keeps rendering.",
+        "operationId": "badge",
+        "tags": [
+          "Discovery"
+        ],
+        "parameters": [
+          {
+            "name": "metric",
+            "in": "query",
+            "required": false,
+            "description": "Which metric to render. Defaults to calls30d.",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "calls30d",
+                "calls",
+                "clients30d"
+              ],
+              "default": "calls30d"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Shields endpoint-badge object",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "required": [
+                    "schemaVersion",
+                    "label",
+                    "message",
+                    "color"
+                  ],
+                  "properties": {
+                    "schemaVersion": {
+                      "type": "integer",
+                      "enum": [
+                        1
+                      ]
+                    },
+                    "label": {
+                      "type": "string"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "color": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "405": {
+            "$ref": "#/components/responses/MethodNotAllowed"
           }
         }
       }

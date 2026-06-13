@@ -14,6 +14,7 @@ function mockDb(): D1Database {
     prepare(sql: string): D1PreparedStatement {
       let rows: unknown[] = [];
       if (/SELECT COUNT\(\*\) AS n FROM mcp_calls$/.test(sql)) rows = [{ n: 1234 }];
+      else if (/COUNT\(DISTINCT client_name\)/.test(sql)) rows = [{ n: 7 }];
       else if (/WHERE ts >= \?/.test(sql)) rows = [{ n: 42 }];
       else if (/GROUP BY tool/.test(sql)) {
         rows = [
@@ -62,6 +63,7 @@ describe('GET /api/v1/stats', () => {
     expect(json.last24h).toBe(42);
     expect(json.last7d).toBe(42);
     expect(json.last30d).toBe(42);
+    expect(json.distinctClients30d).toBe(7);
     expect(json.topTools).toEqual([
       { name: 'amt_iso_optimize', count: 500 },
       { name: 'concentration_analyze', count: 300 },
