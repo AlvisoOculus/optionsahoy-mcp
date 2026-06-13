@@ -68,9 +68,10 @@ jobs:
       id-token: write
       contents: read
 
-    # Bind to the `pypi` environment so the trusted-publisher registration
-    # (and any required reviewers) apply.
-    environment: pypi
+    # No GitHub environment is bound, so the PyPI trusted-publisher registration
+    # must also leave its Environment field BLANK (they have to match exactly).
+    # To add a manual-approval gate later: create a `pypi` environment here
+    # (add `environment: pypi` above) AND set Environment `pypi` on each PyPI publisher.
 
     strategy:
       # One package failing should not abort the others.

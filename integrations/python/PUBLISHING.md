@@ -40,14 +40,17 @@ publish job fails with an authentication error.
    | Owner            | `AlvisoOculus`       |
    | Repository name  | `optionsahoy-mcp`    |
    | Workflow name    | `publish-python.yml` |
-   | Environment name | `pypi`               |
+   | Environment name | (leave blank)        |
 
-4. (Recommended) In GitHub, create an Actions environment named `pypi`
-   (repo **Settings -> Environments -> New environment**) and add yourself as a
-   required reviewer. Each publish then waits for a one-click human approval.
-   If you skip this, drop the `environment name` from the PyPI publisher and
-   remove the `environment: pypi` line from `.github/workflows/publish-python.yml`
-   so the two sides match.
+   Leave Environment blank. The workflow binds no GitHub environment, and the two
+   sides must match exactly.
+
+4. (Optional, for a manual-approval gate) If you later want each publish to wait
+   for a one-click human approval: create a GitHub Actions environment named `pypi`
+   (repo **Settings -> Environments -> New environment**, add yourself as a required
+   reviewer), add `environment: pypi` back to the job in
+   `.github/workflows/publish-python.yml`, AND set Environment `pypi` on each PyPI
+   publisher. All three must agree.
 
 ## Cutting a release
 
