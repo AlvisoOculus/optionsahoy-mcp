@@ -1,0 +1,42 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "optionsahoy-openbb-agent"
+version = "0.1.0"
+description = "OpenBB Workspace agent that answers equity-compensation questions with the OptionsAhoy calculators."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "AlphaLatitude Inc." }]
+keywords = ["openbb", "agent", "equity-compensation", "iso", "amt", "nso", "rsu", "qsbs"]
+dependencies = [
+    "optionsahoy>=0.1.0",
+    "openbb-ai>=2.1.0",
+    "fastapi>=0.115",
+    "uvicorn>=0.27",
+    "sse-starlette>=2.1",
+    "openai>=2.0",
+]
+
+[project.urls]
+Homepage = "https://optionsahoy.com"
+Documentation = "https://optionsahoy.com/for-agents"
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "ruff>=0.5"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["optionsahoy_openbb_agent"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.ruff]
+line-length = 100
+
+# During local development the `optionsahoy` dependency is resolved from the
+# sibling path. Install both editable from the repo root:
+#   pip install -e integrations/python/optionsahoy
+#   pip install -e integrations/openbb-agent

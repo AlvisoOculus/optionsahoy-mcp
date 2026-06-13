@@ -1,0 +1,15 @@
+{
+  "optionsahoy_equity_planner": {
+    "name": "OptionsAhoy Equity Planner",
+    "description": "Answers equity-compensation planning questions by calling the OptionsAhoy calculators: incentive stock option and alternative minimum tax (AMT) exercise timing, non-qualified stock options, restricted stock unit sell-versus-hold, qualified small business stock (QSBS), single-stock concentration, protective-put hedging, and funding a cash goal from equity. OptionsAhoy's API is keyless.",
+    "image": "https://optionsahoy.com/icon.png",
+    "endpoints": {
+      "query": "/v1/query"
+    },
+    "features": {
+      "streaming": true,
+      "widget-dashboard-select": false,
+      "widget-dashboard-search": false
+    }
+  }
+}
