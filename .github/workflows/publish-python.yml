@@ -10,7 +10,7 @@
 # BEFORE the first release, otherwise the publish step fails with a 4xx:
 #
 #   optionsahoy
-#   langchain-optionsahoy
+#   optionsahoy-langchain
 #   llama-index-tools-optionsahoy
 #   crewai-optionsahoy
 #
@@ -50,7 +50,7 @@ on:
         options:
           - all
           - optionsahoy
-          - langchain-optionsahoy
+          - optionsahoy-langchain
           - llama-index-tools-optionsahoy
           - crewai-optionsahoy
 
@@ -79,7 +79,7 @@ jobs:
       matrix:
         package:
           - optionsahoy
-          - langchain-optionsahoy
+          - optionsahoy-langchain
           - llama-index-tools-optionsahoy
           - crewai-optionsahoy
 

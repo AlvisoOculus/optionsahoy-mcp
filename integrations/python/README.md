@@ -5,7 +5,7 @@ equity-compensation REST API.
 
 - [`optionsahoy/`](./optionsahoy) — a thin, dependency-light client (httpx only)
   wrapping the calculator endpoints.
-- [`langchain-optionsahoy/`](./langchain-optionsahoy) — LangChain `StructuredTool`s
+- [`optionsahoy-langchain/`](./optionsahoy-langchain) — LangChain `StructuredTool`s
   built on top of the client.
 - [`llama-index-tools-optionsahoy/`](./llama-index-tools-optionsahoy) — LlamaIndex
   tools built on top of the client.
@@ -21,12 +21,12 @@ The three adapter packages depend on `optionsahoy` by version. Install
 ```bash
 python3 -m venv .venv && source .venv/bin/activate
 pip install -e "./optionsahoy[dev]" \
-  -e "./langchain-optionsahoy" \
+  -e "./optionsahoy-langchain" \
   -e "./llama-index-tools-optionsahoy" \
   -e "./crewai-optionsahoy"
 
 pytest optionsahoy/tests -m "not live"        # mocked HTTP, no network
-pytest langchain-optionsahoy/tests            # mocked client, no network
+pytest optionsahoy-langchain/tests            # mocked client, no network
 pytest llama-index-tools-optionsahoy/tests    # mocked client, no network
 pytest crewai-optionsahoy/tests               # mocked client, no network
 OA_LIVE=1 pytest optionsahoy/tests -m live    # one live call to the real API

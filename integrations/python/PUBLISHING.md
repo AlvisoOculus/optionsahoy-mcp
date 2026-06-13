@@ -10,7 +10,7 @@ Packages and their PyPI project names:
 | Directory                       | PyPI project name               |
 | ------------------------------- | ------------------------------- |
 | `optionsahoy/`                  | `optionsahoy`                   |
-| `langchain-optionsahoy/`        | `langchain-optionsahoy`         |
+| `optionsahoy-langchain/`        | `optionsahoy-langchain`         |
 | `llama-index-tools-optionsahoy/`| `llama-index-tools-optionsahoy` |
 | `crewai-optionsahoy/`           | `crewai-optionsahoy`            |
 
@@ -76,7 +76,7 @@ publish job fails with an authentication error.
 ```bash
 python3 -m venv .venv && source .venv/bin/activate
 pip install build
-for d in optionsahoy langchain-optionsahoy llama-index-tools-optionsahoy crewai-optionsahoy; do
+for d in optionsahoy optionsahoy-langchain llama-index-tools-optionsahoy crewai-optionsahoy; do
   python -m build "$d"
 done
 ```
