@@ -1,0 +1,117 @@
+# Publish the OptionsAhoy Python integrations to PyPI using Trusted Publishing.
+#
+# Trusted Publishing means NO long-lived API token is stored anywhere. PyPI
+# verifies a short-lived OIDC token minted by GitHub Actions for THIS repo +
+# workflow (+ environment), so the only secret is the trust relationship you
+# register once on PyPI. This requires `id-token: write` below and a PUBLIC
+# repo (this one is).
+#
+# ONE-TIME SETUP (repo owner) -- do this for EACH of the four project names
+# BEFORE the first release, otherwise the publish step fails with a 4xx:
+#
+#   optionsahoy
+#   langchain-optionsahoy
+#   llama-index-tools-optionsahoy
+#   crewai-optionsahoy
+#
+#   1. Sign in at https://pypi.org. If a project does not exist yet, use a
+#      "pending publisher" so the first run creates it:
+#        https://pypi.org/manage/account/publishing/
+#      Otherwise open the project's Settings -> Publishing -> Add a new publisher.
+#   2. Add a GitHub Actions trusted publisher with these EXACT values:
+#        Owner:            AlvisoOculus
+#        Repository:       optionsahoy-mcp
+#        Workflow name:    publish-python.yml
+#        Environment name: pypi
+#   3. Repeat for all four project names above.
+#   4. (Optional but recommended) In this GitHub repo, create an Actions
+#      environment named `pypi` (Settings -> Environments -> New environment)
+#      and add required reviewers so a human approves each publish.
+#
+# TO PUBLISH: bump the `version` in each pyproject.toml you intend to ship,
+# then cut a GitHub Release. Every package builds and publishes; PyPI rejects
+# republishing a version that already exists, so unchanged packages are no-ops
+# only if you also leave their version alone (a bumped version is required to
+# ship). You can also trigger a single package manually from the Actions tab
+# via workflow_dispatch.
+
+name: Publish Python integrations to PyPI
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      package:
+        description: 'Single package directory to publish (default: all four)'
+        required: false
+        type: choice
+        default: all
+        options:
+          - all
+          - optionsahoy
+          - langchain-optionsahoy
+          - llama-index-tools-optionsahoy
+          - crewai-optionsahoy
+
+# Never run two publishes for the same ref at once.
+concurrency:
+  group: publish-python-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    # Trusted Publishing: PyPI mints trust from this OIDC token, no password.
+    permissions:
+      id-token: write
+      contents: read
+
+    # Bind to the `pypi` environment so the trusted-publisher registration
+    # (and any required reviewers) apply.
+    environment: pypi
+
+    strategy:
+      # One package failing should not abort the others.
+      fail-fast: false
+      matrix:
+        package:
+          - optionsahoy
+          - langchain-optionsahoy
+          - llama-index-tools-optionsahoy
+          - crewai-optionsahoy
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # Skip matrix entries that do not match a manual single-package request.
+      # On release / "all", everything runs.
+      - name: Decide whether to build this package
+        id: gate
+        run: |
+          requested="${{ github.event.inputs.package }}"
+          if [ -z "$requested" ] || [ "$requested" = "all" ] || [ "$requested" = "${{ matrix.package }}" ]; then
+            echo "run=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "run=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Set up Python
+        if: steps.gate.outputs.run == 'true'
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Build sdist + wheel
+        if: steps.gate.outputs.run == 'true'
+        working-directory: integrations/python/${{ matrix.package }}
+        run: |
+          python -m pip install --upgrade pip build
+          python -m build
+
+      - name: Publish to PyPI (Trusted Publishing)
+        if: steps.gate.outputs.run == 'true'
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: integrations/python/${{ matrix.package }}/dist

@@ -11,6 +11,12 @@ requires-python = ">=3.9"
 license = { text = "MIT" }
 authors = [{ name = "AlphaLatitude Inc." }]
 keywords = ["langchain", "tools", "equity-compensation", "iso", "amt", "nso", "rsu", "qsbs"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Intended Audience :: Developers",
+    "Topic :: Office/Business :: Financial",
+]
 dependencies = [
     "optionsahoy>=0.1.0",
     "langchain-core>=0.3",
@@ -19,6 +25,7 @@ dependencies = [
 
 [project.urls]
 Homepage = "https://optionsahoy.com"
+Repository = "https://github.com/AlvisoOculus/optionsahoy-mcp"
 Documentation = "https://optionsahoy.com/for-agents"
 
 [project.optional-dependencies]
@@ -30,7 +37,8 @@ packages = ["langchain_optionsahoy"]
 [tool.ruff]
 line-length = 100
 
-# During local development the `optionsahoy` dependency is resolved from the
-# sibling path. Install both editable from the repo:
+# Published metadata depends on `optionsahoy` by version (see [project] dependencies).
+# For local development, install the sibling package editable first so the version
+# dependency resolves to your working tree instead of PyPI:
 #   pip install -e integrations/python/optionsahoy
 #   pip install -e integrations/python/langchain-optionsahoy
