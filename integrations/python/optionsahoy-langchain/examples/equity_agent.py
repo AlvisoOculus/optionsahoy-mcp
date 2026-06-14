@@ -37,7 +37,8 @@ QUESTION = (
     "I have 8000 incentive stock options (ISOs) with a $3 strike, current fair "
     "market value $40, granted 2022-03-01, still employed. I file single in "
     "California with $250000 of ordinary income, no alternative minimum tax (AMT) "
-    "carryforward credit, and I assume a 4% return on cash and a 5-year horizon. "
+    "carryforward credit. I assume a 4% return on cash, a 5-year horizon, and "
+    "expect the shares to grow about 12% a year with 50% annual volatility. "
     "How many shares should I exercise each year to stay efficient under the AMT? "
     "Use the optionsahoy_amt_iso_optimize tool."
 )
