@@ -8,7 +8,7 @@
     "tail": "wrangler tail"
   },
   "devDependencies": {
-    "wrangler": "^3.78.0"
+    "wrangler": "^4.100.0"
   },
   "overrides": {
     "ws": "^8.18.0",
