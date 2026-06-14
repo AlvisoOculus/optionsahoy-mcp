@@ -1,0 +1,56 @@
+# AlphaLatitude Inc. © 2026
+#
+# Post-deployment smoke test for the live /api/v1/* calculators. Cloudflare Pages
+# deploys via its GitHub-app integration (it posts a "Cloudflare Pages" status
+# check but creates no GitHub Deployment object), so we cannot use the native
+# `deployment_status` trigger. Instead: on push to main, wait for that check to
+# go green for this commit, let it settle, then smoke the live proxy->pages path.
+# Also runs daily (drift) and on demand.
+
+name: Post-deploy smoke
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+  schedule:
+    - cron: "17 7 * * *" # daily drift check, 07:17 UTC
+
+permissions:
+  contents: read
+  checks: read
+
+concurrency:
+  group: smoke-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Wait for the Cloudflare Pages deploy of this commit
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          sha="${{ github.sha }}"
+          echo "Waiting for the 'Cloudflare Pages' check on $sha ..."
+          for i in $(seq 1 60); do   # up to ~20 min at 20s intervals
+            line=$(gh api "repos/${{ github.repository }}/commits/$sha/check-runs" 2>/dev/null \
+              | jq -r '.check_runs[] | select(.name=="Cloudflare Pages") | "\(.status) \(.conclusion)"' | head -1)
+            echo "  [$i] Cloudflare Pages: ${line:-<not posted yet>}"
+            case "$line" in
+              "completed success") echo "Deploy succeeded; letting it settle."; sleep 20; exit 0 ;;
+              "completed "*) echo "::error::Cloudflare Pages deploy did not succeed ($line)"; exit 1 ;;
+            esac
+            sleep 20
+          done
+          echo "::error::Timed out waiting for the Cloudflare Pages deploy"; exit 1
+
+      - name: Smoke-test the live calculators
+        run: node scripts/smoke-api.mjs https://optionsahoy.com
