@@ -39,6 +39,19 @@ Full install matrix (Gemini CLI extension, config-file JSON, REST API, Google Cl
 
 The optimizers return the globally-optimal schedule across the candidate space; the calculators return exact deterministic results. No heuristics, no samples. Coverage spans the full federal tax code (ordinary brackets, long-term capital gains, AMT with credit recovery, FICA, NIIT) plus all 50 states and DC (state ordinary brackets, LTCG treatment, state AMT for CA, CO, CT, MN). Same engine as the in-browser calculators at [optionsahoy.com/tools](https://optionsahoy.com/tools); the API response is byte-identical to clicking through the tool.
 
+## Use it in your agent framework (Python)
+
+If you build agents in Python rather than calling the MCP endpoint directly, OptionsAhoy ships installable tool packages for the major agent frameworks. Each one wraps the same calculators behind the framework's native tool interface. All are published on PyPI and all are keyless: no OptionsAhoy account, no API key.
+
+| Framework | Install | Import | Example |
+|---|---|---|---|
+| LangChain | `pip install optionsahoy-langchain` | `from langchain_optionsahoy import get_optionsahoy_tools` | [`equity_agent.py`](integrations/python/optionsahoy-langchain/examples/equity_agent.py) |
+| LlamaIndex | `pip install llama-index-tools-optionsahoy` | `from llama_index.tools.optionsahoy import OptionsAhoyToolSpec` | [`equity_agent.py`](integrations/python/llama-index-tools-optionsahoy/examples/equity_agent.py) |
+| CrewAI | `pip install crewai-optionsahoy` | `from crewai_optionsahoy import get_optionsahoy_tools` | [`equity_crew.py`](integrations/python/crewai-optionsahoy/examples/equity_crew.py) |
+| Plain Python client | `pip install optionsahoy` | `from optionsahoy import OptionsAhoyClient` | [`basic_client.py`](integrations/python/optionsahoy/examples/basic_client.py) |
+
+The three framework adapters pull in the keyless `optionsahoy` client automatically. There is also an [OpenBB Workspace agent](integrations/openbb-agent) (a FastAPI application built on the OptionsAhoy client) for use inside OpenBB Workspace. Source and runnable examples for all of the above live under [`integrations/python`](https://github.com/AlvisoOculus/optionsahoy-mcp/tree/main/integrations/python).
+
 ## Try it without installing
 
 The live widget on [optionsahoy.com/for-agents](https://optionsahoy.com/for-agents) calls this same endpoint from your browser. No client, no config.
