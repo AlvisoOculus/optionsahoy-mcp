@@ -9,5 +9,10 @@
   },
   "devDependencies": {
     "wrangler": "^3.78.0"
+  },
+  "overrides": {
+    "ws": "^8.18.0",
+    "esbuild": "^0.28.1",
+    "undici": "^6.21.2"
   }
 }
