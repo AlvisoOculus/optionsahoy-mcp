@@ -1,5 +1,9 @@
 # optionsahoy
 
+[![PyPI version](https://img.shields.io/pypi/v/optionsahoy.svg)](https://pypi.org/project/optionsahoy/)
+[![Python versions](https://img.shields.io/pypi/pyversions/optionsahoy.svg)](https://pypi.org/project/optionsahoy/)
+[![License: MIT](https://img.shields.io/pypi/l/optionsahoy.svg)](https://github.com/AlvisoOculus/optionsahoy-mcp/blob/main/LICENSE)
+
 A thin, dependency-light Python client for the OptionsAhoy keyless public REST application programming interface (API). It wraps seven deterministic equity-compensation tax calculators behind one synchronous client. No OptionsAhoy account, no API key, full federal tax code plus all 50 states and the District of Columbia (DC).
 
 ## Why not just ask the model?
