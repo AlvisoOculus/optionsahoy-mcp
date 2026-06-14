@@ -1,0 +1,51 @@
+# AlphaLatitude Inc. © 2026
+#
+# Dependabot keeps dependencies current and opens PRs for security advisories.
+# Grouped weekly so updates arrive as a small number of reviewable PRs rather
+# than one per package.
+version: 2
+updates:
+  # GitHub Actions used by the workflows (also moves Scorecard Pinned-Dependencies).
+  - package-ecosystem: github-actions
+    directory: "/"
+    schedule:
+      interval: weekly
+    groups:
+      actions:
+        patterns: ["*"]
+
+  # Root npm project (the MCP stdio server + its test/build tooling).
+  - package-ecosystem: npm
+    directory: "/"
+    schedule:
+      interval: weekly
+    groups:
+      npm-root:
+        patterns: ["*"]
+
+  # The proxy Worker's local tooling (wrangler and its transitive deps).
+  - package-ecosystem: npm
+    directory: "/worker-proxy"
+    schedule:
+      interval: weekly
+    groups:
+      worker-proxy:
+        patterns: ["*"]
+
+  # The four published Python packages (PEP 621 pyproject dependencies).
+  - package-ecosystem: pip
+    directory: "/integrations/python/optionsahoy"
+    schedule:
+      interval: weekly
+  - package-ecosystem: pip
+    directory: "/integrations/python/optionsahoy-langchain"
+    schedule:
+      interval: weekly
+  - package-ecosystem: pip
+    directory: "/integrations/python/llama-index-tools-optionsahoy"
+    schedule:
+      interval: weekly
+  - package-ecosystem: pip
+    directory: "/integrations/python/crewai-optionsahoy"
+    schedule:
+      interval: weekly
