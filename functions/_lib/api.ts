@@ -95,12 +95,33 @@ export function asObject(raw: unknown): Obj {
   return raw as Obj;
 }
 
+// Inclusive numeric bounds, mirroring the `minimum`/`maximum` declared on each
+// field in the public JSON schema (functions/_lib/mcp-tools.ts). Passing these
+// makes the REST endpoints enforce the same contract the MCP tools already
+// advertise, instead of computing on out-of-range inputs (e.g. negative shares).
+export type Bounds = { min?: number; max?: number };
+
+function checkBounds(k: string, v: number, b?: Bounds): number {
+  if (b?.min !== undefined && v < b.min) {
+    throw new Error(`field "${k}" must be >= ${b.min}`);
+  }
+  if (b?.max !== undefined && v > b.max) {
+    throw new Error(`field "${k}" must be <= ${b.max}`);
+  }
+  return v;
+}
+
 export const p = {
-  num(o: Obj, k: string): number {
+  num(o: Obj, k: string, b?: Bounds): number {
     const v = o[k];
     if (typeof v !== 'number' || !Number.isFinite(v)) {
       throw new Error(`field "${k}" must be a finite number`);
     }
+    return checkBounds(k, v, b);
+  },
+  int(o: Obj, k: string, b?: Bounds): number {
+    const v = p.num(o, k, b);
+    if (!Number.isInteger(v)) throw new Error(`field "${k}" must be a whole number`);
     return v;
   },
   str(o: Obj, k: string): string {
@@ -130,7 +151,7 @@ export const p = {
     }
     return v as T;
   },
-  optNum(o: Obj, k: string): number | undefined {
-    return o[k] === undefined ? undefined : p.num(o, k);
+  optNum(o: Obj, k: string, b?: Bounds): number | undefined {
+    return o[k] === undefined ? undefined : p.num(o, k, b);
   },
 };
