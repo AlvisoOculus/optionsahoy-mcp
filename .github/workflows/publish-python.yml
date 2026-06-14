@@ -59,6 +59,11 @@ concurrency:
   group: publish-python-${{ github.ref }}
   cancel-in-progress: false
 
+# Least-privilege default token: the workflow's GITHUB_TOKEN is read-only.
+# Jobs that need more (e.g. id-token: write) grant it at the job level.
+permissions:
+  contents: read
+
 jobs:
   publish:
     runs-on: ubuntu-latest

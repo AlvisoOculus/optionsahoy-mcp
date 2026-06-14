@@ -19,6 +19,11 @@ on:
       - '.github/workflows/deploy-proxy.yml'
   workflow_dispatch:
 
+# Least-privilege default token: the workflow's GITHUB_TOKEN is read-only.
+# Jobs that need more (e.g. id-token: write) grant it at the job level.
+permissions:
+  contents: read
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
