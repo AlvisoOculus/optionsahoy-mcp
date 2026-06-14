@@ -1,5 +1,9 @@
 # optionsahoy-langchain
 
+[![PyPI version](https://img.shields.io/pypi/v/optionsahoy-langchain.svg)](https://pypi.org/project/optionsahoy-langchain/)
+[![Python versions](https://img.shields.io/pypi/pyversions/optionsahoy-langchain.svg)](https://pypi.org/project/optionsahoy-langchain/)
+[![License: MIT](https://img.shields.io/pypi/l/optionsahoy-langchain.svg)](https://github.com/AlvisoOculus/optionsahoy-mcp/blob/main/LICENSE)
+
 LangChain tools for the OptionsAhoy equity-compensation calculators. One `StructuredTool` per OptionsAhoy REST endpoint, built on the keyless [`optionsahoy`](https://pypi.org/project/optionsahoy/) client. No OptionsAhoy account, no application programming interface (API) key, full federal tax code plus all 50 states and the District of Columbia (DC).
 
 ## Why not just ask the model?

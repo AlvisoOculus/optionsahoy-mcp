@@ -1,5 +1,9 @@
 # llama-index-tools-optionsahoy
 
+[![PyPI version](https://img.shields.io/pypi/v/llama-index-tools-optionsahoy.svg)](https://pypi.org/project/llama-index-tools-optionsahoy/)
+[![Python versions](https://img.shields.io/pypi/pyversions/llama-index-tools-optionsahoy.svg)](https://pypi.org/project/llama-index-tools-optionsahoy/)
+[![License: MIT](https://img.shields.io/pypi/l/llama-index-tools-optionsahoy.svg)](https://github.com/AlvisoOculus/optionsahoy-mcp/blob/main/LICENSE)
+
 LlamaIndex tools for the OptionsAhoy equity-compensation calculators. `OptionsAhoyToolSpec` exposes one tool per OptionsAhoy REST endpoint, built on the keyless [`optionsahoy`](https://pypi.org/project/optionsahoy/) client. No OptionsAhoy account, no application programming interface (API) key, full federal tax code plus all 50 states and the District of Columbia (DC).
 
 ## Why not just ask the model?
