@@ -39,7 +39,7 @@ function resolveSigmaFromTicker(o: Obj): number | null {
 function resolveDragFromVolatility(o: Obj, dragField: string, horizonYears: number): number {
   if (o[dragField] !== undefined) return p.num(o, dragField);
   if (o.volatility !== undefined) {
-    return lognormalHaircut(p.num(o, 'volatility'), horizonYears);
+    return lognormalHaircut(p.num(o, 'volatility', { min: 0 }), horizonYears);
   }
   if (o.ticker !== undefined) {
     const sigma = resolveSigmaFromTicker(o);
@@ -83,7 +83,7 @@ function resolveMarketReturn(o: Obj, horizonYears: number): number {
 }
 
 function resolveExpectedSalePrice(o: Obj, currentPrice: number, holdYears: number): number {
-  if (o.expectedSalePrice !== undefined) return p.num(o, 'expectedSalePrice');
+  if (o.expectedSalePrice !== undefined) return p.num(o, 'expectedSalePrice', { min: 0 });
   if (o.ticker !== undefined) {
     const ticker = p.str(o, 'ticker');
     const r = getTrailingReturn(ticker, holdYears);
@@ -137,17 +137,17 @@ const QSBS_ACTIVE_BUSINESS = ['yes', 'no', 'unsure'] as const;
 
 export function parseAmtIsoInput(raw: unknown): AmtIsoInput {
   const o = asObject(raw);
-  const horizon = p.num(o, 'horizon');
+  const horizon = p.int(o, 'horizon', { min: 1, max: 10 });
   return {
-    shares: p.num(o, 'shares'),
-    strike: p.num(o, 'strike'),
-    fmv: p.num(o, 'fmv'),
+    shares: p.int(o, 'shares', { min: 1 }),
+    strike: p.num(o, 'strike', { min: 0 }),
+    fmv: p.num(o, 'fmv', { min: 0 }),
     expectedGrowth: resolveGrowthRate(o, 'expectedGrowth', horizon),
     volatilityDrag: resolveDragFromVolatility(o, 'volatilityDrag', horizon),
     filingStatus: p.enum(o, 'filingStatus', FILING_STATUSES),
-    ordinaryIncome: p.num(o, 'ordinaryIncome'),
+    ordinaryIncome: p.num(o, 'ordinaryIncome', { min: 0 }),
     stateCode: p.str(o, 'stateCode'),
-    carryforwardCredit: p.num(o, 'carryforwardCredit'),
+    carryforwardCredit: p.num(o, 'carryforwardCredit', { min: 0 }),
     horizon,
     cashReturnRate: p.num(o, 'cashReturnRate'),
     grantDate: p.date(o, 'grantDate'),
@@ -158,13 +158,13 @@ export function parseAmtIsoInput(raw: unknown): AmtIsoInput {
 
 export function parseNsoInput(raw: unknown): NsoInput {
   const o = asObject(raw);
-  const currentPrice = p.num(o, 'currentPrice');
-  const holdYears = p.num(o, 'holdYears');
+  const currentPrice = p.num(o, 'currentPrice', { min: 0 });
+  const holdYears = p.num(o, 'holdYears', { min: 1 });
   return {
-    shares: p.num(o, 'shares'),
-    strike: p.num(o, 'strike'),
+    shares: p.int(o, 'shares', { min: 1 }),
+    strike: p.num(o, 'strike', { min: 0 }),
     currentPrice,
-    ordinaryIncome: p.num(o, 'ordinaryIncome'),
+    ordinaryIncome: p.num(o, 'ordinaryIncome', { min: 0 }),
     filingStatus: p.enum(o, 'filingStatus', FILING_STATUSES),
     stateCode: p.str(o, 'stateCode'),
     stillEmployed: p.bool(o, 'stillEmployed'),
@@ -178,12 +178,12 @@ export function parseNsoInput(raw: unknown): NsoInput {
 
 export function parseRsuInput(raw: unknown): RsuInput {
   const o = asObject(raw);
-  const currentPrice = p.num(o, 'currentPrice');
-  const holdYears = p.num(o, 'holdYears');
+  const currentPrice = p.num(o, 'currentPrice', { min: 0 });
+  const holdYears = p.num(o, 'holdYears', { min: 0.25, max: 5 });
   return {
-    shares: p.num(o, 'shares'),
+    shares: p.int(o, 'shares', { min: 1 }),
     currentPrice,
-    ordinaryIncome: p.num(o, 'ordinaryIncome'),
+    ordinaryIncome: p.num(o, 'ordinaryIncome', { min: 0 }),
     filingStatus: p.enum(o, 'filingStatus', FILING_STATUSES),
     stateCode: p.str(o, 'stateCode'),
     stillEmployed: p.bool(o, 'stillEmployed'),
@@ -197,27 +197,27 @@ export function parseRsuInput(raw: unknown): RsuInput {
 export function parseConcentrationInput(raw: unknown): ConcentrationInputs {
   const o = asObject(raw);
   const base: ConcentrationInputs = {
-    positionValue: p.num(o, 'positionValue'),
-    costBasis: p.num(o, 'costBasis'),
+    positionValue: p.num(o, 'positionValue', { min: 0 }),
+    costBasis: p.num(o, 'costBasis', { min: 0 }),
     acquisitionDate: p.date(o, 'acquisitionDate'),
     sector: p.enum(o, 'sector', SECTORS),
     stateCode: p.str(o, 'stateCode'),
     filingStatus: p.enum(o, 'filingStatus', FILING_STATUSES),
-    ordinaryIncome: p.num(o, 'ordinaryIncome'),
-    totalAssets: p.num(o, 'totalAssets'),
+    ordinaryIncome: p.num(o, 'ordinaryIncome', { min: 0 }),
+    totalAssets: p.num(o, 'totalAssets', { min: 0 }),
     expectedPositionReturn: resolveGrowthRate(o, 'expectedPositionReturn', CONCENTRATION_HORIZON_YEARS),
     expectedMarketReturn: resolveMarketReturn(o, CONCENTRATION_HORIZON_YEARS),
     volatilityDrag: resolveDragFromVolatility(o, 'volatilityDrag', CONCENTRATION_HORIZON_YEARS),
   };
   // Mirror the drag's sigma source so hedge pricing uses the same value.
-  const sigma = o.volatility !== undefined ? p.num(o, 'volatility') : resolveSigmaFromTicker(o);
+  const sigma = o.volatility !== undefined ? p.num(o, 'volatility', { min: 0 }) : resolveSigmaFromTicker(o);
   if (sigma !== null) base.volatility = sigma;
   if (o.hedgeChoice !== undefined) {
     const hc = asObject(o.hedgeChoice);
     const hedge: NonNullable<ConcentrationInputs['hedgeChoice']> = {
       kind: p.enum(hc, 'kind', HEDGE_KIND),
-      protectionLevel: p.num(hc, 'protectionLevel'),
-      tenorYears: p.num(hc, 'tenorYears'),
+      protectionLevel: p.num(hc, 'protectionLevel', { min: 0.05, max: 0.5 }),
+      tenorYears: p.num(hc, 'tenorYears', { min: 0.25 }),
     };
     if (hc.upsideCapPct !== undefined) hedge.upsideCapPct = p.num(hc, 'upsideCapPct');
     base.hedgeChoice = hedge;
@@ -231,14 +231,14 @@ export function parseProtectivePutInput(raw: unknown): ProtectivePutInputs {
   const sectorDefault = SECTOR_STATS[sector].annualVol * IV_OVER_RV_MULTIPLIER;
   const volatility =
     o.volatility !== undefined
-      ? p.num(o, 'volatility')
+      ? p.num(o, 'volatility', { min: 0 })
       : resolveSigmaFromTicker(o) ?? sectorDefault;
   const base: ProtectivePutInputs = {
-    positionValue: p.num(o, 'positionValue'),
+    positionValue: p.num(o, 'positionValue', { min: 0 }),
     sector,
     volatility,
-    protectionLevel: p.num(o, 'protectionLevel'),
-    tenorYears: p.num(o, 'tenorYears'),
+    protectionLevel: p.num(o, 'protectionLevel', { min: 0.05, max: 0.5 }),
+    tenorYears: p.num(o, 'tenorYears', { min: 0.25 }),
   };
   if (o.expectedReturn !== undefined) base.expectedReturn = p.num(o, 'expectedReturn');
   // tickerLabel is the display surface in the response. Prefer an explicit
@@ -258,8 +258,8 @@ function parseEquityFundingLot(raw: unknown, index: number): EquityFundingLot {
   }
   const o = raw as Obj;
   const lot: EquityFundingLot = {
-    shares: p.num(o, 'shares'),
-    costBasisPerShare: p.num(o, 'costBasisPerShare'),
+    shares: p.int(o, 'shares', { min: 1 }),
+    costBasisPerShare: p.num(o, 'costBasisPerShare', { min: 0 }),
     acquisitionDate: p.date(o, 'acquisitionDate'),
   };
   if (o.vestDate !== undefined) lot.vestDate = p.date(o, 'vestDate');
@@ -280,7 +280,7 @@ function parseEquityFundingStack(
     throw new Error(`stacks[${index}].lots must be a non-empty array`);
   }
   const stack: EquityFundingStack = {
-    currentPrice: p.num(o, 'currentPrice'),
+    currentPrice: p.num(o, 'currentPrice', { min: 0 }),
     lots: lotsRaw.map((lot, idx) => parseEquityFundingLot(lot, idx)),
   };
   if (o.ticker !== undefined) stack.ticker = p.str(o, 'ticker');
@@ -301,7 +301,7 @@ function parseEquityFundingStack(
   // Volatility is sidecar (returned next to the stack) because the calc
   // consumes it via the parallel `stackVolatilities` array, not via a
   // per-stack field. Caller assembles the array from this stream.
-  const volatility = o.volatility !== undefined ? p.num(o, 'volatility') : null;
+  const volatility = o.volatility !== undefined ? p.num(o, 'volatility', { min: 0 }) : null;
   return { stack, volatility };
 }
 
@@ -315,18 +315,18 @@ export function parseEquityFundingInput(raw: unknown): EquityFundingComparisonIn
   );
 
   const base: EquityFundingComparisonInput = {
-    targetAfterTax: p.num(o, 'targetAfterTax'),
+    targetAfterTax: p.num(o, 'targetAfterTax', { min: 0 }),
     targetDate,
     today,
-    ordinaryIncome: p.num(o, 'ordinaryIncome'),
+    ordinaryIncome: p.num(o, 'ordinaryIncome', { min: 0 }),
     filingStatus: p.enum(o, 'filingStatus', FILING_STATUSES),
     stateCode: p.str(o, 'stateCode'),
   };
   if (o.cashInterestRate !== undefined) base.cashInterestRate = p.num(o, 'cashInterestRate');
   if (o.riskToleranceShortfall !== undefined) {
-    base.riskToleranceShortfall = p.num(o, 'riskToleranceShortfall');
+    base.riskToleranceShortfall = p.num(o, 'riskToleranceShortfall', { min: 0, max: 1 });
   }
-  if (o.defaultVolatility !== undefined) base.defaultVolatility = p.num(o, 'defaultVolatility');
+  if (o.defaultVolatility !== undefined) base.defaultVolatility = p.num(o, 'defaultVolatility', { min: 0 });
 
   if (o.stacks !== undefined) {
     if (!Array.isArray(o.stacks) || o.stacks.length === 0) {
@@ -347,7 +347,7 @@ export function parseEquityFundingInput(raw: unknown): EquityFundingComparisonIn
     );
   }
   base.lots = lotsRaw.map((lot, idx) => parseEquityFundingLot(lot, idx));
-  base.currentPrice = p.num(o, 'currentPrice');
+  base.currentPrice = p.num(o, 'currentPrice', { min: 0 });
   if (o.expectedAnnualGrowth !== undefined) {
     base.expectedAnnualGrowth = p.num(o, 'expectedAnnualGrowth');
   }
@@ -364,10 +364,10 @@ export function parseQsbsInput(raw: unknown): QsbsInputs {
     assetCategory: p.enum(o, 'assetCategory', QSBS_ASSET_CATEGORY),
     industry: p.enum(o, 'industry', QSBS_INDUSTRY),
     activeBusiness: p.enum(o, 'activeBusiness', QSBS_ACTIVE_BUSINESS),
-    adjustedBasis: p.num(o, 'adjustedBasis'),
+    adjustedBasis: p.num(o, 'adjustedBasis', { min: 0 }),
     expectedGain: p.num(o, 'expectedGain'),
     stateCode: p.str(o, 'stateCode'),
-    ordinaryIncome: p.num(o, 'ordinaryIncome'),
+    ordinaryIncome: p.num(o, 'ordinaryIncome', { min: 0 }),
     filingStatus: p.enum(o, 'filingStatus', FILING_STATUSES),
   };
 }
