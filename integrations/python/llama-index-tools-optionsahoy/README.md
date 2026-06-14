@@ -12,7 +12,13 @@ small business stock (QSBS), and funding a cash goal from equity.
 
 ## Install
 
-From this repository, install both packages editable:
+```bash
+pip install llama-index-tools-optionsahoy
+```
+
+This pulls in the keyless `optionsahoy` client automatically.
+
+Or from this repository, editable (for development):
 
 ```bash
 pip install -e integrations/python/optionsahoy

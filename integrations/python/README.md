@@ -12,11 +12,24 @@ equity-compensation REST API.
 - [`crewai-optionsahoy/`](./crewai-optionsahoy) — CrewAI tools built on top of the
   client.
 
-The three adapter packages depend on `optionsahoy` by version. Install
-`optionsahoy` editable first during development (see below), and note that
-`optionsahoy` must be on PyPI before end users can install the adapters.
+All four packages are published on PyPI. Install whichever you need; the adapter
+packages pull in the keyless `optionsahoy` client automatically.
+
+```bash
+pip install optionsahoy                      # client only, no framework
+pip install optionsahoy-langchain            # LangChain tools
+pip install llama-index-tools-optionsahoy    # LlamaIndex tools
+pip install crewai-optionsahoy               # CrewAI tools
+```
+
+Each package has a runnable example under its own `examples/` directory.
 
 ## Develop
+
+For local development against your working tree, install the packages editable. The
+three adapter packages depend on `optionsahoy` by version, so install `optionsahoy`
+editable first so that version dependency resolves to your working tree.
+
 
 ```bash
 python3 -m venv .venv && source .venv/bin/activate
