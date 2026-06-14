@@ -22,6 +22,47 @@ Seven calculators, each a method on `OptionsAhoyClient`:
 
 Coverage spans the full federal tax code (ordinary brackets, long-term capital gains, AMT with credit recovery, FICA, the net investment income tax) plus all 50 states and DC. The only runtime dependency is [httpx](https://www.python-httpx.org/). No API key is read, stored, or sent anywhere.
 
+## Tools: inputs and outputs
+
+Each method takes keyword arguments. The required parameters are listed below; every method also accepts optional forward-looking fields (such as `expectedSalePrice`, `volatility`, `expectedMarketReturn`) and, where noted, a convenience `ticker` so the API can derive forward-looking inputs from that symbol. Returns are the top-level fields of the response; responses are wrapped as `{"ok": true, "result": {...}}` and the fields below are those of `result`.
+
+### `amt_iso(...)`
+Multi-year incentive stock option (ISO) exercise optimizer under the alternative minimum tax (AMT).
+**Inputs (required):** `shares: int`, `strike: float`, `fmv: float`, `filingStatus: str`, `ordinaryIncome: float`, `stateCode: str`, `carryforwardCredit: float`, `horizon: int`, `cashReturnRate: float`, `grantDate: str`, `hasLeftCompany: bool`, `terminationDate: str | None`. Optional: `expectedGrowth`, `volatility`, `volatilityDrag`, `ticker`.
+**Returns:** `crossoverShares`, `crossoverBargain`, `alreadyInAmt`, `stateHasAmt`, `bargainPerShare`, `timing`, `effectiveHorizon`, and `schedules` (`lumpSum`, `evenSplit`, `optimized`), each carrying per-year `years[]` (`shares`, `bargain`, `regularFederal`, `regularState`, `tmtFederal`, `tmtState`, `amtOwedFederal`, `amtOwedState`, `creditRecovered`, `cashTax`) plus `totalTax`, `creditEarned`, `creditRemaining`, `grossGain`, `federalLTCG`, `stateLTCG`, `nfv`.
+
+### `nso(...)`
+Tax and after-tax proceeds of exercising non-qualified stock options (NSOs), sell-at-exercise versus hold.
+**Inputs (required):** `shares: int`, `strike: float`, `currentPrice: float`, `ordinaryIncome: float`, `filingStatus: str`, `stateCode: str`, `stillEmployed: bool`, `holdYears: float`, `holdFunding: str` (`sell-to-cover` or `cash`). Optional: `expectedSalePrice`, `haircut`, `volatility`, `expectedMarketReturn`, `ticker`.
+**Returns:** `exercise` (`bargainElement`, `federal`, `state`, `socialSecurity`, `medicare`, `additionalMedicare`, `total`, `netCashSellAll`), `bracketJump` (`fromRate`, `toRate`, `thresholdAtJump`), `hold` (`sharesRetained`, `expectedGain`, `ltcgTotal`, `afterTaxProceedsAtSale`, `netAtYearN`), `sellNowInvest` (`netCashAtY0`, `marketGain`, `netAtYearN`), `holdMinusCashless`.
+
+### `rsu_sell_vs_hold(...)`
+Sell vested restricted stock units (RSUs) at vest versus hold, on an after-tax, risk-adjusted basis.
+**Inputs (required):** `shares: int`, `currentPrice: float`, `ordinaryIncome: float`, `filingStatus: str`, `stateCode: str`, `stillEmployed: bool`, `holdYears: float`. Optional: `expectedSalePrice`, `haircut`, `volatility`, `expectedMarketReturn`, `ticker`.
+**Returns:** `vest` (`vestValue`, `federal`, `state`, `medicare`, `total`, `netCashAtVest`, `federalWithheldAtVest`), `bracketJump`, `hold` (`sharesRetained`, `expectedGain`, `capGainTotal`, `isLongTerm`, `netAtYearN`), `sellNowInvest` (`netCashAtY0`, `marketGain`, `netAtYearN`), `holdMinusSell`.
+
+### `concentration(...)`
+Concentrated single-stock position and the after-tax cost of diversifying.
+**Inputs (required):** `positionValue: float`, `costBasis: float`, `acquisitionDate: str`, `sector: str`, `stateCode: str`, `filingStatus: str`, `ordinaryIncome: float`, `totalAssets: float`. Optional: `expectedPositionReturn`, `expectedMarketReturn`, `volatility`, `volatilityDrag`, `hedgeChoice`, `ticker`.
+**Returns:** `concentration`, `riskBand`, `isLongTermToday`, `longTermDate`, `daysUntilLongTerm`, `lossExposure[]` (`drop`, `dollarLoss`, `newConcentration`), `waitForLtInsight`, `schedule[]` (`planKey`, `planLabel`, `yearlySales`, `totalTax`, `endOfHorizonWealth`, `savingsVsLumpSum`, `wealthByYear`), `hedging`, `sectorContextLine`, `advisorBenchmarkLine`.
+
+### `protective_put(...)`
+Price a protective put and a zero-cost collar for a stock position.
+**Inputs (required):** `positionValue: float`, `sector: str`, `protectionLevel: float` (0.05 to 0.5), `tenorYears: float`. Optional: `volatility`, `expectedReturn`, `tickerLabel`.
+**Returns:** `inputs`, `riskFreeRate`, `realWorldDrift`, `barePut` (`strike`, `premium`, `annualCost`, `annualCostPct`, `maxLoss`, `coveredLossAtBadYear`), `collar` (`putStrike`, `callStrike`, `netPremium`, `maxLoss`, `upsideCap`, `upsideCapPct`, `isZeroCost`), `payoffTable[]` (`drawdownPct`, `barePutPnl`, `collarPnl`, `unhedgedPnl`), `payoffRange`, `recommended`.
+
+### `qsbs(...)`
+Qualified small business stock (QSBS) Section 1202 eligibility and exclusion.
+**Inputs (required):** `acquisitionDate: str`, `saleDate: str`, `entityType: str`, `acquisitionMethod: str`, `assetCategory: str`, `industry: str`, `activeBusiness: str`, `adjustedBasis: float`, `expectedGain: float`, `stateCode: str`, `ordinaryIncome: float`, `filingStatus: str`.
+**Returns:** `verdict`, `exclusionPercent`, `perIssuerCap`, `tenXBasisCap`, `applicableCap`, `excludableGain`, `taxableGain`, `federalTaxSaved`, `stateConforms`, `stateNote`, `holdingYears`, `yearsUntilFullExclusion`, `era`, `tests[]` (`id`, `label`, `status`, `detail`).
+
+### `equity_funding(...)`
+Plan which equity lots to sell, and when, to fund a cash goal by a target date.
+**Inputs (required):** `targetAfterTax: float`, `targetDate: str`, `ordinaryIncome: float`, `filingStatus: str`, `stateCode: str`, plus either `stacks` (preferred; a list of stacks, each with `currentPrice` and a `lots` list) or the legacy `lots` plus `currentPrice`. Optional: `expectedAnnualGrowth`, `cashInterestRate`, `riskToleranceShortfall`, `defaultVolatility`, `today`.
+**Returns:** `recommended`, `lockInNow`, `balanced`, `holdForGrowth`, `frontier[]`, `targetAfterTax`, `targetDateISO`, `appliedRiskTolerance`. Each plan (for example `recommended`) carries `wealthAtTarget`, `totalTax`, `shortfallProbability`, `lockInFraction`, and a `plan` with `feasible`, `totalAfterTaxAchieved`, `totalSharesSold`, `totalTaxes`, `schedule`, and `remainingPositionValue`.
+
+To see the full typed signature for any method, read the client source: [`optionsahoy/client.py`](https://github.com/AlvisoOculus/optionsahoy-mcp/blob/main/integrations/python/optionsahoy/optionsahoy/client.py). The authoritative request schemas are the OpenAPI spec at <https://optionsahoy.com/openapi.json> and the agent docs at <https://optionsahoy.com/for-agents>.
+
 ## Install
 
 ```bash
