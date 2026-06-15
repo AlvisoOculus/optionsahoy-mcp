@@ -46,6 +46,8 @@
     "build": "esbuild src/stdio-server.ts --bundle --platform=node --target=node20 --outfile=dist/stdio-server.js --format=esm --banner:js='#!/usr/bin/env node' && chmod +x dist/stdio-server.js",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
+    "gen:tax-tables": "node scripts/codegen/gen-federal-tax-tables.mjs",
+    "verify:tax-tables": "node scripts/codegen/gen-federal-tax-tables.mjs --check",
     "prepublishOnly": "npm run typecheck && npm test && npm run build",
     "build:mcpb": "npm run build && node scripts/build-mcpb.mjs"
   },

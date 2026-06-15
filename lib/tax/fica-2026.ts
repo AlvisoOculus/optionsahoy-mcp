@@ -22,22 +22,23 @@
 // Last reviewed: 2026-04-30.
 
 import type { FilingStatus } from './types';
+import { CURRENT_FEDERAL_TABLE } from './generated/federal-tax-tables.generated';
 
-// 2026 SS wage base (employee + employer each pay 6.2% on wages up to this).
-// SSA announces each October for the following year. Update annually.
-// 2024: $168,600 → 2025: $176,100 (+4.4%) → projected 2026: ~$184,500.
-export const SS_WAGE_BASE_2026 = 184_500;
+// Derived from the single source of record (see federal-2026.ts). The SS wage
+// base inflates yearly (SSA announces each October); the rates and the
+// Additional Medicare thresholds are statutory. The conformance test asserts
+// these equal the published 2026 figures.
+const FICA = CURRENT_FEDERAL_TABLE.fica;
 
-export const SS_RATE_EMPLOYEE = 0.062;
-export const MEDICARE_RATE = 0.0145;
-export const ADD_MEDICARE_RATE = 0.009;
+export const SS_WAGE_BASE_2026 = FICA.ssWageBase;
+
+export const SS_RATE_EMPLOYEE = FICA.ssRate;
+export const MEDICARE_RATE = FICA.medicareRate;
+export const ADD_MEDICARE_RATE = FICA.addlMedicareRate;
 
 // Additional Medicare Tax thresholds (IRC § 3101(b)(2), statutory).
-export const ADD_MEDICARE_THRESHOLD: Record<FilingStatus, number> = {
-  single: 200_000,
-  married_joint: 250_000,
-  head_household: 200_000,
-};
+export const ADD_MEDICARE_THRESHOLD: Record<FilingStatus, number> =
+  CURRENT_FEDERAL_TABLE.addlMedicareThreshold;
 
 /**
  * Employee Social Security tax on incremental wages added on top of

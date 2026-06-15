@@ -1,101 +1,34 @@
 // AlphaLatitude Inc. © 2026
 //
-// Source: IRS Rev. Proc. 2025-32 (2026 inflation adjustments, incl. OBBBA),
-// cross-checked against the IRS newsroom "tax inflation adjustments for tax
-// year 2026" release. These are the IRS-PUBLISHED 2026 figures (not a CPI
-// estimate); they match the year-keyed taxTables.js in the main app's
-// IRS-validated tax engine. federal-2026.irs-conformance.test.ts asserts
-// every value below against the published figures.
-// Last reviewed: 2026-06-08.
+// Federal tax constants for the current tax year.
+//
+// These are NO LONGER hand-edited. They are derived from the single source of
+// record: the main app's year-keyed taxTables.js (cross-checked against the IRS
+// publications), mirrored into generated/federal-tax-tables.generated.ts by
+// scripts/codegen/gen-federal-tax-tables.mjs. The IRS-conformance test asserts
+// the resolved values equal the published 2026 figures, so any drift in the
+// source or the codegen fails the build.
+//
+// The `_2026` export names are retained for existing consumers; they resolve to
+// the current tax year (DEFAULT_TAX_YEAR in the generated source).
+import type { Bracket, Brackets, FilingStatus } from './types';
+import { CURRENT_FEDERAL_TABLE } from './generated/federal-tax-tables.generated';
 
-import type { Bracket, Brackets } from './types';
+export const ORDINARY_2026: Brackets = CURRENT_FEDERAL_TABLE.ordinary;
 
-// ---------------------------------------------------------------
-// Ordinary income brackets (2026)
-// ---------------------------------------------------------------
+export const LTCG_2026: Brackets = CURRENT_FEDERAL_TABLE.ltcg;
 
-export const ORDINARY_2026: Brackets = {
-  single: [
-    { min: 0,       rate: 0.10 },
-    { min: 12_400,  rate: 0.12 },
-    { min: 50_400,  rate: 0.22 },
-    { min: 105_700, rate: 0.24 },
-    { min: 201_775, rate: 0.32 },
-    { min: 256_225, rate: 0.35 },
-    { min: 640_600, rate: 0.37 },
-  ],
-  married_joint: [
-    { min: 0,       rate: 0.10 },
-    { min: 24_800,  rate: 0.12 },
-    { min: 100_800, rate: 0.22 },
-    { min: 211_400, rate: 0.24 },
-    { min: 403_550, rate: 0.32 },
-    { min: 512_450, rate: 0.35 },
-    { min: 768_700, rate: 0.37 },
-  ],
-  head_household: [
-    { min: 0,       rate: 0.10 },
-    { min: 17_700,  rate: 0.12 },
-    { min: 67_450,  rate: 0.22 },
-    { min: 105_700, rate: 0.24 },
-    { min: 201_775, rate: 0.32 },
-    { min: 256_200, rate: 0.35 },
-    { min: 640_600, rate: 0.37 },
-  ],
-};
+export const STANDARD_DEDUCTION_2026: Record<FilingStatus, number> =
+  CURRENT_FEDERAL_TABLE.stdDeduction;
 
-// ---------------------------------------------------------------
-// Long-term capital gains brackets (2026)
-// 0% / 15% / 20% based on (ordinary_income + ltcg) total
-// ---------------------------------------------------------------
+// Net Investment Income Tax (IRC § 1411): 3.8% over the statutory MAGI threshold.
+export const NIIT_RATE = CURRENT_FEDERAL_TABLE.niit.rate;
 
-export const LTCG_2026: Brackets = {
-  single: [
-    { min: 0,       rate: 0.00 },
-    { min: 49_450,  rate: 0.15 },
-    { min: 545_500, rate: 0.20 },
-  ],
-  married_joint: [
-    { min: 0,       rate: 0.00 },
-    { min: 98_900,  rate: 0.15 },
-    { min: 613_700, rate: 0.20 },
-  ],
-  head_household: [
-    { min: 0,       rate: 0.00 },
-    { min: 66_200,  rate: 0.15 },
-    { min: 579_600, rate: 0.20 },
-  ],
-};
+export const NIIT_THRESHOLDS: Record<FilingStatus, number> = CURRENT_FEDERAL_TABLE.niit.threshold;
 
-// ---------------------------------------------------------------
-// Standard deduction (2026)
-// ---------------------------------------------------------------
-
-export const STANDARD_DEDUCTION_2026: Record<keyof typeof ORDINARY_2026, number> = {
-  single: 16_100,
-  married_joint: 32_200,
-  head_household: 24_150,
-};
-
-// ---------------------------------------------------------------
-// Net Investment Income Tax (NIIT)
-// 3.8% on the lesser of (investment income) or (AGI − threshold).
-// Thresholds are statutory and DO NOT inflate.
-// ---------------------------------------------------------------
-
-export const NIIT_RATE = 0.038;
-
-export const NIIT_THRESHOLDS: Record<keyof typeof ORDINARY_2026, number> = {
-  single: 200_000,
-  married_joint: 250_000,
-  head_household: 200_000,
-};
-
-// ---------------------------------------------------------------
-// Risk-free rate (1Y Treasury, used for Black-Scholes hedging cost).
-// Refresh semi-annually.
-// ---------------------------------------------------------------
-
+// 1-year risk-free rate (Treasury yield) for the Black-Scholes hedging cost.
+// NOT a tax constant and not sourced from the IRS tables; hand-maintained,
+// refresh semi-annually.
 export const RISK_FREE_RATE_1Y = 0.045;
 
 // Re-export Bracket for convenience

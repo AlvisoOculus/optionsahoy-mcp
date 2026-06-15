@@ -1,54 +1,38 @@
 // AlphaLatitude Inc. © 2026
 //
-// Federal Alternative Minimum Tax constants for tax year 2026.
+// Federal Alternative Minimum Tax constants for the current tax year.
 //
-// SOURCE: IRS Rev. Proc. 2025-32 §3.10 — "Exemption Amounts for Alternative
-// Minimum Tax". https://www.irs.gov/pub/irs-drop/rp-25-32.pdf
-//
-// REFRESH (each January): the IRS publishes Rev. Proc. 20YY-XX (where YY is
-// the current calendar year) covering the *next* tax year's inflation
-// adjustments. Find §3.10 — three tables (exemption / 28% breakpoint /
-// phaseout). Update the four constants below verbatim. Bump the year in the
-// file name and re-export.
+// These constants are NO LONGER hand-edited. They are derived from the single
+// source of record (the main app's year-keyed taxTables.js, cross-checked
+// against IRS Rev. Proc. 2025-32 §3.10), mirrored into
+// generated/federal-tax-tables.generated.ts. The IRS-conformance test asserts
+// the resolved values equal the published 2026 figures.
 //
 // PHASEOUT RATE: post-OBBBA (One Big Beautiful Bill Act §70107, amending
-// IRC § 55(d)(4) effective 2026), the exemption phases out at 50¢ per $1
-// of AMTI above the threshold — not the historical 25¢. Verify by
-// arithmetic: complete_phaseout − threshold should equal 2 × exemption in
-// every filing category. If a future Rev. Proc. table no longer satisfies
-// that identity, the rate has changed and AMT_PHASEOUT_RATE must update.
-//
-// HOH: § 55(d)(1) does not separately enumerate Head of Household; HoH uses
-// the same exemption and phaseout threshold as Unmarried Individuals.
-//
-// Last reviewed: 2026-04-29.
-
+// IRC § 55(d)(4) effective 2026), the exemption phases out at 50¢ per $1 of
+// AMTI above the threshold, not the historical 25¢. HoH uses the same exemption
+// and phaseout threshold as Unmarried Individuals (§ 55(d)(1)).
 import type { FilingStatus } from './types';
+import { CURRENT_FEDERAL_TABLE } from './generated/federal-tax-tables.generated';
 
 // AMT supports only the 3 statuses our calculator exposes (federal § 55(d)(1)
 // also defines MFS but the calculator UI omits it per the concentration tool's
 // precedent).
 export type AmtFilingStatus = FilingStatus;
 
-export const AMT_EXEMPTION_2026: Record<AmtFilingStatus, number> = {
-  single:         90_100,
-  married_joint:  140_200,
-  head_household: 90_100,
-};
+const AMT = CURRENT_FEDERAL_TABLE.amt;
 
-export const AMT_PHASEOUT_START_2026: Record<AmtFilingStatus, number> = {
-  single:         500_000,
-  married_joint:  1_000_000,
-  head_household: 500_000,
-};
+export const AMT_EXEMPTION_2026: Record<AmtFilingStatus, number> = AMT.exemption;
 
-export const AMT_PHASEOUT_RATE = 0.50;
+export const AMT_PHASEOUT_START_2026: Record<AmtFilingStatus, number> = AMT.phaseoutStart;
 
-export const AMT_BREAKPOINT_2026 = 244_500;
+export const AMT_PHASEOUT_RATE = AMT.phaseoutRate;
+
+export const AMT_BREAKPOINT_2026 = AMT.breakpoint;
 
 export const AMT_RATES = {
-  lower: 0.26,
-  upper: 0.28,
+  lower: AMT.rateLower,
+  upper: AMT.rateUpper,
 } as const;
 
 /**
