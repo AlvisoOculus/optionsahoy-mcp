@@ -57,6 +57,18 @@ If you build agents in Python rather than calling the MCP endpoint directly, Opt
 
 The three framework adapters pull in the keyless `optionsahoy` client automatically. There is also an [OpenBB Workspace agent](integrations/openbb-agent) (a FastAPI application built on the OptionsAhoy client) for use inside OpenBB Workspace. Source and runnable examples for all of the above live under [`integrations/python`](https://github.com/AlvisoOculus/optionsahoy-mcp/tree/main/integrations/python).
 
+## More ways to build
+
+However your agent is built, there is a drop-in piece. All are public and keyless.
+
+| Building block | What it is |
+|---|---|
+| [Instruction kits](integrations/agent-kits) | Editor rules and skills for Cursor, Windsurf, Claude Skills, and Claude Code subagents, so your coding agent calls the OptionsAhoy tools for equity-compensation questions. |
+| [Coding recipes](https://github.com/AlvisoOculus/equity-comp-tax-python) | Copy-paste Python recipes, one self-contained file per question, calling the keyless API with only `requests`. Also in [`integrations/recipes`](integrations/recipes). |
+| [Builder templates](integrations/agent-builder-templates) | An importable n8n workflow plus build recipes for Flowise, Langflow, and Dify. |
+| [Tool-use eval](integrations/eval) | An inspect_ai evaluation measuring whether an agent reaches the provable optimum on a multi-year ISO problem, with and without the tool. |
+| [A2A discovery](integrations/openbb-agent) | An Agent2Agent (A2A) Agent Card so other agents can discover and delegate equity-compensation questions to the planner. |
+
 ## Try it without installing
 
 The live widget on [optionsahoy.com/for-agents](https://optionsahoy.com/for-agents) calls this same endpoint from your browser. No client, no config.
