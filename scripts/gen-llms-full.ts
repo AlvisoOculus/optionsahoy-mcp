@@ -69,7 +69,7 @@ const p = (s = '') => out.push(s);
 
 p('# OptionsAhoy: full API reference for AI agents');
 p();
-p(`> Generated from the live tool descriptors of optionsahoy-mcp v${pkg.version}. Seven deterministic equity-compensation tax tools covering the full US federal tax code plus all 50 states and DC. Free, no auth, no account. Shorter index: https://optionsahoy.com/llms.txt`);
+p(`> Generated from the live tool descriptors of optionsahoy-mcp v${pkg.version}. Seven deterministic equity-compensation tax tools covering the full US federal tax code plus all 50 states and DC. Independently verified: every 2026 federal constant matches IRS Rev. Proc. 2025-32, worked federal cases reproduce to the cent against the independently-maintained PSL Tax-Calculator, and state tax reproduces to the cent against OpenTaxSolver across CA, NY, NJ, PA, and MA, with the proof recomputed live at https://optionsahoy.com/verification. Free, no auth, no account. Shorter index: https://optionsahoy.com/llms.txt`);
 p();
 p('## Endpoints');
 p();
@@ -78,6 +78,7 @@ p('- REST (same engine, same results): POST https://optionsahoy.com/api/v1/<tool
 p('- OpenAPI 3.1 spec: https://optionsahoy.com/openapi.json');
 p('- Local stdio: npx -y optionsahoy-mcp (npm, published with provenance)');
 p('- Docs for humans: https://optionsahoy.com/for-agents');
+p('- Verification proof (independent engines, recomputed live): https://optionsahoy.com/verification');
 p();
 p('All tools are read-only (annotated readOnlyHint: true, openWorldHint: false, destructiveHint: false), stateless, and return both a serialized JSON text block and MCP structuredContent matching the declared outputSchema. Same inputs always produce the same outputs.');
 p();
