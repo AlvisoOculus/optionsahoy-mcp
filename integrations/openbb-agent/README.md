@@ -96,6 +96,29 @@ curl http://localhost:7777/agents.json
 3. Point it at your agent's base URL (Workspace reads `/agents.json` from there).
 4. Select **OptionsAhoy Equity Planner** and ask an equity-compensation question.
 
+## Agent-to-agent discovery (A2A)
+
+The same agent can be discovered and called by other agents over the Agent2Agent
+(A2A) protocol. Install the extra and the app additionally serves an Agent Card
+and an A2A JSON-RPC endpoint:
+
+```bash
+pip install -e ".[a2a]"   # adds a2a-sdk; the OpenBB endpoints keep working without it
+```
+
+- `GET /.well-known/agent-card.json` returns the Agent Card (protocol version
+  `0.3.0`): the agent's name, description, and one skill per OptionsAhoy
+  calculator, so a calling agent can route a question here. The legacy
+  `/.well-known/agent.json` path is served too. A committed copy of the card is in
+  `.well-known/agent-card.json`.
+- The A2A JSON-RPC endpoint accepts a message, routes it to a calculator (the same
+  language-model selection layer as the OpenBB path), and returns the result.
+
+Set `A2A_AGENT_URL` to the deployed endpoint so the card advertises the right
+address (it defaults to `https://optionsahoy.com/a2a`). Once the card is hosted,
+register it at a directory such as `a2aregistry.org` (POST the well-known URL) or
+add it to the `awesome-a2a` list.
+
 ## Tests
 
 The test suite needs neither a language-model API key nor network access. The
