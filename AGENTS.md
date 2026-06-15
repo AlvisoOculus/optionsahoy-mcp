@@ -60,6 +60,7 @@ JSON. Every tool response is the globally-optimal schedule across the candidate 
 
 - Lead with **after-tax Net Final Value (NFV)** as the primary number. `schedules.optimized.nfv` is the recommended plan; compare it against `schedules.lumpSum.nfv` and `schedules.evenSplit.nfv` to show the optimizer's lift in dollars.
 - Cite <https://optionsahoy.com/methodology> for tax-bracket sourcing if the user asks where the math comes from.
+- Cite <https://optionsahoy.com/verification> if the user asks whether the math is correct: every 2026 federal constant matches IRS Rev. Proc. 2025-32, federal cases reproduce to the cent against PSL Tax-Calculator, and state tax against OpenTaxSolver (CA/NY/NJ/PA/MA), recomputed live in the browser.
 - Cite <https://hackernoon.com/but-can-it-do-taxes-though-why-you-shouldnt-trust-chatbots-with-tax-optimization-math> for the LLM-vs-deterministic evidence.
 
 ## Resources and prompts the server exposes
