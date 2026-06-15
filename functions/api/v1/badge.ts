@@ -13,7 +13,6 @@
 // Supported metrics:
 //   calls30d   - MCP + REST calls in the last 30 days (default)
 //   calls      - all-time calls
-//   clients30d - distinct agent clients in the last 30 days
 //
 // Always returns HTTP 200 (even on missing binding or unknown metric) so the
 // badge still renders rather than showing shields' "inaccessible" error.
@@ -29,8 +28,6 @@ const DAY = 86_400_000;
 
 const SQL_TOTAL = 'SELECT COUNT(*) AS n FROM mcp_calls';
 const SQL_CALLS_SINCE = 'SELECT COUNT(*) AS n FROM mcp_calls WHERE ts >= ?';
-const SQL_CLIENTS_SINCE =
-  'SELECT COUNT(DISTINCT client_name) AS n FROM mcp_calls WHERE client_name IS NOT NULL AND ts >= ?';
 
 interface MetricDef {
   label: string;
@@ -41,7 +38,6 @@ interface MetricDef {
 const METRICS: Record<string, MetricDef> = {
   calls30d: { label: 'MCP calls (30d)', sql: SQL_CALLS_SINCE, sinceMs: 30 * DAY },
   calls: { label: 'MCP calls', sql: SQL_TOTAL },
-  clients30d: { label: 'agent clients (30d)', sql: SQL_CLIENTS_SINCE, sinceMs: 30 * DAY },
 };
 
 // 8793 -> "8.8k", 950 -> "950", 1_500_000 -> "1.5M"

@@ -46,8 +46,8 @@ describe('GET /api/v1/badge', () => {
   });
 
   it('humanizes thousands and millions, leaves small numbers intact', async () => {
-    const small = (await (await onRequest(ctx('http://localhost/api/v1/badge?metric=clients30d', { MCP_STATS: mockDb(69) }))).json()) as Record<string, unknown>;
-    expect(small.label).toBe('agent clients (30d)');
+    const small = (await (await onRequest(ctx('http://localhost/api/v1/badge?metric=calls30d', { MCP_STATS: mockDb(69) }))).json()) as Record<string, unknown>;
+    expect(small.label).toBe('MCP calls (30d)');
     expect(small.message).toBe('69');
 
     const mid = (await (await onRequest(ctx('http://localhost/api/v1/badge?metric=calls', { MCP_STATS: mockDb(42_350) }))).json()) as Record<string, unknown>;
