@@ -1,0 +1,108 @@
+{
+  "name": "OptionsAhoy Equity Comp Tax Planner",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "a1b2c3d4-0001-4a01-8a01-000000000001",
+      "name": "Run with sample scenario",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        240,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            { "id": "f1", "name": "shares", "value": 20000, "type": "number" },
+            { "id": "f2", "name": "strike", "value": 2, "type": "number" },
+            { "id": "f3", "name": "fmv", "value": 200, "type": "number" },
+            { "id": "f4", "name": "filingStatus", "value": "married_joint", "type": "string" },
+            { "id": "f5", "name": "ordinaryIncome", "value": 300000, "type": "number" },
+            { "id": "f6", "name": "stateCode", "value": "CA", "type": "string" },
+            { "id": "f7", "name": "carryforwardCredit", "value": 0, "type": "number" },
+            { "id": "f8", "name": "horizon", "value": 4, "type": "number" },
+            { "id": "f9", "name": "cashReturnRate", "value": 0.055, "type": "number" },
+            { "id": "f10", "name": "grantDate", "value": "2022-01-01", "type": "string" },
+            { "id": "f11", "name": "hasLeftCompany", "value": false, "type": "boolean" },
+            { "id": "f12", "name": "expectedGrowth", "value": 0.17, "type": "number" },
+            { "id": "f13", "name": "volatility", "value": 0.72, "type": "number" }
+          ]
+        },
+        "options": {}
+      },
+      "id": "a1b2c3d4-0002-4a02-8a02-000000000002",
+      "name": "Equity scenario",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        460,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://optionsahoy.com/api/v1/amt-iso",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "content-type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "id": "a1b2c3d4-0003-4a03-8a03-000000000003",
+      "name": "OptionsAhoy: optimize ISO schedule",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        680,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "content": "## OptionsAhoy Equity Comp Tax Planner\n\nThis template calls the keyless OptionsAhoy optimizer (no API key) and returns the incentive stock option (ISO) exercise schedule that maximizes after-tax net final value (NFV).\n\n**Read the result at** `result.schedules.optimized.nfv`, compared against `result.schedules.lumpSum.nfv` and `result.schedules.evenSplit.nfv`.\n\n**Make it a chat agent:** replace the trigger + Set node with a Chat Trigger + an AI Agent, and attach the OptionsAhoy MCP server as a tool with an MCP Client Tool node (`serverTransport: httpStreamable`, `endpointUrl: https://optionsahoy.com/mcp`). The agent then extracts the inputs from the user and calls the optimizer.\n\nOther endpoints: `/api/v1/nso`, `/api/v1/rsu-sell-vs-hold`, `/api/v1/qsbs`, `/api/v1/concentration`, `/api/v1/protective-put`, `/api/v1/equity-funding`. Docs: https://optionsahoy.com/for-agents | Proof: https://optionsahoy.com/verification",
+        "height": 360,
+        "width": 420
+      },
+      "id": "a1b2c3d4-0004-4a04-8a04-000000000004",
+      "name": "About this template",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        220,
+        -40
+      ]
+    }
+  ],
+  "connections": {
+    "Run with sample scenario": {
+      "main": [
+        [
+          { "node": "Equity scenario", "type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "Equity scenario": {
+      "main": [
+        [
+          { "node": "OptionsAhoy: optimize ISO schedule", "type": "main", "index": 0 }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {},
+  "meta": {},
+  "tags": []
+}
