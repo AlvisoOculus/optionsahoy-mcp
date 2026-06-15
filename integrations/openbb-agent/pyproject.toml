@@ -25,7 +25,10 @@ Homepage = "https://optionsahoy.com"
 Documentation = "https://optionsahoy.com/for-agents"
 
 [project.optional-dependencies]
-dev = ["pytest>=8", "ruff>=0.5"]
+# A2A (Agent2Agent) discovery + delegation. With this installed, the app also
+# serves an Agent Card at /.well-known/agent-card.json and an A2A JSON-RPC endpoint.
+a2a = ["a2a-sdk[http-server]>=0.3,<0.4"]
+dev = ["pytest>=8", "ruff>=0.5", "a2a-sdk[http-server]>=0.3,<0.4", "httpx"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["optionsahoy_openbb_agent"]

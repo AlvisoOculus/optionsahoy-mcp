@@ -1,0 +1,121 @@
+{
+  "capabilities": {
+    "pushNotifications": false,
+    "stateTransitionHistory": false,
+    "streaming": false
+  },
+  "defaultInputModes": [
+    "text/plain"
+  ],
+  "defaultOutputModes": [
+    "text/plain"
+  ],
+  "description": "Answers equity-compensation planning questions by calling the OptionsAhoy calculators: incentive stock option and alternative minimum tax (AMT) exercise timing, non-qualified stock options, restricted stock unit sell-versus-hold, qualified small business stock (QSBS), single-stock concentration, protective-put hedging, and funding a cash goal from equity. The financial math is deterministic and verifiable (https://optionsahoy.com/verification); OptionsAhoy's API is keyless.",
+  "documentationUrl": "https://optionsahoy.com/for-agents",
+  "iconUrl": "https://optionsahoy.com/icon.png",
+  "name": "OptionsAhoy Equity Planner",
+  "preferredTransport": "JSONRPC",
+  "protocolVersion": "0.3.0",
+  "provider": {
+    "organization": "AlphaLatitude Inc.",
+    "url": "https://optionsahoy.com"
+  },
+  "skills": [
+    {
+      "description": "Optimize a multi-year incentive stock option (ISO) exercise schedule under the alternative minimum tax (AMT).",
+      "examples": [
+        "When and how many of my 20,000 incentive stock options should I exercise over 4 years to minimize alternative minimum tax?"
+      ],
+      "id": "amt_iso",
+      "name": "ISO exercise and AMT optimizer",
+      "tags": [
+        "iso",
+        "amt",
+        "exercise-timing",
+        "equity-compensation",
+        "tax"
+      ]
+    },
+    {
+      "description": "Compute the tax and after-tax proceeds of exercising non-qualified stock options (NSOs) and holding versus selling.",
+      "examples": [
+        "How much tax will I owe if I exercise 5,000 non-qualified stock options, and should I sell at exercise or hold?"
+      ],
+      "id": "nso",
+      "name": "NSO exercise tax",
+      "tags": [
+        "nso",
+        "non-qualified-stock-options",
+        "tax"
+      ]
+    },
+    {
+      "description": "Compare selling vested restricted stock units (RSUs) at vest against holding them, on an after-tax, risk-adjusted basis.",
+      "examples": [
+        "My restricted stock units just vested. Should I sell now or hold for long-term capital gains?"
+      ],
+      "id": "rsu_sell_vs_hold",
+      "name": "RSU sell-versus-hold",
+      "tags": [
+        "rsu",
+        "vesting",
+        "capital-gains"
+      ]
+    },
+    {
+      "description": "Analyze a concentrated single-stock position and the after-tax cost of diversifying it.",
+      "examples": [
+        "Eighty percent of my net worth is in one company's stock. How much should I sell down?"
+      ],
+      "id": "concentration",
+      "name": "Single-stock concentration analysis",
+      "tags": [
+        "concentration",
+        "single-stock-risk",
+        "hedging"
+      ]
+    },
+    {
+      "description": "Price a protective put hedge for a stock position at a given downside protection level and tenor.",
+      "examples": [
+        "What would a protective put or a zero-cost collar on my 10,000 shares cost?"
+      ],
+      "id": "protective_put",
+      "name": "Protective put and collar pricing",
+      "tags": [
+        "hedging",
+        "protective-put",
+        "zero-cost-collar",
+        "options-pricing"
+      ]
+    },
+    {
+      "description": "Check qualified small business stock (QSBS) eligibility and the resulting federal and state capital-gains exclusion.",
+      "examples": [
+        "Do my shares qualify for the Section 1202 qualified small business stock exclusion?"
+      ],
+      "id": "qsbs",
+      "name": "QSBS Section 1202 check",
+      "tags": [
+        "qsbs",
+        "section-1202",
+        "tax-exclusion"
+      ]
+    },
+    {
+      "description": "Plan which equity lots to sell, and when, to fund a cash goal by a target date with the least after-tax cost.",
+      "examples": [
+        "I need 200,000 dollars after tax for a down payment in 2 years. What should I sell and when?"
+      ],
+      "id": "equity_funding",
+      "name": "Fund a cash goal from equity",
+      "tags": [
+        "equity-funding",
+        "liquidity",
+        "planning"
+      ]
+    }
+  ],
+  "url": "https://optionsahoy.com/a2a",
+  "version": "0.1.0"
+}

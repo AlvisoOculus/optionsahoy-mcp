@@ -240,3 +240,15 @@ async def query(request: QueryRequest) -> EventSourceResponse:
         content=_run_query(request),
         media_type="text/event-stream",
     )
+
+
+# Optionally expose the same agent over the A2A (Agent2Agent) protocol, so other
+# agents can discover it from its Agent Card at /.well-known/agent-card.json and
+# delegate equity-compensation questions to it. This needs the ``a2a`` extra
+# (a2a-sdk); if it is not installed the OpenBB endpoints above still work.
+try:
+    from optionsahoy_openbb_agent.a2a import add_a2a_routes
+
+    add_a2a_routes(app)
+except ImportError:
+    pass
