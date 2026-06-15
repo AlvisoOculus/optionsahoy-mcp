@@ -29,8 +29,6 @@ const TOP_TOOLS_LIMIT = 5;
 
 const SQL_TOTAL = 'SELECT COUNT(*) AS n FROM mcp_calls';
 const SQL_SINCE = 'SELECT COUNT(*) AS n FROM mcp_calls WHERE ts >= ?';
-const SQL_DISTINCT_CLIENTS_SINCE =
-  'SELECT COUNT(DISTINCT client_name) AS n FROM mcp_calls WHERE client_name IS NOT NULL AND ts >= ?';
 const SQL_TOP_TOOLS = `SELECT tool, COUNT(*) AS n FROM mcp_calls WHERE tool IS NOT NULL GROUP BY tool ORDER BY n DESC LIMIT ${TOP_TOOLS_LIMIT}`;
 const SQL_LAST_TS = 'SELECT ts FROM mcp_calls ORDER BY ts DESC LIMIT 1';
 
@@ -68,12 +66,11 @@ export const onRequest: PagesFunction = async (ctx) => {
   const since7d = now - 7 * day;
   const since30d = now - 30 * day;
 
-  const [total, last24h, last7d, last30d, clients30d, topToolsRes, lastRes] = await Promise.all([
+  const [total, last24h, last7d, last30d, topToolsRes, lastRes] = await Promise.all([
     scalar(db, SQL_TOTAL),
     scalar(db, SQL_SINCE, since24h),
     scalar(db, SQL_SINCE, since7d),
     scalar(db, SQL_SINCE, since30d),
-    scalar(db, SQL_DISTINCT_CLIENTS_SINCE, since30d),
     db.prepare(SQL_TOP_TOOLS).all<ToolRow>(),
     db.prepare(SQL_LAST_TS).all<LastRow>(),
   ]);
@@ -87,7 +84,6 @@ export const onRequest: PagesFunction = async (ctx) => {
     last24h,
     last7d,
     last30d,
-    distinctClients30d: clients30d,
     topTools: topToolsRes.results.map((r) => ({ name: r.tool, count: r.n })),
     lastCallAt,
     asOf: new Date(now).toISOString(),

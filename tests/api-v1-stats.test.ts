@@ -63,7 +63,6 @@ describe('GET /api/v1/stats', () => {
     expect(json.last24h).toBe(42);
     expect(json.last7d).toBe(42);
     expect(json.last30d).toBe(42);
-    expect(json.distinctClients30d).toBe(7);
     expect(json.topTools).toEqual([
       { name: 'amt_iso_optimize', count: 500 },
       { name: 'concentration_analyze', count: 300 },

@@ -4,7 +4,6 @@
 [![npm version](https://img.shields.io/npm/v/optionsahoy-mcp?logo=npm&label=npm)](https://www.npmjs.com/package/optionsahoy-mcp)
 [![MCPSafe security grade](https://api.mcpsafe.io/api/badge/pubfast497de7f7a5466f2a414a)](https://mcpsafe.io/scan/pubfast497de7f7a5466f2a414a)
 [![MCP calls in the last 30 days](https://img.shields.io/endpoint?url=https%3A%2F%2Foptionsahoy.com%2Fapi%2Fv1%2Fbadge%3Fmetric%3Dcalls30d&style=flat)](https://optionsahoy.com/for-agents)
-[![Distinct agent clients in the last 30 days](https://img.shields.io/endpoint?url=https%3A%2F%2Foptionsahoy.com%2Fapi%2Fv1%2Fbadge%3Fmetric%3Dclients30d&style=flat)](https://optionsahoy.com/for-agents)
 
 <sub>**Independently verified by third parties.** **[Glama](https://glama.ai/mcp/servers/AlvisoOculus/optionsahoy-mcp):** third-party MCP-directory quality score (tool docs, behavior, completeness). · **[npm](https://www.npmjs.com/package/optionsahoy-mcp):** published with build provenance, a signed [SLSA](https://slsa.dev) attestation that this package was built from this repo by GitHub Actions (verify with `npm audit signatures`). · **[MCPSafe](https://mcpsafe.io/scan/pubfast497de7f7a5466f2a414a):** independent 5-model-consensus security scan (AIVSS), Grade A with zero findings.</sub>
 
@@ -12,7 +11,7 @@
 
 <sub>**Tested and hardened.** **Input safety:** requests are validated against the published schema; bad inputs return a clear 400 with the offending field named, never a crash or a wrong number, and the live API is re-checked by a robustness suite after every deploy. · **Test suite:** the calculation engine is covered by more than a thousand automated tests across the federal and 50-state tax logic, AMT credit recovery, and option pricing; a failing test blocks the release.</sub>
 
-<sub>**Live usage:** MCP calls and distinct agent clients over the last 30 days, served straight from the server's own telemetry ([/api/v1/stats](https://optionsahoy.com/api/v1/stats), aggregate counts only, no PII).</sub>
+<sub>**Live usage:** MCP calls over the last 30 days, served straight from the server's own telemetry ([/api/v1/stats](https://optionsahoy.com/api/v1/stats), aggregate counts only, no PII).</sub>
 
 Deterministic equity-compensation tax math that any Model Context Protocol (MCP) client can call: incentive stock option (ISO) exercise schedules under the alternative minimum tax (AMT), non-qualified stock option (NSO) and restricted stock unit (RSU) decisions, qualified small business stock (QSBS) qualification, single-stock concentration, protective-put hedging, and equity-funding goals. Full federal tax code plus all 50 states and DC, 2026 brackets. Built by [AlphaLatitude Inc.](https://alphalatitude.com), the company behind [OptionsAhoy](https://optionsahoy.com).
 
