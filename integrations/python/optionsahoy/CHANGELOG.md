@@ -2,6 +2,9 @@
 
 All notable changes to `optionsahoy` are documented here. This project follows semantic versioning.
 
+## 0.1.5
+- Added a Verified section to the README: the tax math is independently cross-checked to the cent against PSL Tax-Calculator (federal) and OpenTaxSolver (state: CA, NY, NJ, PA, MA), with the proof recomputed live at https://optionsahoy.com/verification.
+
 ## 0.1.4
 - Packaging and documentation polish: README status badges; full trove classifiers
   (supported Python versions, development status, audience, typing); a `py.typed` marker
