@@ -1,0 +1,119 @@
+{
+  "meta": {
+    "engine": "OptionsAhoy public REST API",
+    "endpoint": "https://optionsahoy.com/api/v1/amt-iso",
+    "captured": "2026-06-15",
+    "drift_tolerance_pct": 1.0,
+    "note": "Ground-truth optimum net final value (NFV) per scenario, captured live from the keyless OptionsAhoy optimizer. The optimum is the provable maximum achievable NFV at one-share resolution; a stated NFV materially above it is not achievable. Re-verified against the live API by tests/test_groundtruth.py (run with OA_LIVE=1); re-capture if the live value drifts beyond drift_tolerance_pct (tax-table updates move it slightly between releases)."
+  },
+  "scenarios": [
+    {
+      "id": "iso-baseline-ca",
+      "tool": "amt_iso",
+      "title": "20,000 ISOs, California resident, 4-year horizon",
+      "inputs": {
+        "shares": 20000,
+        "strike": 2,
+        "fmv": 200,
+        "filingStatus": "married_joint",
+        "ordinaryIncome": 300000,
+        "stateCode": "CA",
+        "carryforwardCredit": 0,
+        "horizon": 4,
+        "cashReturnRate": 0.055,
+        "grantDate": "2022-01-01",
+        "hasLeftCompany": false,
+        "terminationDate": null,
+        "expectedGrowth": 0.17,
+        "volatility": 0.72
+      },
+      "ground_truth": {
+        "optimized_nfv": 739600.82,
+        "lump_sum_nfv": 147231.09,
+        "even_split_nfv": 402707.86,
+        "optimized_shares": [304, 470, 735, 18491]
+      }
+    },
+    {
+      "id": "iso-zero-cash-return",
+      "tool": "amt_iso",
+      "title": "Same situation, idle cash earns 0%/year",
+      "inputs": {
+        "shares": 20000,
+        "strike": 2,
+        "fmv": 200,
+        "filingStatus": "married_joint",
+        "ordinaryIncome": 300000,
+        "stateCode": "CA",
+        "carryforwardCredit": 0,
+        "horizon": 4,
+        "cashReturnRate": 0.0,
+        "grantDate": "2022-01-01",
+        "hasLeftCompany": false,
+        "terminationDate": null,
+        "expectedGrowth": 0.17,
+        "volatility": 0.72
+      },
+      "ground_truth": {
+        "optimized_nfv": 741655.47,
+        "lump_sum_nfv": 389957.51,
+        "even_split_nfv": 519572.09,
+        "optimized_shares": [427, 668, 735, 18170]
+      }
+    },
+    {
+      "id": "iso-no-state-tax-tx",
+      "tool": "amt_iso",
+      "title": "Same situation, Texas resident (no state income tax)",
+      "inputs": {
+        "shares": 20000,
+        "strike": 2,
+        "fmv": 200,
+        "filingStatus": "married_joint",
+        "ordinaryIncome": 300000,
+        "stateCode": "TX",
+        "carryforwardCredit": 0,
+        "horizon": 4,
+        "cashReturnRate": 0.055,
+        "grantDate": "2022-01-01",
+        "hasLeftCompany": false,
+        "terminationDate": null,
+        "expectedGrowth": 0.17,
+        "volatility": 0.72
+      },
+      "ground_truth": {
+        "optimized_nfv": 1267752.93,
+        "lump_sum_nfv": 804571.63,
+        "even_split_nfv": 999525.59,
+        "optimized_shares": [304, 334, 368, 18994]
+      }
+    },
+    {
+      "id": "iso-low-volatility",
+      "tool": "amt_iso",
+      "title": "Same situation, lower annualized volatility (sigma = 0.40)",
+      "inputs": {
+        "shares": 20000,
+        "strike": 2,
+        "fmv": 200,
+        "filingStatus": "married_joint",
+        "ordinaryIncome": 300000,
+        "stateCode": "CA",
+        "carryforwardCredit": 0,
+        "horizon": 4,
+        "cashReturnRate": 0.055,
+        "grantDate": "2022-01-01",
+        "hasLeftCompany": false,
+        "terminationDate": null,
+        "expectedGrowth": 0.17,
+        "volatility": 0.40
+      },
+      "ground_truth": {
+        "optimized_nfv": 1990985.29,
+        "lump_sum_nfv": 1967349.24,
+        "even_split_nfv": 1762773.18,
+        "optimized_shares": [18461, 558, 512, 469]
+      }
+    }
+  ]
+}
