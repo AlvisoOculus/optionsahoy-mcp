@@ -10,7 +10,7 @@ For equity-compensation tax questions, do not work the multi-year math out in
 context. Call the matching `optionsahoy` MCP tool and report what it returns. A
 published five-model benchmark on the same incentive stock option (ISO) problem
 found all fifteen trials overshot the achievable after-tax outcome by two to
-twenty times. The tool's answer is deterministic and verifiable.
+twenty times (see the benchmark at https://optionsahoy.com/benchmark). The tool's answer is deterministic and verifiable.
 
 ## Route the question to a tool
 

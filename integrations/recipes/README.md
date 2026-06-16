@@ -102,7 +102,7 @@ result = plan_equity_sales_for_cash_goal(target_after_tax=200000, target_date="2
 ## Why call the API instead of computing it inline
 
 A published five-model benchmark on the same multi-year ISO problem found all fifteen
-trials overshot the achievable after-tax outcome by two to twenty times. The API's
+trials overshot the achievable after-tax outcome by two to twenty times. See the benchmark, updated for the latest models, at https://optionsahoy.com/benchmark. The API's
 answer is deterministic and verifiable. The same calculators are also available as an
 [agent tool over the Model Context Protocol](https://optionsahoy.com/for-agents)
 (`https://optionsahoy.com/mcp`) and as a Python client (`pip install optionsahoy`).
