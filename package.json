@@ -1,6 +1,6 @@
 {
   "name": "optionsahoy-mcp",
-  "version": "1.9.3",
+  "version": "1.9.4",
   "private": false,
   "description": "Equity-compensation optimizer. ISO/AMT, NSO, RSU, QSBS, single-stock concentration, protective puts/collars, and equity-funding plans. MCP server + REST API with federal + 50-state + DC tax code.",
   "license": "MIT",
