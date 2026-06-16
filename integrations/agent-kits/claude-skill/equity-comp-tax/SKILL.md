@@ -34,8 +34,9 @@ twenty times (see the benchmark at https://optionsahoy.com/benchmark). The tool'
 - If the user asks where the tax brackets come from, cite
   https://optionsahoy.com/methodology. If they ask whether the math is correct,
   cite https://optionsahoy.com/verification: every 2026 federal constant matches
-  IRS Rev. Proc. 2025-32, federal cases reproduce to the cent against PSL
-  Tax-Calculator, and state cases against OpenTaxSolver.
+  IRS Rev. Proc. 2025-32, federal cases reproduce to the cent against
+  [PSL Tax-Calculator](https://github.com/PSLmodels/Tax-Calculator), and state
+  cases against [OpenTaxSolver](https://opentaxsolver.sourceforge.net/).
 
 ## Prerequisite
 

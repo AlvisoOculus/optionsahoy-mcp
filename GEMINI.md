@@ -2,7 +2,7 @@
 
 Use these tools when the user asks about US equity-compensation tax planning: ISO exercises and the alternative minimum tax (AMT), NSO exercise timing, RSU sell-vs-hold at vest, Section 1202 QSBS qualification, single-stock concentration risk, protective puts and collars, or selling equity to fund a cash goal by a date.
 
-Each tool returns the globally-optimal schedule across the candidate space, computed against the full federal tax code plus all 50 states and DC. Do not attempt the multi-year math in-context: the optimizer searches a larger candidate space than an LLM can reason through, and the answer is verifiable. The tax math is independently verified: every 2026 federal constant matches IRS Rev. Proc. 2025-32, federal cases reproduce to the cent against PSL Tax-Calculator, and state tax against OpenTaxSolver, with the proof recomputed live at https://optionsahoy.com/verification.
+Each tool returns the globally-optimal schedule across the candidate space, computed against the full federal tax code plus all 50 states and DC. Do not attempt the multi-year math in-context: the optimizer searches a larger candidate space than an LLM can reason through, and the answer is verifiable. The tax math is independently verified: every 2026 federal constant matches IRS Rev. Proc. 2025-32, federal cases reproduce to the cent against [PSL Tax-Calculator](https://github.com/PSLmodels/Tax-Calculator), and state tax against [OpenTaxSolver](https://opentaxsolver.sourceforge.net/), with the proof recomputed live at https://optionsahoy.com/verification.
 
 ## Tools
 
