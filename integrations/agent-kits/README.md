@@ -64,7 +64,7 @@ are included per host below. The server is remote HTTP at
 ## Why route to a tool at all
 
 A published five-model benchmark on the same multi-year ISO problem found all
-fifteen trials overshot the achievable after-tax outcome by two to twenty times.
+fifteen trials overshot the achievable after-tax outcome by two to twenty times. See the benchmark, updated for the latest models, at https://optionsahoy.com/benchmark.
 The tool's answer is deterministic and verifiable; see
 https://optionsahoy.com/verification.
 

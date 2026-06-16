@@ -4,8 +4,10 @@ An [inspect_ai](https://inspect.aisi.org.uk/) evaluation that measures whether a
 agent reaches the **provable optimum** on equity-compensation tax-optimization
 questions, with and without a tool.
 
-It turns a known failure into a runnable test. The companion benchmark,
-[llm-iso-benchmark](https://github.com/AlvisoOculus/llm-iso-benchmark), shows that
+It turns a known failure into a runnable test. The companion benchmark
+([optionsahoy.com/benchmark](https://optionsahoy.com/benchmark), updated for the
+latest models, with raw transcripts at
+[llm-iso-benchmark](https://github.com/AlvisoOculus/llm-iso-benchmark)) shows that
 unaided frontier models, asked to optimize a multi-year incentive stock option
 (ISO) exercise schedule under the alternative minimum tax (AMT), overshoot the
 achievable optimum by 2x to 20x: they confidently report a net final value (NFV)

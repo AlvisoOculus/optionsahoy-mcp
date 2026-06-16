@@ -65,7 +65,7 @@ result, then End. Export the Difypacked DSL pinned to the current version.
 ## Why route to the tool
 
 A published five-model benchmark on the same multi-year ISO problem found all
-fifteen trials overshot the achievable after-tax outcome by two to twenty times.
+fifteen trials overshot the achievable after-tax outcome by two to twenty times. See the benchmark, updated for the latest models, at https://optionsahoy.com/benchmark.
 The optimizer's answer is deterministic and verifiable; see
 https://optionsahoy.com/verification.
 
