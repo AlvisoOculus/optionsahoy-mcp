@@ -156,6 +156,52 @@ describe('POST /api/v1/qsbs', () => {
     } as Parameters<typeof evaluateQsbs>[0]);
     await expectOkAndMatch(res, reference);
   });
+
+  const qsbsBase = {
+    acquisitionDate: new Date('2018-03-01'),
+    saleDate: new Date('2024-06-01'),
+    entityType: 'us-c-corp',
+    acquisitionMethod: 'original-issuance',
+    assetCategory: 'under-50m',
+    industry: 'tech-software',
+    activeBusiness: 'yes',
+    adjustedBasis: 100000,
+    expectedGain: 5000000,
+    stateCode: 'TX',
+    ordinaryIncome: 300000,
+    filingStatus: 'single',
+  } as Parameters<typeof evaluateQsbs>[0];
+
+  it('emits cappedOverageNote when the gain exceeds the exclusion cap', () => {
+    // $40M gain, $10M per-issuer cap (10x basis only $1M) -> $30M overage.
+    const r = evaluateQsbs({ ...qsbsBase, expectedGain: 40000000 });
+    expect(r.applicableCap).toBe(10000000);
+    expect(r.cappedOverageNote).toBeDefined();
+    expect(r.cappedOverageNote).toContain('$10M');
+    expect(r.cappedOverageNote).toContain('$30M');
+    expect(r.cappedOverageNote).toContain('estate-planning attorney');
+  });
+
+  it('omits cappedOverageNote when the gain fits under the cap', () => {
+    // $5M gain, fully excluded, no overage.
+    const r = evaluateQsbs({ ...qsbsBase, expectedGain: 5000000 });
+    expect(r.taxableGain).toBe(0);
+    expect(r.cappedOverageNote).toBeUndefined();
+  });
+
+  it('omits cappedOverageNote when taxable gain is a partial-tier haircut, not a cap overage', () => {
+    // OBBBA 4-year hold -> 75% tier; gain under the $15M cap. The taxable 25%
+    // is from the tier, not a cap overage, so stacking guidance must not fire.
+    const r = evaluateQsbs({
+      ...qsbsBase,
+      acquisitionDate: new Date('2025-08-01'),
+      saleDate: new Date('2029-09-01'),
+      expectedGain: 4000000,
+    });
+    expect(r.exclusionPercent).toBe(0.75);
+    expect(r.taxableGain).toBeGreaterThan(0);
+    expect(r.cappedOverageNote).toBeUndefined();
+  });
 });
 
 describe('GET /api/v1', () => {

@@ -159,6 +159,10 @@ export interface QsbsResult {
   federalTaxSaved: number;
   stateConforms: 'full' | 'partial' | 'none';
   stateNote?: string;
+  // Set only when the gain exceeds the exclusion cap (a genuine cap overage,
+  // not a partial-tier haircut). Surfaces the multi-taxpayer stacking strategy
+  // without endorsing any vendor. Omitted otherwise.
+  cappedOverageNote?: string;
   holdingYears: number;
   yearsUntilFullExclusion: number;
   era: 'pre-2009' | 'pre-2010' | 'pre-obbba' | 'obbba';
@@ -193,6 +197,13 @@ function yearsBetween(start: Date, end: Date): number {
 // July 4, 2025) into the post-cutoff era.
 function dateOnlyMs(d: Date): number {
   return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+}
+
+// Format a dollar amount as a compact "$XM" / "$X.YM" string for prose notes.
+function fmtMillions(n: number): string {
+  const m = n / 1_000_000;
+  const s = Number.isInteger(m) ? m.toFixed(0) : m.toFixed(1);
+  return `$${s}M`;
 }
 
 function classifyEra(acquisitionDate: Date): QsbsResult['era'] {
@@ -434,6 +445,24 @@ export function evaluateQsbs(inputs: QsbsInputs): QsbsResult {
 
   const stateConf = stateConformity(inputs.stateCode, inputs.saleDate);
 
+  // The portion of gain above the exclusion cap is fully taxable no matter how
+  // long it's held — unlike the partial-tier haircut, more holding time can't
+  // recover it. Spreading shares across separate taxpayers before sale (e.g.
+  // gifting to non-grantor trusts) can multiply the per-issuer cap. Surface
+  // that strategy only on a genuine cap overage with an exclusion actually in
+  // play (never for too-soon/disqualified verdicts), and point to a category of
+  // professional, not any vendor.
+  const capOverage = Math.max(0, inputs.expectedGain - applicableCap);
+  let cappedOverageNote: string | undefined;
+  if (appliedExclusion > 0 && capOverage > 0) {
+    cappedOverageNote =
+      `Your gain exceeds the Section 1202 exclusion cap of ${fmtMillions(applicableCap)}, so ` +
+      `${fmtMillions(capOverage)} of gain is fully taxable regardless of holding period. ` +
+      `Gifting shares to non-grantor trusts or other taxpayers before sale can multiply the ` +
+      `per-issuer exclusion across separate taxpayers. This is an estate-planning strategy with ` +
+      `its own costs and IRS scrutiny; consult an estate-planning attorney.`;
+  }
+
   return {
     verdict,
     exclusionPercent: appliedExclusion,
@@ -445,6 +474,7 @@ export function evaluateQsbs(inputs: QsbsInputs): QsbsResult {
     federalTaxSaved,
     stateConforms: stateConf.conforms,
     stateNote: stateConf.note,
+    cappedOverageNote,
     holdingYears,
     yearsUntilFullExclusion: yearsToFull,
     era,

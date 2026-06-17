@@ -681,6 +681,7 @@ const QSBS_OUTPUT_SCHEMA: JsonSchema = {
       description: 'Whether the user state conforms to the federal 1202 exclusion.',
     },
     stateNote: str('Per-state conformity explanation. May be omitted.'),
+    cappedOverageNote: str('Present only when expectedGain exceeds applicableCap and an exclusion is in play: explains that the overage is fully taxable regardless of holding period and that spreading shares across separate taxpayers (e.g. non-grantor trusts) can multiply the per-issuer exclusion. Omitted otherwise.'),
     holdingYears: num('Calendar-aware years between acquisitionDate and saleDate.'),
     yearsUntilFullExclusion: num('Additional years to hold before reaching the 100% exclusion tier; 0 when already reached.'),
     era: {
