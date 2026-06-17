@@ -64,5 +64,9 @@ if __name__ == "__main__":
     print(f"QSBS verdict: {result['verdict']}")
     print(f"Exclusion percent: {result['exclusionPercent']}")
     print(f"Excludable gain: {result['excludableGain']}")
+    # Present only when the gain exceeds the per-issuer/10x-basis cap: the
+    # overage is fully taxable and multi-taxpayer stacking may apply.
+    if result.get("cappedOverageNote"):
+        print(f"Note: {result['cappedOverageNote']}")
     print("\nFull result:")
     print(json.dumps(result, indent=2)[:600] + " ...")

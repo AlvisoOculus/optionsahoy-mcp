@@ -2,7 +2,11 @@
 
 All notable changes to `optionsahoy` are documented here. This project follows semantic versioning.
 
-## 0.1.6
+## 0.1.7
+
+- QSBS results now include a `cappedOverageNote` when the expected gain exceeds the Section 1202 per-issuer exclusion cap: the overage is fully taxable and the note flags multi-taxpayer (non-grantor trust) stacking as an estate-planning option.
+
+
 
 - Link the live benchmark page (https://optionsahoy.com/benchmark), updated for the latest models, in the README.
 

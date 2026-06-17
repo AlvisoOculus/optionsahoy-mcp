@@ -7,4 +7,4 @@ from optionsahoy.client import (
 )
 
 __all__ = ["OptionsAhoyClient", "OptionsAhoyError", "DEFAULT_BASE_URL"]
-__version__ = "0.1.6"
+__version__ = "0.1.7"
