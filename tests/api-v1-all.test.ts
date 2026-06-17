@@ -189,6 +189,22 @@ describe('POST /api/v1/qsbs', () => {
     expect(r.cappedOverageNote).toBeUndefined();
   });
 
+  it('references the 10x-basis cap (and a fractional $M) when that cap is binding', () => {
+    // basis $1.35M -> 10x cap $13.5M beats the $10M per-issuer cap; gain $20M -> overage $6.5M.
+    // Also exercises fmtMillions' decimal branch, which the round-$M cases above miss.
+    const r = evaluateQsbs({ ...qsbsBase, adjustedBasis: 1350000, expectedGain: 20000000 });
+    expect(r.applicableCap).toBe(13500000);
+    expect(r.cappedOverageNote).toContain('$13.5M');
+    expect(r.cappedOverageNote).toContain('$6.5M');
+  });
+
+  it('omits cappedOverageNote on a disqualified verdict even with a huge gain', () => {
+    // appliedExclusion === 0 -> no exclusion in play, so no stacking guidance.
+    const r = evaluateQsbs({ ...qsbsBase, entityType: 'other', expectedGain: 40000000 });
+    expect(r.verdict).toBe('disqualified');
+    expect(r.cappedOverageNote).toBeUndefined();
+  });
+
   it('omits cappedOverageNote when taxable gain is a partial-tier haircut, not a cap overage', () => {
     // OBBBA 4-year hold -> 75% tier; gain under the $15M cap. The taxable 25%
     // is from the tier, not a cap overage, so stacking guidance must not fire.
