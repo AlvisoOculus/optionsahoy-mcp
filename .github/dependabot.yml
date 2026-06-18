@@ -22,6 +22,16 @@ updates:
     groups:
       npm-root:
         patterns: ["*"]
+    # Hold two majors the repo is not ready for (minor/patch + security still
+    # flow). Drop the ignore when the blocker below is resolved.
+    ignore:
+      # vitest 4's rolldown engine fails to start here; suite stays on v3.
+      - dependency-name: "vitest"
+        update-types: ["version-update:semver-major"]
+      # TypeScript 6 errors on the baseUrl tsconfig option this repo uses
+      # (TS5101); held at v5 until tsconfig is migrated.
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major"]
 
   # The proxy Worker's local tooling (wrangler and its transitive deps).
   - package-ecosystem: npm
@@ -31,6 +41,11 @@ updates:
     groups:
       worker-proxy:
         patterns: ["*"]
+    ignore:
+      # wrangler 4 requires Node 22; CI and the proxy deploy run on Node 20.
+      # The vulns it would clear are already handled via npm overrides (#102).
+      - dependency-name: "wrangler"
+        update-types: ["version-update:semver-major"]
 
   # The four published Python packages (PEP 621 pyproject dependencies).
   - package-ecosystem: pip
