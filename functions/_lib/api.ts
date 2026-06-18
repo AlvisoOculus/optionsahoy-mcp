@@ -21,7 +21,11 @@ export type { PagesContext } from './stats';
 // inputs themselves keep the type-level union, this is the runtime array.
 export const FILING_STATUSES = ['single', 'married_joint', 'head_household'] as const;
 
-const CORS_HEADERS: Record<string, string> = {
+// Shared CORS policy for the public, auth-less endpoints. Exported so the A2A
+// endpoint can derive from the same origin/headers/max-age base (it only
+// differs by also allowing GET). If we ever add rate limiting or auth, this is
+// the single place to tighten.
+export const CORS_HEADERS: Record<string, string> = {
   'access-control-allow-origin': '*',
   'access-control-allow-methods': 'POST, OPTIONS',
   'access-control-allow-headers': 'content-type',

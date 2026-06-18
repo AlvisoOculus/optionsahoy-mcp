@@ -8,15 +8,15 @@
 // GET /a2a returns the Agent Card (a convenience; the canonical discovery
 // location is the static /.well-known/agent-card.json).
 
-import { type PagesContext, type PagesFunction } from './_lib/api';
+import { CORS_HEADERS as BASE_CORS, type PagesContext, type PagesFunction } from './_lib/api';
 import { logCall } from './_lib/stats';
 import { buildAgentCard, handleMessage, type A2APart } from './_lib/a2a';
 
+// Same shared CORS base as the REST endpoints; this one also serves GET (the
+// Agent Card), so it overrides only the allowed-methods line.
 const CORS_HEADERS: Record<string, string> = {
-  'access-control-allow-origin': '*',
+  ...BASE_CORS,
   'access-control-allow-methods': 'GET, POST, OPTIONS',
-  'access-control-allow-headers': 'content-type',
-  'access-control-max-age': '86400',
 };
 
 function json(status: number, body: unknown): Response {
