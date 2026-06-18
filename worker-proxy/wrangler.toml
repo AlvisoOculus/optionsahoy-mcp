@@ -24,14 +24,20 @@ name = "optionsahoy-mcp-proxy"
 main = "src/index.ts"
 compatibility_date = "2026-05-26"
 
-# Route patterns: every MCP + REST path on optionsahoy.com. Workers
+# Route patterns: every MCP + REST + A2A path on optionsahoy.com. Workers
 # Routes win over Pages on the same domain, so these intercept before
-# the marketing site's CF Pages project sees them.
+# the marketing site's CF Pages project sees them. The two .well-known
+# patterns are exact paths, so the marketing site keeps serving its other
+# .well-known files (mcp.json, openapi.json, security.txt).
 routes = [
   { pattern = "optionsahoy.com/mcp", zone_name = "optionsahoy.com" },
   { pattern = "optionsahoy.com/mcp/*", zone_name = "optionsahoy.com" },
   { pattern = "optionsahoy.com/api/v1", zone_name = "optionsahoy.com" },
   { pattern = "optionsahoy.com/api/v1/*", zone_name = "optionsahoy.com" },
+  { pattern = "optionsahoy.com/a2a", zone_name = "optionsahoy.com" },
+  { pattern = "optionsahoy.com/a2a/*", zone_name = "optionsahoy.com" },
+  { pattern = "optionsahoy.com/.well-known/agent-card.json", zone_name = "optionsahoy.com" },
+  { pattern = "optionsahoy.com/.well-known/agent.json", zone_name = "optionsahoy.com" },
 ]
 
 [vars]
