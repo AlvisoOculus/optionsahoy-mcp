@@ -31,10 +31,13 @@ const MAX_DAYS = 365;
 // can identify each query unambiguously.
 const SQL_ENDPOINTS = 'SELECT endpoint, COUNT(*) AS n FROM mcp_calls WHERE ts >= ? GROUP BY endpoint ORDER BY n DESC';
 const SQL_DAILY = "SELECT date(ts/1000, 'unixepoch') AS day, COUNT(*) AS n FROM mcp_calls WHERE ts >= ? GROUP BY day ORDER BY day DESC";
-// Same per-day shape as SQL_DAILY, but counts only substantive calculator
-// invocations (REST endpoints + MCP tools/call), not handshake/discovery
-// traffic. Lets the ops dashboard chart real tool usage beside total volume.
-const SQL_DAILY_TOOLS = "SELECT date(ts/1000, 'unixepoch') AS day, COUNT(*) AS n FROM mcp_calls WHERE (endpoint LIKE 'rest:%' OR endpoint = 'mcp:tools/call') AND ts >= ? GROUP BY day ORDER BY day DESC";
+// Per-day legitimate calculator calls, split by surface. Both filter
+// is_error = 0 so probe/garbage traffic (calls that fail input validation
+// before any calculator runs) is excluded — these count only calls that
+// carried valid input and actually executed. REST and MCP tool calls are
+// charted separately on the ops dashboard.
+const SQL_DAILY_REST = "SELECT date(ts/1000, 'unixepoch') AS day, COUNT(*) AS n FROM mcp_calls WHERE endpoint LIKE 'rest:%' AND is_error = 0 AND ts >= ? GROUP BY day ORDER BY day DESC";
+const SQL_DAILY_MCP = "SELECT date(ts/1000, 'unixepoch') AS day, COUNT(*) AS n FROM mcp_calls WHERE endpoint = 'mcp:tools/call' AND is_error = 0 AND ts >= ? GROUP BY day ORDER BY day DESC";
 const SQL_TOOLS = 'SELECT tool, COUNT(*) AS n, SUM(is_error) AS errors FROM mcp_calls WHERE tool IS NOT NULL AND ts >= ? GROUP BY tool ORDER BY n DESC';
 const SQL_ERRORS = 'SELECT endpoint, tool, error_msg, COUNT(*) AS n FROM mcp_calls WHERE is_error = 1 AND ts >= ? GROUP BY endpoint, tool, error_msg ORDER BY n DESC LIMIT 25';
 const SQL_CLIENTS = "SELECT client_name, COUNT(*) AS n FROM mcp_calls WHERE client_name IS NOT NULL AND endpoint = 'mcp:initialize' AND ts >= ? GROUP BY client_name ORDER BY n DESC";
@@ -67,10 +70,11 @@ export const onRequest: PagesFunction = async (ctx) => {
   const days = Number.isFinite(daysParam) && daysParam > 0 && daysParam <= MAX_DAYS ? daysParam : DEFAULT_DAYS;
   const sinceMs = Date.now() - days * 86_400_000;
 
-  const [endpoints, daily, dailyTools, tools, errors, clients, countries] = await Promise.all([
+  const [endpoints, daily, dailyRest, dailyMcp, tools, errors, clients, countries] = await Promise.all([
     q<EndpointRow>(db, SQL_ENDPOINTS, sinceMs),
     q<DayRow>(db, SQL_DAILY, sinceMs),
-    q<DayRow>(db, SQL_DAILY_TOOLS, sinceMs),
+    q<DayRow>(db, SQL_DAILY_REST, sinceMs),
+    q<DayRow>(db, SQL_DAILY_MCP, sinceMs),
     q<ToolRow>(db, SQL_TOOLS, sinceMs),
     q<ErrorRow>(db, SQL_ERRORS, sinceMs),
     q<ClientRow>(db, SQL_CLIENTS, sinceMs),
@@ -78,7 +82,7 @@ export const onRequest: PagesFunction = async (ctx) => {
   ]);
 
   if (url.searchParams.get('format') === 'json') {
-    const body = JSON.stringify({ days, endpoints, daily, dailyTools, tools, errors, clients, countries });
+    const body = JSON.stringify({ days, endpoints, daily, dailyRest, dailyMcp, tools, errors, clients, countries });
     return new Response(body, {
       status: 200,
       headers: {
@@ -88,7 +92,7 @@ export const onRequest: PagesFunction = async (ctx) => {
     });
   }
 
-  const html = renderHtml({ days, endpoints, daily, dailyTools, tools, errors, clients, countries });
+  const html = renderHtml({ days, endpoints, daily, dailyRest, dailyMcp, tools, errors, clients, countries });
   return new Response(html, {
     status: 200,
     headers: {
@@ -102,7 +106,8 @@ interface RenderInput {
   days: number;
   endpoints: EndpointRow[];
   daily: DayRow[];
-  dailyTools: DayRow[];
+  dailyRest: DayRow[];
+  dailyMcp: DayRow[];
   tools: ToolRow[];
   errors: ErrorRow[];
   clients: ClientRow[];
@@ -176,10 +181,16 @@ ${table(
   d.daily.map((r) => [esc(r.day), `<span class="num">${r.n.toLocaleString()}</span>`]),
 )}
 
-<h2>By day (tool calls only)</h2>
+<h2>By day (REST calls, valid input)</h2>
 ${table(
-  ['Day', 'Tool calls'],
-  d.dailyTools.map((r) => [esc(r.day), `<span class="num">${r.n.toLocaleString()}</span>`]),
+  ['Day', 'REST calls'],
+  d.dailyRest.map((r) => [esc(r.day), `<span class="num">${r.n.toLocaleString()}</span>`]),
+)}
+
+<h2>By day (MCP tool calls, valid input)</h2>
+${table(
+  ['Day', 'MCP tool calls'],
+  d.dailyMcp.map((r) => [esc(r.day), `<span class="num">${r.n.toLocaleString()}</span>`]),
 )}
 
 <h2>By country</h2>

@@ -38,9 +38,10 @@ const SAMPLE_ROWS = [
   { match: /WHERE tool IS NOT NULL/, rows: [{ tool: 'concentration_analyze', n: 18, errors: 2 }] },
   { match: /WHERE client_name IS NOT NULL/, rows: [{ client_name: 'Claude.ai', n: 5 }] },
   { match: /GROUP BY endpoint ORDER BY n DESC/, rows: [{ endpoint: 'mcp:tools/call', n: 42 }, { endpoint: 'mcp:initialize', n: 7 }] },
-  // Must precede the generic /GROUP BY day/ — the daily-tools query also groups
-  // by day, but is uniquely identified by its endpoint filter.
+  // Must precede the generic /GROUP BY day/ — the two per-surface daily queries
+  // also group by day, but are each uniquely identified by their endpoint filter.
   { match: /endpoint LIKE 'rest:%'/, rows: [{ day: '2026-05-27', n: 9 }, { day: '2026-05-26', n: 11 }] },
+  { match: /endpoint = 'mcp:tools\/call'/, rows: [{ day: '2026-05-27', n: 3 }, { day: '2026-05-26', n: 4 }] },
   { match: /GROUP BY day/, rows: [{ day: '2026-05-27', n: 22 }, { day: '2026-05-26', n: 27 }] },
   { match: /SELECT country/, rows: [{ country: 'US', n: 30 }, { country: null, n: 5 }] },
 ];
@@ -79,7 +80,8 @@ describe('admin /mcp-stats', () => {
     expect(html).toMatch(/Claude\.ai/);
     expect(html).toMatch(/field &quot;shares&quot; required/);
     expect(html).toMatch(/2026-05-27/);
-    expect(html).toMatch(/tool calls only/);
+    expect(html).toMatch(/REST calls, valid input/);
+    expect(html).toMatch(/MCP tool calls, valid input/);
   });
 
   it('returns structured JSON when format=json', async () => {
@@ -96,9 +98,13 @@ describe('admin /mcp-stats', () => {
     expect(body.tools[0].tool).toBe('concentration_analyze');
     expect(body.clients[0].client_name).toBe('Claude.ai');
     expect(body.daily.length).toBe(2);
-    expect(body.dailyTools).toEqual([
+    expect(body.dailyRest).toEqual([
       { day: '2026-05-27', n: 9 },
       { day: '2026-05-26', n: 11 },
+    ]);
+    expect(body.dailyMcp).toEqual([
+      { day: '2026-05-27', n: 3 },
+      { day: '2026-05-26', n: 4 },
     ]);
   });
 
