@@ -23,7 +23,8 @@
 #        Owner:            AlvisoOculus
 #        Repository:       optionsahoy-mcp
 #        Workflow name:    publish-python.yml
-#        Environment name: pypi
+#        Environment name: (LEAVE BLANK -- this job binds no GitHub environment,
+#                           and the publisher's Environment must match exactly)
 #   3. Repeat for all five project names above.
 #   4. (Optional but recommended) In this GitHub repo, create an Actions
 #      environment named `pypi` (Settings -> Environments -> New environment)
