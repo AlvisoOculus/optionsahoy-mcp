@@ -93,7 +93,7 @@ jobs:
           - arcade-optionsahoy
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       # Skip matrix entries that do not match a manual single-package request.
       # On release / "all", everything runs.
