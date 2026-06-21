@@ -1,0 +1,17 @@
+{
+  "name": "OPTIONSAHOY",
+  "display_name": "OptionsAhoy",
+  "logo": "https://optionsahoy.com/favicon.svg",
+  "provider": "AlphaLatitude Inc.",
+  "version": "1.0.0",
+  "description": "Equity comp tax/trade optimizer: ISO/AMT exercise, NSO, RSU, QSBS, concentration, hedging. 50-state.",
+  "security_schemes": {
+    "no_auth": {}
+  },
+  "default_security_credentials_by_scheme": {},
+  "categories": [
+    "Finance"
+  ],
+  "visibility": "public",
+  "active": true
+}

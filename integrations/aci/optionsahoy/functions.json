@@ -1,0 +1,1047 @@
+[
+  {
+    "name": "OPTIONSAHOY__AMT_ISO_OPTIMIZE",
+    "description": "Returns the globally-optimal multi-year Incentive Stock Option (ISO) exercise schedule that maximizes after-tax Net Final Value (NFV) at the planning horizon, minimizing federal and state Alternative Minimum Tax (AMT) across the years. Models AMT credit recovery in later years, qualifying-disposition timing, the 10-year grant expiration, and the post-termination exercise window. Full federal tax code plus all 50 states and DC. Deterministic: same inputs always return the same schedule. Use this for ISO planning; for non-qualified stock options (NSO) use OPTIONSAHOY__NSO_CALCULATE, for restricted stock units (RSU) use OPTIONSAHOY__RSU_SELL_VS_HOLD. Every field listed as required must come from the user or be derivable from an optional ticker; never invent a value.",
+    "tags": ["finance", "iso", "amt", "tax"],
+    "visibility": "public",
+    "active": true,
+    "protocol": "rest",
+    "protocol_data": {
+      "method": "POST",
+      "path": "/api/v1/amt-iso",
+      "server_url": "https://optionsahoy.com"
+    },
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "header": {
+          "type": "object",
+          "description": "HTTP headers for the request.",
+          "properties": {
+            "Content-Type": {
+              "type": "string",
+              "description": "Request content type.",
+              "default": "application/json"
+            }
+          },
+          "required": ["Content-Type"],
+          "visible": [],
+          "additionalProperties": false
+        },
+        "body": {
+          "type": "object",
+          "description": "ISO/AMT optimization request body.",
+          "properties": {
+            "shares": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "Total ISO shares to exercise across the horizon."
+            },
+            "strike": {
+              "type": "number",
+              "minimum": 0,
+              "description": "Strike price per share, USD."
+            },
+            "fmv": {
+              "type": "number",
+              "minimum": 0,
+              "description": "Current fair market value per share, USD (year 1). Future years compound from here using expectedGrowth and volatility."
+            },
+            "expectedGrowth": {
+              "type": "number",
+              "description": "Annual expected stock growth as a decimal (0.10 = 10%/year). Required unless ticker resolves it from trailing CAGR."
+            },
+            "ticker": {
+              "type": "string",
+              "description": "Optional public-stock symbol (e.g. \"NVDA\"). When set, substitutes a cached trailing return for any unsupplied expected-return field and a cached implied vol for any unsupplied volatility. Unknown tickers fall through to required-field errors."
+            },
+            "volatility": {
+              "type": "number",
+              "minimum": 0,
+              "description": "Annualized volatility (sigma) as a decimal (0.5 = 50%). Either this or volatilityDrag is required; if both supplied, volatilityDrag wins. The tool computes horizon-cumulative drag internally; do not compute drag yourself."
+            },
+            "volatilityDrag": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 0.99,
+              "description": "Multiplicative price haircut at the planning horizon. Either this or volatility is required; if both supplied, this wins."
+            },
+            "filingStatus": {
+              "type": "string",
+              "enum": ["single", "married_joint", "head_household"],
+              "description": "United States federal filing status. Drives the ordinary brackets, AMT exemption tier, and AMT exemption phaseout start."
+            },
+            "ordinaryIncome": {
+              "type": "number",
+              "minimum": 0,
+              "description": "Annual W-2 / 1099 income excluding the exercise, USD."
+            },
+            "stateCode": {
+              "type": "string",
+              "pattern": "^[A-Z]{2}$",
+              "description": "Two-letter United States state code (e.g. CA, NY, TX)."
+            },
+            "carryforwardCredit": {
+              "type": "number",
+              "minimum": 0,
+              "description": "Existing federal AMT credit from prior years, USD."
+            },
+            "horizon": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 10,
+              "description": "Planning horizon in years (1-10)."
+            },
+            "cashReturnRate": {
+              "type": "number",
+              "description": "Annual after-tax return on idle cash as a decimal, used to time-value AMT premiums."
+            },
+            "grantDate": {
+              "type": "string",
+              "format": "date",
+              "description": "ISO 8601 grant date (YYYY-MM-DD). Drives the 10-year expiration and 2-year qualifying-disposition gate."
+            },
+            "hasLeftCompany": {
+              "type": "boolean",
+              "description": "True if the user has departed the company. When true and the 90-day post-termination window is open, the result includes a partial-exercise recommendation."
+            },
+            "terminationDate": {
+              "type": "string",
+              "description": "Termination date (YYYY-MM-DD) if departed; pass null otherwise. When set, opens the 90-day post-termination exercise window."
+            }
+          },
+          "required": [
+            "shares",
+            "strike",
+            "fmv",
+            "filingStatus",
+            "ordinaryIncome",
+            "stateCode",
+            "carryforwardCredit",
+            "horizon",
+            "cashReturnRate",
+            "grantDate",
+            "hasLeftCompany",
+            "terminationDate"
+          ],
+          "visible": [
+            "shares",
+            "strike",
+            "fmv",
+            "expectedGrowth",
+            "ticker",
+            "volatility",
+            "volatilityDrag",
+            "filingStatus",
+            "ordinaryIncome",
+            "stateCode",
+            "carryforwardCredit",
+            "horizon",
+            "cashReturnRate",
+            "grantDate",
+            "hasLeftCompany",
+            "terminationDate"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": ["body"],
+      "visible": ["body"],
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "OPTIONSAHOY__NSO_CALCULATE",
+    "description": "Computes the after-tax payout on a non-qualified stock option (NSO) exercise: federal, state, FICA (Social Security + Medicare + Additional Medicare) on the bargain element, then compares selling at exercise versus holding for long-term capital gains across the chosen horizon. Full federal tax code plus all 50 states and DC. Use this for NSO grants; for ISOs use OPTIONSAHOY__AMT_ISO_OPTIMIZE, for RSUs use OPTIONSAHOY__RSU_SELL_VS_HOLD. Every required field must come from the user or be derivable from an optional ticker; never invent a value.",
+    "tags": ["finance", "nso", "tax"],
+    "visibility": "public",
+    "active": true,
+    "protocol": "rest",
+    "protocol_data": {
+      "method": "POST",
+      "path": "/api/v1/nso",
+      "server_url": "https://optionsahoy.com"
+    },
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "header": {
+          "type": "object",
+          "description": "HTTP headers for the request.",
+          "properties": {
+            "Content-Type": {
+              "type": "string",
+              "description": "Request content type.",
+              "default": "application/json"
+            }
+          },
+          "required": ["Content-Type"],
+          "visible": [],
+          "additionalProperties": false
+        },
+        "body": {
+          "type": "object",
+          "description": "NSO exercise sell-vs-hold request body.",
+          "properties": {
+            "shares": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "NSO shares to exercise."
+            },
+            "strike": {
+              "type": "number",
+              "minimum": 0,
+              "description": "Strike price per share, USD."
+            },
+            "currentPrice": {
+              "type": "number",
+              "minimum": 0,
+              "description": "Current fair market value per share at exercise, USD."
+            },
+            "ordinaryIncome": {
+              "type": "number",
+              "minimum": 0,
+              "description": "Annual W-2 / 1099 income excluding the exercise, USD."
+            },
+            "filingStatus": {
+              "type": "string",
+              "enum": ["single", "married_joint", "head_household"],
+              "description": "United States federal filing status."
+            },
+            "stateCode": {
+              "type": "string",
+              "pattern": "^[A-Z]{2}$",
+              "description": "Two-letter United States state code (e.g. CA, NY, TX)."
+            },
+            "stillEmployed": {
+              "type": "boolean",
+              "description": "FICA (Social Security + Medicare) applies only when true."
+            },
+            "holdYears": {
+              "type": "number",
+              "minimum": 1,
+              "description": "Hold horizon in years. Sub-1-year is short-term and out of scope."
+            },
+            "expectedSalePrice": {
+              "type": "number",
+              "minimum": 0,
+              "description": "Expected sale price per share at horizon, USD. Required unless ticker resolves it from currentPrice x (1 + trailing CAGR)^holdYears."
+            },
+            "volatility": {
+              "type": "number",
+              "minimum": 0,
+              "description": "Annualized volatility (sigma) as a decimal. Either this or haircut is required; if both supplied, haircut wins."
+            },
+            "haircut": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1,
+              "description": "Volatility-drag haircut on expectedSalePrice. Either this or volatility is required; if both supplied, this wins."
+            },
+            "expectedMarketReturn": {
+              "type": "number",
+              "description": "Per-year median market return rate (vol-drag pre-applied). Defaults to SPY trailing CAGR for holdYears if omitted."
+            },
+            "ticker": {
+              "type": "string",
+              "description": "Optional public-stock symbol. When set, resolves expectedSalePrice and/or volatility from cached tables."
+            },
+            "holdFunding": {
+              "type": "string",
+              "enum": ["sell-to-cover", "cash"],
+              "description": "How the strike cost and exercise tax are funded."
+            }
+          },
+          "required": [
+            "shares",
+            "strike",
+            "currentPrice",
+            "ordinaryIncome",
+            "filingStatus",
+            "stateCode",
+            "stillEmployed",
+            "holdYears",
+            "holdFunding"
+          ],
+          "visible": [
+            "shares",
+            "strike",
+            "currentPrice",
+            "ordinaryIncome",
+            "filingStatus",
+            "stateCode",
+            "stillEmployed",
+            "holdYears",
+            "expectedSalePrice",
+            "volatility",
+            "haircut",
+            "expectedMarketReturn",
+            "ticker",
+            "holdFunding"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": ["body"],
+      "visible": ["body"],
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "OPTIONSAHOY__RSU_SELL_VS_HOLD",
+    "description": "Compares the after-tax payout from selling restricted stock unit (RSU) shares at vest and reinvesting in the market versus holding the shares: includes the 12-month short-term-vs-long-term capital-gains cliff, state tax, FICA, and the optional growth assumption. Full federal tax code plus all 50 states and DC. Use this for RSUs at vest; for ISOs use OPTIONSAHOY__AMT_ISO_OPTIMIZE, for NSOs use OPTIONSAHOY__NSO_CALCULATE. Every required field must come from the user or be derivable from an optional ticker; never invent a value.",
+    "tags": ["finance", "rsu", "tax"],
+    "visibility": "public",
+    "active": true,
+    "protocol": "rest",
+    "protocol_data": {
+      "method": "POST",
+      "path": "/api/v1/rsu-sell-vs-hold",
+      "server_url": "https://optionsahoy.com"
+    },
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "header": {
+          "type": "object",
+          "description": "HTTP headers for the request.",
+          "properties": {
+            "Content-Type": {
+              "type": "string",
+              "description": "Request content type.",
+              "default": "application/json"
+            }
+          },
+          "required": ["Content-Type"],
+          "visible": [],
+          "additionalProperties": false
+        },
+        "body": {
+          "type": "object",
+          "description": "RSU sell-at-vest vs hold request body.",
+          "properties": {
+            "shares": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "RSU shares vesting."
+            },
+            "currentPrice": {
+              "type": "number",
+              "minimum": 0,
+              "description": "Fair market value per share at vest, USD."
+            },
+            "ordinaryIncome": {
+              "type": "number",
+              "minimum": 0,
+              "description": "Annual W-2 / 1099 income excluding the vest, USD."
+            },
+            "filingStatus": {
+              "type": "string",
+              "enum": ["single", "married_joint", "head_household"],
+              "description": "United States federal filing status."
+            },
+            "stateCode": {
+              "type": "string",
+              "pattern": "^[A-Z]{2}$",
+              "description": "Two-letter United States state code (e.g. CA, NY, TX)."
+            },
+            "stillEmployed": {
+              "type": "boolean",
+              "description": "FICA applies only when true."
+            },
+            "holdYears": {
+              "type": "number",
+              "minimum": 0.25,
+              "maximum": 5,
+              "description": "Hold horizon in years (0.25-5). At or above 1, appreciation gets long-term capital gains treatment."
+            },
+            "expectedSalePrice": {
+              "type": "number",
+              "minimum": 0,
+              "description": "Projected sale price per share at end of holdYears, USD. Required unless ticker resolves it from currentPrice x (1 + trailing CAGR)^holdYears."
+            },
+            "volatility": {
+              "type": "number",
+              "minimum": 0,
+              "description": "Annualized volatility (sigma) as a decimal. Either this or haircut is required; if both supplied, haircut wins."
+            },
+            "haircut": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1,
+              "description": "Volatility-drag haircut on expectedSalePrice. Either this or volatility is required; if both supplied, this wins."
+            },
+            "expectedMarketReturn": {
+              "type": "number",
+              "description": "Per-year reinvestment rate. Defaults to SPY trailing CAGR for holdYears if omitted."
+            },
+            "ticker": {
+              "type": "string",
+              "description": "Optional public-stock symbol. When set, resolves expectedSalePrice and/or volatility from cached tables."
+            }
+          },
+          "required": [
+            "shares",
+            "currentPrice",
+            "ordinaryIncome",
+            "filingStatus",
+            "stateCode",
+            "stillEmployed",
+            "holdYears"
+          ],
+          "visible": [
+            "shares",
+            "currentPrice",
+            "ordinaryIncome",
+            "filingStatus",
+            "stateCode",
+            "stillEmployed",
+            "holdYears",
+            "expectedSalePrice",
+            "volatility",
+            "haircut",
+            "expectedMarketReturn",
+            "ticker"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": ["body"],
+      "visible": ["body"],
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "OPTIONSAHOY__CONCENTRATION_ANALYZE",
+    "description": "Quantifies single-stock concentration risk: drawdown exposure at 30/50/70% scenarios, sell-down plans over 1/2/3 years with multi-year tax math, the tax saved by waiting for long-term treatment, and a Black-Scholes hedging cost. Full federal tax code plus all 50 states and DC. Every required field must come from the user or be derivable from an optional ticker; never invent a value. totalAssets is user-supplied and never inferred.",
+    "tags": ["finance", "concentration", "risk", "tax"],
+    "visibility": "public",
+    "active": true,
+    "protocol": "rest",
+    "protocol_data": {
+      "method": "POST",
+      "path": "/api/v1/concentration",
+      "server_url": "https://optionsahoy.com"
+    },
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "header": {
+          "type": "object",
+          "description": "HTTP headers for the request.",
+          "properties": {
+            "Content-Type": {
+              "type": "string",
+              "description": "Request content type.",
+              "default": "application/json"
+            }
+          },
+          "required": ["Content-Type"],
+          "visible": [],
+          "additionalProperties": false
+        },
+        "body": {
+          "type": "object",
+          "description": "Single-stock concentration analysis request body.",
+          "properties": {
+            "positionValue": {
+              "type": "number",
+              "minimum": 0,
+              "description": "Current value of the concentrated position, USD."
+            },
+            "costBasis": {
+              "type": "number",
+              "minimum": 0,
+              "description": "Cost basis of the position, USD."
+            },
+            "acquisitionDate": {
+              "type": "string",
+              "format": "date",
+              "description": "ISO 8601 acquisition date (YYYY-MM-DD)."
+            },
+            "sector": {
+              "type": "string",
+              "enum": [
+                "tech_software",
+                "semiconductors",
+                "consumer_cyclical",
+                "consumer_defensive",
+                "financials",
+                "healthcare_biotech",
+                "energy",
+                "industrials",
+                "communication",
+                "broad_market"
+              ],
+              "description": "Sector of the concentrated stock, used for volatility/drawdown context and hedge pricing."
+            },
+            "stateCode": {
+              "type": "string",
+              "pattern": "^[A-Z]{2}$",
+              "description": "Two-letter United States state code (e.g. CA, NY, TX)."
+            },
+            "filingStatus": {
+              "type": "string",
+              "enum": ["single", "married_joint", "head_household"],
+              "description": "United States federal filing status."
+            },
+            "ordinaryIncome": {
+              "type": "number",
+              "minimum": 0,
+              "description": "Annual ordinary income, USD."
+            },
+            "totalAssets": {
+              "type": "number",
+              "minimum": 0,
+              "description": "Total investable portfolio in dollars (concentrated position + everything else). User-supplied; never inferred."
+            },
+            "expectedPositionReturn": {
+              "type": "number",
+              "description": "Annual return on the concentrated stock as a decimal. Required unless ticker resolves it from trailing CAGR."
+            },
+            "expectedMarketReturn": {
+              "type": "number",
+              "description": "Annual return on diversified holdings + reinvested proceeds. Defaults to SPY trailing CAGR for the 3-year horizon if omitted."
+            },
+            "ticker": {
+              "type": "string",
+              "description": "Optional public-stock symbol. When set, resolves expectedPositionReturn and/or volatility from cached tables."
+            },
+            "volatility": {
+              "type": "number",
+              "minimum": 0,
+              "description": "Annualized volatility (sigma) as a decimal. Used for the Black-Scholes hedging path and, when volatilityDrag is omitted, to derive price drag. Either this or volatilityDrag is required for drag."
+            },
+            "volatilityDrag": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 0.99,
+              "description": "Multiplicative haircut on the 3-year stock-price path. Either this or volatility is required for drag; if both supplied, this wins."
+            },
+            "hedgeChoice": {
+              "type": "object",
+              "description": "Optional explicit hedge to price instead of the default 1-year 30%-OTM put.",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "enum": ["put", "collar"],
+                  "description": "Hedge structure."
+                },
+                "protectionLevel": {
+                  "type": "number",
+                  "minimum": 0.05,
+                  "maximum": 0.5,
+                  "description": "Drawdown the hedge protects against, as a fraction (0.20 = 20% below current)."
+                },
+                "tenorYears": {
+                  "type": "number",
+                  "minimum": 0.25,
+                  "description": "Option tenor in years."
+                },
+                "upsideCapPct": {
+                  "type": "number",
+                  "description": "For a collar, the upside cap as a fraction above current."
+                }
+              },
+              "required": ["kind", "protectionLevel", "tenorYears"],
+              "visible": ["kind", "protectionLevel", "tenorYears", "upsideCapPct"],
+              "additionalProperties": false
+            }
+          },
+          "required": [
+            "positionValue",
+            "costBasis",
+            "acquisitionDate",
+            "sector",
+            "stateCode",
+            "filingStatus",
+            "ordinaryIncome",
+            "totalAssets"
+          ],
+          "visible": [
+            "positionValue",
+            "costBasis",
+            "acquisitionDate",
+            "sector",
+            "stateCode",
+            "filingStatus",
+            "ordinaryIncome",
+            "totalAssets",
+            "expectedPositionReturn",
+            "expectedMarketReturn",
+            "ticker",
+            "volatility",
+            "volatilityDrag",
+            "hedgeChoice"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": ["body"],
+      "visible": ["body"],
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "OPTIONSAHOY__PROTECTIVE_PUT_PRICE",
+    "description": "Prices a protective put or zero-cost collar on a single-stock position using Black-Scholes. Reports annual cost, maximum loss, upside cap, bad-year coverage, a payoff table, and a recommended structure. Every required field must come from the user; never invent a value.",
+    "tags": ["finance", "hedging", "options"],
+    "visibility": "public",
+    "active": true,
+    "protocol": "rest",
+    "protocol_data": {
+      "method": "POST",
+      "path": "/api/v1/protective-put",
+      "server_url": "https://optionsahoy.com"
+    },
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "header": {
+          "type": "object",
+          "description": "HTTP headers for the request.",
+          "properties": {
+            "Content-Type": {
+              "type": "string",
+              "description": "Request content type.",
+              "default": "application/json"
+            }
+          },
+          "required": ["Content-Type"],
+          "visible": [],
+          "additionalProperties": false
+        },
+        "body": {
+          "type": "object",
+          "description": "Protective put / collar pricing request body.",
+          "properties": {
+            "positionValue": {
+              "type": "number",
+              "minimum": 0,
+              "description": "Current value of the position to hedge, USD."
+            },
+            "sector": {
+              "type": "string",
+              "enum": [
+                "tech_software",
+                "semiconductors",
+                "consumer_cyclical",
+                "consumer_defensive",
+                "financials",
+                "healthcare_biotech",
+                "energy",
+                "industrials",
+                "communication",
+                "broad_market"
+              ],
+              "description": "Sector of the underlying, used for default volatility and drift."
+            },
+            "protectionLevel": {
+              "type": "number",
+              "minimum": 0.05,
+              "maximum": 0.5,
+              "description": "Drawdown the put protects against, as a fraction (0.20 = 20% below current)."
+            },
+            "tenorYears": {
+              "type": "number",
+              "minimum": 0.25,
+              "description": "Option tenor in years."
+            },
+            "volatility": {
+              "type": "number",
+              "minimum": 0,
+              "description": "Annualized implied volatility (sigma) as a decimal. Defaults to a sector-typical implied vol when omitted."
+            },
+            "expectedReturn": {
+              "type": "number",
+              "description": "Override the sector long-run drift (mu) for probability metrics; does not affect premium math."
+            },
+            "tickerLabel": {
+              "type": "string",
+              "description": "Optional ticker for warning copy (e.g. \"AAPL\")."
+            }
+          },
+          "required": [
+            "positionValue",
+            "sector",
+            "protectionLevel",
+            "tenorYears"
+          ],
+          "visible": [
+            "positionValue",
+            "sector",
+            "protectionLevel",
+            "tenorYears",
+            "volatility",
+            "expectedReturn",
+            "tickerLabel"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": ["body"],
+      "visible": ["body"],
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "OPTIONSAHOY__QSBS_CHECK",
+    "description": "Evaluates Section 1202 Qualified Small Business Stock (QSBS) against the eight statutory tests, returning the verdict, exclusion percentage, federal tax saved, per-test status, and state conformity under the OBBBA 2026 tiered exclusion rules. Every required field must come from the user; for enum fields that accept \"unsure\", pass \"unsure\" when the user does not know rather than guessing.",
+    "tags": ["finance", "qsbs", "tax", "section-1202"],
+    "visibility": "public",
+    "active": true,
+    "protocol": "rest",
+    "protocol_data": {
+      "method": "POST",
+      "path": "/api/v1/qsbs",
+      "server_url": "https://optionsahoy.com"
+    },
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "header": {
+          "type": "object",
+          "description": "HTTP headers for the request.",
+          "properties": {
+            "Content-Type": {
+              "type": "string",
+              "description": "Request content type.",
+              "default": "application/json"
+            }
+          },
+          "required": ["Content-Type"],
+          "visible": [],
+          "additionalProperties": false
+        },
+        "body": {
+          "type": "object",
+          "description": "Section 1202 QSBS qualification request body.",
+          "properties": {
+            "acquisitionDate": {
+              "type": "string",
+              "format": "date",
+              "description": "ISO 8601 acquisition date (YYYY-MM-DD)."
+            },
+            "saleDate": {
+              "type": "string",
+              "format": "date",
+              "description": "ISO 8601 sale date (YYYY-MM-DD)."
+            },
+            "entityType": {
+              "type": "string",
+              "enum": ["us-c-corp", "other"],
+              "description": "Issuing entity type. Only a United States C corporation can issue QSBS."
+            },
+            "acquisitionMethod": {
+              "type": "string",
+              "enum": ["original-issuance", "gift-or-inheritance", "secondary", "unsure"],
+              "description": "How the stock was acquired. Pass \"unsure\" if unknown."
+            },
+            "assetCategory": {
+              "type": "string",
+              "enum": ["under-50m", "50m-to-75m", "over-75m", "unsure"],
+              "description": "Gross assets of the issuer at issuance. Pass \"unsure\" if unknown."
+            },
+            "industry": {
+              "type": "string",
+              "enum": [
+                "tech-software",
+                "manufacturing",
+                "biotech-research",
+                "retail-wholesale",
+                "health-services",
+                "law",
+                "engineering",
+                "architecture",
+                "accounting-actuarial",
+                "consulting",
+                "finance",
+                "farming",
+                "extraction",
+                "hospitality",
+                "performing-arts",
+                "other-services",
+                "unsure"
+              ],
+              "description": "Issuer industry. Certain service industries are excluded from QSBS. Pass \"unsure\" if unknown."
+            },
+            "activeBusiness": {
+              "type": "string",
+              "enum": ["yes", "no", "unsure"],
+              "description": "Whether the issuer met the active-business requirement. Pass \"unsure\" if unknown."
+            },
+            "adjustedBasis": {
+              "type": "number",
+              "minimum": 0,
+              "description": "Adjusted basis in the stock, USD."
+            },
+            "expectedGain": {
+              "type": "number",
+              "description": "Expected capital gain on sale, USD."
+            },
+            "stateCode": {
+              "type": "string",
+              "pattern": "^[A-Z]{2}$",
+              "description": "Two-letter United States state code (e.g. CA, NY, TX)."
+            },
+            "ordinaryIncome": {
+              "type": "number",
+              "minimum": 0,
+              "description": "Annual ordinary income, USD."
+            },
+            "filingStatus": {
+              "type": "string",
+              "enum": ["single", "married_joint", "head_household"],
+              "description": "United States federal filing status."
+            }
+          },
+          "required": [
+            "acquisitionDate",
+            "saleDate",
+            "entityType",
+            "acquisitionMethod",
+            "assetCategory",
+            "industry",
+            "activeBusiness",
+            "adjustedBasis",
+            "expectedGain",
+            "stateCode",
+            "ordinaryIncome",
+            "filingStatus"
+          ],
+          "visible": [
+            "acquisitionDate",
+            "saleDate",
+            "entityType",
+            "acquisitionMethod",
+            "assetCategory",
+            "industry",
+            "activeBusiness",
+            "adjustedBasis",
+            "expectedGain",
+            "stateCode",
+            "ordinaryIncome",
+            "filingStatus"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": ["body"],
+      "visible": ["body"],
+      "additionalProperties": false
+    }
+  },
+  {
+    "name": "OPTIONSAHOY__EQUITY_FUNDING_PLAN",
+    "description": "Returns the optimal multi-year share-sale schedule to fund a cash goal (e.g. selling equity to buy a house) by a target date. Produces four named plans on the risk/wealth frontier (Lock-in-now / Balanced / Hold-for-growth / Recommended) plus the full hybrid frontier, with bracket-aware tax math and lognormal shortfall probability. Full federal tax code plus all 50 states and DC. Provide either stacks (multi-stack) or legacy lots + currentPrice (single-stack). Every required field must come from the user; never invent a value.",
+    "tags": ["finance", "equity-funding", "tax", "planning"],
+    "visibility": "public",
+    "active": true,
+    "protocol": "rest",
+    "protocol_data": {
+      "method": "POST",
+      "path": "/api/v1/equity-funding",
+      "server_url": "https://optionsahoy.com"
+    },
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "header": {
+          "type": "object",
+          "description": "HTTP headers for the request.",
+          "properties": {
+            "Content-Type": {
+              "type": "string",
+              "description": "Request content type.",
+              "default": "application/json"
+            }
+          },
+          "required": ["Content-Type"],
+          "visible": [],
+          "additionalProperties": false
+        },
+        "body": {
+          "type": "object",
+          "description": "Equity-funding plan request body. Provide either stacks (preferred, multi-stack) OR legacy lots + currentPrice (single-stack).",
+          "properties": {
+            "targetAfterTax": {
+              "type": "number",
+              "minimum": 0,
+              "description": "Net after-tax cash goal to reach, USD."
+            },
+            "targetDate": {
+              "type": "string",
+              "format": "date",
+              "description": "ISO 8601 date by which the cash is needed (YYYY-MM-DD)."
+            },
+            "stacks": {
+              "type": "array",
+              "minItems": 1,
+              "description": "Multi-stack input (preferred). Each stack is one ticker with its lots.",
+              "items": {
+                "type": "object",
+                "description": "One ticker's holdings.",
+                "properties": {
+                  "ticker": {
+                    "type": "string",
+                    "description": "Optional ticker label. When set without expectedAnnualGrowth, the server resolves growth from the trailing-CAGR table."
+                  },
+                  "currentPrice": {
+                    "type": "number",
+                    "minimum": 0,
+                    "description": "Current share price for this stack, USD."
+                  },
+                  "expectedAnnualGrowth": {
+                    "type": "number",
+                    "description": "Expected annual growth as a decimal."
+                  },
+                  "volatility": {
+                    "type": "number",
+                    "minimum": 0,
+                    "description": "Per-stack annualized sigma. Overrides defaultVolatility for this stack."
+                  },
+                  "lots": {
+                    "type": "array",
+                    "minItems": 1,
+                    "description": "Tax lots for this stack.",
+                    "items": {
+                      "type": "object",
+                      "description": "One tax lot.",
+                      "properties": {
+                        "shares": {
+                          "type": "integer",
+                          "minimum": 1,
+                          "description": "Number of shares in this lot."
+                        },
+                        "costBasisPerShare": {
+                          "type": "number",
+                          "minimum": 0,
+                          "description": "Cost basis per share, USD."
+                        },
+                        "acquisitionDate": {
+                          "type": "string",
+                          "format": "date",
+                          "description": "ISO 8601 acquisition date (YYYY-MM-DD)."
+                        },
+                        "vestDate": {
+                          "type": "string",
+                          "format": "date",
+                          "description": "Optional future vest date for unvested RSU tranches; excluded from sales before this date."
+                        }
+                      },
+                      "required": ["shares", "costBasisPerShare", "acquisitionDate"],
+                      "visible": ["shares", "costBasisPerShare", "acquisitionDate", "vestDate"],
+                      "additionalProperties": false
+                    }
+                  }
+                },
+                "required": ["currentPrice", "lots"],
+                "visible": ["ticker", "currentPrice", "expectedAnnualGrowth", "volatility", "lots"],
+                "additionalProperties": false
+              }
+            },
+            "lots": {
+              "type": "array",
+              "minItems": 1,
+              "description": "Legacy single-stack input. Pair with top-level currentPrice.",
+              "items": {
+                "type": "object",
+                "description": "One tax lot.",
+                "properties": {
+                  "shares": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "description": "Number of shares in this lot."
+                  },
+                  "costBasisPerShare": {
+                    "type": "number",
+                    "minimum": 0,
+                    "description": "Cost basis per share, USD."
+                  },
+                  "acquisitionDate": {
+                    "type": "string",
+                    "format": "date",
+                    "description": "ISO 8601 acquisition date (YYYY-MM-DD)."
+                  }
+                },
+                "required": ["shares", "costBasisPerShare", "acquisitionDate"],
+                "visible": ["shares", "costBasisPerShare", "acquisitionDate"],
+                "additionalProperties": false
+              }
+            },
+            "currentPrice": {
+              "type": "number",
+              "minimum": 0,
+              "description": "Legacy single-stack current share price, USD."
+            },
+            "expectedAnnualGrowth": {
+              "type": "number",
+              "description": "Legacy single-stack annual growth as a decimal."
+            },
+            "ordinaryIncome": {
+              "type": "number",
+              "minimum": 0,
+              "description": "Annual ordinary income, USD."
+            },
+            "filingStatus": {
+              "type": "string",
+              "enum": ["single", "married_joint", "head_household"],
+              "description": "United States federal filing status."
+            },
+            "stateCode": {
+              "type": "string",
+              "pattern": "^[A-Z]{2}$",
+              "description": "Two-letter United States state code (e.g. CA, NY, TX)."
+            },
+            "cashInterestRate": {
+              "type": "number",
+              "description": "Annualized pre-tax yield on cash held between each sale and the target date. Server compounds at the after-tax marginal rate. Defaults to 0."
+            },
+            "riskToleranceShortfall": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 1,
+              "description": "Max acceptable probability that realized cash lands below target under the lognormal price model. The recommended plan is the wealth-maximal plan at or below this. Default 0.10."
+            },
+            "defaultVolatility": {
+              "type": "number",
+              "minimum": 0,
+              "description": "Annualized sigma used for stacks that omit their own volatility. Default 0.30."
+            },
+            "today": {
+              "type": "string",
+              "format": "date",
+              "description": "Optional override for \"now\" (YYYY-MM-DD). Defaults to the server's current date."
+            }
+          },
+          "required": [
+            "targetAfterTax",
+            "targetDate",
+            "ordinaryIncome",
+            "filingStatus",
+            "stateCode"
+          ],
+          "visible": [
+            "targetAfterTax",
+            "targetDate",
+            "stacks",
+            "lots",
+            "currentPrice",
+            "expectedAnnualGrowth",
+            "ordinaryIncome",
+            "filingStatus",
+            "stateCode",
+            "cashInterestRate",
+            "riskToleranceShortfall",
+            "defaultVolatility",
+            "today"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": ["body"],
+      "visible": ["body"],
+      "additionalProperties": false
+    }
+  }
+]
