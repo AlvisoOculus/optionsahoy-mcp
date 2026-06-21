@@ -6,13 +6,14 @@
 # register once on PyPI. This requires `id-token: write` below and a PUBLIC
 # repo (this one is).
 #
-# ONE-TIME SETUP (repo owner) -- do this for EACH of the four project names
+# ONE-TIME SETUP (repo owner) -- do this for EACH of the five project names
 # BEFORE the first release, otherwise the publish step fails with a 4xx:
 #
 #   optionsahoy
 #   optionsahoy-langchain
 #   llama-index-tools-optionsahoy
 #   crewai-optionsahoy
+#   arcade-optionsahoy
 #
 #   1. Sign in at https://pypi.org. If a project does not exist yet, use a
 #      "pending publisher" so the first run creates it:
@@ -23,7 +24,7 @@
 #        Repository:       optionsahoy-mcp
 #        Workflow name:    publish-python.yml
 #        Environment name: pypi
-#   3. Repeat for all four project names above.
+#   3. Repeat for all five project names above.
 #   4. (Optional but recommended) In this GitHub repo, create an Actions
 #      environment named `pypi` (Settings -> Environments -> New environment)
 #      and add required reviewers so a human approves each publish.
@@ -43,7 +44,7 @@ on:
   workflow_dispatch:
     inputs:
       package:
-        description: 'Single package directory to publish (default: all four)'
+        description: 'Single package directory to publish (default: all five)'
         required: false
         type: choice
         default: all
@@ -53,6 +54,7 @@ on:
           - optionsahoy-langchain
           - llama-index-tools-optionsahoy
           - crewai-optionsahoy
+          - arcade-optionsahoy
 
 # Never run two publishes for the same ref at once.
 concurrency:
@@ -87,6 +89,7 @@ jobs:
           - optionsahoy-langchain
           - llama-index-tools-optionsahoy
           - crewai-optionsahoy
+          - arcade-optionsahoy
 
     steps:
       - uses: actions/checkout@v6
