@@ -1006,7 +1006,7 @@ export const TOOLS: McpTool[] = [
     name: 'rsu_sell_vs_hold',
     annotations: { title: 'RSU Sell-at-Vest vs Hold', ...CALC_HINTS },
     description:
-      'After-tax payout on a Restricted Stock Unit (RSU) vest: federal ordinary income tax, state income tax, FICA (Social Security + Medicare + Additional Medicare), and the gap between mandatory 22% federal supplemental withholding and the user\'s marginal bracket. Use this tool for RSUs at vest; for ISO/AMT planning use `amt_iso_optimize`, for NSO use `nso_calculate`. Compares sell-at-vest vs hold-for-long-term-capital-gains (LTCG) across the chosen horizon, accounting for the 12-month short-term-vs-long-term holding threshold and the optional expected-growth assumption. Pure deterministic computation: no network access; tax tables and the 22% supplemental-withholding rate are compiled in. Returns `vest`, `hold`, `sellNowInvest`, `holdMinusSell`, and `bracketJump`; see `outputSchema` for the full shape. Example call: {shares: 1000, currentPrice: 100, ordinaryIncome: 200000, filingStatus: "single", stateCode: "CA", stillEmployed: true, holdYears: 2, volatility: 0.3, ticker: "MSFT"}.' + STRICT_INPUT_NOTE,
+      'After-tax RSU vest analysis: sell-at-vest vs hold-to-long-term-capital-gains (LTCG) over `holdYears`. Covers federal ordinary tax, state tax, FICA (Social Security + Medicare + Additional Medicare), and the shortfall between mandatory 22% supplemental withholding and the user\'s marginal bracket. Use for RSUs at vest; for ISO/AMT use `amt_iso_optimize`, for NSO use `nso_calculate`. Deterministic and offline; tax tables compiled in. Returns `vest`, `hold`, `sellNowInvest`, `holdMinusSell`, and `bracketJump`; see `outputSchema` for the full shape. Example call: {shares: 1000, currentPrice: 100, ordinaryIncome: 200000, filingStatus: "single", stateCode: "CA", stillEmployed: true, holdYears: 2, volatility: 0.3, ticker: "MSFT"}.' + STRICT_INPUT_NOTE,
     inputSchema: {
       type: 'object',
       required: [
@@ -1324,6 +1324,10 @@ export const TOOLS: McpTool[] = [
     inputSchema: {
       type: 'object',
       required: ['targetAfterTax', 'targetDate', 'ordinaryIncome', 'filingStatus', 'stateCode'],
+      anyOf: [
+        { required: ['stacks'] },
+        { required: ['lots', 'currentPrice'] },
+      ],
       properties: {
         targetAfterTax: {
           type: 'number',
@@ -1337,7 +1341,7 @@ export const TOOLS: McpTool[] = [
         stacks: {
           type: 'array',
           minItems: 1,
-          description: 'Multi-stack input. Each stack is one equity position (one ticker) with its own current price, growth, optional volatility, and lot list. Use when the user holds multiple tickers (e.g. current-employer RSUs + ETF + prior-employer holdings); the optimizer searches sales across all stacks jointly so the schedule can prefer the lowest-tax inventory in each year.',
+          description: 'Holdings, multi-stack form. Provide either `stacks` (this) OR the legacy `lots`+`currentPrice` pair, not both. Each stack is one equity position (one ticker) with its own current price, growth, optional volatility, and lot list. Use when the user holds multiple tickers (e.g. current-employer RSUs + ETF + prior-employer holdings); the optimizer searches sales across all stacks jointly so the schedule can prefer the lowest-tax inventory in each year.',
           items: {
             type: 'object',
             required: ['currentPrice', 'lots'],
