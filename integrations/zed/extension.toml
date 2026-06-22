@@ -1,0 +1,11 @@
+# AlphaLatitude Inc. © 2026
+id = "optionsahoy"
+name = "OptionsAhoy"
+description = "Equity comp tax/trade optimizer: ISO/AMT exercise, NSO, RSU, QSBS, concentration, hedging. 50-state."
+version = "0.0.1"
+schema_version = 1
+authors = ["AlphaLatitude Inc. <support@optionsahoy.com>"]
+repository = "https://github.com/AlvisoOculus/optionsahoy-zed"
+
+[context_servers.optionsahoy]
+name = "OptionsAhoy"
