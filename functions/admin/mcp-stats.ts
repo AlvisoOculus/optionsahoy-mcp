@@ -83,8 +83,21 @@ export const onRequest: PagesFunction = async (ctx) => {
     q<CountryRow>(db, SQL_COUNTRIES, sinceMs),
   ]);
 
+  // Optional ?errEndpoint=<exact endpoint>: the error_msg breakdown for one
+  // endpoint, uncapped by the global top-25 (so low-volume diagnostics like
+  // poe:extract-fail are visible behind the high-volume fuzzer noise).
+  let endpointErrors: { error_msg: string; n: number }[] | undefined;
+  const errEndpoint = url.searchParams.get('errEndpoint');
+  if (errEndpoint) {
+    const r = await db
+      .prepare('SELECT error_msg, COUNT(*) AS n FROM mcp_calls WHERE endpoint = ? AND is_error = 1 AND ts >= ? GROUP BY error_msg ORDER BY n DESC LIMIT 25')
+      .bind(errEndpoint, sinceMs)
+      .all<{ error_msg: string; n: number }>();
+    endpointErrors = r.results;
+  }
+
   if (url.searchParams.get('format') === 'json') {
-    const body = JSON.stringify({ days, endpoints, daily, dailyRest, dailyMcp, tools, errors, clients, countries });
+    const body = JSON.stringify({ days, endpoints, daily, dailyRest, dailyMcp, tools, errors, clients, countries, endpointErrors });
     return new Response(body, {
       status: 200,
       headers: {
