@@ -13,6 +13,9 @@ import {
   parseJsonObject,
   readSseText,
   extractorPrompt,
+  pricingActive,
+  priceMilliCents,
+  priceUsd,
 } from '../functions/poe';
 
 const KEY = 'i2xRD3eNjktfohwlGLWBh1UGwB69Ky5w';
@@ -21,6 +24,11 @@ function poeRequest(body: unknown, auth?: string): Request {
   const headers: Record<string, string> = { 'content-type': 'application/json' };
   if (auth) headers['authorization'] = auth;
   return new Request('http://localhost/poe', { method: 'POST', headers, body: JSON.stringify(body) });
+}
+
+// Minimal PagesContext for handleQuery (no MCP_STATS -> logCall is a no-op).
+function ctx(env: Record<string, unknown> = {}): any {
+  return { request: new Request('http://localhost/poe', { method: 'POST' }), env };
 }
 
 // Valid amt_iso args (ticker resolves growth/vol, like the MCP dedup test).
@@ -76,7 +84,7 @@ describe('poe settings dependency uses the configured extractor bot', () => {
 describe('poe query path', () => {
   it('runs the real optimizer and returns its NFV + a poe-tagged free-tool link', async () => {
     const extractor = async () => ({ tool: 'amt_iso_optimize', args: AMT_ARGS });
-    const res = await handleQuery({ type: 'query', query: [{ role: 'user', content: 'best ISO schedule?' }] }, {}, extractor);
+    const res = await handleQuery(ctx(), { type: 'query', query: [{ role: 'user', content: 'best ISO schedule?' }] }, extractor);
     const text = await res.text();
     expect(res.headers.get('content-type')).toContain('text/event-stream');
     expect(text).toContain('event: text');
@@ -88,33 +96,33 @@ describe('poe query path', () => {
 
   it('relays a clarify question verbatim', async () => {
     const extractor = async () => ({ clarify: 'What is your filing status and state?' });
-    const res = await handleQuery({ type: 'query', query: [{ role: 'user', content: 'help' }] }, {}, extractor);
+    const res = await handleQuery(ctx(), { type: 'query', query: [{ role: 'user', content: 'help' }] }, extractor);
     const text = await res.text();
     expect(text).toContain('What is your filing status and state?');
   });
 
   it('handles an off-topic rejection gracefully', async () => {
     const extractor = async () => ({ reject: 'That is not an equity-compensation question.' });
-    const res = await handleQuery({ type: 'query', query: [{ role: 'user', content: 'weather?' }] }, {}, extractor);
+    const res = await handleQuery(ctx(), { type: 'query', query: [{ role: 'user', content: 'weather?' }] }, extractor);
     const text = await res.text();
     expect(text).toContain('not an equity-compensation question');
   });
 
   it('degrades gracefully when the handler rejects bad inputs', async () => {
     const extractor = async () => ({ tool: 'amt_iso_optimize', args: { shares: -5 } });
-    const res = await handleQuery({ type: 'query', query: [{ role: 'user', content: 'bad' }] }, {}, extractor);
+    const res = await handleQuery(ctx(), { type: 'query', query: [{ role: 'user', content: 'bad' }] }, extractor);
     const text = await res.text();
     expect(text).toContain('optionsahoy.com/tools/amt-iso?src=poe_amt_iso');
   });
 
   it('returns the intro when there is no user message', async () => {
-    const res = await handleQuery({ type: 'query', query: [] }, {}, async () => null);
+    const res = await handleQuery(ctx(), { type: 'query', query: [] }, async () => null);
     const text = await res.text();
     expect(text).toContain('equity-compensation');
   });
 
   it('falls back when extraction yields nothing', async () => {
-    const res = await handleQuery({ type: 'query', query: [{ role: 'user', content: 'x' }] }, {}, async () => null);
+    const res = await handleQuery(ctx(), { type: 'query', query: [{ role: 'user', content: 'x' }] }, async () => null);
     const text = await res.text();
     expect(text).toContain('optionsahoy.com/tools');
   });
@@ -147,5 +155,77 @@ describe('poe helpers', () => {
 
   it('headline falls back for an unknown shape', () => {
     expect(headline('amt_iso_optimize', {})).toContain('result is ready');
+  });
+});
+
+describe('poe monetization', () => {
+  it('pricing helpers default to $0.30 and honor the free window', () => {
+    expect(priceMilliCents({})).toBe(30000);
+    expect(priceUsd({})).toBe('$0.30');
+    expect(pricingActive({ POE_FREE_UNTIL: '2099-01-01' })).toBe(false); // free
+    expect(pricingActive({ POE_FREE_UNTIL: '2020-01-01' })).toBe(true); // charging
+    expect(pricingActive({ POE_FREE_UNTIL: '2020-01-01', POE_PRICE_MILLI_CENTS: '0' })).toBe(false);
+  });
+
+  it('settings advertises the launch free-then-paid rate card', async () => {
+    const res = await onRequest({ request: poeRequest({ type: 'settings' }), env: {} } as any);
+    const body = (await res.json()) as any;
+    expect(body.cost_label).toBeTruthy();
+    expect(body.rate_card).toContain('per answer');
+  });
+
+  it('does NOT call the cost API during the free period', async () => {
+    let called = false;
+    const orig = globalThis.fetch;
+    globalThis.fetch = (async () => {
+      called = true;
+      return { ok: true, text: async () => '' } as any;
+    }) as any;
+    try {
+      const c = ctx({ POE_FREE_UNTIL: '2099-01-01', POE_ACCESS_KEY: KEY });
+      await handleQuery(c, { type: 'query', query: [{ role: 'user', content: 'q' }], bot_query_id: 'bq-free' },
+        async () => ({ tool: 'amt_iso_optimize', args: AMT_ARGS }));
+      expect(called).toBe(false);
+    } finally {
+      globalThis.fetch = orig;
+    }
+  });
+
+  it('authorizes then captures the charge once the free period has ended', async () => {
+    const calls: string[] = [];
+    const orig = globalThis.fetch;
+    globalThis.fetch = (async (url: any) => {
+      calls.push(String(url));
+      return { ok: true, text: async () => '' } as any;
+    }) as any;
+    try {
+      const c = ctx({ POE_FREE_UNTIL: '2020-01-01', POE_ACCESS_KEY: KEY });
+      const res = await handleQuery(c, { type: 'query', query: [{ role: 'user', content: 'q' }], bot_query_id: 'bq-1' },
+        async () => ({ tool: 'amt_iso_optimize', args: AMT_ARGS }));
+      const text = await res.text();
+      expect(text).toContain('Optimized after-tax net final value');
+      expect(calls.some((u) => u.includes('/cost/bq-1/authorize'))).toBe(true);
+      expect(calls.some((u) => u.includes('/cost/bq-1/capture'))).toBe(true);
+    } finally {
+      globalThis.fetch = orig;
+    }
+  });
+
+  it('blocks with an error event when the balance cannot cover the charge', async () => {
+    const orig = globalThis.fetch;
+    globalThis.fetch = (async (url: any) => ({
+      ok: !String(url).includes('authorize'), // authorize fails -> insufficient funds
+      text: async () => '',
+    } as any)) as any;
+    try {
+      const c = ctx({ POE_FREE_UNTIL: '2020-01-01', POE_ACCESS_KEY: KEY });
+      const res = await handleQuery(c, { type: 'query', query: [{ role: 'user', content: 'q' }], bot_query_id: 'bq-2' },
+        async () => ({ tool: 'amt_iso_optimize', args: AMT_ARGS }));
+      const text = await res.text();
+      expect(text).toContain('event: error');
+      expect(text).toContain('per answer');
+    } finally {
+      globalThis.fetch = orig;
+    }
   });
 });

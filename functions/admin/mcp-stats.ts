@@ -40,7 +40,9 @@ const SQL_DAILY_REST = "SELECT date(ts/1000, 'unixepoch') AS day, COUNT(*) AS n 
 const SQL_DAILY_MCP = "SELECT date(ts/1000, 'unixepoch') AS day, COUNT(*) AS n FROM mcp_calls WHERE endpoint = 'mcp:tools/call' AND is_error = 0 AND ts >= ? GROUP BY day ORDER BY day DESC";
 const SQL_TOOLS = 'SELECT tool, COUNT(*) AS n, SUM(is_error) AS errors FROM mcp_calls WHERE tool IS NOT NULL AND ts >= ? GROUP BY tool ORDER BY n DESC';
 const SQL_ERRORS = 'SELECT endpoint, tool, error_msg, COUNT(*) AS n FROM mcp_calls WHERE is_error = 1 AND ts >= ? GROUP BY endpoint, tool, error_msg ORDER BY n DESC LIMIT 25';
-const SQL_CLIENTS = "SELECT client_name, COUNT(*) AS n FROM mcp_calls WHERE client_name IS NOT NULL AND endpoint = 'mcp:initialize' AND ts >= ? GROUP BY client_name ORDER BY n DESC";
+// Clients come from MCP `initialize` handshakes, plus Poe requests (which have
+// no handshake: each poe:* row carries client_name 'poe').
+const SQL_CLIENTS = "SELECT client_name, COUNT(*) AS n FROM mcp_calls WHERE client_name IS NOT NULL AND (endpoint = 'mcp:initialize' OR endpoint LIKE 'poe:%') AND ts >= ? GROUP BY client_name ORDER BY n DESC";
 const SQL_COUNTRIES = 'SELECT country, COUNT(*) AS n FROM mcp_calls WHERE ts >= ? GROUP BY country ORDER BY n DESC LIMIT 20';
 
 async function q<T>(db: D1Database, sql: string, sinceMs: number): Promise<T[]> {

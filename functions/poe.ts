@@ -20,15 +20,24 @@
 
 import { TOOLS } from './_lib/mcp-tools';
 import { PER_TOOL_FREE_TOOL_BARE } from './_lib/sessions';
+import { logCall } from './_lib/stats';
 import type { PagesContext, PagesFunction } from './_lib/api';
 
 const PROTOCOL_VERSION = '1.2';
 const POE_BOT_API = 'https://api.poe.com/bot/';
+const POE_COST_API = 'https://api.poe.com/bot/cost/';
 const DEFAULT_EXTRACTOR = 'GPT-4o-Mini';
+// Pricing: free during the launch period, then a flat charge per answered
+// message. 30000 milli-cents = $0.30 (1 USD = 100,000 milli-cents). Both are
+// overridable by env so pricing can change without a code edit.
+const DEFAULT_PRICE_MILLI_CENTS = 30000;
+const DEFAULT_FREE_UNTIL = '2026-07-22'; // UTC date; free strictly before this.
 
 type PoeEnv = {
   POE_ACCESS_KEY?: string;
   POE_EXTRACTOR_BOT?: string;
+  POE_PRICE_MILLI_CENTS?: string;
+  POE_FREE_UNTIL?: string;
 };
 
 type PoeMessage = { role: string; content: string };
@@ -40,6 +49,7 @@ type PoeRequest = {
   user_id?: string;
   conversation_id?: string;
   metadata?: string;
+  bot_query_id?: string;
 };
 
 const CORS: Record<string, string> = {
@@ -68,6 +78,11 @@ function textReply(markdown: string): Response {
       sse('text', { text: markdown }) +
       sse('done', {}),
   );
+}
+
+// An error reply (e.g. insufficient Poe balance to cover the charge).
+function errorReply(text: string, errorType?: string): Response {
+  return sseResponse(sse('error', { allow_retry: false, text, ...(errorType ? { error_type: errorType } : {}) }));
 }
 
 // --- formatting ------------------------------------------------------------
@@ -275,6 +290,51 @@ async function callExtractor(req: PoeRequest, env: PoeEnv, question: string): Pr
   return parseJsonObject(text);
 }
 
+// --- pricing ---------------------------------------------------------------
+
+function priceMilliCents(env: PoeEnv): number {
+  const n = Number(env.POE_PRICE_MILLI_CENTS ?? DEFAULT_PRICE_MILLI_CENTS);
+  return Number.isFinite(n) && n > 0 ? Math.round(n) : 0;
+}
+
+// True once the launch free-period has ended and a price is set. During the
+// free window we never call the cost API.
+function pricingActive(env: PoeEnv): boolean {
+  if (priceMilliCents(env) <= 0) return false;
+  const freeUntil = Date.parse(`${env.POE_FREE_UNTIL ?? DEFAULT_FREE_UNTIL}T00:00:00Z`);
+  if (Number.isFinite(freeUntil) && Date.now() < freeUntil) return false;
+  return true;
+}
+
+function priceUsd(env: PoeEnv): string {
+  return `$${(priceMilliCents(env) / 100000).toFixed(2)}`;
+}
+
+// Authorize (hold) or capture (charge) a variable cost on the chatting user.
+// Returns true on success. Authorize is called before computing; capture only
+// after a successful answer, so users are charged on success.
+async function poeCost(
+  kind: 'authorize' | 'capture',
+  botQueryId: string,
+  env: PoeEnv,
+  milliCents: number,
+  description: string,
+): Promise<boolean> {
+  try {
+    const resp = await fetch(`${POE_COST_API}${encodeURIComponent(botQueryId)}/${kind}`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', authorization: `Bearer ${env.POE_ACCESS_KEY ?? ''}` },
+      body: JSON.stringify({
+        amounts: [{ amount_usd_milli_cents: milliCents, description }],
+        access_key: env.POE_ACCESS_KEY ?? '',
+      }),
+    });
+    return resp.ok;
+  } catch {
+    return false;
+  }
+}
+
 // --- query handling --------------------------------------------------------
 
 const INTRO =
@@ -283,11 +343,20 @@ const INTRO =
   'jointly, $300,000 income, California, 4-year horizon, granted 2022-01-01, 5% cash return. Best exercise schedule?" ' +
   'I cover ISO/AMT, NSOs, RSUs, QSBS, single-stock concentration, protective puts, and funding a cash goal from equity.';
 
-async function handleQuery(req: PoeRequest, env: PoeEnv, extractor?: Extractor): Promise<Response> {
+async function handleQuery(ctx: PagesContext, req: PoeRequest, extractor?: Extractor): Promise<Response> {
+  const env = (ctx.env ?? {}) as PoeEnv;
+  // Every request is logged to MCP_STATS as a `poe:*` endpoint with client
+  // name "poe" so it shows on the MCP metrics page alongside REST + MCP.
+  const log = (f: { endpoint: string; tool?: string; isError?: boolean; errorMsg?: string }) =>
+    logCall(ctx, { clientName: 'poe', isError: false, ...f });
+
   const messages = Array.isArray(req.query) ? req.query : [];
   const lastUser = [...messages].reverse().find((m) => m.role === 'user');
   const question = (lastUser?.content ?? '').trim();
-  if (!question) return textReply(INTRO);
+  if (!question) {
+    log({ endpoint: 'poe:query' });
+    return textReply(INTRO);
+  }
 
   let extracted: any | null;
   try {
@@ -297,30 +366,60 @@ async function handleQuery(req: PoeRequest, env: PoeEnv, extractor?: Extractor):
   }
 
   if (!extracted) {
+    log({ endpoint: 'poe:query' });
     return textReply(
       "I could not parse that into an equity-compensation calculation. Try restating it with the specifics, " +
         "for example the share count, strike, current price, filing status, state, and horizon.\n\n" +
         'You can also use the free tools directly at optionsahoy.com/tools',
     );
   }
-  if (typeof extracted.clarify === 'string') return textReply(extracted.clarify);
+  if (typeof extracted.clarify === 'string') {
+    log({ endpoint: 'poe:query' });
+    return textReply(extracted.clarify);
+  }
   if (typeof extracted.reject === 'string') {
+    log({ endpoint: 'poe:query' });
     return textReply(`${extracted.reject}\n\nI focus on equity-compensation tax planning. ${INTRO}`);
   }
 
   const tool = TOOLS.find((t) => t.name === extracted.tool);
-  if (!tool) return textReply(INTRO);
+  if (!tool) {
+    log({ endpoint: 'poe:query' });
+    return textReply(INTRO);
+  }
+
+  // Charge on success: authorize a hold before computing; capture only after a
+  // real answer. During the launch free-period this is a no-op.
+  const charge = pricingActive(env) && req.bot_query_id ? priceMilliCents(env) : 0;
+  if (charge > 0) {
+    const ok = await poeCost('authorize', req.bot_query_id as string, env, charge, `OptionsAhoy ${tool.name}`);
+    if (!ok) {
+      log({ endpoint: 'poe:query' });
+      return errorReply(
+        `This bot costs ${priceUsd(env)} per answer, and your Poe balance does not cover it right now. ` +
+          `You can also run it free at ${freeToolLink(tool.name)}`,
+        'insufficient_fund',
+      );
+    }
+  }
 
   let result: Result;
   try {
     result = tool.handler(extracted.args ?? {}) as Result;
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'invalid inputs';
+    // Handler failed after authorize: do not capture (the hold expires).
+    log({ endpoint: 'poe:tools/call', tool: tool.name, isError: true, errorMsg: msg });
     return textReply(
       `I need a bit more to run that accurately: ${msg}\n\n` +
         `You can also run it yourself, free, at ${freeToolLink(tool.name)}`,
     );
   }
+
+  if (charge > 0) {
+    await poeCost('capture', req.bot_query_id as string, env, charge, `OptionsAhoy ${tool.name}`);
+  }
+  log({ endpoint: 'poe:tools/call', tool: tool.name });
 
   const body =
     `${headline(tool.name, result)}\n\n` +
@@ -359,18 +458,26 @@ export const onRequest: PagesFunction = async (ctx: PagesContext): Promise<Respo
   }
 
   switch (body.type) {
-    case 'settings':
+    case 'settings': {
+      const active = pricingActive(env);
+      const price = priceUsd(env);
+      const freeUntil = env.POE_FREE_UNTIL ?? DEFAULT_FREE_UNTIL;
       return new Response(
         JSON.stringify({
           server_bot_dependencies: { [env.POE_EXTRACTOR_BOT || DEFAULT_EXTRACTOR]: 1 },
           allow_attachments: false,
           introduction_message: INTRO,
           content_type: 'text/markdown',
+          cost_label: active ? `${price} per message` : 'Free during launch',
+          rate_card: active
+            ? `Each answer costs **${price}**.`
+            : `Free during the launch period (until ${freeUntil}), then **${price}** per answer.`,
         }),
         { status: 200, headers: { 'content-type': 'application/json', ...CORS } },
       );
+    }
     case 'query':
-      return handleQuery(body, env);
+      return handleQuery(ctx, body);
     default:
       // report_feedback / report_reaction / report_error and anything else.
       return new Response('', { status: 200, headers: CORS });
@@ -378,4 +485,14 @@ export const onRequest: PagesFunction = async (ctx: PagesContext): Promise<Respo
 };
 
 // Exported for unit tests.
-export { handleQuery, headline, freeToolLink, parseJsonObject, readSseText, extractorPrompt };
+export {
+  handleQuery,
+  headline,
+  freeToolLink,
+  parseJsonObject,
+  readSseText,
+  extractorPrompt,
+  pricingActive,
+  priceMilliCents,
+  priceUsd,
+};
