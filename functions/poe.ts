@@ -97,6 +97,17 @@ function pct(n: unknown): string {
   return `${(n * 100).toFixed(1)}%`;
 }
 
+// Round a rate to a whole percent for bracket talk (0.24 -> "24%").
+function ratePct(n: unknown): string {
+  if (typeof n !== 'number' || !isFinite(n)) return '';
+  return `${Math.round(n * 100)}%`;
+}
+
+// Sanitize a calc-provided string for the bot voice (no em-dashes).
+function clean(s: unknown): string {
+  return typeof s === 'string' ? s.replace(/\s*—\s*/g, ', ').replace(/–/g, '-') : '';
+}
+
 // The free interactive tool for each calculator, value-first, re-tagged to
 // the Poe attribution bucket. Reuses the canonical /tools slugs from sessions.
 function freeToolLink(toolName: string): string {
@@ -143,51 +154,95 @@ function headline(tool: string, r: Result): string {
       case 'nso_calculate': {
         const ex = r.exercise ?? {};
         if (typeof ex.total !== 'number') break;
-        const lines = [`**Exercising now would cost about ${usd(ex.total)} in taxes.**`];
-        if (ex.netCashSellAll != null) {
-          lines.push(`If you exercise and sell all the shares, you walk away with about ${usd(ex.netCashSellAll)} in cash.`);
-        }
-        if (typeof r.holdMinusCashless === 'number') {
-          const d = r.holdMinusCashless;
+        const lines = [`**Exercising these options would trigger about ${usd(ex.total)} in tax right now.**`];
+        const parts: string[] = [];
+        if (typeof ex.federal === 'number') parts.push(`${usd(ex.federal)} federal`);
+        if (typeof ex.state === 'number') parts.push(`${usd(ex.state)} state`);
+        const fica = (ex.socialSecurity || 0) + (ex.medicare || 0) + (ex.additionalMedicare || 0);
+        if (fica > 0) parts.push(`${usd(fica)} payroll tax`);
+        if (parts.length) lines.push(`That is ${parts.join(', ')}.`);
+        if (typeof ex.netCashSellAll === 'number') lines.push(`Exercise and sell every share and you keep about ${usd(ex.netCashSellAll)} in cash after tax.`);
+        const sell = r.sellNowInvest?.netAtYearN;
+        const hold = r.hold?.netAtYearN;
+        if (typeof sell === 'number' && typeof hold === 'number') {
+          const d = hold - sell;
           lines.push(
-            d >= 0
-              ? `Holding the shares for the lower long-term tax rate could leave you about ${usd(d)} better off than selling now and reinvesting (before price risk).`
-              : `Holding for the long-term rate would actually leave you about ${usd(-d)} worse off than selling now and reinvesting, so selling looks better here.`,
+            `By your sale date, selling now and reinvesting grows to about ${usd(sell)}, while exercising and holding for the long-term rate reaches about ${usd(hold)}. ` +
+              `${d >= 0 ? `Holding wins by about ${usd(d)}` : `Selling wins by about ${usd(-d)}`}, before price risk.`,
           );
+        }
+        const bj = r.bracketJump;
+        if (bj && typeof bj.fromRate === 'number' && typeof bj.toRate === 'number' && bj.toRate > bj.fromRate) {
+          lines.push(`Note: this exercise pushes part of the gain from the ${ratePct(bj.fromRate)} bracket into the ${ratePct(bj.toRate)} bracket.`);
         }
         return lines.join('\n\n');
       }
       case 'rsu_sell_vs_hold': {
-        if (typeof r.vest?.total !== 'number' && typeof r.holdMinusSell !== 'number') break;
+        const v = r.vest ?? {};
+        if (typeof v.total !== 'number' && typeof r.holdMinusSell !== 'number') break;
         const lines: string[] = [];
-        if (typeof r.vest?.total === 'number') lines.push(`**Your vesting shares trigger about ${usd(r.vest.total)} in tax.**`);
-        else lines.push('**Here is your sell-at-vest versus hold comparison.**');
-        if (typeof r.holdMinusSell === 'number') {
-          const d = r.holdMinusSell;
+        if (typeof v.total === 'number') {
+          lines.push(`**These vesting shares trigger about ${usd(v.total)} in tax, leaving roughly ${usd(v.netCashAtVest)} after tax.**`);
+        } else {
+          lines.push('**Here is your sell-at-vest versus hold comparison.**');
+        }
+        if (typeof v.federal === 'number' && typeof v.federalWithheldAtVest === 'number') {
+          const short = v.federal - v.federalWithheldAtVest;
+          if (short > 1000) {
+            lines.push(`Watch the withholding gap: your employer holds back about ${usd(v.federalWithheldAtVest)} for federal tax, but you actually owe about ${usd(v.federal)}. Set aside roughly ${usd(short)} for April.`);
+          }
+        }
+        const sell = r.sellNowInvest?.netAtYearN;
+        const hold = r.hold?.netAtYearN;
+        if (typeof sell === 'number' && typeof hold === 'number') {
+          const d = hold - sell;
           lines.push(
-            d >= 0
-              ? `Holding to the long-term rate instead of selling at vest could leave you about ${usd(d)} better off, before price risk.`
-              : `Holding to the long-term rate would leave you about ${usd(-d)} worse off than just selling at vest, so selling looks better here.`,
+            `By your sale date, selling at vest and reinvesting reaches about ${usd(sell)}, while holding the shares for the long-term rate reaches about ${usd(hold)}. ` +
+              `${d >= 0 ? `Holding wins by about ${usd(d)}` : `Selling wins by about ${usd(-d)}`}, before price risk.`,
           );
         }
         return lines.join('\n\n');
       }
       case 'concentration_analyze': {
         if (typeof r.riskBand !== 'string' && typeof r.concentration !== 'number') break;
-        const band = typeof r.riskBand === 'string' ? r.riskBand.toLowerCase() : 'notable';
-        const lines = [`**This single stock is a ${band} concentration risk.**`];
+        const band = typeof r.riskBand === 'string' ? r.riskBand : 'Notable';
+        const lines = [`**Single-stock risk level: ${band}.**`];
         if (typeof r.concentration === 'number') lines.push(`It is ${pct(r.concentration)} of everything you own.`);
-        const drop50 = Array.isArray(r.lossExposure) ? r.lossExposure.find((l: any) => l.drop === 0.5 || l.drop === 50) : null;
-        if (drop50?.dollarLoss != null) lines.push(`If it fell 50%, you would lose about ${usd(drop50.dollarLoss)}.`);
-        lines.push('You can reduce this by selling down, holding, or hedging. The tool compares all three after tax.');
+        if (Array.isArray(r.lossExposure)) {
+          const scen = r.lossExposure
+            .filter((l: any) => typeof l.dollarLoss === 'number')
+            .map((l: any) => `a ${ratePct(l.drop)} drop loses about ${usd(l.dollarLoss)}`)
+            .join('; ');
+          if (scen) lines.push(`Downside scenarios: ${scen}.`);
+        }
+        if (typeof r.daysUntilLongTerm === 'number') {
+          lines.push(
+            r.daysUntilLongTerm <= 0
+              ? 'It already qualifies for the lower long-term capital-gains rate.'
+              : `It reaches the lower long-term rate in about ${r.daysUntilLongTerm} days, which is worth waiting for if you can.`,
+          );
+        }
+        if (typeof r.sectorContextLine === 'string') lines.push(clean(r.sectorContextLine));
+        lines.push('Your three ways to manage it, sell down, hold, or hedge, are compared after tax side by side in the tool.');
         return lines.join('\n\n');
       }
       case 'protective_put_price': {
-        const rec = r.recommended ?? r.barePut ?? {};
-        if (typeof rec.annualCostPct !== 'number' && typeof rec.maxLoss !== 'number') break;
-        const lines = ['**Here is what protecting this position would cost.**'];
-        if (typeof rec.annualCostPct === 'number') lines.push(`The hedge runs about ${pct(rec.annualCostPct)} of the position per year.`);
-        if (typeof rec.maxLoss === 'number') lines.push(`With it in place, the most you could lose is about ${usd(rec.maxLoss)}.`);
+        const bp = r.barePut ?? {};
+        const col = r.collar ?? {};
+        if (typeof bp.annualCostPct !== 'number' && typeof bp.maxLoss !== 'number') break;
+        const lines = ['**Here are your two ways to protect this position.**'];
+        if (typeof bp.maxLoss === 'number') {
+          lines.push(
+            `Protective put: costs about ${pct(bp.annualCostPct)} of the position per year (${usd(bp.annualCost)}), caps your loss at about ${usd(bp.maxLoss)}, and keeps all of your upside.`,
+          );
+        }
+        if (typeof col.maxLoss === 'number') {
+          const cost = col.isZeroCost ? 'nothing out of pocket' : `about ${usd(col.annualCost)} per year`;
+          lines.push(
+            `Zero-cost collar: costs ${cost}, caps your loss at about ${usd(col.maxLoss)}, but limits your upside to about +${pct(col.upsideCapPct)}.`,
+          );
+        }
+        lines.push('The put keeps your full upside for a yearly premium; the collar is cheaper but trades away gains above the cap.');
         return lines.join('\n\n');
       }
       case 'qsbs_check': {
@@ -200,16 +255,37 @@ function headline(tool: string, r: Result): string {
               ? '**This partially qualifies for the QSBS gain exclusion.**'
               : '**This does not appear to qualify for the QSBS gain exclusion.**';
         const lines = [verdictLine];
-        if (typeof r.exclusionPercent === 'number') lines.push(`You could exclude ${pct(r.exclusionPercent)} of the gain from federal tax.`);
-        if (typeof r.excludableGain === 'number') lines.push(`That is about ${usd(r.excludableGain)} of gain shielded` + (typeof r.federalTaxSaved === 'number' ? `, saving roughly ${usd(r.federalTaxSaved)} in federal tax.` : '.'));
+        if (typeof r.exclusionPercent === 'number') lines.push(`Federal exclusion: ${pct(r.exclusionPercent)} of the gain.`);
+        if (typeof r.excludableGain === 'number') {
+          lines.push(
+            `That shields about ${usd(r.excludableGain)} of gain` +
+              (typeof r.federalTaxSaved === 'number' ? `, saving roughly ${usd(r.federalTaxSaved)} in federal tax.` : '.'),
+          );
+        }
+        if (typeof r.taxableGain === 'number' && r.taxableGain > 0) lines.push(`About ${usd(r.taxableGain)} of gain sits above the cap and stays taxable.`);
+        if (typeof r.stateNote === 'string') lines.push(clean(r.stateNote));
+        if (typeof r.yearsUntilFullExclusion === 'number' && r.yearsUntilFullExclusion > 0) {
+          lines.push(`Hold about ${r.yearsUntilFullExclusion} more year(s) to reach the full exclusion.`);
+        }
         return lines.join('\n\n');
       }
       case 'equity_funding_plan': {
         const rec = r.recommended ?? {};
         if (typeof rec.wealthAtTarget !== 'number') break;
-        const lines = [`**Here is the best plan to reach your cash goal.**`];
-        lines.push(`Following it, you would have about ${usd(rec.wealthAtTarget)} by your deadline` + (typeof rec.totalTax === 'number' ? `, after roughly ${usd(rec.totalTax)} in taxes.` : '.'));
-        if (typeof rec.shortfallProbability === 'number') lines.push(`Chance of falling short of the goal: about ${pct(rec.shortfallProbability)}.`);
+        const lines = [
+          `**Recommended plan: reach about ${usd(rec.wealthAtTarget)} by your deadline` +
+            (typeof rec.totalTax === 'number' ? `, after about ${usd(rec.totalTax)} in taxes` : '') +
+            (typeof rec.shortfallProbability === 'number' ? `, with about a ${pct(rec.shortfallProbability)} chance of falling short.` : '.') +
+            '**',
+        ];
+        const opt: string[] = [];
+        const li = r.lockInNow;
+        const ba = r.balanced;
+        const hg = r.holdForGrowth;
+        if (li && typeof li.wealthAtTarget === 'number') opt.push(`sell now for about ${usd(li.wealthAtTarget)} with ${pct(li.shortfallProbability || 0)} risk of falling short`);
+        if (ba && typeof ba.wealthAtTarget === 'number') opt.push(`spread the sales for about ${usd(ba.wealthAtTarget)} at ${pct(ba.shortfallProbability || 0)} risk`);
+        if (hg && typeof hg.wealthAtTarget === 'number') opt.push(`hold for growth for about ${usd(hg.wealthAtTarget)} at ${pct(hg.shortfallProbability || 0)} risk`);
+        if (opt.length) lines.push(`Your choices run from safe to aggressive: ${opt.join('; ')}. The recommended plan is the most you can expect while keeping the shortfall risk near your tolerance.`);
         return lines.join('\n\n');
       }
     }
