@@ -26,7 +26,7 @@ import type { PagesContext, PagesFunction } from './_lib/api';
 const PROTOCOL_VERSION = '1.2';
 const POE_BOT_API = 'https://api.poe.com/bot/';
 const POE_COST_API = 'https://api.poe.com/bot/cost/';
-const DEFAULT_EXTRACTOR = 'GPT-4o-Mini';
+const DEFAULT_EXTRACTOR = 'Assistant';
 // Pricing: free during the launch period, then a flat charge per answered
 // message. 30000 milli-cents = $0.30 (1 USD = 100,000 milli-cents). Both are
 // overridable by env so pricing can change without a code edit.
@@ -258,8 +258,13 @@ function parseJsonObject(s: string): any | null {
 // Allow tests to inject a fake extractor instead of hitting Poe.
 export type Extractor = (question: string) => Promise<any | null>;
 
-async function callExtractor(req: PoeRequest, env: PoeEnv, question: string): Promise<any | null> {
+async function callExtractor(ctx: PagesContext, req: PoeRequest, question: string): Promise<any | null> {
+  const env = (ctx.env ?? {}) as PoeEnv;
   const bot = env.POE_EXTRACTOR_BOT || DEFAULT_EXTRACTOR;
+  // Log the failure reason (dependency HTTP status / unparseable reply) to
+  // MCP_STATS so it is diagnosable from /admin/mcp-stats without exposing it
+  // to the user.
+  const fail = (msg: string) => logCall(ctx, { endpoint: 'poe:extract-fail', isError: true, errorMsg: `${bot}: ${msg}`.slice(0, 200), clientName: 'poe' });
   const resp = await fetch(`${POE_BOT_API}${encodeURIComponent(bot)}`, {
     method: 'POST',
     headers: {
@@ -285,9 +290,14 @@ async function callExtractor(req: PoeRequest, env: PoeEnv, question: string): Pr
       temperature: 0,
     }),
   });
-  if (!resp.ok) return null;
-  const { text } = readSseText(await resp.text());
-  return parseJsonObject(text);
+  if (!resp.ok) {
+    fail(`http ${resp.status}`);
+    return null;
+  }
+  const { text, error } = readSseText(await resp.text());
+  const parsed = parseJsonObject(text);
+  if (!parsed) fail(error ? `err ${error}` : `unparseable: ${text.slice(0, 80)}`);
+  return parsed;
 }
 
 // --- pricing ---------------------------------------------------------------
@@ -360,7 +370,7 @@ async function handleQuery(ctx: PagesContext, req: PoeRequest, extractor?: Extra
 
   let extracted: any | null;
   try {
-    extracted = extractor ? await extractor(question) : await callExtractor(req, env, question);
+    extracted = extractor ? await extractor(question) : await callExtractor(ctx, req, question);
   } catch {
     extracted = null;
   }
