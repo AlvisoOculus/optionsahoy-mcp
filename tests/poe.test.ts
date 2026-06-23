@@ -15,7 +15,6 @@ import {
   toolSpec,
   freeToolLink,
   parseJsonObject,
-  readSseText,
   extractorPrompt,
   pricingActive,
   priceMilliCents,
@@ -125,17 +124,13 @@ describe('poe HTTP surface', () => {
 });
 
 describe('poe settings payload', () => {
-  it('declares one dependency, intro, and a free-launch rate card by default', async () => {
+  it('declares NO Poe dependencies (extraction runs on our model), with intro + free rate card', async () => {
     const body = (await (await onRequest({ request: poeRequest({ type: 'settings' }), env: {} } as any)).json()) as any;
-    expect(Object.keys(body.server_bot_dependencies).length).toBe(1);
+    expect(Object.keys(body.server_bot_dependencies).length).toBe(0);
     expect(typeof body.introduction_message).toBe('string');
     expect(body.content_type).toBe('text/markdown');
     expect(body.cost_label).toBeTruthy();
     expect(body.rate_card).toContain('per answer');
-  });
-  it('honors the configured extractor bot name', async () => {
-    const body = (await (await onRequest({ request: poeRequest({ type: 'settings' }), env: { POE_EXTRACTOR_BOT: 'Claude-Haiku' } } as any)).json()) as any;
-    expect(body.server_bot_dependencies['Claude-Haiku']).toBe(1);
   });
   it('shows a paid rate card once charging', async () => {
     const body = (await (await onRequest({ request: poeRequest({ type: 'settings' }), env: { POE_FREE_UNTIL: '2020-01-01' } } as any)).json()) as any;
@@ -342,11 +337,6 @@ describe('poe helpers', () => {
     expect(parseJsonObject('```json\n{"tool":"x"}\n```')).toEqual({ tool: 'x' });
     expect(parseJsonObject('noise {"a":1} tail')).toEqual({ a: 1 });
     expect(parseJsonObject('no json')).toBeNull();
-  });
-  it('readSseText handles LF, CRLF, multi-event, and error events', () => {
-    expect(readSseText('event: text\ndata: {"text":"he"}\n\nevent: text\ndata: {"text":"llo"}\n\n').text).toBe('hello');
-    expect(readSseText('event: text\r\ndata: {"text": "hi"}\r\n\r\nevent: done\r\ndata: {}\r\n\r\n').text).toBe('hi');
-    expect(readSseText('event: error\r\ndata: {"text": "Invalid API key"}\r\n\r\n').error).toBe('Invalid API key');
   });
   it('headline falls back for an unknown result shape', () => {
     expect(headline('amt_iso_optimize', {})).toContain('result is ready');

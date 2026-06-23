@@ -4,29 +4,33 @@
 //
 // Implements the Poe protocol (version 1.2) directly in a Cloudflare Pages
 // Function, no fastapi-poe. Flow per user message:
-//   1. A cheap Poe dependency bot maps the natural-language question to one of
-//      the seven OptionsAhoy calculators and extracts its JSON arguments. The
-//      dependency call is billed to the chatting user (we pass through user_id
-//      and metadata), so it costs us nothing.
+//   1. Our own cheap model (OpenRouter) maps the natural-language conversation
+//      to one of the seven OptionsAhoy calculators and extracts its JSON
+//      arguments. Running it on our key (not a Poe dependency bot) costs a
+//      fraction of a cent, consumes ZERO user Poe points, returns reliable
+//      JSON, and lets us test the live bot without a real Poe session.
 //   2. The deterministic OptionsAhoy calculator runs locally (the same TOOLS
 //      handlers as /mcp and /api/v1). The MATH IS NEVER done by the language
-//      model: it only extracts inputs.
+//      model: it only extracts inputs, and never a fabricated growth rate.
 //   3. We format the optimizer's own numbers and stream them back as Poe SSE,
 //      with a free-tool link carrying ?src=poe_<tool> for attribution.
 //
 // Incoming requests are authenticated against POE_ACCESS_KEY (the 32-character
-// key Poe issues when the bot is created); that same key authenticates our
-// dependency-bot calls.
+// key Poe issues when the bot is created). Charging (after the launch free
+// month) uses the Poe cost API; extraction uses OPENROUTER_API_KEY.
 
 import { TOOLS } from './_lib/mcp-tools';
 import { PER_TOOL_FREE_TOOL_BARE } from './_lib/sessions';
 import { logCall } from './_lib/stats';
 import type { PagesContext, PagesFunction } from './_lib/api';
 
-const PROTOCOL_VERSION = '1.2';
-const POE_BOT_API = 'https://api.poe.com/bot/';
 const POE_COST_API = 'https://api.poe.com/bot/cost/';
-const DEFAULT_EXTRACTOR = 'Assistant';
+// Parameter extraction runs on our own cheap model (OpenRouter), not a Poe
+// dependency bot. This costs us a fraction of a cent per query, consumes ZERO
+// of the user's Poe points, gives reliable JSON, and lets us test the live bot
+// without a real Poe session.
+const OPENROUTER_API = 'https://openrouter.ai/api/v1/chat/completions';
+const DEFAULT_OR_MODEL = 'openai/gpt-4o-mini';
 // Pricing: free during the launch period, then a flat charge per answered
 // message. 30000 milli-cents = $0.30 (1 USD = 100,000 milli-cents). Both are
 // overridable by env so pricing can change without a code edit.
@@ -35,7 +39,8 @@ const DEFAULT_FREE_UNTIL = '2026-07-22'; // UTC date; free strictly before this.
 
 type PoeEnv = {
   POE_ACCESS_KEY?: string;
-  POE_EXTRACTOR_BOT?: string;
+  OPENROUTER_API_KEY?: string;
+  OPENROUTER_MODEL?: string;
   POE_PRICE_MILLI_CENTS?: string;
   POE_FREE_UNTIL?: string;
 };
@@ -352,32 +357,6 @@ function extractorPrompt(conversation: string): string {
   ].join('\n');
 }
 
-// Parse the text portion of a Poe SSE stream (text events until done/error).
-function readSseText(raw: string): { text: string; error?: string } {
-  let text = '';
-  let error: string | undefined;
-  // Poe streams SSE with CRLF line endings; normalize before splitting on the
-  // blank-line event separator, then parse each event's type + data lines.
-  const norm = raw.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
-  for (const block of norm.split('\n\n')) {
-    let ev: string | null = null;
-    let dataStr = '';
-    for (const line of block.split('\n')) {
-      if (line.startsWith('event:')) ev = line.slice(6).trim();
-      else if (line.startsWith('data:')) dataStr += line.slice(5).trim();
-    }
-    if (!ev || !dataStr) continue;
-    let data: any;
-    try {
-      data = JSON.parse(dataStr);
-    } catch {
-      continue;
-    }
-    if (ev === 'text' && typeof data.text === 'string') text += data.text;
-    else if (ev === 'error') error = data.text ?? 'dependency error';
-  }
-  return { text, error };
-}
 
 // Pull the first JSON object out of a model reply (handles ```json fences).
 function parseJsonObject(s: string): any | null {
@@ -397,46 +376,40 @@ function parseJsonObject(s: string): any | null {
 // recent conversation transcript, not just the latest message.
 export type Extractor = (conversation: string) => Promise<any | null>;
 
-async function callExtractor(ctx: PagesContext, req: PoeRequest, conversation: string): Promise<any | null> {
+async function callExtractor(ctx: PagesContext, _req: PoeRequest, conversation: string): Promise<any | null> {
   const env = (ctx.env ?? {}) as PoeEnv;
-  const bot = env.POE_EXTRACTOR_BOT || DEFAULT_EXTRACTOR;
-  // Log the failure reason (dependency HTTP status / unparseable reply) to
-  // MCP_STATS so it is diagnosable from /admin/mcp-stats without exposing it
-  // to the user.
-  const fail = (msg: string) => logCall(ctx, { endpoint: 'poe:extract-fail', isError: true, errorMsg: `${bot}: ${msg}`.slice(0, 200), clientName: 'poe' });
-  const resp = await fetch(`${POE_BOT_API}${encodeURIComponent(bot)}`, {
-    method: 'POST',
-    headers: {
-      'content-type': 'application/json',
-      authorization: `Bearer ${env.POE_ACCESS_KEY ?? ''}`,
-    },
-    body: JSON.stringify({
-      version: PROTOCOL_VERSION,
-      type: 'query',
-      query: [
-        {
-          role: 'user',
-          content: extractorPrompt(conversation),
-          content_type: 'text/markdown',
-          message_id: req.message_id ?? 'm-extract',
-          timestamp: 0,
-        },
-      ],
-      message_id: req.message_id ?? 'm-extract',
-      user_id: req.user_id ?? '',
-      conversation_id: req.conversation_id ?? '',
-      metadata: req.metadata ?? '',
-      temperature: 0,
-    }),
-  });
-  if (!resp.ok) {
-    fail(`http ${resp.status}`);
+  // Failure reason -> MCP_STATS so it is diagnosable from /admin/mcp-stats.
+  const fail = (msg: string) => logCall(ctx, { endpoint: 'poe:extract-fail', isError: true, errorMsg: msg.slice(0, 200), clientName: 'poe' });
+  const key = env.OPENROUTER_API_KEY;
+  if (!key) {
+    fail('no OPENROUTER_API_KEY configured');
     return null;
   }
-  const { text, error } = readSseText(await resp.text());
-  const parsed = parseJsonObject(text);
-  if (!parsed) fail(error ? `err ${error}` : `unparseable: ${text.slice(0, 80)}`);
-  return parsed;
+  const model = env.OPENROUTER_MODEL || DEFAULT_OR_MODEL;
+  try {
+    const resp = await fetch(OPENROUTER_API, {
+      method: 'POST',
+      headers: { authorization: `Bearer ${key}`, 'content-type': 'application/json' },
+      body: JSON.stringify({
+        model,
+        temperature: 0,
+        response_format: { type: 'json_object' },
+        messages: [{ role: 'user', content: extractorPrompt(conversation) }],
+      }),
+    });
+    if (!resp.ok) {
+      fail(`http ${resp.status}`);
+      return null;
+    }
+    const j: any = await resp.json();
+    const content = j?.choices?.[0]?.message?.content ?? '';
+    const parsed = parseJsonObject(content);
+    if (!parsed) fail(`unparseable: ${String(content).slice(0, 80)}`);
+    return parsed;
+  } catch (e) {
+    fail(`exception ${e instanceof Error ? e.message : String(e)}`);
+    return null;
+  }
 }
 
 // --- pricing ---------------------------------------------------------------
@@ -736,7 +709,8 @@ export const onRequest: PagesFunction = async (ctx: PagesContext): Promise<Respo
       const freeUntil = env.POE_FREE_UNTIL ?? DEFAULT_FREE_UNTIL;
       return new Response(
         JSON.stringify({
-          server_bot_dependencies: { [env.POE_EXTRACTOR_BOT || DEFAULT_EXTRACTOR]: 1 },
+          // No Poe dependency bots: parameter extraction runs on our own model.
+          server_bot_dependencies: {},
           allow_attachments: false,
           introduction_message: INTRO,
           content_type: 'text/markdown',
@@ -762,7 +736,6 @@ export {
   headline,
   freeToolLink,
   parseJsonObject,
-  readSseText,
   extractorPrompt,
   pricingActive,
   priceMilliCents,
