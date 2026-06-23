@@ -302,12 +302,30 @@ function headline(tool: string, r: Result): string {
 // inputSchema the REST + MCP surfaces use).
 function toolSpec(): string {
   return TOOLS.map((t) => {
-    const purpose = String(t.description).split('. ')[0];
+    const desc = String(t.description);
+    const purpose = desc.split('. ')[0];
     const schema = t.inputSchema as any;
-    const props: string[] = schema.properties ? Object.keys(schema.properties) : [];
+    const props = schema.properties ?? {};
     const req: string[] = Array.isArray(schema.required) ? schema.required : [];
-    const fields = props.map((p) => (req.includes(p) ? `${p}*` : p)).join(', ');
-    return `- ${t.name}: ${purpose}. Fields (*=required): ${fields || 'none'}.`;
+    const fields = Object.keys(props).map((p) => (req.includes(p) ? `${p}*` : p)).join(', ');
+    // Enum constraints the model must use verbatim (e.g. sector, filingStatus).
+    const enums = Object.entries(props)
+      .filter(([, v]: any) => Array.isArray(v.enum))
+      .map(([k, v]: any) => `${k}=[${v.enum.join('|')}]`);
+    // The concrete example from the description shows exact value formats and
+    // nested structure (e.g. equity_funding's `stacks`). STRICT_INPUT_NOTE has
+    // no braces, so the last "}" closes the example object.
+    let example = '';
+    const exFrom = desc.search(/Example(?: call)?:/);
+    if (exFrom >= 0) {
+      const open = desc.indexOf('{', exFrom);
+      const close = desc.lastIndexOf('}');
+      if (open >= 0 && close > open) example = desc.slice(open, close + 1);
+    }
+    let line = `- ${t.name}: ${purpose}. Fields (*=required): ${fields || 'none'}.`;
+    if (enums.length) line += ` Allowed values: ${enums.join(', ')}.`;
+    if (example) line += ` Example args: ${example}`;
+    return line;
   }).join('\n');
 }
 
@@ -321,10 +339,11 @@ function extractorPrompt(question: string): string {
     '',
     'Rules:',
     '- If the question fits a tool AND every required (*) field is present or safely inferable, reply {"tool":"<name>","args":{...}} using the exact field names.',
-    '- Include EVERY field the user provides, not just the required ones. Map their words to the field names: "17% growth" -> expectedGrowth: 0.17, "0.72 vol" / "volatility 0.72" -> volatility: 0.72, "married" -> filingStatus: "married_joint", "$300k income" -> ordinaryIncome: 300000, percentages as decimals.',
-    '- Tools that accept expectedGrowth need EITHER expectedGrowth (a decimal) OR a ticker symbol. If the user gave a growth rate, pass expectedGrowth; if they named a stock, pass ticker. Do not invent a growth rate.',
-    '- If a required field is missing and cannot be inferred, reply {"clarify":"<one short question naming the missing fields>"}. Never invent a tax rate, cash return rate, growth rate, or grant date.',
-    '- If the question is not about equity-compensation tax planning, reply {"reject":"<one short sentence>"}.',
+    '- Include EVERY field the user provides, not just the required ones. Map their words to the field names: "17% growth" -> expectedGrowth: 0.17, "0.72 vol" / "volatility 0.72" -> volatility: 0.72, "married" -> filingStatus: "married_joint", "$300k income" -> ordinaryIncome: 300000, percentages as decimals. When the user names a stock ("my NVDA position", "I hold AAPL", "5,000 NVDA shares"), set ticker to that symbol (e.g. "NVDA").',
+    '- Some tools need a forward rate (expectedGrowth for ISOs, expectedPositionReturn for concentration, expectedSalePrice for NSOs) OR a ticker symbol to derive it. If the user gave a rate, pass it; if they named a stock, pass ticker; if they gave NEITHER, reply {"clarify":"ask for an expected annual growth rate (e.g. 10%) or a ticker"}. Never invent a growth rate.',
+    '- If a required field is missing and cannot be inferred, reply {"clarify":"<one short, friendly question naming what you need>"}. Never invent a tax rate, cash return rate, growth rate, or grant date.',
+    '- If the user asks what you can do, what inputs you need, or how to use you (instead of giving a scenario), reply {"help":"<the tool name if they asked about a specific one, otherwise general>"}.',
+    '- If the question is not about equity-compensation tax planning at all, reply {"reject":"<one short sentence>"}.',
     '- filingStatus must be one of: single, married_joint, head_household. stateCode is a two-letter code.',
     '',
     `Question: ${question}`,
@@ -478,8 +497,55 @@ const TOOL_DEFAULTS: Record<string, Record<string, unknown>> = {
 const INTRO =
   'Ask an equity-compensation tax question and I return a deterministic, after-tax-optimal answer. ' +
   'For example: "I have 10,000 incentive stock options at a $2 strike, $40 current value, married filing ' +
-  'jointly, $300,000 income, California, 4-year horizon, granted 2022-01-01, 5% cash return. Best exercise schedule?" ' +
-  'I cover ISO/AMT, NSOs, RSUs, QSBS, single-stock concentration, protective puts, and funding a cash goal from equity.';
+  'jointly, $300,000 income, California, 4-year horizon, granted 2022-01-01, 5% cash return, 12% growth. Best exercise schedule?" ' +
+  'Ask "what can you do?" for the full list and the inputs each one needs.';
+
+// Plain-language guidance for help / capability questions.
+const FRIENDLY: Record<string, string> = {
+  amt_iso_optimize: 'plan an incentive stock option (ISO) exercise schedule around the alternative minimum tax (AMT)',
+  nso_calculate: 'analyze a non-qualified stock option (NSO) exercise, sell versus hold',
+  rsu_sell_vs_hold: 'compare selling versus holding restricted stock units (RSUs) at vest',
+  concentration_analyze: 'measure single-stock concentration risk and your ways out',
+  protective_put_price: 'price a hedge (a protective put or a zero-cost collar)',
+  qsbs_check: 'check qualified small business stock (QSBS) eligibility',
+  equity_funding_plan: 'plan how to fund a cash goal from your equity by a deadline',
+};
+const HELP_INPUTS: Record<string, string> = {
+  amt_iso_optimize: 'how many ISOs, the strike price, the current share value, your filing status, state, and income, the planning horizon in years, the grant date, your cash return rate, and an expected annual growth rate (or a ticker)',
+  nso_calculate: 'how many NSOs, the strike, the current price, your filing status, state, and income, whether you are still employed, how many years you would hold, and an expected sale price (or a ticker)',
+  rsu_sell_vs_hold: 'how many RSUs, the price at vest, your filing status, state, and income, how many years you would hold, and an expected sale price (or a ticker)',
+  concentration_analyze: 'the position value, your cost basis and purchase date, the sector, your filing status, state, and income, your total assets, and an expected annual return (or a ticker)',
+  protective_put_price: 'the position value, the sector, how much downside protection you want (for example 10%), and the tenor in years',
+  qsbs_check: 'the purchase and sale dates, the entity type, how you acquired the shares, the company size and industry, your adjusted basis and expected gain, plus your state, income, and filing status',
+  equity_funding_plan: 'your after-tax cash goal and deadline, the shares you hold (ticker, current price, cost basis, purchase date), and your filing status, state, and income',
+};
+const HELP_EXAMPLE: Record<string, string> = {
+  amt_iso_optimize: '"10,000 ISOs, $2 strike, $40 value, married filing jointly, $300k income, CA, 4-year horizon, granted 2022-01-01, 5% cash, 12% growth. Best schedule?"',
+  nso_calculate: '"Exercise and hold or sell 5,000 NSOs at $10 strike, $50 price, single, $180k income, CA, hold 2 years, ticker AAPL?"',
+  rsu_sell_vs_hold: '"1,000 RSUs vesting at $100, single, $200k income, CA, hold 2 years, ticker MSFT. Sell at vest or hold?"',
+  concentration_analyze: '"My NVDA is $400k of my $1.2M, cost basis $100k, bought 2022-01-01, single, $200k income, CA. How risky?"',
+  protective_put_price: '"Hedge a $400k tech-software position at 10% protection for 1 year?"',
+  qsbs_check: '"C-corp founder stock bought 2020-01-15 for $100k, selling for $5M, original issuance, under $50M, tech, active, single, $250k income, CA. Do I qualify for QSBS?"',
+  equity_funding_plan: '"Need $400k after tax by 2028-06-01 from 4,000 NVDA bought at $60 in 2023, now $140, 15% growth, married filing jointly, $280k income, CA. Plan?"',
+};
+
+function cap(s: string): string {
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+// Help / capability answer. A specific tool name gives that tool's inputs + an
+// example; anything else gives the full menu.
+function helpText(topic: string): string {
+  if (HELP_INPUTS[topic]) {
+    return `To ${FRIENDLY[topic]}, tell me ${HELP_INPUTS[topic]}.\n\nExample: ${HELP_EXAMPLE[topic]}`;
+  }
+  const lines = ['I turn an equity-compensation question into a deterministic, after-tax-optimal answer. Here is what I can do and what to tell me for each:'];
+  for (const name of Object.keys(FRIENDLY)) {
+    lines.push(`- ${cap(FRIENDLY[name])}: tell me ${HELP_INPUTS[name]}.`);
+  }
+  lines.push(`\nExample question: ${HELP_EXAMPLE.amt_iso_optimize}\n\nGive me the details in plain English and I compute the optimal plan. The first answer is on the house during launch.`);
+  return lines.join('\n');
+}
 
 async function handleQuery(ctx: PagesContext, req: PoeRequest, extractor?: Extractor): Promise<Response> {
   const env = (ctx.env ?? {}) as PoeEnv;
@@ -514,6 +580,10 @@ async function handleQuery(ctx: PagesContext, req: PoeRequest, extractor?: Extra
   if (typeof extracted.clarify === 'string') {
     log({ endpoint: 'poe:query' });
     return textReply(extracted.clarify);
+  }
+  if (typeof extracted.help !== 'undefined') {
+    log({ endpoint: 'poe:help' });
+    return textReply(helpText(typeof extracted.help === 'string' ? extracted.help : 'general'));
   }
   if (typeof extracted.reject === 'string') {
     log({ endpoint: 'poe:query' });
@@ -554,11 +624,15 @@ async function handleQuery(ctx: PagesContext, req: PoeRequest, extractor?: Extra
     const args = { ...(TOOL_DEFAULTS[tool.name] ?? {}), ...provided };
     result = tool.handler(args) as Result;
   } catch (e) {
-    const msg = e instanceof Error ? e.message : 'invalid inputs';
+    const raw = e instanceof Error ? e.message : 'invalid inputs';
     // Handler failed after authorize: do not capture (the hold expires).
-    log({ endpoint: 'poe:tools/call', tool: tool.name, isError: true, errorMsg: msg });
+    log({ endpoint: 'poe:tools/call', tool: tool.name, isError: true, errorMsg: raw });
+    // Turn the model-facing "field "X" required: <hint>. The model invoking
+    // this tool MUST NOT invent..." into a clean ask for the end user.
+    const m = raw.match(/required:\s*([\s\S]*)/i);
+    const hint = clean((m ? m[1] : raw).split(/\.\s*The model/i)[0]).trim();
     return textReply(
-      `I need a bit more to run that accurately: ${msg}\n\n` +
+      `To run this accurately I need a bit more: ${hint}.\n\n` +
         `You can also run it yourself${pricingActive(env) ? '' : ' free'} at ${freeToolLink(tool.name)}`,
     );
   }
@@ -568,10 +642,15 @@ async function handleQuery(ctx: PagesContext, req: PoeRequest, extractor?: Extra
   }
   log({ endpoint: 'poe:tools/call', tool: tool.name });
 
-  const freeWord = pricingActive(env) ? '' : ' free';
+  // Closing call to action. While the bot is free, point to the matching free
+  // web tool (funnel). Once the bot charges, do NOT advertise the free tool
+  // that reproduces this same answer; point to the broader beta instead, so the
+  // paid answer is not undercut.
+  const cta = pricingActive(env)
+    ? `Want this across your whole equity position, not just one question? That is the OptionsAhoy beta: optionsahoy.com/beta?src=poe`
+    : `See the full year-by-year breakdown, charted, and try your own numbers free at ${freeToolLink(tool.name)}`;
   const body =
-    `${headline(tool.name, result)}\n\n` +
-    `See the full year-by-year breakdown, charted, and try your own numbers${freeWord} at ${freeToolLink(tool.name)}\n\n` +
+    `${headline(tool.name, result)}\n\n${cta}\n\n` +
     `_Worked out by the OptionsAhoy optimizer across the full federal tax code plus all 50 states and DC, not estimated._`;
   return textReply(body);
 }
@@ -650,4 +729,6 @@ export {
   pricingActive,
   priceMilliCents,
   priceUsd,
+  helpText,
+  toolSpec,
 };

@@ -1,14 +1,18 @@
 // AlphaLatitude Inc. © 2026
 //
-// Tests for the Poe server-bot endpoint (functions/poe.ts). The query path is
-// driven with an injected extractor so no network call to Poe is made; the
-// deterministic calculation still runs through the real TOOLS handler.
+// Comprehensive tests for the Poe server-bot endpoint (functions/poe.ts).
+// The query path is driven with an injected extractor (no network to Poe);
+// the deterministic calculation still runs through the real TOOLS handlers.
+// A separate live extraction check (real model -> args) lives in
+// scripts/poe-e2e-extract.mts, run manually with an OpenRouter key.
 
 import { describe, it, expect } from 'vitest';
-import { onRequest } from '../functions/poe';
 import {
+  onRequest,
   handleQuery,
   headline,
+  helpText,
+  toolSpec,
   freeToolLink,
   parseJsonObject,
   readSseText,
@@ -19,246 +23,313 @@ import {
 } from '../functions/poe';
 
 const KEY = 'i2xRD3eNjktfohwlGLWBh1UGwB69Ky5w';
+const ALL_TOOLS = [
+  'amt_iso_optimize', 'nso_calculate', 'rsu_sell_vs_hold', 'concentration_analyze',
+  'protective_put_price', 'qsbs_check', 'equity_funding_plan',
+];
+
+// Valid inputs for each tool that compute cleanly (rate/ticker supplied where
+// the calc needs a forward estimate).
+const VALID_ARGS: Record<string, any> = {
+  amt_iso_optimize: {
+    shares: 20000, strike: 2, fmv: 200, expectedGrowth: 0.17, volatility: 0.72,
+    filingStatus: 'married_joint', ordinaryIncome: 300000, stateCode: 'CA',
+    horizon: 4, cashReturnRate: 0.055, grantDate: '2022-01-01',
+  },
+  nso_calculate: {
+    shares: 5000, strike: 10, currentPrice: 50, ordinaryIncome: 180000,
+    filingStatus: 'single', stateCode: 'CA', stillEmployed: true, holdYears: 2, ticker: 'AAPL',
+  },
+  rsu_sell_vs_hold: {
+    shares: 1000, currentPrice: 100, ordinaryIncome: 200000, filingStatus: 'single',
+    stateCode: 'CA', stillEmployed: true, holdYears: 2, ticker: 'MSFT',
+  },
+  concentration_analyze: {
+    positionValue: 400000, costBasis: 100000, acquisitionDate: '2022-01-01', sector: 'tech_software',
+    stateCode: 'CA', filingStatus: 'single', ordinaryIncome: 200000, totalAssets: 1200000, ticker: 'NVDA',
+  },
+  protective_put_price: { positionValue: 400000, sector: 'tech_software', protectionLevel: 0.1, tenorYears: 1 },
+  qsbs_check: {
+    acquisitionDate: '2020-01-15', saleDate: '2026-06-01', entityType: 'us-c-corp',
+    acquisitionMethod: 'original-issuance', assetCategory: 'under-50m', industry: 'tech-software',
+    activeBusiness: 'yes', adjustedBasis: 100000, expectedGain: 5000000, stateCode: 'CA',
+    ordinaryIncome: 250000, filingStatus: 'single',
+  },
+  equity_funding_plan: {
+    targetAfterTax: 400000, targetDate: '2028-06-01',
+    stacks: [{ ticker: 'NVDA', currentPrice: 140, expectedAnnualGrowth: 0.15, volatility: 0.45, lots: [{ shares: 4000, costBasisPerShare: 60, acquisitionDate: '2023-06-15' }] }],
+    ordinaryIncome: 280000, filingStatus: 'married_joint', stateCode: 'CA', cashInterestRate: 0.04, riskToleranceShortfall: 0.1,
+  },
+};
+
+// A phrase unique to each tool's comparison, to prove the answer is substantive.
+const COMPARISON_MARKER: Record<string, RegExp> = {
+  amt_iso_optimize: /more than/,
+  nso_calculate: /wins by/,
+  rsu_sell_vs_hold: /wins by/,
+  concentration_analyze: /Downside scenarios/,
+  protective_put_price: /collar/,
+  qsbs_check: /exclusion/,
+  equity_funding_plan: /safe to aggressive/,
+};
 
 function poeRequest(body: unknown, auth?: string): Request {
   const headers: Record<string, string> = { 'content-type': 'application/json' };
   if (auth) headers['authorization'] = auth;
   return new Request('http://localhost/poe', { method: 'POST', headers, body: JSON.stringify(body) });
 }
-
-// Minimal PagesContext for handleQuery (no MCP_STATS -> logCall is a no-op).
 function ctx(env: Record<string, unknown> = {}): any {
   return { request: new Request('http://localhost/poe', { method: 'POST' }), env };
 }
+function sseText(raw: string): string {
+  const m = raw.match(/event: text\ndata: (.*)/);
+  return m ? JSON.parse(m[1]).text : '';
+}
+async function ask(tool: string, args: any, env: Record<string, unknown> = {}, req: any = {}): Promise<string> {
+  const res = await handleQuery(ctx(env), { type: 'query', query: [{ role: 'user', content: 'q' }], ...req }, async () => ({ tool, args }));
+  return sseText(await res.text());
+}
 
-// Valid amt_iso args (ticker resolves growth/vol, like the MCP dedup test).
-const AMT_ARGS = {
-  shares: 10000, strike: 2, fmv: 40, ticker: 'AAPL',
-  filingStatus: 'married_joint', ordinaryIncome: 300000, stateCode: 'CA',
-  carryforwardCredit: 0, horizon: 4, cashReturnRate: 0.05,
-  grantDate: '2022-01-01', hasLeftCompany: false, terminationDate: null,
-};
+// --- HTTP method + auth + settings -----------------------------------------
 
-describe('poe auth', () => {
-  it('rejects a query with a wrong bearer when the key is configured', async () => {
-    const res = await onRequest({
-      request: poeRequest({ type: 'query', query: [] }, 'Bearer wrong'),
-      env: { POE_ACCESS_KEY: KEY },
-    } as any);
+describe('poe HTTP surface', () => {
+  it('OPTIONS returns 204', async () => {
+    const res = await onRequest({ request: new Request('http://x/poe', { method: 'OPTIONS' }), env: {} } as any);
+    expect(res.status).toBe(204);
+  });
+  it('GET returns a friendly 200 (browser / health check)', async () => {
+    const res = await onRequest({ request: new Request('http://x/poe', { method: 'GET' }), env: {} } as any);
+    expect(res.status).toBe(200);
+    expect(await res.text()).toContain('Poe server bot');
+  });
+  it('rejects a query with a wrong bearer when the key is set', async () => {
+    const res = await onRequest({ request: poeRequest({ type: 'query', query: [] }, 'Bearer wrong'), env: { POE_ACCESS_KEY: KEY } } as any);
     expect(res.status).toBe(401);
   });
-
-  it('allows a settings request with the correct bearer', async () => {
-    const res = await onRequest({
-      request: poeRequest({ type: 'settings' }, `Bearer ${KEY}`),
-      env: { POE_ACCESS_KEY: KEY },
-    } as any);
+  it('accepts settings with the correct bearer', async () => {
+    const res = await onRequest({ request: poeRequest({ type: 'settings' }, `Bearer ${KEY}`), env: { POE_ACCESS_KEY: KEY } } as any);
     expect(res.status).toBe(200);
-    const body = (await res.json()) as any;
-    expect(body.server_bot_dependencies).toBeTruthy();
+  });
+  it('skips auth when no key is configured', async () => {
+    const res = await onRequest({ request: poeRequest({ type: 'settings' }), env: {} } as any);
+    expect(res.status).toBe(200);
+  });
+  it('report_* and unknown types return 200 with no body', async () => {
+    const res = await onRequest({ request: poeRequest({ type: 'report_feedback' }), env: {} } as any);
+    expect(res.status).toBe(200);
+    expect(await res.text()).toBe('');
+  });
+});
+
+describe('poe settings payload', () => {
+  it('declares one dependency, intro, and a free-launch rate card by default', async () => {
+    const body = (await (await onRequest({ request: poeRequest({ type: 'settings' }), env: {} } as any)).json()) as any;
     expect(Object.keys(body.server_bot_dependencies).length).toBe(1);
     expect(typeof body.introduction_message).toBe('string');
     expect(body.content_type).toBe('text/markdown');
+    expect(body.cost_label).toBeTruthy();
+    expect(body.rate_card).toContain('per answer');
   });
-
-  it('skips auth when no key is configured (pre-secret deploy)', async () => {
-    const res = await onRequest({
-      request: poeRequest({ type: 'settings' }),
-      env: {},
-    } as any);
-    expect(res.status).toBe(200);
-  });
-});
-
-describe('poe settings dependency uses the configured extractor bot', () => {
-  it('declares the override bot name', async () => {
-    const res = await onRequest({
-      request: poeRequest({ type: 'settings' }),
-      env: { POE_EXTRACTOR_BOT: 'Claude-Haiku' },
-    } as any);
-    const body = (await res.json()) as any;
+  it('honors the configured extractor bot name', async () => {
+    const body = (await (await onRequest({ request: poeRequest({ type: 'settings' }), env: { POE_EXTRACTOR_BOT: 'Claude-Haiku' } } as any)).json()) as any;
     expect(body.server_bot_dependencies['Claude-Haiku']).toBe(1);
   });
+  it('shows a paid rate card once charging', async () => {
+    const body = (await (await onRequest({ request: poeRequest({ type: 'settings' }), env: { POE_FREE_UNTIL: '2020-01-01' } } as any)).json()) as any;
+    expect(body.cost_label).toMatch(/\$0\.30/);
+  });
 });
 
-describe('poe query path', () => {
-  it('runs the real optimizer and returns its NFV + a poe-tagged free-tool link', async () => {
-    const extractor = async () => ({ tool: 'amt_iso_optimize', args: AMT_ARGS });
-    const res = await handleQuery(ctx(), { type: 'query', query: [{ role: 'user', content: 'best ISO schedule?' }] }, extractor);
-    const text = await res.text();
-    expect(res.headers.get('content-type')).toContain('text/event-stream');
-    expect(text).toContain('event: text');
-    expect(text).toContain('event: done');
-    expect(text).toContain('most money after taxes');
-    expect(text).toContain('?src=poe_amt_iso');
-    expect(text).toContain('not estimated');
-  });
+// --- routing + compute for every tool --------------------------------------
 
-  it('fills safe boilerplate defaults the user never states (carryforwardCredit, etc.)', async () => {
-    // Args omit carryforwardCredit / hasLeftCompany / terminationDate.
-    const args = {
-      shares: 20000, strike: 2, fmv: 200, expectedGrowth: 0.17, volatility: 0.72,
-      filingStatus: 'married_joint', ordinaryIncome: 300000, stateCode: 'CA',
-      horizon: 4, cashReturnRate: 0.055, grantDate: '2022-01-01',
-    };
-    const res = await handleQuery(ctx(), { type: 'query', query: [{ role: 'user', content: 'best schedule?' }] },
-      async () => ({ tool: 'amt_iso_optimize', args }));
-    const text = await res.text();
-    expect(text).toContain('most money after taxes');
-  });
+describe('poe answers (all 7 tools)', () => {
+  for (const tool of ALL_TOOLS) {
+    it(`${tool}: returns a headline, a comparison, and the free-tool link`, async () => {
+      const text = await ask(tool, VALID_ARGS[tool]);
+      expect(text).toContain('**'); // bold headline
+      expect(text).toMatch(COMPARISON_MARKER[tool]);
+      expect(text).toContain(`?src=poe_`);
+      expect(text).toContain('not estimated');
+      expect(text).not.toMatch(/I need a bit more|could not parse/);
+    });
+  }
+});
 
-  it('ignores null values the extractor emits so safe defaults still apply', async () => {
-    // The extractor sometimes emits explicit nulls for fields the user never
-    // stated; these must not override the defaults (carryforwardCredit: 0 etc.).
-    const args = {
-      shares: 20000, strike: 2, fmv: 200, expectedGrowth: 0.17, volatility: 0.72,
-      filingStatus: 'married_joint', ordinaryIncome: 300000, stateCode: 'CA',
-      horizon: 4, cashReturnRate: 0.055, grantDate: '2022-01-01',
-      carryforwardCredit: null, hasLeftCompany: null, terminationDate: null,
-    };
-    const res = await handleQuery(ctx(), { type: 'query', query: [{ role: 'user', content: 'q' }] },
-      async () => ({ tool: 'amt_iso_optimize', args }));
-    const text = await res.text();
-    expect(text).toContain('most money after taxes');
-  });
+// --- help / capability -----------------------------------------------------
 
+describe('poe help', () => {
+  it('general help lists every tool and an example', async () => {
+    const res = await handleQuery(ctx(), { type: 'query', query: [{ role: 'user', content: 'help' }] }, async () => ({ help: 'general' }));
+    const text = await res.text();
+    expect(text).toContain('what I can do');
+    expect(text).toContain('Example');
+    for (const frag of ['incentive stock option', 'non-qualified', 'restricted stock', 'concentration', 'hedge', 'QSBS', 'cash goal']) {
+      expect(text).toContain(frag);
+    }
+  });
+  it('help with a bare boolean falls back to general', async () => {
+    const res = await handleQuery(ctx(), { type: 'query', query: [{ role: 'user', content: 'x' }] }, async () => ({ help: true }));
+    expect(await res.text()).toContain('what I can do');
+  });
+  it('tool-specific help gives that tool inputs + an example', () => {
+    const t = helpText('qsbs_check');
+    expect(t).toContain('qualified small business stock');
+    expect(t).toContain('Example:');
+    expect(t).not.toContain('incentive stock option'); // not the general menu
+  });
+});
+
+// --- clarify / reject / fallbacks ------------------------------------------
+
+describe('poe clarify / reject / fallback', () => {
   it('relays a clarify question verbatim', async () => {
-    const extractor = async () => ({ clarify: 'What is your filing status and state?' });
-    const res = await handleQuery(ctx(), { type: 'query', query: [{ role: 'user', content: 'help' }] }, extractor);
-    const text = await res.text();
-    expect(text).toContain('What is your filing status and state?');
+    const res = await handleQuery(ctx(), { type: 'query', query: [{ role: 'user', content: 'q' }] }, async () => ({ clarify: 'What is your filing status?' }));
+    expect(await res.text()).toContain('What is your filing status?');
   });
-
-  it('handles an off-topic rejection gracefully', async () => {
-    const extractor = async () => ({ reject: 'That is not an equity-compensation question.' });
-    const res = await handleQuery(ctx(), { type: 'query', query: [{ role: 'user', content: 'weather?' }] }, extractor);
-    const text = await res.text();
-    expect(text).toContain('not an equity-compensation question');
+  it('handles an off-topic rejection', async () => {
+    const res = await handleQuery(ctx(), { type: 'query', query: [{ role: 'user', content: 'q' }] }, async () => ({ reject: 'That is off topic.' }));
+    expect(await res.text()).toContain('off topic');
   });
-
-  it('degrades gracefully when the handler rejects bad inputs', async () => {
-    const extractor = async () => ({ tool: 'amt_iso_optimize', args: { shares: -5 } });
-    const res = await handleQuery(ctx(), { type: 'query', query: [{ role: 'user', content: 'bad' }] }, extractor);
-    const text = await res.text();
-    expect(text).toContain('optionsahoy.com/tools/amt-iso?src=poe_amt_iso');
-  });
-
-  it('returns the intro when there is no user message', async () => {
+  it('returns the intro for an empty query', async () => {
     const res = await handleQuery(ctx(), { type: 'query', query: [] }, async () => null);
-    const text = await res.text();
-    expect(text).toContain('equity-compensation');
+    expect(await res.text()).toContain('equity-compensation');
   });
-
   it('falls back when extraction yields nothing', async () => {
     const res = await handleQuery(ctx(), { type: 'query', query: [{ role: 'user', content: 'x' }] }, async () => null);
-    const text = await res.text();
-    expect(text).toContain('optionsahoy.com/tools');
+    expect(await res.text()).toContain('optionsahoy.com/tools');
+  });
+  it('returns the intro for an unknown tool name', async () => {
+    const res = await handleQuery(ctx(), { type: 'query', query: [{ role: 'user', content: 'x' }] }, async () => ({ tool: 'not_a_tool', args: {} }));
+    expect(await res.text()).toContain('equity-compensation');
+  });
+  it('treats an extractor that throws as no-parse', async () => {
+    const res = await handleQuery(ctx(), { type: 'query', query: [{ role: 'user', content: 'x' }] }, async () => { throw new Error('boom'); });
+    expect(await res.text()).toContain('optionsahoy.com/tools');
+  });
+  it('uses the latest user message in a multi-turn query', async () => {
+    let seen = '';
+    const res = await handleQuery(ctx(), { type: 'query', query: [{ role: 'user', content: 'first' }, { role: 'bot', content: 'hi' }, { role: 'user', content: 'second' }] },
+      async (q) => { seen = q; return { clarify: 'ok' }; });
+    await res.text();
+    expect(seen).toBe('second');
   });
 });
+
+// --- input defaults --------------------------------------------------------
+
+describe('poe input defaults', () => {
+  it('fills safe boilerplate the user never states', async () => {
+    const a = { ...VALID_ARGS.amt_iso_optimize };
+    delete a.carryforwardCredit; delete a.hasLeftCompany; delete a.terminationDate;
+    expect(await ask('amt_iso_optimize', a)).toContain('most money after taxes');
+  });
+  it('ignores extractor-emitted null/blank so defaults still apply', async () => {
+    const a = { ...VALID_ARGS.amt_iso_optimize, carryforwardCredit: null, hasLeftCompany: null, terminationDate: null };
+    expect(await ask('amt_iso_optimize', a)).toContain('most money after taxes');
+  });
+});
+
+// --- error reformatting ----------------------------------------------------
+
+describe('poe error reformatting', () => {
+  it('turns a "field required" handler error into a clean ask (no model-facing meta)', async () => {
+    const a = { ...VALID_ARGS.amt_iso_optimize };
+    delete a.expectedGrowth; delete a.volatility; // forces "expectedGrowth required"
+    const text = await ask('amt_iso_optimize', a);
+    expect(text).toContain('I need a bit more');
+    expect(text).toMatch(/decimal annual rate|ticker/);
+    expect(text).not.toContain('The model invoking');
+    expect(text).not.toContain('MUST NOT');
+    expect(text).not.toMatch(/field "expectedGrowth"/);
+  });
+});
+
+// --- pricing / monetization ------------------------------------------------
+
+describe('poe pricing', () => {
+  it('helpers default to $0.30 and honor the free window', () => {
+    expect(priceMilliCents({})).toBe(30000);
+    expect(priceUsd({})).toBe('$0.30');
+    expect(pricingActive({ POE_FREE_UNTIL: '2099-01-01' })).toBe(false);
+    expect(pricingActive({ POE_FREE_UNTIL: '2020-01-01' })).toBe(true);
+    expect(pricingActive({ POE_FREE_UNTIL: '2020-01-01', POE_PRICE_MILLI_CENTS: '0' })).toBe(false);
+  });
+  it('free period: answer links the free tool', async () => {
+    const text = await ask('amt_iso_optimize', VALID_ARGS.amt_iso_optimize); // default env = free
+    expect(text).toContain('/tools/amt-iso?src=poe_amt_iso');
+    expect(text).toContain('free');
+  });
+  it('paid period: answer points to beta, NOT the free tool', async () => {
+    const orig = globalThis.fetch;
+    globalThis.fetch = (async () => ({ ok: true, text: async () => '' } as any)) as any;
+    try {
+      const text = await ask('amt_iso_optimize', VALID_ARGS.amt_iso_optimize, { POE_FREE_UNTIL: '2020-01-01', POE_ACCESS_KEY: KEY }, { bot_query_id: 'bq' });
+      expect(text).toContain('optionsahoy.com/beta');
+      expect(text).not.toContain('/tools/amt-iso');
+    } finally { globalThis.fetch = orig; }
+  });
+  it('does not call the cost API during the free period', async () => {
+    let called = false; const orig = globalThis.fetch;
+    globalThis.fetch = (async () => { called = true; return { ok: true, text: async () => '' } as any; }) as any;
+    try {
+      await ask('amt_iso_optimize', VALID_ARGS.amt_iso_optimize, { POE_FREE_UNTIL: '2099-01-01', POE_ACCESS_KEY: KEY }, { bot_query_id: 'bq' });
+      expect(called).toBe(false);
+    } finally { globalThis.fetch = orig; }
+  });
+  it('authorizes then captures once charging', async () => {
+    const calls: string[] = []; const orig = globalThis.fetch;
+    globalThis.fetch = (async (u: any) => { calls.push(String(u)); return { ok: true, text: async () => '' } as any; }) as any;
+    try {
+      await ask('amt_iso_optimize', VALID_ARGS.amt_iso_optimize, { POE_FREE_UNTIL: '2020-01-01', POE_ACCESS_KEY: KEY }, { bot_query_id: 'bq1' });
+      expect(calls.some((u) => u.includes('/cost/bq1/authorize'))).toBe(true);
+      expect(calls.some((u) => u.includes('/cost/bq1/capture'))).toBe(true);
+    } finally { globalThis.fetch = orig; }
+  });
+  it('blocks with an error event when the balance cannot cover the charge', async () => {
+    const orig = globalThis.fetch;
+    globalThis.fetch = (async (u: any) => ({ ok: !String(u).includes('authorize'), text: async () => '' } as any)) as any;
+    try {
+      const res = await handleQuery(ctx({ POE_FREE_UNTIL: '2020-01-01', POE_ACCESS_KEY: KEY }),
+        { type: 'query', query: [{ role: 'user', content: 'q' }], bot_query_id: 'bq2' },
+        async () => ({ tool: 'amt_iso_optimize', args: VALID_ARGS.amt_iso_optimize }));
+      const text = await res.text();
+      expect(text).toContain('event: error');
+      expect(text).toContain('per answer');
+    } finally { globalThis.fetch = orig; }
+  });
+});
+
+// --- pure helpers ----------------------------------------------------------
 
 describe('poe helpers', () => {
   it('freeToolLink retags mcp -> poe and keeps the slug', () => {
     expect(freeToolLink('qsbs_check')).toBe('optionsahoy.com/tools/qsbs?src=poe_qsbs');
   });
-
-  it('parseJsonObject extracts fenced JSON', () => {
-    expect(parseJsonObject('```json\n{"tool":"x","args":{}}\n```')).toEqual({ tool: 'x', args: {} });
+  it('parseJsonObject handles fenced, bare, and absent JSON', () => {
+    expect(parseJsonObject('```json\n{"tool":"x"}\n```')).toEqual({ tool: 'x' });
     expect(parseJsonObject('noise {"a":1} tail')).toEqual({ a: 1 });
-    expect(parseJsonObject('no json here')).toBeNull();
+    expect(parseJsonObject('no json')).toBeNull();
   });
-
-  it('readSseText concatenates text events and surfaces errors', () => {
-    const sse = 'event: text\ndata: {"text":"hel"}\n\nevent: text\ndata: {"text":"lo"}\n\nevent: done\ndata: {}\n\n';
-    expect(readSseText(sse).text).toBe('hello');
-    const err = 'event: error\ndata: {"text":"insufficient_fund"}\n\n';
-    expect(readSseText(err).error).toBe('insufficient_fund');
-    // Poe streams CRLF line endings with multiple events; must still parse.
-    const crlf = 'event: error\r\ndata: {"text": "Invalid API key"}\r\n\r\nevent: done\r\ndata: {}\r\n\r\n';
-    expect(readSseText(crlf).error).toBe('Invalid API key');
-    const crlfText = 'event: text\r\ndata: {"text": "hi"}\r\n\r\nevent: done\r\ndata: {}\r\n\r\n';
-    expect(readSseText(crlfText).text).toBe('hi');
+  it('readSseText handles LF, CRLF, multi-event, and error events', () => {
+    expect(readSseText('event: text\ndata: {"text":"he"}\n\nevent: text\ndata: {"text":"llo"}\n\n').text).toBe('hello');
+    expect(readSseText('event: text\r\ndata: {"text": "hi"}\r\n\r\nevent: done\r\ndata: {}\r\n\r\n').text).toBe('hi');
+    expect(readSseText('event: error\r\ndata: {"text": "Invalid API key"}\r\n\r\n').error).toBe('Invalid API key');
   });
-
-  it('extractorPrompt lists all seven tools', () => {
-    const p = extractorPrompt('q');
-    for (const name of ['amt_iso_optimize', 'nso_calculate', 'rsu_sell_vs_hold', 'concentration_analyze', 'protective_put_price', 'qsbs_check', 'equity_funding_plan']) {
-      expect(p).toContain(name);
-    }
-  });
-
-  it('headline falls back for an unknown shape', () => {
+  it('headline falls back for an unknown result shape', () => {
     expect(headline('amt_iso_optimize', {})).toContain('result is ready');
   });
-});
-
-describe('poe monetization', () => {
-  it('pricing helpers default to $0.30 and honor the free window', () => {
-    expect(priceMilliCents({})).toBe(30000);
-    expect(priceUsd({})).toBe('$0.30');
-    expect(pricingActive({ POE_FREE_UNTIL: '2099-01-01' })).toBe(false); // free
-    expect(pricingActive({ POE_FREE_UNTIL: '2020-01-01' })).toBe(true); // charging
-    expect(pricingActive({ POE_FREE_UNTIL: '2020-01-01', POE_PRICE_MILLI_CENTS: '0' })).toBe(false);
+  it('extractorPrompt lists all 7 tools and the help rule', () => {
+    const p = extractorPrompt('q');
+    for (const t of ALL_TOOLS) expect(p).toContain(t);
+    expect(p).toContain('{"help"');
+    expect(p).toContain('{"clarify"');
+    expect(p).toContain('{"reject"');
   });
-
-  it('settings advertises the launch free-then-paid rate card', async () => {
-    const res = await onRequest({ request: poeRequest({ type: 'settings' }), env: {} } as any);
-    const body = (await res.json()) as any;
-    expect(body.cost_label).toBeTruthy();
-    expect(body.rate_card).toContain('per answer');
-  });
-
-  it('does NOT call the cost API during the free period', async () => {
-    let called = false;
-    const orig = globalThis.fetch;
-    globalThis.fetch = (async () => {
-      called = true;
-      return { ok: true, text: async () => '' } as any;
-    }) as any;
-    try {
-      const c = ctx({ POE_FREE_UNTIL: '2099-01-01', POE_ACCESS_KEY: KEY });
-      await handleQuery(c, { type: 'query', query: [{ role: 'user', content: 'q' }], bot_query_id: 'bq-free' },
-        async () => ({ tool: 'amt_iso_optimize', args: AMT_ARGS }));
-      expect(called).toBe(false);
-    } finally {
-      globalThis.fetch = orig;
-    }
-  });
-
-  it('authorizes then captures the charge once the free period has ended', async () => {
-    const calls: string[] = [];
-    const orig = globalThis.fetch;
-    globalThis.fetch = (async (url: any) => {
-      calls.push(String(url));
-      return { ok: true, text: async () => '' } as any;
-    }) as any;
-    try {
-      const c = ctx({ POE_FREE_UNTIL: '2020-01-01', POE_ACCESS_KEY: KEY });
-      const res = await handleQuery(c, { type: 'query', query: [{ role: 'user', content: 'q' }], bot_query_id: 'bq-1' },
-        async () => ({ tool: 'amt_iso_optimize', args: AMT_ARGS }));
-      const text = await res.text();
-      expect(text).toContain('most money after taxes');
-      expect(calls.some((u) => u.includes('/cost/bq-1/authorize'))).toBe(true);
-      expect(calls.some((u) => u.includes('/cost/bq-1/capture'))).toBe(true);
-    } finally {
-      globalThis.fetch = orig;
-    }
-  });
-
-  it('blocks with an error event when the balance cannot cover the charge', async () => {
-    const orig = globalThis.fetch;
-    globalThis.fetch = (async (url: any) => ({
-      ok: !String(url).includes('authorize'), // authorize fails -> insufficient funds
-      text: async () => '',
-    } as any)) as any;
-    try {
-      const c = ctx({ POE_FREE_UNTIL: '2020-01-01', POE_ACCESS_KEY: KEY });
-      const res = await handleQuery(c, { type: 'query', query: [{ role: 'user', content: 'q' }], bot_query_id: 'bq-2' },
-        async () => ({ tool: 'amt_iso_optimize', args: AMT_ARGS }));
-      const text = await res.text();
-      expect(text).toContain('event: error');
-      expect(text).toContain('per answer');
-    } finally {
-      globalThis.fetch = orig;
-    }
+  it('toolSpec exposes required fields, enum values, and an example per tool', () => {
+    const spec = toolSpec();
+    expect(spec).toContain('filingStatus=[single|married_joint|head_household]');
+    expect(spec).toContain('sector=[tech_software'); // concentration / protective put enum
+    expect(spec).toContain('Example args:');
+    for (const t of ALL_TOOLS) expect(spec).toContain(t);
   });
 });
