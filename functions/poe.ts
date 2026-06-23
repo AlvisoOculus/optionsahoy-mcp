@@ -116,70 +116,100 @@ function headline(tool: string, r: Result): string {
         const s = r.schedules ?? {};
         const opt = s.optimized ?? {};
         if (typeof opt.nfv !== 'number') break;
-        // Only surface the year-by-year schedule when every tranche is a
-        // non-negative whole share count; otherwise show the value + link.
         const years: any[] = Array.isArray(opt.years) ? opt.years : [];
         const allClean = years.length > 0 && years.every((y) => typeof y.shares === 'number' && y.shares >= 0);
-        const sched = allClean ? years.map((y) => Math.round(y.shares).toLocaleString('en-US')).join(' / ') : '';
-        const lines = [`**Optimized after-tax net final value: ${usd(opt.nfv)}**`];
-        if (sched) lines.push(`Exercise schedule by year: ${sched} shares.`);
-        const lump = usd(s.lumpSum?.nfv);
-        const even = usd(s.evenSplit?.nfv);
-        if (lump || even) lines.push(`Naive baselines: lump-sum ${lump}, even-split ${even}.`);
+        const lines: string[] = [];
+        if (allClean) {
+          const plan = years
+            .map((y) => `${Math.round(y.shares).toLocaleString('en-US')} in year ${y.year}`)
+            .join(', ');
+          lines.push(`**Exercise your incentive stock options like this: ${plan}.**`);
+        } else {
+          lines.push('**Here is your tax-optimal exercise plan.**');
+        }
+        lines.push(
+          `Spreading the exercises this way leaves you with the most money after taxes: about ${usd(opt.nfv)} at the end of your plan.`,
+        );
+        const even = s.evenSplit?.nfv;
+        const lump = s.lumpSum?.nfv;
+        if (typeof even === 'number' && opt.nfv - even > 0) {
+          lines.push(
+            `That is roughly ${usd(opt.nfv - even)} more than exercising the same shares in equal amounts each year (${usd(even)})` +
+              (typeof lump === 'number' ? `, and far more than exercising everything at once (${usd(lump)}).` : '.'),
+          );
+        }
         return lines.join('\n\n');
       }
       case 'nso_calculate': {
         const ex = r.exercise ?? {};
         if (typeof ex.total !== 'number') break;
-        const lines = [`**Total tax at exercise: ${usd(ex.total)}**`];
-        if (ex.netCashSellAll != null) lines.push(`Net cash if you sell all at exercise: ${usd(ex.netCashSellAll)}.`);
-        if (r.holdMinusCashless != null) {
-          const d = r.holdMinusCashless as number;
-          lines.push(`Holding to long-term versus selling and reinvesting: ${d >= 0 ? '+' : ''}${usd(d)} difference.`);
+        const lines = [`**Exercising now would cost about ${usd(ex.total)} in taxes.**`];
+        if (ex.netCashSellAll != null) {
+          lines.push(`If you exercise and sell all the shares, you walk away with about ${usd(ex.netCashSellAll)} in cash.`);
+        }
+        if (typeof r.holdMinusCashless === 'number') {
+          const d = r.holdMinusCashless;
+          lines.push(
+            d >= 0
+              ? `Holding the shares for the lower long-term tax rate could leave you about ${usd(d)} better off than selling now and reinvesting (before price risk).`
+              : `Holding for the long-term rate would actually leave you about ${usd(-d)} worse off than selling now and reinvesting, so selling looks better here.`,
+          );
         }
         return lines.join('\n\n');
       }
       case 'rsu_sell_vs_hold': {
         if (typeof r.vest?.total !== 'number' && typeof r.holdMinusSell !== 'number') break;
-        const lines = [`**RSU vest: sell-at-vest versus hold**`];
-        if (r.vest?.total != null) lines.push(`Tax at vest: ${usd(r.vest.total)}.`);
-        if (r.holdMinusSell != null) {
-          const d = r.holdMinusSell as number;
-          lines.push(`Holding to long-term versus selling at vest: ${d >= 0 ? '+' : ''}${usd(d)} difference, before price risk.`);
+        const lines: string[] = [];
+        if (typeof r.vest?.total === 'number') lines.push(`**Your vesting shares trigger about ${usd(r.vest.total)} in tax.**`);
+        else lines.push('**Here is your sell-at-vest versus hold comparison.**');
+        if (typeof r.holdMinusSell === 'number') {
+          const d = r.holdMinusSell;
+          lines.push(
+            d >= 0
+              ? `Holding to the long-term rate instead of selling at vest could leave you about ${usd(d)} better off, before price risk.`
+              : `Holding to the long-term rate would leave you about ${usd(-d)} worse off than just selling at vest, so selling looks better here.`,
+          );
         }
         return lines.join('\n\n');
       }
       case 'concentration_analyze': {
         if (typeof r.riskBand !== 'string' && typeof r.concentration !== 'number') break;
-        const lines = [`**Single-stock concentration: ${r.riskBand ?? 'analyzed'}**`];
-        if (r.concentration != null) lines.push(`This position is ${pct(r.concentration)} of your total assets.`);
+        const band = typeof r.riskBand === 'string' ? r.riskBand.toLowerCase() : 'notable';
+        const lines = [`**This single stock is a ${band} concentration risk.**`];
+        if (typeof r.concentration === 'number') lines.push(`It is ${pct(r.concentration)} of everything you own.`);
         const drop50 = Array.isArray(r.lossExposure) ? r.lossExposure.find((l: any) => l.drop === 0.5 || l.drop === 50) : null;
-        if (drop50?.dollarLoss != null) lines.push(`A 50% drop would lose about ${usd(drop50.dollarLoss)}.`);
+        if (drop50?.dollarLoss != null) lines.push(`If it fell 50%, you would lose about ${usd(drop50.dollarLoss)}.`);
+        lines.push('You can reduce this by selling down, holding, or hedging. The tool compares all three after tax.');
         return lines.join('\n\n');
       }
       case 'protective_put_price': {
         const rec = r.recommended ?? r.barePut ?? {};
         if (typeof rec.annualCostPct !== 'number' && typeof rec.maxLoss !== 'number') break;
-        const lines = [`**Hedge pricing**`];
-        if (rec.annualCostPct != null) lines.push(`Annualized hedge cost: about ${pct(rec.annualCostPct)} of the position.`);
-        if (rec.maxLoss != null) lines.push(`Maximum loss with the hedge in place: ${usd(rec.maxLoss)}.`);
+        const lines = ['**Here is what protecting this position would cost.**'];
+        if (typeof rec.annualCostPct === 'number') lines.push(`The hedge runs about ${pct(rec.annualCostPct)} of the position per year.`);
+        if (typeof rec.maxLoss === 'number') lines.push(`With it in place, the most you could lose is about ${usd(rec.maxLoss)}.`);
         return lines.join('\n\n');
       }
       case 'qsbs_check': {
         if (typeof r.verdict !== 'string') break;
-        const lines = [`**QSBS verdict: ${r.verdict}**`];
-        if (r.exclusionPercent != null) lines.push(`Federal gain exclusion: ${pct(r.exclusionPercent)}.`);
-        if (r.excludableGain != null) lines.push(`Excludable gain: ${usd(r.excludableGain)}.`);
-        if (r.federalTaxSaved != null) lines.push(`Estimated federal tax saved: ${usd(r.federalTaxSaved)}.`);
+        const v = r.verdict;
+        const verdictLine =
+          v === 'qualifies'
+            ? '**Good news: this looks like it qualifies for the QSBS gain exclusion.**'
+            : v === 'partial'
+              ? '**This partially qualifies for the QSBS gain exclusion.**'
+              : '**This does not appear to qualify for the QSBS gain exclusion.**';
+        const lines = [verdictLine];
+        if (typeof r.exclusionPercent === 'number') lines.push(`You could exclude ${pct(r.exclusionPercent)} of the gain from federal tax.`);
+        if (typeof r.excludableGain === 'number') lines.push(`That is about ${usd(r.excludableGain)} of gain shielded` + (typeof r.federalTaxSaved === 'number' ? `, saving roughly ${usd(r.federalTaxSaved)} in federal tax.` : '.'));
         return lines.join('\n\n');
       }
       case 'equity_funding_plan': {
         const rec = r.recommended ?? {};
         if (typeof rec.wealthAtTarget !== 'number') break;
-        const lines = [`**Recommended plan to fund the goal**`];
-        if (rec.wealthAtTarget != null) lines.push(`Wealth at the target date: ${usd(rec.wealthAtTarget)}.`);
-        if (rec.totalTax != null) lines.push(`Total tax: ${usd(rec.totalTax)}.`);
-        if (rec.shortfallProbability != null) lines.push(`Shortfall probability: ${pct(rec.shortfallProbability)}.`);
+        const lines = [`**Here is the best plan to reach your cash goal.**`];
+        lines.push(`Following it, you would have about ${usd(rec.wealthAtTarget)} by your deadline` + (typeof rec.totalTax === 'number' ? `, after roughly ${usd(rec.totalTax)} in taxes.` : '.'));
+        if (typeof rec.shortfallProbability === 'number') lines.push(`Chance of falling short of the goal: about ${pct(rec.shortfallProbability)}.`);
         return lines.join('\n\n');
       }
     }
@@ -445,7 +475,7 @@ async function handleQuery(ctx: PagesContext, req: PoeRequest, extractor?: Extra
     log({ endpoint: 'poe:tools/call', tool: tool.name, isError: true, errorMsg: msg });
     return textReply(
       `I need a bit more to run that accurately: ${msg}\n\n` +
-        `You can also run it yourself, free, at ${freeToolLink(tool.name)}`,
+        `You can also run it yourself${pricingActive(env) ? '' : ' free'} at ${freeToolLink(tool.name)}`,
     );
   }
 
@@ -454,11 +484,11 @@ async function handleQuery(ctx: PagesContext, req: PoeRequest, extractor?: Extra
   }
   log({ endpoint: 'poe:tools/call', tool: tool.name });
 
+  const freeWord = pricingActive(env) ? '' : ' free';
   const body =
     `${headline(tool.name, result)}\n\n` +
-    `See the full breakdown, charted, free at ${freeToolLink(tool.name)}\n\n` +
-    `_Computed by the OptionsAhoy optimizer against the full federal tax code plus all 50 states and DC. ` +
-    `This is the deterministic optimum, not an estimate._`;
+    `See the full year-by-year breakdown, charted, and try your own numbers${freeWord} at ${freeToolLink(tool.name)}\n\n` +
+    `_Worked out by the OptionsAhoy optimizer across the full federal tax code plus all 50 states and DC, not estimated._`;
   return textReply(body);
 }
 

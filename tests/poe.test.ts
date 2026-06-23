@@ -89,9 +89,9 @@ describe('poe query path', () => {
     expect(res.headers.get('content-type')).toContain('text/event-stream');
     expect(text).toContain('event: text');
     expect(text).toContain('event: done');
-    expect(text).toContain('Optimized after-tax net final value');
+    expect(text).toContain('most money after taxes');
     expect(text).toContain('?src=poe_amt_iso');
-    expect(text).toContain('deterministic optimum, not an estimate');
+    expect(text).toContain('not estimated');
   });
 
   it('fills safe boilerplate defaults the user never states (carryforwardCredit, etc.)', async () => {
@@ -104,7 +104,7 @@ describe('poe query path', () => {
     const res = await handleQuery(ctx(), { type: 'query', query: [{ role: 'user', content: 'best schedule?' }] },
       async () => ({ tool: 'amt_iso_optimize', args }));
     const text = await res.text();
-    expect(text).toContain('Optimized after-tax net final value');
+    expect(text).toContain('most money after taxes');
   });
 
   it('relays a clarify question verbatim', async () => {
@@ -221,7 +221,7 @@ describe('poe monetization', () => {
       const res = await handleQuery(c, { type: 'query', query: [{ role: 'user', content: 'q' }], bot_query_id: 'bq-1' },
         async () => ({ tool: 'amt_iso_optimize', args: AMT_ARGS }));
       const text = await res.text();
-      expect(text).toContain('Optimized after-tax net final value');
+      expect(text).toContain('most money after taxes');
       expect(calls.some((u) => u.includes('/cost/bq-1/authorize'))).toBe(true);
       expect(calls.some((u) => u.includes('/cost/bq-1/capture'))).toBe(true);
     } finally {
