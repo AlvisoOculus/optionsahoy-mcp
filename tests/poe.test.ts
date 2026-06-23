@@ -94,6 +94,19 @@ describe('poe query path', () => {
     expect(text).toContain('deterministic optimum, not an estimate');
   });
 
+  it('fills safe boilerplate defaults the user never states (carryforwardCredit, etc.)', async () => {
+    // Args omit carryforwardCredit / hasLeftCompany / terminationDate.
+    const args = {
+      shares: 20000, strike: 2, fmv: 200, expectedGrowth: 0.17, volatility: 0.72,
+      filingStatus: 'married_joint', ordinaryIncome: 300000, stateCode: 'CA',
+      horizon: 4, cashReturnRate: 0.055, grantDate: '2022-01-01',
+    };
+    const res = await handleQuery(ctx(), { type: 'query', query: [{ role: 'user', content: 'best schedule?' }] },
+      async () => ({ tool: 'amt_iso_optimize', args }));
+    const text = await res.text();
+    expect(text).toContain('Optimized after-tax net final value');
+  });
+
   it('relays a clarify question verbatim', async () => {
     const extractor = async () => ({ clarify: 'What is your filing status and state?' });
     const res = await handleQuery(ctx(), { type: 'query', query: [{ role: 'user', content: 'help' }] }, extractor);

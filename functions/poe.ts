@@ -356,6 +356,17 @@ async function poeCost(
   }
 }
 
+// Safe defaults for required fields a user never states in plain English. These
+// are conventional "none / still here / standard" values; the extracted args
+// always override them. Real inputs (amounts, prices, rates, dates) are NOT
+// defaulted, so the bot still asks for those when missing.
+const TOOL_DEFAULTS: Record<string, Record<string, unknown>> = {
+  amt_iso_optimize: { carryforwardCredit: 0, hasLeftCompany: false, terminationDate: null },
+  nso_calculate: { stillEmployed: true, holdFunding: 'cash' },
+  rsu_sell_vs_hold: { stillEmployed: true },
+  protective_put_price: { protectionLevel: 0.1, tenorYears: 1 },
+};
+
 // --- query handling --------------------------------------------------------
 
 const INTRO =
@@ -426,7 +437,8 @@ async function handleQuery(ctx: PagesContext, req: PoeRequest, extractor?: Extra
 
   let result: Result;
   try {
-    result = tool.handler(extracted.args ?? {}) as Result;
+    const args = { ...(TOOL_DEFAULTS[tool.name] ?? {}), ...(extracted.args ?? {}) };
+    result = tool.handler(args) as Result;
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'invalid inputs';
     // Handler failed after authorize: do not capture (the hold expires).
