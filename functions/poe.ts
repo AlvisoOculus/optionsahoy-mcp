@@ -197,8 +197,11 @@ function headline(tool: string, r: Result): string {
 function toolSpec(): string {
   return TOOLS.map((t) => {
     const purpose = String(t.description).split('. ')[0];
-    const req = Array.isArray((t.inputSchema as any).required) ? (t.inputSchema as any).required : [];
-    return `- ${t.name}: ${purpose}. Required: ${req.join(', ') || 'none'}.`;
+    const schema = t.inputSchema as any;
+    const props: string[] = schema.properties ? Object.keys(schema.properties) : [];
+    const req: string[] = Array.isArray(schema.required) ? schema.required : [];
+    const fields = props.map((p) => (req.includes(p) ? `${p}*` : p)).join(', ');
+    return `- ${t.name}: ${purpose}. Fields (*=required): ${fields || 'none'}.`;
   }).join('\n');
 }
 
@@ -211,8 +214,10 @@ function extractorPrompt(question: string): string {
     toolSpec(),
     '',
     'Rules:',
-    '- If the question fits a tool AND every Required field is present or safely inferable from the message, reply {"tool":"<name>","args":{...}} using the exact field names.',
-    '- If a Required field is missing and cannot be inferred, reply {"clarify":"<one short question naming the missing fields>"}. Never invent a tax rate, cash return rate, or grant date.',
+    '- If the question fits a tool AND every required (*) field is present or safely inferable, reply {"tool":"<name>","args":{...}} using the exact field names.',
+    '- Include EVERY field the user provides, not just the required ones. Map their words to the field names: "17% growth" -> expectedGrowth: 0.17, "0.72 vol" / "volatility 0.72" -> volatility: 0.72, "married" -> filingStatus: "married_joint", "$300k income" -> ordinaryIncome: 300000, percentages as decimals.',
+    '- Tools that accept expectedGrowth need EITHER expectedGrowth (a decimal) OR a ticker symbol. If the user gave a growth rate, pass expectedGrowth; if they named a stock, pass ticker. Do not invent a growth rate.',
+    '- If a required field is missing and cannot be inferred, reply {"clarify":"<one short question naming the missing fields>"}. Never invent a tax rate, cash return rate, growth rate, or grant date.',
     '- If the question is not about equity-compensation tax planning, reply {"reject":"<one short sentence>"}.',
     '- filingStatus must be one of: single, married_joint, head_household. stateCode is a two-letter code.',
     '',
