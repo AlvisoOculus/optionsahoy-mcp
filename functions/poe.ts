@@ -492,6 +492,15 @@ const TOOL_DEFAULTS: Record<string, Record<string, unknown>> = {
   protective_put_price: { protectionLevel: 0.1, tenorYears: 1 },
 };
 
+// Forward-estimate fields the tax engine will not invent. When one is missing
+// (and no ticker was given) we ask for it plainly instead of echoing the raw
+// engine hint.
+const RATE_FIELDS: Record<string, string> = {
+  expectedGrowth: 'an expected annual growth rate for the stock (for example 10%)',
+  expectedPositionReturn: 'an expected annual return for the stock (for example 10%)',
+  expectedSalePrice: 'the price you expect to sell at',
+};
+
 // --- query handling --------------------------------------------------------
 
 const INTRO =
@@ -627,14 +636,19 @@ async function handleQuery(ctx: PagesContext, req: PoeRequest, extractor?: Extra
     const raw = e instanceof Error ? e.message : 'invalid inputs';
     // Handler failed after authorize: do not capture (the hold expires).
     log({ endpoint: 'poe:tools/call', tool: tool.name, isError: true, errorMsg: raw });
-    // Turn the model-facing "field "X" required: <hint>. The model invoking
-    // this tool MUST NOT invent..." into a clean ask for the end user.
-    const m = raw.match(/required:\s*([\s\S]*)/i);
-    const hint = clean((m ? m[1] : raw).split(/\.\s*The model/i)[0]).trim();
-    return textReply(
-      `To run this accurately I need a bit more: ${hint}.\n\n` +
-        `You can also run it yourself${pricingActive(env) ? '' : ' free'} at ${freeToolLink(tool.name)}`,
-    );
+    // The common case is a missing forward estimate (growth/return/sale price).
+    // Ask for it plainly and lead with the easy option (a ticker). Otherwise
+    // fall back to the engine hint, stripped of its model-facing meta sentence.
+    const field = raw.match(/field\s+"([^"]+)"\s+required/i)?.[1] ?? '';
+    let ask: string;
+    if (RATE_FIELDS[field]) {
+      ask = `Almost there. Give me the stock's ticker and I will use its historical return, or tell me ${RATE_FIELDS[field]}.`;
+    } else {
+      const m = raw.match(/required:\s*([\s\S]*)/i);
+      const hint = clean((m ? m[1] : raw).split(/\.\s*The model/i)[0]).trim();
+      ask = `To run this accurately I need a bit more: ${hint}.`;
+    }
+    return textReply(`${ask}\n\nYou can also run it yourself${pricingActive(env) ? '' : ' free'} at ${freeToolLink(tool.name)}`);
   }
 
   if (charge > 0) {

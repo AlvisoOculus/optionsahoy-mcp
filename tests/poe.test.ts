@@ -232,15 +232,27 @@ describe('poe input defaults', () => {
 // --- error reformatting ----------------------------------------------------
 
 describe('poe error reformatting', () => {
-  it('turns a "field required" handler error into a clean ask (no model-facing meta)', async () => {
+  it('a thorough question missing only the growth rate gets a clean, specific ask', async () => {
+    // Mirrors the real user message: full ISO scenario but no growth / ticker.
     const a = { ...VALID_ARGS.amt_iso_optimize };
-    delete a.expectedGrowth; delete a.volatility; // forces "expectedGrowth required"
+    delete a.expectedGrowth; delete a.volatility;
     const text = await ask('amt_iso_optimize', a);
-    expect(text).toContain('I need a bit more');
-    expect(text).toMatch(/decimal annual rate|ticker/);
+    expect(text).toContain('ticker'); // leads with the easy option
+    expect(text).toContain('growth rate');
+    // none of the raw, model-facing engine phrasing leaks through
     expect(text).not.toContain('The model invoking');
     expect(text).not.toContain('MUST NOT');
+    expect(text).not.toContain('covered public-stock symbol');
     expect(text).not.toMatch(/field "expectedGrowth"/);
+  });
+
+  it('a non-rate missing field still falls back to a cleaned engine hint', async () => {
+    // nso without holdYears (required, not a rate field) -> generic clean ask.
+    const a = { ...VALID_ARGS.nso_calculate };
+    delete a.holdYears;
+    const text = await ask('nso_calculate', a);
+    expect(text).toMatch(/need a bit more|hold/i);
+    expect(text).not.toContain('The model invoking');
   });
 });
 
