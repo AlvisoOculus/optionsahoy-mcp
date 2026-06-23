@@ -36,6 +36,7 @@ routes = [
   { pattern = "optionsahoy.com/api/v1/*", zone_name = "optionsahoy.com" },
   { pattern = "optionsahoy.com/a2a", zone_name = "optionsahoy.com" },
   { pattern = "optionsahoy.com/a2a/*", zone_name = "optionsahoy.com" },
+  { pattern = "optionsahoy.com/poe", zone_name = "optionsahoy.com" },
   { pattern = "optionsahoy.com/.well-known/agent-card.json", zone_name = "optionsahoy.com" },
   { pattern = "optionsahoy.com/.well-known/agent.json", zone_name = "optionsahoy.com" },
 ]
