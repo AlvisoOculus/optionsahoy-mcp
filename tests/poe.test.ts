@@ -144,6 +144,11 @@ describe('poe helpers', () => {
     expect(readSseText(sse).text).toBe('hello');
     const err = 'event: error\ndata: {"text":"insufficient_fund"}\n\n';
     expect(readSseText(err).error).toBe('insufficient_fund');
+    // Poe streams CRLF line endings with multiple events; must still parse.
+    const crlf = 'event: error\r\ndata: {"text": "Invalid API key"}\r\n\r\nevent: done\r\ndata: {}\r\n\r\n';
+    expect(readSseText(crlf).error).toBe('Invalid API key');
+    const crlfText = 'event: text\r\ndata: {"text": "hi"}\r\n\r\nevent: done\r\ndata: {}\r\n\r\n';
+    expect(readSseText(crlfText).text).toBe('hi');
   });
 
   it('extractorPrompt lists all seven tools', () => {

@@ -224,19 +224,25 @@ function extractorPrompt(question: string): string {
 function readSseText(raw: string): { text: string; error?: string } {
   let text = '';
   let error: string | undefined;
-  const blocks = raw.split('\n\n');
-  for (const block of blocks) {
-    const evMatch = block.match(/event:\s*(\w+)/);
-    const dataMatch = block.match(/data:\s*(\{[\s\S]*\})/);
-    if (!evMatch || !dataMatch) continue;
+  // Poe streams SSE with CRLF line endings; normalize before splitting on the
+  // blank-line event separator, then parse each event's type + data lines.
+  const norm = raw.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+  for (const block of norm.split('\n\n')) {
+    let ev: string | null = null;
+    let dataStr = '';
+    for (const line of block.split('\n')) {
+      if (line.startsWith('event:')) ev = line.slice(6).trim();
+      else if (line.startsWith('data:')) dataStr += line.slice(5).trim();
+    }
+    if (!ev || !dataStr) continue;
     let data: any;
     try {
-      data = JSON.parse(dataMatch[1]);
+      data = JSON.parse(dataStr);
     } catch {
       continue;
     }
-    if (evMatch[1] === 'text' && typeof data.text === 'string') text += data.text;
-    else if (evMatch[1] === 'error') error = data.text ?? 'dependency error';
+    if (ev === 'text' && typeof data.text === 'string') text += data.text;
+    else if (ev === 'error') error = data.text ?? 'dependency error';
   }
   return { text, error };
 }
