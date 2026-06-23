@@ -107,6 +107,21 @@ describe('poe query path', () => {
     expect(text).toContain('most money after taxes');
   });
 
+  it('ignores null values the extractor emits so safe defaults still apply', async () => {
+    // The extractor sometimes emits explicit nulls for fields the user never
+    // stated; these must not override the defaults (carryforwardCredit: 0 etc.).
+    const args = {
+      shares: 20000, strike: 2, fmv: 200, expectedGrowth: 0.17, volatility: 0.72,
+      filingStatus: 'married_joint', ordinaryIncome: 300000, stateCode: 'CA',
+      horizon: 4, cashReturnRate: 0.055, grantDate: '2022-01-01',
+      carryforwardCredit: null, hasLeftCompany: null, terminationDate: null,
+    };
+    const res = await handleQuery(ctx(), { type: 'query', query: [{ role: 'user', content: 'q' }] },
+      async () => ({ tool: 'amt_iso_optimize', args }));
+    const text = await res.text();
+    expect(text).toContain('most money after taxes');
+  });
+
   it('relays a clarify question verbatim', async () => {
     const extractor = async () => ({ clarify: 'What is your filing status and state?' });
     const res = await handleQuery(ctx(), { type: 'query', query: [{ role: 'user', content: 'help' }] }, extractor);

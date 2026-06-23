@@ -543,7 +543,15 @@ async function handleQuery(ctx: PagesContext, req: PoeRequest, extractor?: Extra
 
   let result: Result;
   try {
-    const args = { ...(TOOL_DEFAULTS[tool.name] ?? {}), ...(extracted.args ?? {}) };
+    // Drop null/undefined/blank values the extractor emitted for fields the
+    // user did not state, so the safe defaults below actually take effect
+    // (an explicit null would otherwise override a default like
+    // carryforwardCredit: 0). Note: terminationDate legitimately may be null,
+    // and its default is already null, so dropping it is harmless.
+    const provided = Object.fromEntries(
+      Object.entries(extracted.args ?? {}).filter(([, v]) => v !== null && v !== undefined && v !== ''),
+    );
+    const args = { ...(TOOL_DEFAULTS[tool.name] ?? {}), ...provided };
     result = tool.handler(args) as Result;
   } catch (e) {
     const msg = e instanceof Error ? e.message : 'invalid inputs';
