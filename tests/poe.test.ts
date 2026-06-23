@@ -85,8 +85,11 @@ function sseText(raw: string): string {
   const m = raw.match(/event: text\ndata: (.*)/);
   return m ? JSON.parse(m[1]).text : '';
 }
-async function ask(tool: string, args: any, env: Record<string, unknown> = {}, req: any = {}): Promise<string> {
-  const res = await handleQuery(ctx(env), { type: 'query', query: [{ role: 'user', content: 'q' }], ...req }, async () => ({ tool, args }));
+// Default user content mentions "growth" so the anti-fabrication guard treats a
+// supplied expectedGrowth as user-given (tests that need the no-growth path pass
+// an explicit content).
+async function ask(tool: string, args: any, env: Record<string, unknown> = {}, req: any = {}, content = 'here are my details, assume the growth rate I gave'): Promise<string> {
+  const res = await handleQuery(ctx(env), { type: 'query', query: [{ role: 'user', content }], ...req }, async () => ({ tool, args }));
   return sseText(await res.text());
 }
 
@@ -249,6 +252,19 @@ describe('poe error reformatting', () => {
     expect(text).not.toContain('MUST NOT');
     expect(text).not.toContain('covered public-stock symbol');
     expect(text).not.toMatch(/field "expectedGrowth"/);
+  });
+
+  it('strips a fabricated growth rate when the user never gave one (no guessing)', async () => {
+    const a = { ...VALID_ARGS.amt_iso_optimize, expectedGrowth: 0.25 };
+    delete a.volatility; delete (a as any).ticker;
+    // user content has NO growth word and no ticker -> model "invented" 25%
+    const text = await ask('amt_iso_optimize', a, {}, {}, '10,000 ISOs, $2 strike, $40 value, MFJ, $300k income, CA, 4-year horizon, granted 2022-01-01, 5% cash return.');
+    expect(text).toContain('growth rate'); // asked, did not compute on a made-up number
+    expect(text).not.toContain('most money after taxes');
+  });
+  it('keeps the growth rate when the user actually said "growth"', async () => {
+    const text = await ask('amt_iso_optimize', VALID_ARGS.amt_iso_optimize, {}, {}, 'best schedule, assume 17% growth');
+    expect(text).toContain('most money after taxes');
   });
 
   it('a non-rate missing field still falls back to a cleaned engine hint', async () => {

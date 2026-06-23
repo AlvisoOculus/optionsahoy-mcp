@@ -341,7 +341,7 @@ function extractorPrompt(conversation: string): string {
     '- This is a multi-turn chat. The user often answers your earlier follow-up question in a later turn (for example you asked for a ticker and they reply "nvda"). Combine EVERY detail from the WHOLE conversation into one args object; do not treat the latest line in isolation.',
     '- If the chat fits a tool AND every required (*) field is present or safely inferable, reply {"tool":"<name>","args":{...}} using the exact field names.',
     '- Include EVERY field the user provides, not just the required ones. Map their words to the field names: "17% growth" -> expectedGrowth: 0.17, "0.72 vol" / "volatility 0.72" -> volatility: 0.72, "married" -> filingStatus: "married_joint", "$300k income" -> ordinaryIncome: 300000, percentages as decimals. When the user names a stock ("my NVDA position", "I hold AAPL", "5,000 NVDA shares"), set ticker to that symbol (e.g. "NVDA").',
-    '- Some tools need a forward rate (expectedGrowth for ISOs, expectedPositionReturn for concentration, expectedSalePrice for NSOs) OR a ticker symbol to derive it. If the user gave a rate, pass it; if they named a stock, pass ticker; if they gave NEITHER, reply {"clarify":"ask for an expected annual growth rate (e.g. 10%) or a ticker"}. Never invent a growth rate.',
+    '- Some tools need a forward rate (expectedGrowth for ISOs, expectedPositionReturn for concentration, expectedSalePrice for NSOs) OR a ticker symbol to derive it. If the user gave a rate, pass it; if they named a stock, pass ticker; if they gave NEITHER, reply {"clarify":"ask for an expected annual growth rate (e.g. 10%) or a ticker"}. Never invent a growth rate, and NEVER reuse cashReturnRate (the return on idle cash) as the stock growth. Do not output a placeholder ticker like "unknown"; omit ticker if you do not have a real symbol.',
     '- If a required field is missing and cannot be inferred, reply {"clarify":"<one short, friendly question naming what you need>"}. Never invent a tax rate, cash return rate, growth rate, or grant date.',
     '- If the user asks what you can do, what inputs you need, or how to use you (instead of giving a scenario), reply {"help":"<the tool name if they asked about a specific one, otherwise general>"}.',
     '- If the chat is not about equity-compensation tax planning at all, reply {"reject":"<one short sentence>"}.',
@@ -638,9 +638,22 @@ async function handleQuery(ctx: PagesContext, req: PoeRequest, extractor?: Extra
     // (an explicit null would otherwise override a default like
     // carryforwardCredit: 0). Note: terminationDate legitimately may be null,
     // and its default is already null, so dropping it is harmless.
-    const provided = Object.fromEntries(
+    const provided: Record<string, any> = Object.fromEntries(
       Object.entries(extracted.args ?? {}).filter(([, v]) => v !== null && v !== undefined && v !== ''),
     );
+    // Drop a placeholder/implausible ticker the model sometimes emits
+    // ("unknown", "n/a", a whole phrase). A real symbol is 1-6 letters.
+    if (typeof provided.ticker === 'string' && !/^[A-Za-z][A-Za-z.\-]{0,5}$/.test(provided.ticker.trim())) {
+      delete provided.ticker;
+    }
+    // Anti-fabrication: the optimizer must never run on a forward growth/return
+    // the model made up (a made-up tax assumption presented as fact is brand
+    // damage). If the user gave no real ticker and never used a growth word,
+    // strip any model-supplied rate so the bot asks instead of guessing.
+    if (!provided.ticker && !/\b(grow|growth|appreciat|cagr)\w*/i.test(convo)) {
+      delete provided.expectedGrowth;
+      delete provided.expectedPositionReturn;
+    }
     const args = { ...(TOOL_DEFAULTS[tool.name] ?? {}), ...provided };
     result = tool.handler(args) as Result;
   } catch (e) {
