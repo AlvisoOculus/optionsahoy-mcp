@@ -329,24 +329,26 @@ function toolSpec(): string {
   }).join('\n');
 }
 
-function extractorPrompt(question: string): string {
+function extractorPrompt(conversation: string): string {
   return [
-    'You route an equity-compensation question to one OptionsAhoy calculator and extract its inputs.',
+    'You route an equity-compensation chat to one OptionsAhoy calculator and extract its inputs.',
     'Do NOT compute anything yourself. Reply with a single JSON object and nothing else.',
     '',
     'Tools:',
     toolSpec(),
     '',
     'Rules:',
-    '- If the question fits a tool AND every required (*) field is present or safely inferable, reply {"tool":"<name>","args":{...}} using the exact field names.',
+    '- This is a multi-turn chat. The user often answers your earlier follow-up question in a later turn (for example you asked for a ticker and they reply "nvda"). Combine EVERY detail from the WHOLE conversation into one args object; do not treat the latest line in isolation.',
+    '- If the chat fits a tool AND every required (*) field is present or safely inferable, reply {"tool":"<name>","args":{...}} using the exact field names.',
     '- Include EVERY field the user provides, not just the required ones. Map their words to the field names: "17% growth" -> expectedGrowth: 0.17, "0.72 vol" / "volatility 0.72" -> volatility: 0.72, "married" -> filingStatus: "married_joint", "$300k income" -> ordinaryIncome: 300000, percentages as decimals. When the user names a stock ("my NVDA position", "I hold AAPL", "5,000 NVDA shares"), set ticker to that symbol (e.g. "NVDA").',
     '- Some tools need a forward rate (expectedGrowth for ISOs, expectedPositionReturn for concentration, expectedSalePrice for NSOs) OR a ticker symbol to derive it. If the user gave a rate, pass it; if they named a stock, pass ticker; if they gave NEITHER, reply {"clarify":"ask for an expected annual growth rate (e.g. 10%) or a ticker"}. Never invent a growth rate.',
     '- If a required field is missing and cannot be inferred, reply {"clarify":"<one short, friendly question naming what you need>"}. Never invent a tax rate, cash return rate, growth rate, or grant date.',
     '- If the user asks what you can do, what inputs you need, or how to use you (instead of giving a scenario), reply {"help":"<the tool name if they asked about a specific one, otherwise general>"}.',
-    '- If the question is not about equity-compensation tax planning at all, reply {"reject":"<one short sentence>"}.',
+    '- If the chat is not about equity-compensation tax planning at all, reply {"reject":"<one short sentence>"}.',
     '- filingStatus must be one of: single, married_joint, head_household. stateCode is a two-letter code.',
     '',
-    `Question: ${question}`,
+    'Conversation so far (resolve the latest user turn using all earlier turns):',
+    conversation,
   ].join('\n');
 }
 
@@ -391,10 +393,11 @@ function parseJsonObject(s: string): any | null {
   }
 }
 
-// Allow tests to inject a fake extractor instead of hitting Poe.
-export type Extractor = (question: string) => Promise<any | null>;
+// Allow tests to inject a fake extractor instead of hitting Poe. Receives the
+// recent conversation transcript, not just the latest message.
+export type Extractor = (conversation: string) => Promise<any | null>;
 
-async function callExtractor(ctx: PagesContext, req: PoeRequest, question: string): Promise<any | null> {
+async function callExtractor(ctx: PagesContext, req: PoeRequest, conversation: string): Promise<any | null> {
   const env = (ctx.env ?? {}) as PoeEnv;
   const bot = env.POE_EXTRACTOR_BOT || DEFAULT_EXTRACTOR;
   // Log the failure reason (dependency HTTP status / unparseable reply) to
@@ -413,7 +416,7 @@ async function callExtractor(ctx: PagesContext, req: PoeRequest, question: strin
       query: [
         {
           role: 'user',
-          content: extractorPrompt(question),
+          content: extractorPrompt(conversation),
           content_type: 'text/markdown',
           message_id: req.message_id ?? 'm-extract',
           timestamp: 0,
@@ -565,15 +568,23 @@ async function handleQuery(ctx: PagesContext, req: PoeRequest, extractor?: Extra
 
   const messages = Array.isArray(req.query) ? req.query : [];
   const lastUser = [...messages].reverse().find((m) => m.role === 'user');
-  const question = (lastUser?.content ?? '').trim();
-  if (!question) {
+  if (!lastUser || !(lastUser.content ?? '').trim()) {
     log({ endpoint: 'poe:query' });
     return textReply(INTRO);
   }
 
+  // Pass the recent transcript, not just the last message, so the extractor can
+  // resolve follow-ups: when we ask for a ticker and the user replies "nvda",
+  // it must combine that with the original scenario from an earlier turn.
+  const convo = messages
+    .filter((m) => (m.role === 'user' || m.role === 'bot') && typeof m.content === 'string' && m.content.trim())
+    .slice(-12)
+    .map((m) => `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.content.trim()}`)
+    .join('\n');
+
   let extracted: any | null;
   try {
-    extracted = extractor ? await extractor(question) : await callExtractor(ctx, req, question);
+    extracted = extractor ? await extractor(convo) : await callExtractor(ctx, req, convo);
   } catch {
     extracted = null;
   }

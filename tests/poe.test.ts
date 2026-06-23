@@ -206,12 +206,17 @@ describe('poe clarify / reject / fallback', () => {
     const res = await handleQuery(ctx(), { type: 'query', query: [{ role: 'user', content: 'x' }] }, async () => { throw new Error('boom'); });
     expect(await res.text()).toContain('optionsahoy.com/tools');
   });
-  it('uses the latest user message in a multi-turn query', async () => {
+  it('passes the full recent transcript (so a "nvda" follow-up keeps the original scenario)', async () => {
     let seen = '';
-    const res = await handleQuery(ctx(), { type: 'query', query: [{ role: 'user', content: 'first' }, { role: 'bot', content: 'hi' }, { role: 'user', content: 'second' }] },
-      async (q) => { seen = q; return { clarify: 'ok' }; });
+    const res = await handleQuery(ctx(), { type: 'query', query: [
+      { role: 'user', content: '10,000 ISOs, $2 strike, MFJ, CA' },
+      { role: 'bot', content: 'give me a ticker or a growth rate' },
+      { role: 'user', content: 'nvda' },
+    ] }, async (c) => { seen = c; return { clarify: 'ok' }; });
     await res.text();
-    expect(seen).toBe('second');
+    expect(seen).toContain('nvda');
+    expect(seen).toContain('10,000 ISOs'); // earlier turn retained
+    expect(seen).toContain('Assistant:'); // bot turn included as context
   });
 });
 
