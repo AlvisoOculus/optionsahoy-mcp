@@ -35,9 +35,82 @@ export async function bumpSessionCallCount(
   return row?.tool_call_count ?? 1;
 }
 
-// Per-tool beta-access pitch, fired only on the first tools/call per
-// session. Each line names the gap the tool's single-position output
-// leaves on the table.
+// The tools/call response is the one distribution surface we own end to end:
+// every real agent invocation flows through it and we can change it with an
+// instant deploy and no third-party gate. So each call carries a structured
+// `_meta.optionsahoy` next-step block that converts the invocation, built from
+// three layers (free tool first, then the complementary tool, then the beta):
+//
+//   1. free_tool  — the matching free interactive tool on optionsahoy.com.
+//                    This is the PRIMARY ask (free tools before beta).
+//   2. also_run   — an "agent-internal link" to the complementary tool, the
+//                    natural next concern after this one. Raises multi-tool
+//                    call depth (the metric the catalog push left flat).
+//   3. beta       — the invite-only beta, the SECONDARY ask.
+//
+// Every link carries `?src=mcp_<tool>` so a downstream signup attributes back
+// to the originating tool (the site captures `src`; see optionsahoy_web
+// lib/utm-capture.ts). The block is injected in full only on the first call
+// per session; later calls get the bare free-tool URL so a multi-tool query
+// doesn't read as repeated pitches.
+
+// Layer 1: the free interactive tool, framed by what it shows that this text
+// response cannot: charts and visual comparisons. Each line names the specific
+// visual on that page (not "adjust inputs", which an agent can already do).
+// Slugs match the live /tools/* routes on optionsahoy.com.
+export const PER_TOOL_FREE_TOOL: Record<string, string> = {
+  amt_iso_optimize:
+    "See the optimized schedule's Net Final Value charted against the lump-sum and even-split plans, with your Alternative Minimum Tax (AMT) crossover and grant-expiration timeline, free at optionsahoy.com/tools/amt-iso?src=mcp_amt_iso",
+  nso_calculate:
+    'See sell-at-exercise versus hold-for-long-term charted across hold periods, with the full tax breakdown, free at optionsahoy.com/tools/nso?src=mcp_nso',
+  rsu_sell_vs_hold:
+    'See the sell-at-vest versus hold outcomes side by side, with the tax breakdown and the supplemental-withholding shortfall flagged, free at optionsahoy.com/tools/rsu-sell-vs-hold?src=mcp_rsu',
+  concentration_analyze:
+    'See your single-stock drawdown exposure at a 30, 50, and 70 percent drop, with the sell-down, hold, and hedge strategies compared after tax, free at optionsahoy.com/tools/concentration?src=mcp_concentration',
+  protective_put_price:
+    'See the payoff diagram of your protected downside and capped upside, bare put versus zero-cost collar, free at optionsahoy.com/tools/protective-put?src=mcp_protective_put',
+  qsbs_check:
+    "See each of the eight Section 1202 tests pass or fail visually, with your state's conformity spelled out, free at optionsahoy.com/tools/qsbs?src=mcp_qsbs",
+  equity_funding_plan:
+    "See the risk-and-wealth frontier and each plan's funding trajectory charted across all four plans, free at optionsahoy.com/tools/equity-funding?src=mcp_equity_funding",
+};
+
+// Bare free-tool URLs for the second-and-later calls in a session.
+export const PER_TOOL_FREE_TOOL_BARE: Record<string, string> = {
+  amt_iso_optimize: 'optionsahoy.com/tools/amt-iso?src=mcp_amt_iso',
+  nso_calculate: 'optionsahoy.com/tools/nso?src=mcp_nso',
+  rsu_sell_vs_hold: 'optionsahoy.com/tools/rsu-sell-vs-hold?src=mcp_rsu',
+  concentration_analyze: 'optionsahoy.com/tools/concentration?src=mcp_concentration',
+  protective_put_price: 'optionsahoy.com/tools/protective-put?src=mcp_protective_put',
+  qsbs_check: 'optionsahoy.com/tools/qsbs?src=mcp_qsbs',
+  equity_funding_plan: 'optionsahoy.com/tools/equity-funding?src=mcp_equity_funding',
+};
+
+// Layer 2: the related OptionsAhoy tools to run next. Each line advertises one
+// or two sibling tools by their exact name with a concrete reason to call each,
+// so the model has a real next step instead of stopping at one answer. This is
+// the lever for multi-tool call depth (the metric the catalog push left flat),
+// so it is surfaced on EVERY call, not just the first. Every named target is a
+// real tool in TOOLS.
+export const PER_TOOL_RELATED: Record<string, string> = {
+  amt_iso_optimize:
+    'Related OptionsAhoy tools to run next: qsbs_check to test whether these Incentive Stock Option (ISO) shares qualify for the Section 1202 gain exclusion, and concentration_analyze to size the single-stock risk the exercise leaves you holding.',
+  nso_calculate:
+    'Related OptionsAhoy tools to run next: concentration_analyze to size the single-stock risk after exercising, and amt_iso_optimize if you also hold Incentive Stock Options (ISOs) in the same company.',
+  rsu_sell_vs_hold:
+    'Related OptionsAhoy tools to run next: concentration_analyze to size how concentrated each vest leaves you, and protective_put_price to price downside protection on the shares you keep.',
+  concentration_analyze:
+    'Related OptionsAhoy tools to run next: protective_put_price to price a hedge on this position, and equity_funding_plan if you are selling down to reach a cash goal.',
+  protective_put_price:
+    'Related OptionsAhoy tools to run next: concentration_analyze to compare this hedge against selling down or simply holding the position.',
+  qsbs_check:
+    'Related OptionsAhoy tools to run next: amt_iso_optimize to time the Incentive Stock Option (ISO) exercise around Alternative Minimum Tax (AMT), and concentration_analyze to size the single-stock risk in this holding.',
+  equity_funding_plan:
+    'Related OptionsAhoy tools to run next: concentration_analyze to weigh the shares you keep, and rsu_sell_vs_hold for the tax on vesting shares that fund the goal.',
+};
+
+// Layer 3: per-tool beta-access pitch, the SECONDARY ask. Each line names the
+// gap the tool's single-position output leaves on the table.
 export const PER_TOOL_BETA_INVITES: Record<string, string> = {
   amt_iso_optimize:
     'This scheduled one ISO grant. The beta optimizes ISOs alongside your RSUs, NSOs, and stock in one plan. Invite-only at optionsahoy.com/beta?src=mcp_amt_iso',
@@ -55,14 +128,43 @@ export const PER_TOOL_BETA_INVITES: Record<string, string> = {
     'This solved for a cash target. The beta optimizes your full portfolio across multiple goals and market scenarios, not just one funding need. Invite-only at optionsahoy.com/beta?src=mcp_equity_funding',
 };
 
-// Subsequent tool calls in the same session see only the bare URL — the
-// model already picked up the full pitch (or the multi-tool description
-// hint, see _lib/mcp-tools.ts) on the first call.
-export const MULTI_TOOL_BARE_URL = 'optionsahoy.com/beta?src=mcp_multi';
+// The multi-tool beta note (optionsahoy.com/beta?src=mcp_multi) still lives in
+// each tool's description (see _lib/mcp-tools.ts MULTI_TOOL_BETA_NOTE) so a
+// model running several tools learns that integrated optimization is the beta.
+// The per-call _meta block below leads with the free tool instead.
 
-export function inviteFor(toolName: string, sessionCallCount: number): string | undefined {
+export type NextSteps = {
+  // The free interactive tool. Always present for a known tool: the full
+  // benefit line on the first call, the bare URL on later calls.
+  free_tool: string;
+  // The related OptionsAhoy tools to run next. Present on every call (it is
+  // the call-depth lever, not a pitch that goes stale).
+  also_run: string;
+  // The invite-only beta (secondary ask). First call per session only, so a
+  // multi-tool query doesn't repeat the pitch.
+  beta?: string;
+};
+
+// Build the `_meta.optionsahoy` next-step block for one tools/call. Returns
+// undefined for an unknown tool (nothing to inject). The free tool and the
+// related-tools advertisement appear on every call; only the beta pitch is
+// deduped to the first call per session, and the free-tool line collapses to
+// its bare URL after the first call.
+export function nextStepsFor(
+  toolName: string,
+  sessionCallCount: number,
+): NextSteps | undefined {
+  const related = PER_TOOL_RELATED[toolName];
+  if (!related) return undefined;
   if (sessionCallCount === 1) {
-    return PER_TOOL_BETA_INVITES[toolName];
+    return {
+      free_tool: PER_TOOL_FREE_TOOL[toolName],
+      also_run: related,
+      beta: PER_TOOL_BETA_INVITES[toolName],
+    };
   }
-  return MULTI_TOOL_BARE_URL;
+  return {
+    free_tool: PER_TOOL_FREE_TOOL_BARE[toolName],
+    also_run: related,
+  };
 }

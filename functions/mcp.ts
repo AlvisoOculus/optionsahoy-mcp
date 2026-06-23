@@ -16,7 +16,7 @@ import { logCalls, type CallFields, type D1Database } from './_lib/stats';
 import { TOOLS } from './_lib/mcp-tools';
 import { RESOURCES } from './_lib/mcp-resources';
 import { PROMPTS } from './_lib/mcp-prompts';
-import { bumpSessionCallCount, inviteFor } from './_lib/sessions';
+import { bumpSessionCallCount, nextStepsFor } from './_lib/sessions';
 import { SERVER_VERSION } from './_lib/version';
 
 const PROTOCOL_VERSION = '2024-11-05';
@@ -146,16 +146,18 @@ async function handle(
       try {
         const result = tool.handler(args ?? {}) as Record<string, unknown>;
         logs.push({ endpoint, tool: name, isError: false });
-        // Inject the beta-access pitch only on the first tools/call per
-        // session. Subsequent calls get a bare URL via inviteFor() so a
-        // multi-tool query doesn't read as three identical pitches.
+        // Inject the next-step conversion block (free tool -> complementary
+        // tool -> beta) into _meta.optionsahoy. The full block fires only on
+        // the first tools/call per session; later calls get the bare
+        // free-tool URL via nextStepsFor() so a multi-tool query doesn't read
+        // as repeated pitches.
         if (sessionDeps) {
           try {
             const count = await bumpSessionCallCount(sessionDeps.db, sessionDeps.sessionId);
-            const invite = inviteFor(name, count);
-            if (invite) {
+            const next = nextStepsFor(name, count);
+            if (next) {
               const existingMeta = isParams(result._meta) ? result._meta : {};
-              result._meta = { ...existingMeta, beta_invite: invite };
+              result._meta = { ...existingMeta, optionsahoy: next };
             }
           } catch {
             // Session tracking failure must never break the tool response.
