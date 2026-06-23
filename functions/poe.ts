@@ -436,6 +436,14 @@ export const onRequest: PagesFunction = async (ctx: PagesContext): Promise<Respo
   const env = (ctx.env ?? {}) as PoeEnv;
 
   if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS });
+  // GET/HEAD (a browser visit or a health check) get a friendly 200 so the URL
+  // never shows an error. Real Poe traffic is always POST.
+  if (request.method === 'GET' || request.method === 'HEAD') {
+    return new Response('OptionsAhoy Poe server bot. This endpoint is healthy and speaks the Poe protocol over POST.', {
+      status: 200,
+      headers: { 'content-type': 'text/plain', ...CORS },
+    });
+  }
   if (request.method !== 'POST') {
     return new Response('Method not allowed. Use POST.', { status: 405, headers: CORS });
   }
