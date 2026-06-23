@@ -15,8 +15,8 @@ type Case = { label: string; turns: Turn[]; expect: 'compute' | 'clarify' | 'hel
 
 const u = (content: string): Turn => ({ role: 'user', content });
 const CASES: Case[] = [
-  { label: 'amt complete', expect: 'compute', tool: 'amt_iso_optimize', turns: [u('10,000 ISOs, $2 strike, $40 value, MFJ, $300k income, CA, 4-year horizon, granted 2022-01-01, 5% cash, 12% growth. Best schedule?')] },
-  { label: 'amt missing growth -> clarify', expect: 'clarify', turns: [u('10,000 ISOs, $2 strike, $40 value, MFJ, $300k income, CA, 4-year horizon, granted 2022-01-01, 5% cash. Best schedule?')] },
+  { label: 'amt complete', expect: 'compute', tool: 'amt_iso_optimize', turns: [u('20,000 ISOs, $2 strike, $200 value, MFJ, $300k income, CA, 4-year horizon, granted 2022-01-01, 5% cash, 17% growth, 0.72 volatility. Best schedule?')] },
+  { label: 'amt missing growth/vol -> clarify', expect: 'clarify', turns: [u('10,000 ISOs, $2 strike, $40 value, MFJ, $300k income, CA, 4-year horizon, granted 2022-01-01, 5% cash. Best schedule?')] },
   { label: 'amt multi-turn (nvda follow-up)', expect: 'compute', tool: 'amt_iso_optimize', turns: [
     u('10,000 ISOs, $2 strike, $40 value, MFJ, $300k income, CA, 4-year horizon, granted 2022-01-01, 5% cash. Best schedule?'),
     { role: 'bot', content: 'Give me the stock ticker or an expected annual growth rate.' },

@@ -300,6 +300,46 @@ function headline(tool: string, r: Result): string {
   return '**Your optimized result is ready.**';
 }
 
+// Disclose the forward-looking assumptions the answer rests on (growth,
+// volatility, sale price, hold period), so the user knows what drove it and can
+// change them. Built from the args actually passed to the calculator.
+function assumptionsLine(tool: string, a: Record<string, any>): string {
+  const parts: string[] = [];
+  const tk = typeof a.ticker === 'string' ? a.ticker.toUpperCase() : '';
+  switch (tool) {
+    case 'amt_iso_optimize':
+    case 'concentration_analyze': {
+      const rate = tool === 'amt_iso_optimize' ? a.expectedGrowth : a.expectedPositionReturn;
+      const word = tool === 'amt_iso_optimize' ? 'growth' : 'return';
+      if (tk) {
+        parts.push(`annual ${word} and volatility from ${tk}'s historical returns`);
+      } else {
+        if (typeof rate === 'number') parts.push(`${ratePct(rate)} expected annual ${word}`);
+        parts.push(typeof a.volatility === 'number' ? `${a.volatility} volatility` : 'a default volatility for the stock');
+      }
+      break;
+    }
+    case 'nso_calculate':
+    case 'rsu_sell_vs_hold': {
+      if (tk) parts.push(`a future price from ${tk}'s historical returns`);
+      else if (typeof a.expectedSalePrice === 'number') parts.push(`an expected sale price of ${usd(a.expectedSalePrice)}`);
+      if (typeof a.holdYears === 'number') parts.push(`a ${a.holdYears}-year hold`);
+      break;
+    }
+    case 'protective_put_price': {
+      parts.push(typeof a.volatility === 'number' ? `${a.volatility} volatility` : "volatility from the sector's history");
+      if (typeof a.tenorYears === 'number') parts.push(`a ${a.tenorYears}-year tenor`);
+      break;
+    }
+    case 'equity_funding_plan': {
+      parts.push('the growth and volatility you gave for each holding');
+      break;
+    }
+    // qsbs_check has no forward-looking assumptions (dates + amounts only).
+  }
+  return parts.length ? `Assumptions: ${parts.join(', ')}. Give me a ticker or different numbers to change these.` : '';
+}
+
 // --- parameter extraction (dependency bot) ---------------------------------
 
 // Compact spec of the seven tools for the extractor model: name, first
@@ -468,15 +508,6 @@ const TOOL_DEFAULTS: Record<string, Record<string, unknown>> = {
   protective_put_price: { protectionLevel: 0.1, tenorYears: 1 },
 };
 
-// Forward-estimate fields the tax engine will not invent. When one is missing
-// (and no ticker was given) we ask for it plainly instead of echoing the raw
-// engine hint.
-const RATE_FIELDS: Record<string, string> = {
-  expectedGrowth: 'an expected annual growth rate for the stock (for example 10%)',
-  expectedPositionReturn: 'an expected annual return for the stock (for example 10%)',
-  expectedSalePrice: 'the price you expect to sell at',
-};
-
 // --- query handling --------------------------------------------------------
 
 const INTRO =
@@ -605,6 +636,7 @@ async function handleQuery(ctx: PagesContext, req: PoeRequest, extractor?: Extra
   }
 
   let result: Result;
+  let usedArgs: Record<string, any> = {};
   try {
     // Drop null/undefined/blank values the extractor emitted for fields the
     // user did not state, so the safe defaults below actually take effect
@@ -620,14 +652,22 @@ async function handleQuery(ctx: PagesContext, req: PoeRequest, extractor?: Extra
       delete provided.ticker;
     }
     // Anti-fabrication: the optimizer must never run on a forward growth/return
-    // the model made up (a made-up tax assumption presented as fact is brand
-    // damage). If the user gave no real ticker and never used a growth word,
-    // strip any model-supplied rate so the bot asks instead of guessing.
-    if (!provided.ticker && !/\b(grow|growth|appreciat|cagr)\w*/i.test(convo)) {
-      delete provided.expectedGrowth;
-      delete provided.expectedPositionReturn;
+    // OR volatility the model made up (a made-up tax assumption presented as
+    // fact is brand damage; the model often copies the example's 0.15/0.5). If
+    // the user gave no real ticker and never used the relevant word, strip the
+    // model's value so the bot either asks (growth) or uses the engine's own
+    // documented default (volatility).
+    if (!provided.ticker) {
+      if (!/\b(grow|growth|appreciat|cagr)\w*/i.test(convo)) {
+        delete provided.expectedGrowth;
+        delete provided.expectedPositionReturn;
+      }
+      if (!/\bvol(atility)?\b/i.test(convo)) {
+        delete provided.volatility;
+      }
     }
     const args = { ...(TOOL_DEFAULTS[tool.name] ?? {}), ...provided };
+    usedArgs = args;
     result = tool.handler(args) as Result;
   } catch (e) {
     const raw = e instanceof Error ? e.message : 'invalid inputs';
@@ -637,9 +677,17 @@ async function handleQuery(ctx: PagesContext, req: PoeRequest, extractor?: Extra
     // Ask for it plainly and lead with the easy option (a ticker). Otherwise
     // fall back to the engine hint, stripped of its model-facing meta sentence.
     const field = raw.match(/field\s+"([^"]+)"\s+required/i)?.[1] ?? '';
+    const FORWARD = new Set(['expectedGrowth', 'volatility', 'expectedPositionReturn', 'expectedSalePrice']);
     let ask: string;
-    if (RATE_FIELDS[field]) {
-      ask = `Almost there. Give me the stock's ticker and I will use its historical return, or tell me ${RATE_FIELDS[field]}.`;
+    if (FORWARD.has(field)) {
+      // A missing forward estimate. One ticker-first ask covering everything the
+      // engine derives from a symbol, so the user does not get asked twice.
+      if (tool.name === 'amt_iso_optimize' || tool.name === 'concentration_analyze') {
+        const word = tool.name === 'amt_iso_optimize' ? 'growth' : 'return';
+        ask = `Almost there. Give me the stock's ticker and I will use its historical ${word} and volatility, or tell me both an expected annual ${word} rate (for example 10%) and a volatility (for example 0.5).`;
+      } else {
+        ask = `Almost there. Give me the stock's ticker and I will project the price, or tell me the price you expect to sell at.`;
+      }
     } else {
       const m = raw.match(/required:\s*([\s\S]*)/i);
       const hint = clean((m ? m[1] : raw).split(/\.\s*The model/i)[0]).trim();
@@ -660,8 +708,11 @@ async function handleQuery(ctx: PagesContext, req: PoeRequest, extractor?: Extra
   const cta = pricingActive(env)
     ? `Want this across your whole equity position, not just one question? That is the OptionsAhoy beta: optionsahoy.com/beta?src=poe`
     : `See the full year-by-year breakdown, charted, and try your own numbers free at ${freeToolLink(tool.name)}`;
+  const assume = assumptionsLine(tool.name, usedArgs);
   const body =
-    `${headline(tool.name, result)}\n\n${cta}\n\n` +
+    `${headline(tool.name, result)}\n\n` +
+    (assume ? `${assume}\n\n` : '') +
+    `${cta}\n\n` +
     `_Worked out by the OptionsAhoy optimizer across the full federal tax code plus all 50 states and DC, not estimated._`;
   return textReply(body);
 }

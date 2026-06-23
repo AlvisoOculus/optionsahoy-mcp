@@ -87,7 +87,7 @@ function sseText(raw: string): string {
 // Default user content mentions "growth" so the anti-fabrication guard treats a
 // supplied expectedGrowth as user-given (tests that need the no-growth path pass
 // an explicit content).
-async function ask(tool: string, args: any, env: Record<string, unknown> = {}, req: any = {}, content = 'here are my details, assume the growth rate I gave'): Promise<string> {
+async function ask(tool: string, args: any, env: Record<string, unknown> = {}, req: any = {}, content = 'here are my details, including the growth and volatility I gave'): Promise<string> {
   const res = await handleQuery(ctx(env), { type: 'query', query: [{ role: 'user', content }], ...req }, async () => ({ tool, args }));
   return sseText(await res.text());
 }
@@ -257,9 +257,18 @@ describe('poe error reformatting', () => {
     expect(text).toContain('growth rate'); // asked, did not compute on a made-up number
     expect(text).not.toContain('most money after taxes');
   });
-  it('keeps the growth rate when the user actually said "growth"', async () => {
-    const text = await ask('amt_iso_optimize', VALID_ARGS.amt_iso_optimize, {}, {}, 'best schedule, assume 17% growth');
+  it('keeps growth + volatility when the user gave both, and discloses them', async () => {
+    const text = await ask('amt_iso_optimize', VALID_ARGS.amt_iso_optimize, {}, {}, 'best schedule, assume 17% growth and 0.72 volatility');
     expect(text).toContain('most money after taxes');
+    expect(text).toContain('Assumptions:'); // discloses what it assumed
+    expect(text).toContain('17%');
+  });
+  it('discloses ticker-derived assumptions', async () => {
+    const a = { ...VALID_ARGS.amt_iso_optimize, ticker: 'NVDA' };
+    delete a.expectedGrowth; delete a.volatility;
+    const text = await ask('amt_iso_optimize', a, {}, {}, 'my NVDA ISOs, best schedule');
+    expect(text).toContain('Assumptions:');
+    expect(text).toContain('NVDA');
   });
 
   it('a non-rate missing field still falls back to a cleaned engine hint', async () => {
