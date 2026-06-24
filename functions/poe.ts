@@ -390,6 +390,7 @@ function extractorPrompt(conversation: string): string {
     '- If a required field is missing and cannot be inferred, reply {"clarify":"<one short, friendly question naming what you need>"}. Never invent a tax rate, cash return rate, growth rate, or grant date.',
     '- If the user asks what you can do, what inputs you need, or how to use you (instead of giving a scenario), reply {"help":"<the tool name if they asked about a specific one, otherwise general>"}.',
     '- If the chat is not about equity-compensation tax planning at all, reply {"reject":"<one short sentence>"}.',
+    '- Do NOT confuse prices. A purchase/"bought at"/"paid"/cost basis/strike price is a PAST price; it is costBasisPerShare / adjustedBasis / strike, NEVER currentPrice or fmv. currentPrice and fmv are the value the stock has NOW. Only set currentPrice/fmv from an explicit current value (e.g. "trading at $140", "$140 today", "now worth"). If the user gives only a purchase/cost price and no current value, leave currentPrice/fmv unset.',
     '- filingStatus must be one of: single, married_joint, head_household. stateCode is a two-letter code.',
     '',
     'Conversation so far (resolve the latest user turn using all earlier turns):',
