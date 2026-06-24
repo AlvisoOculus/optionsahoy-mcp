@@ -82,6 +82,26 @@ these live in the answer/description/doc layers.
   framing, and prompts optimize-iso/analyze-rsu/analyze-concentration/price-protective-put/
   check-qsbs routing + enum vocab are correct.
 
+## Resolution log
+
+Each fix lands under a failing contract test (tests-first), then green.
+
+- **P2** (qsbs caveats -> fallback) — FIXED, commit 700c1c6. `caveats` verdict now
+  routes to the likely-qualifies line; phantom `likely`/`likely-qualifies` enums removed.
+  Locked by `tests/contracts/qsbs.contract.*` (no-fallback meta-test).
+- **P9** (qsbs cap parenthetical over-fires) — FIXED, commit 700c1c6. The per-company
+  cap line is now gated on the engine's `cappedOverageNote` (a genuine gain-over-cap),
+  not `applicableCap>0`. Locked by qsbs contract (answerRejects on partial/too-soon/
+  disqualified; requiredFact on a real overage).
+- **P3** (rsu long-term rate on a sub-1yr hold) — FIXED (rsu). The hold wording now
+  branches on `hold.isLongTerm` and adds a short-term-cliff warning. Locked by
+  `tests/contracts/rsu.contract.*`.
+  - NSO sub-finding: NOT a defect. NSO clamps `holdYears` to >=1 (`Math.max(1, ...)`,
+    "sub-1y out of scope") and `HoldStrategy` has no `isLongTerm`, so its hold path is
+    structurally always long-term. The inventory's "guard the same nso line too" was
+    over-cautious; no spurious branch added. (A separate concern — that NSO silently
+    clamps a sub-1yr request — belongs to Phase 6 degraded-input, not P3.)
+
 ## Auditor agent IDs (re-queryable this session)
 - Poe bot: af89b010e6aa872bf
 - MCP descriptions: a1a3513eabd3ed012

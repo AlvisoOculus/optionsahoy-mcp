@@ -269,10 +269,20 @@ function headline(tool: string, r: Result): string {
         const hold = r.hold?.netAtYearN;
         if (typeof sell === 'number' && typeof hold === 'number') {
           const d = hold - sell;
+          // A sub-1-year hold is a short-term sale taxed at ordinary rates, not
+          // the long-term capital-gains rate. Bind the wording to the engine's
+          // isLongTerm so the answer never claims the long-term rate on a cliff.
+          const longTerm = r.hold?.isLongTerm !== false;
+          const holdPhrase = longTerm
+            ? 'holding the shares for the long-term rate'
+            : 'holding the shares to your sale date, under a year and taxed at your ordinary rate,';
           lines.push(
-            `By your sale date, selling at vest and reinvesting reaches about ${usd(sell)}, while holding the shares for the long-term rate reaches about ${usd(hold)}. ` +
+            `By your sale date, selling at vest and reinvesting reaches about ${usd(sell)}, while ${holdPhrase} reaches about ${usd(hold)}. ` +
               `${d >= 0 ? `Holding wins by about ${usd(d)}` : `Selling wins by about ${usd(-d)}`}, before price risk.`,
           );
+          if (!longTerm) {
+            lines.push('Heads up: selling under one year from vest is a short-term sale, taxed as ordinary income. Crossing the one-year mark usually drops the rate on the appreciation.');
+          }
         }
         return lines.join('\n\n');
       }
