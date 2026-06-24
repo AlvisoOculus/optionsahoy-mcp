@@ -58,6 +58,8 @@
     "typecheck": "tsc --noEmit",
     "gen:tax-tables": "node scripts/codegen/gen-federal-tax-tables.mjs",
     "verify:tax-tables": "node scripts/codegen/gen-federal-tax-tables.mjs --check",
+    "gen:toolspec": "tsx scripts/codegen/gen-toolspec.mts",
+    "verify:toolspec": "tsx scripts/codegen/gen-toolspec.mts --check",
     "prepublishOnly": "npm run typecheck && npm test && npm run build",
     "build:mcpb": "npm run build && node scripts/build-mcpb.mjs"
   },

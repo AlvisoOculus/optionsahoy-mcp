@@ -1434,3 +1434,19 @@ export const TOOLS: McpTool[] = [
     handler: (args) => computeEquityFundingComparison(parseEquityFundingInput(args)),
   },
 ];
+
+// Canonical published tool spec (public/toolspec.json in both repos), derived
+// 1:1 from TOOLS so the duplicated mirror cannot silently desync. `outputSchema`
+// and `handler` are intentionally omitted (toolspec is the lighter, input-facing
+// surface). Regenerate the on-disk copies with `npm run gen:toolspec`; the
+// drift guard is tests/toolspec-generated.test.ts.
+export function buildToolSpec(): { tools: Array<Pick<McpTool, 'name' | 'description' | 'inputSchema' | 'annotations'>> } {
+  return {
+    tools: TOOLS.map((t) => ({
+      name: t.name,
+      description: t.description,
+      inputSchema: t.inputSchema,
+      annotations: t.annotations,
+    })),
+  };
+}
