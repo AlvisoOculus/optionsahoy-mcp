@@ -369,7 +369,13 @@ describe('poe error reformatting', () => {
   it('cleans nested null stack fields so the ticker derives growth (was "must be a finite number")', async () => {
     const args = { targetAfterTax: 400000, targetDate: '2027-07-01', stacks: [{ ticker: 'AMZN', currentPrice: null, expectedAnnualGrowth: null, volatility: null, lots: [{ shares: 250, costBasisPerShare: 16, acquisitionDate: '2014-05-01' }] }], ordinaryIncome: 200000, filingStatus: 'married_joint', stateCode: 'CA' };
     const text = await ask('equity_funding_plan', args, {}, {}, 'cash goal 400k by 07.2027, 250 AMZN cost basis 16 bought 05.2014, MFJ CA 200k');
-    expect(text).toMatch(/leaves the most expected wealth/);
+    // The point of this test: null stack fields are cleaned so the ticker drives
+    // the numbers and a real plan computes (not "must be a finite number"). The
+    // derived AMZN price is disclosed and a sell schedule is produced. (250 small
+    // shares can't reach $400k, so this is correctly an infeasible plan, not the
+    // "most expected wealth" success path — that proxy used to mask defect P1.)
+    expect(text).toMatch(/Using AMZN at \$/);
+    expect(text).toMatch(/sell [\d,]+ shares/);
     expect(text).not.toContain('must be a finite number');
   });
 

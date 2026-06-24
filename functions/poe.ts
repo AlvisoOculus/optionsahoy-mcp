@@ -432,15 +432,12 @@ function headline(tool: string, r: Result): string {
         const multiTicker = new Set(steps.flatMap((s) => s.tickers)).size > 1;
         const line = (s: { when: string; shares: number; tickers: string[] }) =>
           `- ${s.when}: sell ${s.shares.toLocaleString('en-US')} shares` + (multiTicker && s.tickers.length ? ` (${s.tickers.join(', ')})` : '');
-        if (steps.length === 0) {
-          lines.push('**Here is the plan to reach your goal.**');
-        } else if (steps.length <= 16) {
-          // Few enough dates to list every one.
-          lines.push(`**Your sell schedule, ${total.toLocaleString('en-US')} shares in total to net ${goal} after tax:**`);
-          lines.push(steps.map(line).join('\n'));
-        } else {
-          // Many dated sales: list them grouped by year so it stays readable but
-          // still exact (per-year totals and the count of sales in each).
+        // Render the dated schedule under a header: list every sale when there
+        // are few enough, else group by year (still exact). Returns [] for an
+        // empty schedule so the caller supplies its own line.
+        const renderSchedule = (header: string): string[] => {
+          if (steps.length === 0) return [];
+          if (steps.length <= 16) return [header, steps.map(line).join('\n')];
           const byYear = new Map<string, { shares: number; n: number; first: string; last: string }>();
           for (const s of steps) {
             const g = byYear.get(s.year) ?? { shares: 0, n: 0, first: s.when, last: s.when };
@@ -449,8 +446,33 @@ function headline(tool: string, r: Result): string {
             g.last = s.when;
             byYear.set(s.year, g);
           }
-          lines.push(`**Your sell schedule, ${total.toLocaleString('en-US')} shares in total to net ${goal} after tax:**`);
-          lines.push([...byYear.entries()].map(([y, g]) => `- ${y}: sell ${g.shares.toLocaleString('en-US')} shares across ${g.n} sales (${g.first} to ${g.last})`).join('\n'));
+          return [
+            header,
+            [...byYear.entries()]
+              .map(([y, g]) => `- ${y}: sell ${g.shares.toLocaleString('en-US')} shares across ${g.n} sales (${g.first} to ${g.last})`)
+              .join('\n'),
+          ];
+        };
+
+        // If the goal can't be reached even selling everything by the deadline,
+        // lead with the shortfall and frame the schedule as the most that can be
+        // raised. Never render an unreachable goal as a success.
+        if (plan.feasible === false) {
+          const sf = plan.shortfall ?? {};
+          const maxAfterTax = num(sf.maxAchievableAfterTax) || num(rec.wealthAtTarget);
+          const gap = num(sf.gap) || Math.max(0, num(plan.targetAfterTax ?? rec.targetAfterTax) - maxAfterTax);
+          lines.push(`**Your ${goal} goal is more than this equity can net by your deadline.**`);
+          lines.push(...renderSchedule(`Selling everything you hold, ${total.toLocaleString('en-US')} shares, is the most you can raise:`));
+          lines.push(
+            `That nets about ${usd(maxAfterTax)} after tax, roughly ${usd(gap)} short of ${goal}. To close the gap you would need more shares, more time, or a lower target.`,
+          );
+          return lines.join('\n\n');
+        }
+
+        if (steps.length === 0) {
+          lines.push('**Here is the plan to reach your goal.**');
+        } else {
+          lines.push(...renderSchedule(`**Your sell schedule, ${total.toLocaleString('en-US')} shares in total to net ${goal} after tax:**`));
         }
         // Why this plan: max expected wealth subject to the shortfall tolerance.
         lines.push(

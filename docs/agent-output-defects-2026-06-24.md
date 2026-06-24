@@ -93,6 +93,15 @@ Each fix lands under a failing contract test (tests-first), then green.
   cap line is now gated on the engine's `cappedOverageNote` (a genuine gain-over-cap),
   not `applicableCap>0`. Locked by qsbs contract (answerRejects on partial/too-soon/
   disqualified; requiredFact on a real overage).
+- **P1** (equity_funding shows an infeasible goal as success) — FIXED. The case now
+  branches on `recommended.plan.feasible`: when false it leads with "your goal is more
+  than this equity can net by your deadline," frames the schedule as the most that can
+  be raised, and states the after-tax max + the gap (from `plan.shortfall`). The
+  success "leaves the most expected wealth" framing is feasible-only. Locked by
+  `tests/contracts/equity-funding.contract.*`. An existing poe.test ("cleans nested
+  null stack fields") had encoded the bug — it built a 250-share -> $400k (infeasible)
+  scenario and asserted the success phrase; re-pointed to assert ticker-derivation +
+  a computed schedule instead.
 - **P3** (rsu long-term rate on a sub-1yr hold) — FIXED (rsu). The hold wording now
   branches on `hold.isLongTerm` and adds a short-term-cliff warning. Locked by
   `tests/contracts/rsu.contract.*`.
