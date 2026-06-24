@@ -315,11 +315,16 @@ function headline(tool: string, r: Result): string {
           );
         }
         if (typeof r.daysUntilLongTerm === 'number') {
-          lines.push(
-            r.daysUntilLongTerm <= 0
-              ? 'It already qualifies for the lower long-term capital-gains rate, so a sale now is taxed at the lower rate.'
-              : `Wait about ${r.daysUntilLongTerm} days and it qualifies for the lower long-term capital-gains rate, usually worth it before you sell.`,
-          );
+          if (r.daysUntilLongTerm <= 0) {
+            lines.push('It already qualifies for the lower long-term capital-gains rate, so a sale now is taxed at the lower rate.');
+          } else {
+            // Quantify the wait with the engine's dollar saving, not just "worth it".
+            const wlt = r.waitForLtInsight;
+            const saving = wlt && typeof wlt.savings === 'number' && wlt.savings > 0
+              ? ` Waiting that long to sell the whole position would cut your tax by about ${usd(wlt.savings)}.`
+              : '';
+            lines.push(`Wait about ${r.daysUntilLongTerm} days and it qualifies for the lower long-term capital-gains rate, usually worth it before you sell.${saving}`);
+          }
         }
         // Hedging as the alternative to selling.
         const h = r.hedging;

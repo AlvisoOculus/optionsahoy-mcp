@@ -119,6 +119,11 @@ Each fix lands under a failing contract test (tests-first), then green.
   `tests/contracts/protective-put.contract.*` (a scenario per recommended value, each
   rejecting the other picks; straddle note required on every answer).
 
+- **P7** (concentration hides waitForLtInsight.savings) — FIXED. When the position is
+  still short-term, the wait line now states the dollar tax saved by holding to
+  long-term (engine `waitForLtInsight.savings`), not just "usually worth it". Locked by
+  `tests/contracts/concentration.contract.*` (waiting vs already-long-term).
+
 ## Auditor agent IDs (re-queryable this session)
 - Poe bot: af89b010e6aa872bf
 - MCP descriptions: a1a3513eabd3ed012
