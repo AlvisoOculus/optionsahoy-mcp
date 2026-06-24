@@ -397,23 +397,43 @@ function headline(tool: string, r: Result): string {
         if (typeof rec.wealthAtTarget !== 'number') break;
         const plan = rec.plan ?? {};
         const lines: string[] = [];
-        // The actual sell schedule: shares to sell at each date.
+        // The actual sell schedule: how many shares to sell on each date.
+        // Show every sale, not a summary -- this is the whole point of the answer.
         const sched: any[] = Array.isArray(plan.schedule) ? plan.schedule : [];
+        const num = (v: unknown) => (typeof v === 'number' && isFinite(v) ? v : 0);
         const steps = sched
-          .map((row: any) => ({
-            when: monthLabel(row.saleDateISO),
-            shares: Array.isArray(row.sales) ? row.sales.reduce((a: number, s: any) => a + (s.shares || 0), 0) : 0,
-          }))
-          .filter((s) => s.shares > 0 && s.when);
-        if (steps.length === 1) {
-          lines.push(`**Sell ${steps[0].shares.toLocaleString('en-US')} shares around ${steps[0].when}.**`);
-        } else if (steps.length > 1 && steps.length <= 4) {
-          lines.push(`**Sell ${steps.map((s) => `${s.shares.toLocaleString('en-US')} shares around ${s.when}`).join(', then ')}.**`);
-        } else if (steps.length > 4) {
-          const total = typeof plan.totalSharesSold === 'number' ? plan.totalSharesSold : steps.reduce((a, s) => a + s.shares, 0);
-          lines.push(`**Sell about ${total.toLocaleString('en-US')} shares in steps from ${steps[0].when} to ${steps[steps.length - 1].when}** (starting with ${steps[0].shares.toLocaleString('en-US')} around ${steps[0].when}).`);
-        } else {
+          .map((row: any) => {
+            const iso = String(row?.saleDateISO ?? '');
+            const m = iso.match(/^(\d{4})-(\d{2})/);
+            const shares = Array.isArray(row?.sales) ? row.sales.reduce((a: number, s: any) => a + num(s?.shares), 0) : 0;
+            const tickers = Array.isArray(row?.sales) ? [...new Set(row.sales.map((s: any) => s?.ticker).filter(Boolean))] : [];
+            return m ? { year: m[1], when: `${MONTHS[parseInt(m[2], 10) - 1]} ${m[1]}`, shares, tickers } : null;
+          })
+          .filter((s): s is { year: string; when: string; shares: number; tickers: string[] } => !!s && s.shares > 0);
+        const total = num(plan.totalSharesSold) || steps.reduce((a, s) => a + s.shares, 0);
+        const goal = usd(plan.targetAfterTax ?? rec.targetAfterTax);
+        const multiTicker = new Set(steps.flatMap((s) => s.tickers)).size > 1;
+        const line = (s: { when: string; shares: number; tickers: string[] }) =>
+          `- ${s.when}: sell ${s.shares.toLocaleString('en-US')} shares` + (multiTicker && s.tickers.length ? ` (${s.tickers.join(', ')})` : '');
+        if (steps.length === 0) {
           lines.push('**Here is the plan to reach your goal.**');
+        } else if (steps.length <= 16) {
+          // Few enough dates to list every one.
+          lines.push(`**Your sell schedule, ${total.toLocaleString('en-US')} shares in total to net ${goal} after tax:**`);
+          lines.push(steps.map(line).join('\n'));
+        } else {
+          // Many dated sales: list them grouped by year so it stays readable but
+          // still exact (per-year totals and the count of sales in each).
+          const byYear = new Map<string, { shares: number; n: number; first: string; last: string }>();
+          for (const s of steps) {
+            const g = byYear.get(s.year) ?? { shares: 0, n: 0, first: s.when, last: s.when };
+            g.shares += s.shares;
+            g.n += 1;
+            g.last = s.when;
+            byYear.set(s.year, g);
+          }
+          lines.push(`**Your sell schedule, ${total.toLocaleString('en-US')} shares in total to net ${goal} after tax:**`);
+          lines.push([...byYear.entries()].map(([y, g]) => `- ${y}: sell ${g.shares.toLocaleString('en-US')} shares across ${g.n} sales (${g.first} to ${g.last})`).join('\n'));
         }
         // Why this plan: max expected wealth subject to the shortfall tolerance.
         lines.push(

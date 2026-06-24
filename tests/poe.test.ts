@@ -183,6 +183,20 @@ describe('poe answers carry web-grade detail', () => {
     expect(text).toMatch(/chance the stock runs past that cap/);
   });
 
+  it('equity_funding: lists every sale date and shares, not a summary', async () => {
+    const args = {
+      targetAfterTax: 400000, targetDate: '2027-07-01',
+      stacks: [{ ticker: 'AMZN', currentPrice: 233, lots: [{ shares: 2500, costBasisPerShare: 16, acquisitionDate: '2014-05-01' }] }],
+      ordinaryIncome: 200000, filingStatus: 'married_joint', stateCode: 'CA', cashInterestRate: 0.04, riskToleranceShortfall: 0.1,
+    };
+    const text = await ask('equity_funding_plan', args, {}, {}, '400k by 07.2027, 2500 AMZN cost 16 bought 05.2014, MFJ CA 200k income, 233 price');
+    expect(text).toMatch(/Your sell schedule, [\d,]+ shares in total/);
+    // The known plan has 8 dated sales; require several explicit per-date lines.
+    const bullets = (text.match(/^- \w{3} \d{4}: sell [\d,]+ shares/gm) || []).length;
+    expect(bullets).toBeGreaterThanOrEqual(3);
+    expect(text).not.toMatch(/in steps from .* to .*\(starting with/); // no summary punt
+  });
+
   it('amt/iso: discloses the extra tax the exercises cost', async () => {
     const text = await ask('amt_iso_optimize', VALID_ARGS.amt_iso_optimize);
     expect(text).toMatch(/add about \$[\d,]+ in tax above your normal bill/);
