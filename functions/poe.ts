@@ -109,6 +109,16 @@ function ratePct(n: unknown): string {
   return `${Math.round(n * 100)}%`;
 }
 
+// "2026-06-24" -> "Jun 2026" for readable sell-schedule dates.
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+function monthLabel(iso: unknown): string {
+  if (typeof iso !== 'string') return '';
+  const m = iso.match(/^(\d{4})-(\d{2})/);
+  if (!m) return '';
+  const mi = parseInt(m[2], 10) - 1;
+  return mi >= 0 && mi < 12 ? `${MONTHS[mi]} ${m[1]}` : '';
+}
+
 // Sanitize a calc-provided string for the bot voice (no em-dashes).
 function clean(s: unknown): string {
   return typeof s === 'string' ? s.replace(/\s*—\s*/g, ', ').replace(/–/g, '-') : '';
@@ -198,6 +208,20 @@ function headline(tool: string, r: Result): string {
               (typeof lump === 'number' ? `, and far more than exercising everything at once (${usd(lump)}).` : '.'),
           );
         }
+        if (typeof opt.exerciseTax === 'number' && opt.exerciseTax > 0) {
+          lines.push(
+            `These exercises add about ${usd(opt.exerciseTax)} in tax above your normal bill, mostly alternative minimum tax (AMT)` +
+              (typeof opt.creditRecovered === 'number' && opt.creditRecovered > 0 ? `, of which roughly ${usd(opt.creditRecovered)} comes back as AMT credit within the plan.` : '.'),
+          );
+        }
+        // Holding-period guardrail: ISO shares need the qualifying-disposition
+        // hold for the long-term rate.
+        const t = r.timing;
+        if (t && t.qdNotYetEligible && typeof t.qdEligibleDate === 'string') {
+          lines.push(`For the lower qualifying rate, hold the exercised shares until ${monthLabel(t.qdEligibleDate)} (two years from grant, one from exercise).`);
+        } else if (t && typeof t.daysUntilWindowClose === 'number' && t.daysUntilWindowClose > 0 && t.daysUntilWindowClose < 400) {
+          lines.push(`Heads up: your exercise window closes in about ${t.daysUntilWindowClose} days, so unexercised options expire or convert after that.`);
+        }
         return lines.join('\n\n');
       }
       case 'nso_calculate': {
@@ -256,23 +280,43 @@ function headline(tool: string, r: Result): string {
         if (typeof r.riskBand !== 'string' && typeof r.concentration !== 'number') break;
         const band = typeof r.riskBand === 'string' ? r.riskBand : 'Notable';
         const lines = [`**Single-stock risk level: ${band}.**`];
-        if (typeof r.concentration === 'number') lines.push(`It is ${pct(r.concentration)} of everything you own.`);
+        if (typeof r.concentration === 'number') {
+          lines.push(`This position is ${pct(r.concentration)} of your liquid net worth.` + (typeof r.advisorBenchmarkLine === 'string' ? ` ${clean(r.advisorBenchmarkLine)}` : ''));
+        }
         if (Array.isArray(r.lossExposure)) {
           const scen = r.lossExposure
             .filter((l: any) => typeof l.dollarLoss === 'number')
-            .map((l: any) => `a ${ratePct(l.drop)} drop loses about ${usd(l.dollarLoss)}`)
+            .map((l: any) => `a ${ratePct(l.drop)} drop costs you about ${usd(l.dollarLoss)}`)
             .join('; ');
-          if (scen) lines.push(`Downside scenarios: ${scen}.`);
+          if (scen) lines.push(`What a pullback would cost: ${scen}.`);
+        }
+        // Sell-down plans: show the wealth-and-tax trade-off between unwinding
+        // fast and unwinding slow, with the actual after-tax numbers.
+        const sched: any[] = Array.isArray(r.schedule) ? r.schedule : [];
+        const plans = sched.filter((p: any) => typeof p.endOfHorizonWealth === 'number' && typeof p.totalTax === 'number');
+        if (plans.length >= 2) {
+          const fast = plans[0];
+          const slow = plans[plans.length - 1];
+          const yrs = (p: any) => (Array.isArray(p.yearlySales) ? p.yearlySales.length : 0);
+          const label = (n: number) => (n <= 1 ? 'selling it all within a year' : `spreading the sale over ${n} years`);
+          const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+          lines.push(
+            `${cap(label(yrs(fast)))} leaves about ${usd(fast.endOfHorizonWealth)} after roughly ${usd(fast.totalTax)} in tax; ${label(yrs(slow))} leaves about ${usd(slow.endOfHorizonWealth)} after ${usd(slow.totalTax)}. Selling sooner cuts your single-stock risk faster; the numbers show what each pace does to your tax and ending wealth.`,
+          );
         }
         if (typeof r.daysUntilLongTerm === 'number') {
           lines.push(
             r.daysUntilLongTerm <= 0
-              ? 'It already qualifies for the lower long-term capital-gains rate.'
-              : `It reaches the lower long-term rate in about ${r.daysUntilLongTerm} days, which is worth waiting for if you can.`,
+              ? 'It already qualifies for the lower long-term capital-gains rate, so a sale now is taxed at the lower rate.'
+              : `Wait about ${r.daysUntilLongTerm} days and it qualifies for the lower long-term capital-gains rate, usually worth it before you sell.`,
           );
         }
+        // Hedging as the alternative to selling.
+        const h = r.hedging;
+        if (h && typeof h.putPrice === 'number' && typeof h.strike === 'number') {
+          lines.push(`Prefer not to sell yet? A one-year put protecting against drops below ${usd(h.strike)} costs about ${usd(h.putPrice)}.`);
+        }
         if (typeof r.sectorContextLine === 'string') lines.push(clean(r.sectorContextLine));
-        lines.push('Your three ways to manage it, sell down, hold, or hedge, are compared after tax side by side in the tool.');
         return lines.join('\n\n');
       }
       case 'protective_put_price': {
@@ -282,14 +326,23 @@ function headline(tool: string, r: Result): string {
         const lines = ['**Here are your two ways to protect this position.**'];
         if (typeof bp.maxLoss === 'number') {
           lines.push(
-            `Protective put: costs about ${pct(bp.annualCostPct)} of the position per year (${usd(bp.annualCost)}), caps your loss at about ${usd(bp.maxLoss)}, and keeps all of your upside.`,
+            `Protective put: about ${pct(bp.annualCostPct)} of the position per year (${usd(bp.annualCost)})` +
+              (typeof bp.strike === 'number' ? `, puts a floor under your value at ${usd(bp.strike)}` : '') +
+              `, caps your loss at about ${usd(bp.maxLoss)}, and keeps all of your upside.`,
           );
         }
         if (typeof col.maxLoss === 'number') {
           const cost = col.isZeroCost ? 'nothing out of pocket' : `about ${usd(col.annualCost)} per year`;
           lines.push(
-            `Zero-cost collar: costs ${cost}, caps your loss at about ${usd(col.maxLoss)}, but limits your upside to about +${pct(col.upsideCapPct)}.`,
+            `Zero-cost collar: ${cost}` +
+              (typeof col.putStrike === 'number' ? `, same floor at ${usd(col.putStrike)}` : '') +
+              `, caps your loss at about ${usd(col.maxLoss)}, but limits your upside to about +${pct(col.upsideCapPct)}` +
+              (typeof col.capProbability === 'number' ? ` (about a ${pct(col.capProbability)} chance the stock runs past that cap).` : '.'),
           );
+        }
+        // Flag when the put is poor value, mirroring the web tool's warning.
+        if (typeof bp.premiumToExpectedProfitRatio === 'number' && bp.premiumToExpectedProfitRatio > 0.4) {
+          lines.push(`One caution: the put's premium eats roughly ${pct(bp.premiumToExpectedProfitRatio)} of your expected upside over the year, so the collar is usually the better value here.`);
         }
         lines.push('The put keeps your full upside for a yearly premium; the collar is cheaper but trades away gains above the cap.');
         return lines.join('\n\n');
@@ -302,18 +355,39 @@ function headline(tool: string, r: Result): string {
             ? '**Good news: this looks like it qualifies for the QSBS gain exclusion.**'
             : v === 'partial'
               ? '**This partially qualifies for the QSBS gain exclusion.**'
-              : '**This does not appear to qualify for the QSBS gain exclusion.**';
+              : v === 'too-soon'
+                ? '**Not yet, but it is on track to qualify for the QSBS gain exclusion once the holding period is met.**'
+                : v === 'likely' || v === 'likely-qualifies'
+                  ? '**This likely qualifies for the QSBS gain exclusion, with a couple of items to confirm.**'
+                  : '**This does not appear to qualify for the QSBS gain exclusion.**';
         const lines = [verdictLine];
         if (typeof r.exclusionPercent === 'number') lines.push(`Federal exclusion: ${pct(r.exclusionPercent)} of the gain.`);
-        if (typeof r.excludableGain === 'number') {
+        if (typeof r.excludableGain === 'number' && r.excludableGain > 0) {
           lines.push(
             `That shields about ${usd(r.excludableGain)} of gain` +
               (typeof r.federalTaxSaved === 'number' ? `, saving roughly ${usd(r.federalTaxSaved)} in federal tax.` : '.'),
           );
         }
-        if (typeof r.taxableGain === 'number' && r.taxableGain > 0) lines.push(`About ${usd(r.taxableGain)} of gain sits above the cap and stays taxable.`);
+        if (typeof r.taxableGain === 'number' && r.taxableGain > 0) {
+          lines.push(
+            `About ${usd(r.taxableGain)} of gain stays taxable` +
+              (typeof r.applicableCap === 'number' && r.applicableCap > 0 ? ` (the exclusion is capped at ${usd(r.applicableCap)} per company).` : '.'),
+          );
+        }
+        // Name the specific tests that are blocking or pending, the actionable
+        // part the web tool shows as a checklist.
+        const tests: any[] = Array.isArray(r.tests) ? r.tests : [];
+        const blocking = tests.filter((t: any) => t.status === 'fail');
+        const waiting = tests.filter((t: any) => t.status === 'wait');
+        const unsure = tests.filter((t: any) => t.status === 'unsure' || t.status === 'not-sure');
+        if (blocking.length) {
+          lines.push(`What is blocking it: ${blocking.map((t: any) => `${String(t.label).toLowerCase()} (${clean(t.detail)})`).join('; ')}`);
+        } else if (waiting.length) {
+          lines.push(`Just a matter of time: ${waiting.map((t: any) => clean(t.detail)).join('; ')}`);
+        }
+        if (unsure.length) lines.push(`Confirm these with a tax professional before relying on it: ${unsure.map((t: any) => String(t.label).toLowerCase()).join(', ')}.`);
         if (typeof r.stateNote === 'string') lines.push(clean(r.stateNote));
-        if (typeof r.yearsUntilFullExclusion === 'number' && r.yearsUntilFullExclusion > 0) {
+        if (!waiting.length && typeof r.yearsUntilFullExclusion === 'number' && r.yearsUntilFullExclusion > 0) {
           lines.push(`Hold about ${r.yearsUntilFullExclusion} more year(s) to reach the full exclusion.`);
         }
         return lines.join('\n\n');
@@ -321,20 +395,41 @@ function headline(tool: string, r: Result): string {
       case 'equity_funding_plan': {
         const rec = r.recommended ?? {};
         if (typeof rec.wealthAtTarget !== 'number') break;
-        const lines = [
-          `**Recommended plan: reach about ${usd(rec.wealthAtTarget)} by your deadline` +
+        const plan = rec.plan ?? {};
+        const lines: string[] = [];
+        // The actual sell schedule: shares to sell at each date.
+        const sched: any[] = Array.isArray(plan.schedule) ? plan.schedule : [];
+        const steps = sched
+          .map((row: any) => ({
+            when: monthLabel(row.saleDateISO),
+            shares: Array.isArray(row.sales) ? row.sales.reduce((a: number, s: any) => a + (s.shares || 0), 0) : 0,
+          }))
+          .filter((s) => s.shares > 0 && s.when);
+        if (steps.length === 1) {
+          lines.push(`**Sell ${steps[0].shares.toLocaleString('en-US')} shares around ${steps[0].when}.**`);
+        } else if (steps.length > 1 && steps.length <= 4) {
+          lines.push(`**Sell ${steps.map((s) => `${s.shares.toLocaleString('en-US')} shares around ${s.when}`).join(', then ')}.**`);
+        } else if (steps.length > 4) {
+          const total = typeof plan.totalSharesSold === 'number' ? plan.totalSharesSold : steps.reduce((a, s) => a + s.shares, 0);
+          lines.push(`**Sell about ${total.toLocaleString('en-US')} shares in steps from ${steps[0].when} to ${steps[steps.length - 1].when}** (starting with ${steps[0].shares.toLocaleString('en-US')} around ${steps[0].when}).`);
+        } else {
+          lines.push('**Here is the plan to reach your goal.**');
+        }
+        // Why this plan: max expected wealth subject to the shortfall tolerance.
+        lines.push(
+          `Of the plans that keep your risk of missing the ${usd(plan.targetAfterTax ?? rec.targetAfterTax)} goal within tolerance, this leaves the most expected wealth: about ${usd(rec.wealthAtTarget)} at your deadline` +
             (typeof rec.totalTax === 'number' ? `, after about ${usd(rec.totalTax)} in taxes` : '') +
-            (typeof rec.shortfallProbability === 'number' ? `, with about a ${pct(rec.shortfallProbability)} chance of falling short.` : '.') +
-            '**',
-        ];
+            (typeof rec.shortfallProbability === 'number' ? `, with about a ${pct(rec.shortfallProbability)} chance of still falling short.` : '.'),
+        );
+        // The trade-off across the named alternatives.
         const opt: string[] = [];
         const li = r.lockInNow;
         const ba = r.balanced;
         const hg = r.holdForGrowth;
-        if (li && typeof li.wealthAtTarget === 'number') opt.push(`sell now for about ${usd(li.wealthAtTarget)} with ${pct(li.shortfallProbability || 0)} risk of falling short`);
+        if (li && typeof li.wealthAtTarget === 'number') opt.push(`sell everything now for about ${usd(li.wealthAtTarget)} at ${pct(li.shortfallProbability || 0)} shortfall risk`);
         if (ba && typeof ba.wealthAtTarget === 'number') opt.push(`spread the sales for about ${usd(ba.wealthAtTarget)} at ${pct(ba.shortfallProbability || 0)} risk`);
         if (hg && typeof hg.wealthAtTarget === 'number') opt.push(`hold for growth for about ${usd(hg.wealthAtTarget)} at ${pct(hg.shortfallProbability || 0)} risk`);
-        if (opt.length) lines.push(`Your choices run from safe to aggressive: ${opt.join('; ')}. The recommended plan is the most you can expect while keeping the shortfall risk near your tolerance.`);
+        if (opt.length) lines.push(`The trade-off, safe to aggressive: ${opt.join('; ')}. Holding longer can grow the pot but raises the odds of missing the goal.`);
         return lines.join('\n\n');
       }
     }

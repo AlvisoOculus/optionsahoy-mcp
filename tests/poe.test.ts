@@ -66,7 +66,7 @@ const COMPARISON_MARKER: Record<string, RegExp> = {
   amt_iso_optimize: /more than/,
   nso_calculate: /wins by/,
   rsu_sell_vs_hold: /wins by/,
-  concentration_analyze: /Downside scenarios/,
+  concentration_analyze: /single-stock risk faster/,
   protective_put_price: /collar/,
   qsbs_check: /exclusion/,
   equity_funding_plan: /safe to aggressive/,
@@ -164,6 +164,53 @@ describe('poe answers (all 7 tools)', () => {
       expect(text).not.toMatch(/I need a bit more|could not parse/);
     });
   }
+});
+
+// Each answer must carry the substantive detail the web tool shows, not a
+// vague "see the tool" punt. These guard the richness, tool by tool.
+describe('poe answers carry web-grade detail', () => {
+  it('concentration: advisor benchmark, sell-pace wealth/tax, and a hedge cost', async () => {
+    const text = await ask('concentration_analyze', VALID_ARGS.concentration_analyze);
+    expect(text).toMatch(/advisors target|single name/i); // advisor benchmark
+    expect(text).toMatch(/leaves about \$[\d,]+ after/); // plan wealth + tax
+    expect(text).toMatch(/put protecting against drops below \$[\d,]+ costs about \$/); // hedge
+    expect(text).not.toMatch(/compared after tax side by side in the tool/); // no punt
+  });
+
+  it('protective put: floor strike, cap probability, and the put-vs-collar value call', async () => {
+    const text = await ask('protective_put_price', { ...VALID_ARGS.protective_put_price, protectionLevel: 0.2, volatility: 0.4, currentPrice: 200 });
+    expect(text).toMatch(/floor under your value at \$|floor at \$/);
+    expect(text).toMatch(/chance the stock runs past that cap/);
+  });
+
+  it('amt/iso: discloses the extra tax the exercises cost', async () => {
+    const text = await ask('amt_iso_optimize', VALID_ARGS.amt_iso_optimize);
+    expect(text).toMatch(/add about \$[\d,]+ in tax above your normal bill/);
+  });
+
+  it('qsbs disqualified: names the specific test that is blocking', async () => {
+    const args = {
+      acquisitionDate: '2024-06-01', saleDate: '2026-06-01', entityType: 'us-c-corp',
+      acquisitionMethod: 'original-issuance', assetCategory: 'over-75m', industry: 'tech-software',
+      activeBusiness: 'yes', adjustedBasis: 0, expectedGain: 5000000, stateCode: 'CA',
+      ordinaryIncome: 200000, filingStatus: 'single',
+    };
+    const text = await ask('qsbs_check', args, {}, {}, 'c-corp orig over75m software active 2024-06-01 sell 2026-06-01 gain 5000000 CA single 200k');
+    expect(text).toMatch(/What is blocking it:/);
+    expect(text).toMatch(/gross assets/i);
+  });
+
+  it('qsbs too-soon: frames it as on track, not disqualified', async () => {
+    const args = {
+      acquisitionDate: '2023-06-01', saleDate: '2026-12-01', entityType: 'us-c-corp',
+      acquisitionMethod: 'original-issuance', assetCategory: 'under-50m', industry: 'tech-software',
+      activeBusiness: 'yes', adjustedBasis: 0, expectedGain: 5000000, stateCode: 'TX',
+      ordinaryIncome: 200000, filingStatus: 'single',
+    };
+    const text = await ask('qsbs_check', args, {}, {}, 'c-corp orig under50m software active 2023-06-01 sell 2026-12-01 gain 5000000 TX single 200k');
+    expect(text).toMatch(/on track to qualify/);
+    expect(text).not.toMatch(/does not appear to qualify/);
+  });
 });
 
 // --- help / capability -----------------------------------------------------
@@ -308,7 +355,7 @@ describe('poe error reformatting', () => {
   it('cleans nested null stack fields so the ticker derives growth (was "must be a finite number")', async () => {
     const args = { targetAfterTax: 400000, targetDate: '2027-07-01', stacks: [{ ticker: 'AMZN', currentPrice: null, expectedAnnualGrowth: null, volatility: null, lots: [{ shares: 250, costBasisPerShare: 16, acquisitionDate: '2014-05-01' }] }], ordinaryIncome: 200000, filingStatus: 'married_joint', stateCode: 'CA' };
     const text = await ask('equity_funding_plan', args, {}, {}, 'cash goal 400k by 07.2027, 250 AMZN cost basis 16 bought 05.2014, MFJ CA 200k');
-    expect(text).toContain('Recommended plan');
+    expect(text).toMatch(/leaves the most expected wealth/);
     expect(text).not.toContain('must be a finite number');
   });
 
@@ -323,7 +370,7 @@ describe('poe error reformatting', () => {
     const args = { targetAfterTax: 400000, targetDate: '2028-06-01', stacks: [{ ticker: 'NVDA', currentPrice: 60, expectedAnnualGrowth: 0.15, volatility: 0.45, lots: [{ shares: 4000, costBasisPerShare: 60, acquisitionDate: '2023-06-15' }] }], ordinaryIncome: 280000, filingStatus: 'married_joint', stateCode: 'CA', cashInterestRate: 0.04, riskToleranceShortfall: 0.1 };
     const text = await ask('equity_funding_plan', args, {}, {}, 'fund 400k from 4000 NVDA bought at $60');
     // The $60 cost basis is dropped; the snapshot price is used and disclosed.
-    expect(text).toContain('Recommended plan');
+    expect(text).toMatch(/leaves the most expected wealth/);
     expect(text).toMatch(/Using NVDA at \$/);
   });
 
