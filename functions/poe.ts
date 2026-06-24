@@ -662,7 +662,24 @@ async function handleQuery(ctx: PagesContext, req: PoeRequest, extractor?: Extra
     if (Array.isArray(provided.stacks)) {
       for (const s of provided.stacks) {
         if (s && typeof s.currentPrice === 'number' && s.currentPrice <= 0) delete s.currentPrice;
+        // Confusion guard: the model sometimes copies a lot's cost basis into
+        // currentPrice when no current price was given. If they match exactly,
+        // drop it so the bot asks rather than valuing the stock at its old cost.
+        if (
+          s && typeof s.currentPrice === 'number' && Array.isArray(s.lots) &&
+          s.lots.some((l: any) => typeof l?.costBasisPerShare === 'number' && l.costBasisPerShare === s.currentPrice)
+        ) {
+          delete s.currentPrice;
+        }
       }
+    }
+    if (
+      tool.name === 'concentration_analyze' &&
+      typeof provided.positionValue === 'number' &&
+      typeof provided.costBasis === 'number' &&
+      provided.positionValue === provided.costBasis
+    ) {
+      delete provided.positionValue;
     }
     // Deterministic ticker follow-up: if we just asked for a ticker and the
     // user's reply is a lone symbol (e.g. "nvda"), use it. The model is

@@ -291,6 +291,13 @@ describe('poe error reformatting', () => {
     expect(text).not.toContain('must be a finite number');
   });
 
+  it('never values equity_funding at the cost basis (price-confusion guard)', async () => {
+    const args = { targetAfterTax: 400000, targetDate: '2028-06-01', stacks: [{ ticker: 'NVDA', currentPrice: 60, expectedAnnualGrowth: 0.15, volatility: 0.45, lots: [{ shares: 4000, costBasisPerShare: 60, acquisitionDate: '2023-06-15' }] }], ordinaryIncome: 280000, filingStatus: 'married_joint', stateCode: 'CA', cashInterestRate: 0.04, riskToleranceShortfall: 0.1 };
+    const text = await ask('equity_funding_plan', args, {}, {}, 'fund 400k from 4000 NVDA bought at $60');
+    expect(text).toMatch(/trading at now|current price/);
+    expect(text).not.toContain('Recommended plan');
+  });
+
   it('a non-rate missing field still falls back to a cleaned engine hint', async () => {
     // nso without holdYears (required, not a rate field) -> generic clean ask.
     const a = { ...VALID_ARGS.nso_calculate };
