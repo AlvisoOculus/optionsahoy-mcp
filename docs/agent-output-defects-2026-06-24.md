@@ -283,10 +283,22 @@ Black-Scholes model name neutralized everywhere. mcp 527 tests pass; web pre-com
 all JSON validated; for-agents type-checks. R13 (llms-full AMT schedule prose under-listing) left as
 low-priority polish.
 
-NOTE / follow-up: llms-full.txt and toolspec.json are HAND-MAINTAINED full mirrors of the tool
-descriptions; they were synced for every audited defect, but a durable fix is a generator that emits
-them from the TOOLS source (the Phase-4 "generated docs --check" the plan calls for, not yet built),
-so future description edits can't silently desync the public copies.
+NOTE / follow-up: llms-full.txt and toolspec.json are mirrors of the tool descriptions.
+RESOLVED 2026-06-24:
+- toolspec.json is now GENERATED from the TOOLS source (buildToolSpec in mcp-tools.ts;
+  `npm run gen:toolspec`/`verify:toolspec`; both repo copies regenerated). Drift guard:
+  tests/toolspec-generated.test.ts deep-equals each on-disk copy to the source. (mcp b4982ca, web b01755cb)
+- llms.txt / llms-full.txt are curated narrative (not generated); guarded instead by
+  tests/published-docs-lint.test.ts, which fails if either copy reintroduces an audited defect
+  (eight-tests, does-not-qualify, daily-refreshed, Black-Scholes, IV multiplier/1.20, source paths,
+  search-strategy IP, em-dashes). (mcp a8ce40b, web 1fdb5084)
+
+EXTRACTOR MODEL (P13/P14 follow-up): TESTED, not upgraded. scripts/poe-model-bakeoff.mts +
+poe-model-flake.mts show that with the shipped carry-forward prompt fix, gpt-4o-mini passes the
+multi-turn tweak cases 8/8 at temperature 0 -- equal to gpt-4.1-mini and gpt-4o. The prompt fix, not
+a model change, resolved P14; P13's `today` is stripped regardless of model. An upgrade buys no
+measured benefit on these cases; gpt-4.1-mini is the cheapest recent-cutoff option if headroom is
+wanted. Decision left to Andrew; DEFAULT_OR_MODEL unchanged (openai/gpt-4o-mini).
 
 ### Remaining (polish only)
 1. **MCP descriptions/schemas (mcp-tools.ts)** — M1, M2, M3, M4, M5, M6, M7, M9, M10, M11. Source-repo
