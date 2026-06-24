@@ -295,20 +295,29 @@ describe('poe error reformatting', () => {
     expect(text).toContain('NVDA');
   });
 
-  it('asks plainly for a missing current price (no live quote, no raw error)', async () => {
+  it('asks plainly for a missing current price when there is no covered ticker', async () => {
     const a = { ...VALID_ARGS.equity_funding_plan };
-    a.stacks = [{ ticker: 'NVDA', lots: [{ shares: 4000, costBasisPerShare: 60, acquisitionDate: '2023-06-15' }], expectedAnnualGrowth: 0.15, volatility: 0.45 }]; // no currentPrice
-    const text = await ask('equity_funding_plan', a, {}, {}, 'fund $400k from my NVDA, growth and volatility given');
+    // No ticker (and no current price) -> cannot suggest a price -> ask.
+    a.stacks = [{ lots: [{ shares: 4000, costBasisPerShare: 60, acquisitionDate: '2023-06-15' }], expectedAnnualGrowth: 0.15, volatility: 0.45 }];
+    const text = await ask('equity_funding_plan', a, {}, {}, 'fund $400k from my shares, 0.15 growth 0.45 vol, bought at $60');
     expect(text).toMatch(/trading at now|current price/);
     expect(text).not.toMatch(/field "currentPrice"/);
     expect(text).not.toContain('must be a finite number');
   });
 
-  it('never values equity_funding at the cost basis (price-confusion guard)', async () => {
+  it('suggests the current price from a ticker (covered), disclosed', async () => {
+    const a = { shares: 10000, strike: 2, ticker: 'NVDA', filingStatus: 'married_joint', ordinaryIncome: 300000, stateCode: 'CA', horizon: 4, cashReturnRate: 0.05, grantDate: '2022-01-01' };
+    const text = await ask('amt_iso_optimize', a, {}, {}, '10,000 NVDA ISOs, $2 strike, 300k income, MFJ, CA, 4yr, 5% cash');
+    expect(text).toContain('most money after taxes'); // computed, did not ask
+    expect(text).toMatch(/Using NVDA at \$/); // price disclosed
+  });
+
+  it('never values equity_funding at the cost basis: drops it, then suggests the real price', async () => {
     const args = { targetAfterTax: 400000, targetDate: '2028-06-01', stacks: [{ ticker: 'NVDA', currentPrice: 60, expectedAnnualGrowth: 0.15, volatility: 0.45, lots: [{ shares: 4000, costBasisPerShare: 60, acquisitionDate: '2023-06-15' }] }], ordinaryIncome: 280000, filingStatus: 'married_joint', stateCode: 'CA', cashInterestRate: 0.04, riskToleranceShortfall: 0.1 };
     const text = await ask('equity_funding_plan', args, {}, {}, 'fund 400k from 4000 NVDA bought at $60');
-    expect(text).toMatch(/trading at now|current price/);
-    expect(text).not.toContain('Recommended plan');
+    // The $60 cost basis is dropped; the snapshot price is used and disclosed.
+    expect(text).toContain('Recommended plan');
+    expect(text).toMatch(/Using NVDA at \$/);
   });
 
   it('a non-rate missing field still falls back to a cleaned engine hint', async () => {

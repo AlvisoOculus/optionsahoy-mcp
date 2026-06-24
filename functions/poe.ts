@@ -22,6 +22,7 @@
 import { TOOLS } from './_lib/mcp-tools';
 import { PER_TOOL_FREE_TOOL_BARE } from './_lib/sessions';
 import { logCall } from './_lib/stats';
+import { getCurrentPrice } from '../lib/data/prices';
 import type { PagesContext, PagesFunction } from './_lib/api';
 
 const POE_COST_API = 'https://api.poe.com/bot/cost/';
@@ -664,6 +665,7 @@ async function handleQuery(ctx: PagesContext, req: PoeRequest, extractor?: Extra
 
   let result: Result;
   let usedArgs: Record<string, any> = {};
+  let priceNote = '';
   try {
     // Drop null/undefined/blank values the extractor emitted for fields the
     // user did not state, so the safe defaults below actually take effect
@@ -720,6 +722,30 @@ async function handleQuery(ctx: PagesContext, req: PoeRequest, extractor?: Extra
     if (!provided.ticker && /^[A-Za-z]{1,5}$/.test(lastUserText) && lastBot && /ticker/i.test(lastBot.content ?? '')) {
       provided.ticker = lastUserText.toUpperCase();
     }
+    // Suggest a current price from the ticker (a dated snapshot, like the web
+    // tools' prefill) so the user need not type one. Disclosed + overridable.
+    const PX_FIELD: Record<string, string> = { amt_iso_optimize: 'fmv', nso_calculate: 'currentPrice', rsu_sell_vs_hold: 'currentPrice' };
+    const pxField = PX_FIELD[tool.name];
+    if (pxField && typeof provided.ticker === 'string' && typeof provided[pxField] !== 'number') {
+      const px = getCurrentPrice(provided.ticker);
+      if (px) {
+        provided[pxField] = px.price;
+        priceNote = `Using ${provided.ticker.toUpperCase()} at ${usd(px.price)} as of ${px.asOf} (tell me if that is off).`;
+      }
+    }
+    if (tool.name === 'equity_funding_plan' && Array.isArray(provided.stacks)) {
+      const notes: string[] = [];
+      for (const s of provided.stacks) {
+        if (s && typeof s.ticker === 'string' && typeof s.currentPrice !== 'number') {
+          const px = getCurrentPrice(s.ticker);
+          if (px) {
+            s.currentPrice = px.price;
+            notes.push(`${s.ticker.toUpperCase()} at ${usd(px.price)}`);
+          }
+        }
+      }
+      if (notes.length) priceNote = `Using ${notes.join(', ')} as of the latest snapshot (tell me if that is off).`;
+    }
     const args = { ...(TOOL_DEFAULTS[tool.name] ?? {}), ...provided };
     usedArgs = args;
     result = tool.handler(args) as Result;
@@ -774,6 +800,7 @@ async function handleQuery(ctx: PagesContext, req: PoeRequest, extractor?: Extra
   const assume = assumptionsLine(tool.name, usedArgs);
   const body =
     `${headline(tool.name, result)}\n\n` +
+    (priceNote ? `${priceNote}\n\n` : '') +
     (assume ? `${assume}\n\n` : '') +
     `${cta}\n\n` +
     `_Worked out by the OptionsAhoy optimizer across the full federal tax code plus all 50 states and DC, not estimated._`;
