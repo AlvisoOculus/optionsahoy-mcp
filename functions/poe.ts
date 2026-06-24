@@ -893,6 +893,12 @@ async function handleQuery(ctx: PagesContext, req: PoeRequest, extractor?: Extra
     if (typeof provided.ticker === 'string' && !/^[A-Za-z][A-Za-z.\-]{0,5}$/.test(provided.ticker.trim())) {
       delete provided.ticker;
     }
+    // The current date is the server's to know, never the model's. The extractor
+    // (its training cutoff in the past) otherwise emits a stale `today` that
+    // anchors equity_funding's schedule years before the real date. Always drop
+    // it so the engine uses the real clock. ("today" is a test-only hook on the
+    // shared input schema; no consumer turn should set it.)
+    delete provided.today;
     // Anti-fabrication: a price or forward rate the model supplied must actually
     // appear in the user's text. Otherwise the model fills currentPrice / growth
     // / volatility from its own knowledge of a named stock (e.g. NVDA ~ $140) --

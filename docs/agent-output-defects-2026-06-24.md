@@ -153,6 +153,25 @@ Each fix lands under a failing contract test (tests-first), then green.
   contract. (`comparison.optimizedSavingsVsTargetYearSale` is already conveyed by the
   hold-for-growth trade-off line; not duplicated.)
 
+## P13 (NEW, found by Andrew in live use 2026-06-24) — model-supplied `today` poisons equity_funding
+
+A follow-up turn ("what about 2% shortfall risk?") returned a sell schedule dated Oct 2023 ->
+Dec 2024 (in the PAST) for a 07.2027 deadline. Root cause: equity_funding's input schema exposes
+`today` (a test-only "reference now" hook, `lib/calc/equityFunding.ts:118`, `mcp-tools.ts:1431`),
+and `parseEquityFundingInput` trusts `o.today` (`calc-parsers.ts:311`). The Poe extractor model
+(gpt-4o-mini, training cutoff ~Oct 2023) emitted `today` as its stale sense of "now" on the second
+turn, so the engine anchored every schedule year in the past. The first turn happened not to emit it.
+The anti-fabrication guard stripped fake prices/rates but not `today`.
+
+- **Poe bot** — FIXED. The handler now always `delete provided.today` (the server clock is
+  authoritative; no consumer turn should set it). Locked by a poe.test ("ignores a
+  model-hallucinated past `today`"): with `today: 2023-10-01` injected, every sale year must be
+  >= the real current year. Verified red (schedule started 2023) -> green.
+- **MCP/REST surfaces (FOLLOW-UP, Phase 4)** — `today` is still advertised on the public input
+  schema, so any agent could pass a wrong/stale date and get a past-dated plan. Options: drop
+  `today` from the public schema (keep a separate test-only injection), or have the parser reject a
+  `today` earlier than the real now. Tracked for the Phase 4 schema cleanup; not yet shipped.
+
 ## Bot answer layer (Phases 0-2): COMPLETE
 
 All 7 tools have answer contracts (tests/contracts/*.contract.ts) bound to the engine

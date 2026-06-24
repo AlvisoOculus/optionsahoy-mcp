@@ -386,6 +386,23 @@ describe('poe error reformatting', () => {
     expect(text).toMatch(/Using NVDA at \$/); // price disclosed
   });
 
+  it('equity_funding: ignores a model-hallucinated past `today`, anchors the schedule to the real date', async () => {
+    // The extractor model (training cutoff in the past) can emit `today` as its
+    // stale sense of "now"; the parser would anchor the whole schedule there,
+    // producing sell dates BEFORE the real current date. The server clock must win.
+    const args = {
+      today: '2023-10-01',
+      targetAfterTax: 400000, targetDate: '2027-07-01',
+      stacks: [{ ticker: 'AMZN', currentPrice: 233, lots: [{ shares: 2500, costBasisPerShare: 16, acquisitionDate: '2014-05-01' }] }],
+      ordinaryIncome: 200000, filingStatus: 'married_joint', stateCode: 'CA', cashInterestRate: 0.04, riskToleranceShortfall: 0.02,
+    };
+    const text = await ask('equity_funding_plan', args, {}, {}, '400k by 07.2027, 2500 AMZN cost 16 bought 05.2014, MFJ CA 200k income, 233 price, 2% shortfall');
+    const saleYears = [...text.matchAll(/^- \w{3} (\d{4}): sell/gm)].map((m) => Number(m[1]));
+    expect(saleYears.length).toBeGreaterThan(0);
+    const currentYear = new Date().getUTCFullYear();
+    expect(Math.min(...saleYears)).toBeGreaterThanOrEqual(currentYear); // no sales in the past
+  });
+
   it('never values equity_funding at the cost basis: drops it, then suggests the real price', async () => {
     const args = { targetAfterTax: 400000, targetDate: '2028-06-01', stacks: [{ ticker: 'NVDA', currentPrice: 60, expectedAnnualGrowth: 0.15, volatility: 0.45, lots: [{ shares: 4000, costBasisPerShare: 60, acquisitionDate: '2023-06-15' }] }], ordinaryIncome: 280000, filingStatus: 'married_joint', stateCode: 'CA', cashInterestRate: 0.04, riskToleranceShortfall: 0.1 };
     const text = await ask('equity_funding_plan', args, {}, {}, 'fund 400k from 4000 NVDA bought at $60');
