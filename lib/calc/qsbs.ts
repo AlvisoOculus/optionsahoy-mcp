@@ -21,7 +21,7 @@
 import type { FilingStatus } from '@/lib/tax';
 
 // Era cutoffs as UTC dates so the comparison is timezone-stable.
-const OBBBA_CUTOFF = Date.UTC(2025, 6, 4); // 2025-07-04 (exclusive on the start; >2025-07-04 → new regime)
+export const OBBBA_CUTOFF = Date.UTC(2025, 6, 4); // 2025-07-04 (exclusive on the start; >2025-07-04 → new regime)
 const FULL_EXCLUSION_CUTOFF = Date.UTC(2010, 8, 27); // 2010-09-27 (acquisitions after → 100%)
 const PARTIAL_75_CUTOFF = Date.UTC(2009, 1, 17); // 2009-02-17 (acquisitions after → 75% era)
 const QSBS_INCEPTION = Date.UTC(1993, 7, 10); // 1993-08-10 (acquisitions after → §1202 era)

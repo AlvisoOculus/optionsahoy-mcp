@@ -10,6 +10,13 @@
 // In Claude Desktop and ChatGPT, these surface as named slash-commands
 // users can pick from. In an agent client, the LLM can list prompts to
 // learn the available workflows.
+//
+// Argument names here are USER-FACING labels, not the calculator's API field
+// names. Each `build()` renders them into a natural-language scenario; the model
+// then extracts the tool's actual fields from that prose (e.g. the `state` arg
+// becomes the `stateCode` field, and `plan-equity-funding`'s `shares` arg seeds
+// the prose total while the instruction directs the model to gather per-lot
+// `stacks`/`lots`). So an arg label need not match a parser field 1:1.
 
 export type McpPromptArgument = {
   name: string;
@@ -74,7 +81,7 @@ export const PROMPTS: McpPrompt[] = [
           a.ordinaryIncome && `My annual ordinary income is $${a.ordinaryIncome}. `,
         ],
         instruction:
-          `Plan an exercise schedule across the next several years that maximizes my after-tax Net Final Value (NFV) at the planning horizon. Use the amt_iso_optimize tool — pass volatility directly; do not compute drag yourself.`,
+          `Plan an exercise schedule across the next several years that maximizes my after-tax Net Final Value (NFV) at the planning horizon. Use the amt_iso_optimize tool; pass volatility directly and do not compute drag yourself.`,
         followUpFields: 'filing status, state, ordinary income, grant date, idle-cash after-tax return rate, or post-termination status',
         outputs:
           "the optimized schedule's after-tax NFV vs the lump-sum and even-split alternatives, the recommended per-year share count, and the AMT credit carryforward at horizon",
@@ -89,7 +96,7 @@ export const PROMPTS: McpPrompt[] = [
       { name: 'strike', description: 'Strike price per share, USD', required: true },
       { name: 'currentPrice', description: 'Current share price, USD', required: true },
       { name: 'volatility', description: 'Annualized volatility (sigma) as a decimal (e.g. 0.4 for 40%)', required: true },
-      { name: 'holdYears', description: 'Years to hold after exercise (1 minimum for LTCG)', required: false },
+      { name: 'holdYears', description: 'Years to hold after exercise (minimum 1; the calculator requires it)', required: true },
       { name: 'state', description: 'Two-letter state code', required: false },
     ],
     build: (a) =>
@@ -160,7 +167,7 @@ export const PROMPTS: McpPrompt[] = [
   {
     name: 'price-protective-put',
     description:
-      'Price a protective put or zero-cost collar on a single-stock position using Black-Scholes against a daily-refreshed implied-volatility surface. Uses the protective_put_price tool.',
+      'Price a protective put or zero-cost collar on a single-stock position against current option-market implied volatility. Uses the protective_put_price tool.',
     arguments: [
       { name: 'positionValue', description: 'Current market value of the position, USD', required: true },
       { name: 'protectionLevel', description: 'Strike as a percentage below current price (e.g. 0.10 for 10% OTM)', required: false },
@@ -187,7 +194,7 @@ export const PROMPTS: McpPrompt[] = [
   {
     name: 'check-qsbs-eligibility',
     description:
-      'Check Section 1202 Qualified Small Business Stock (QSBS) qualification against the eight statutory tests and compute the OBBBA 2026 tiered exclusion. Uses the qsbs_check tool.',
+      'Check Section 1202 Qualified Small Business Stock (QSBS) qualification against the six statutory tests and compute the OBBBA 2026 tiered exclusion. Uses the qsbs_check tool.',
     arguments: [
       { name: 'acquisitionDate', description: 'Date the stock was acquired (YYYY-MM-DD)', required: true },
       { name: 'saleDate', description: 'Date of planned or actual sale (YYYY-MM-DD)', required: true },
@@ -202,11 +209,11 @@ export const PROMPTS: McpPrompt[] = [
           a.industry && `Industry: ${a.industry}. `,
           a.state && `I live in ${a.state}. `,
         ],
-        instruction: `Run the qsbs_check tool against the eight statutory tests.`,
+        instruction: `Run the qsbs_check tool against the six statutory tests.`,
         followUpFields:
           'entity type, acquisition method (original issuance vs secondary vs gift/inheritance), asset category (under-50m / 50m-to-75m / over-75m), active-business attestation, adjusted basis, filing status, or ordinary income',
         outputs:
-          'the verdict (qualified / disqualified / partial), exclusion percentage, federal tax saved in dollars, state tax owed, and per-test pass/fail breakdown',
+          'the verdict (qualifies / partial / too-soon / caveats / disqualified), exclusion percentage, federal tax saved in dollars, state tax owed, and per-test pass/fail breakdown',
       }),
   },
   {

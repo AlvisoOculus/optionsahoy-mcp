@@ -28,7 +28,7 @@ export const RESOURCES: McpResource[] = [
     mimeType: 'text/markdown',
     contents: `# ISO/AMT crossover and four expensive mistakes
 
-Exercising incentive stock options (ISOs) creates a "bargain element" equal to (fair market value - strike) x shares. This bargain element is invisible to regular federal income tax but counts as ordinary income for the federal Alternative Minimum Tax (AMT). AMT is owed in cash by April 15 of the following year, even if you never sold a share. State AMT applies separately in California, Minnesota, Colorado, and Connecticut.
+Exercising incentive stock options (ISOs) creates a "bargain element" equal to (fair market value - strike) x shares. This bargain element is invisible to regular federal income tax but counts as ordinary income for the federal Alternative Minimum Tax (AMT). AMT is owed in cash with your return the following April 15 (and often through quarterly estimated payments during the year to avoid underpayment penalties), even if you never sold a share. State AMT applies separately in California, Minnesota, Colorado, and Connecticut.
 
 ## The four most expensive mistakes
 
@@ -42,7 +42,7 @@ Exercising incentive stock options (ISOs) creates a "bargain element" equal to (
 
 ## Crossover concept
 
-The "AMT crossover point" is the maximum number of shares you can exercise in a tax year before the tentative AMT exceeds the regular tax - the threshold at which the next ISO exercised costs an additional 28% federal (plus state). Below the crossover, the bargain element is effectively free of AMT in that year. Above it, every additional share adds 28%+ to the bill.
+The "AMT crossover point" is the maximum number of shares you can exercise in a tax year before the tentative AMT exceeds the regular tax - the threshold at which the next ISO exercised starts incurring AMT at 26% federal (28% once your alternative minimum taxable income passes the upper breakpoint), plus state. Below the crossover, the bargain element is effectively free of AMT in that year. Above it, every additional share adds 26-28% federal (plus state) to the bill.
 
 The crossover depends on filing status, ordinary income, state, deductions, and any other AMT preference items in the year. It moves year to year.
 
@@ -81,13 +81,13 @@ The hold case wins when the stock rises enough that the LTCG-vs-ordinary spread 
 
 1. **Wrong cost basis at sale.** Brokerage 1099-B forms may report only your strike price as basis, not the FMV at exercise (the latter is correct). Filing without an 8949 correction double-taxes the ordinary-income portion.
 
-2. **Underestimating FICA.** Social Security (6.2% up to the wage base), Medicare (1.45%), and Additional Medicare (0.9% above $200K single / $250K joint) all apply to the NSO spread on top of federal and state income tax.
+2. **Underestimating FICA.** Social Security (6.2% up to the $184,500 wage base for 2026), Medicare (1.45%), and Additional Medicare (0.9% above $200K single / $250K joint) all apply to the NSO spread on top of federal and state income tax.
 
 3. **Sell-to-cover vs cash exercise.** Sell-to-cover liquidates enough shares at exercise to fund the tax. Cash exercise uses outside cash and keeps more shares. The right choice depends on liquidity and concentration tolerance, not on which the brokerage default suggests.
 
 4. **Ignoring state tax on the spread.** NSO income is state-taxable in the state where the work was performed during the vesting period, not where you live at exercise. Multi-state employees face apportionment.
 
-5. **Holding for LTCG when the holding-period math doesn't justify it.** At a 35% federal marginal rate, the federal LTCG-vs-ordinary spread is 35% - 20% = 15% on the post-exercise appreciation. If the position drops 15% during the 12-month hold, the tax savings are wiped out.
+5. **Holding for LTCG when the holding-period math doesn't justify it.** At a 35% federal marginal rate, the federal long-term-vs-ordinary spread is 35% - 20% = 15 points on the post-exercise appreciation. But that saving applies only to the gain, while a price drop hits the whole position, so the two are not interchangeable. The tool reports the break-even sale price at which holding actually beats selling.
 
 6. **Forgetting concentration risk.** Holding NSO shares concentrates wealth in a single stock. Most single stocks underperform the broad market over multi-year periods; the optimal hedge is often selling and diversifying, not holding for tax savings.
 
@@ -175,7 +175,7 @@ For equity-compensation holders, the concentration is rarely deliberate. It accu
 
 4. **Skipping hedges when sell-down isn't viable.** When concentration is constrained by lockup, basis, or tax cost, a protective put or zero-cost collar truncates the downside. See \`protective_put_price\` for pricing.
 
-5. **Ignoring sector correlation.** Diversifying within tech is not diversification. A NVDA position plus QQQ is ~70% correlated.
+5. **Ignoring sector correlation.** Diversifying within tech is not diversification. A single tech stock paired with a tech-heavy index fund is typically highly correlated, so holding both is not real diversification.
 
 ## After-tax cost of de-concentrating
 
@@ -236,7 +236,7 @@ Typical pricing for a 1-year 10%-out-of-the-money (OTM) put on a 30% implied-vol
 
 ## What the protective_put_price tool computes
 
-The MCP tool \`protective_put_price\` prices a protective put or zero-cost collar using Black-Scholes on a daily-refreshed implied-volatility surface. It accounts for:
+The MCP tool \`protective_put_price\` prices a protective put or zero-cost collar against current option-market implied volatility (a sector-typical volatility when no ticker is supplied). It accounts for:
 
 - Strike (defined as percentage below current price)
 - Tenor (months to expiration)
@@ -253,24 +253,24 @@ Full article: ${ARTICLE_BASE}/zero-cost-collars
     uri: `${ARTICLE_BASE}/qsbs`,
     name: 'Qualified Small Business Stock (QSBS) and five ways to lose the exclusion',
     description:
-      'How Section 1202 zeros out federal capital gains tax on $10-15M of stock gain, the eight statutory tests, the OBBBA 2026 tiered exclusion, and five common disqualification traps. Pair with qsbs_check.',
+      'How Section 1202 zeros out federal capital gains tax on $10-15M of stock gain, the six statutory tests, the OBBBA 2026 tiered exclusion, and five common disqualification traps. Pair with qsbs_check.',
     mimeType: 'text/markdown',
     contents: `# QSBS and five ways to lose the exclusion
 
-Section 1202 of the Internal Revenue Code excludes from federal capital gains tax the first $10 million (or 10x basis, whichever is greater) of gain on Qualified Small Business Stock (QSBS) held for 5+ years. The One Big Beautiful Bill Act (OBBBA, 2026) introduced a tiered exclusion structure that expands the cap to $15M for stock acquired after the OBBBA effective date and held 5+ years.
+Section 1202 of the Internal Revenue Code excludes from federal capital gains tax the first $10 million (or 10x basis, whichever is greater) of gain on Qualified Small Business Stock (QSBS) held for 5+ years. The One Big Beautiful Bill Act (OBBBA) introduced a tiered exclusion structure that expands the cap to $15M for stock acquired after July 4, 2025 and held 5+ years. Both the $15M per-issuer cap and the $75M gross-assets ceiling are indexed for inflation starting in 2027.
 
-The exclusion is the single largest federal tax break available to founders and employees of early-stage C-corps. It is also conditional on eight statutory tests, any one of which can disqualify the entire position.
+The exclusion is the single largest federal tax break available to founders and employees of early-stage C-corps. It is also conditional on six statutory tests, any one of which can disqualify the entire position.
 
-## The eight statutory tests
+## The six statutory tests
 
 1. **Entity type.** Issuer must be a US C-corp at original issuance. LLCs and S-corps do not qualify.
 2. **Acquisition method.** Stock must be acquired at original issuance directly from the corporation (cash, services, or property exchange). Secondary purchases do not qualify; gifts and inheritance transfer the holder's QSBS status.
-3. **Holding period.** 5 years for full exclusion. OBBBA tiered exclusion adds partial benefit at 3-4 years for post-OBBBA stock.
+3. **Holding period.** 5 years for the full (100%) exclusion. For stock acquired after July 4, 2025, OBBBA grants a tiered exclusion: 50% at 3 years, 75% at 4 years, 100% at 5 years.
 4. **Gross assets cap.** Issuer's aggregate gross assets must not exceed $50M (pre-OBBBA) / $75M (post-OBBBA) at any point through the date of issuance and immediately after.
 5. **Active business requirement.** Issuer must use 80%+ of assets in a qualified trade or business throughout substantially all of the holder's holding period.
 6. **Industry exclusion.** Service businesses where the principal asset is employee reputation (law, accounting, consulting, finance, etc.), banking/insurance/financing, farming, extraction, and hospitality are disqualified.
-7. **Per-issuer gain cap.** Greater of $10M ($15M post-OBBBA) or 10x adjusted basis. Cap is per-issuer, per-taxpayer.
-8. **Working capital rule.** Working capital held for use in the business within 2 years counts toward the active-business test.
+
+Two further rules shape the dollar result rather than pass/fail qualification: the **per-issuer gain cap** (greater of $10M, or $15M for stock acquired after July 4, 2025, or 10x adjusted basis, per issuer per taxpayer) and the **working-capital limit** (working capital held for use in the business within 2 years counts toward the active-business test). The 50%/75%-era exclusions also carried a 7% AMT preference on the excluded gain; the 100% (post-2010) and OBBBA tiers do not.
 
 ## The five common mistakes
 
@@ -278,21 +278,21 @@ The exclusion is the single largest federal tax break available to founders and 
 2. **LLC-to-C-corp conversion without QSBS-clock awareness.** The QSBS 5-year clock starts at the C-corp conversion, not the original LLC formation.
 3. **Crossing the gross-assets cap.** A late-stage round that pushes gross assets above the cap disqualifies all subsequent issuances (not retroactive on prior issuances).
 4. **Service-business industry classification.** Substance-over-form: a "tech" company whose main asset is consulting hours is treated as a service business.
-5. **State non-conformity.** California, Pennsylvania, New Jersey, Mississippi, and Alabama do not conform to Section 1202. State capital gains tax still applies even when federal is zeroed.
+5. **State non-conformity.** California, Alabama, Pennsylvania, and Mississippi do not conform to Section 1202, so state capital gains tax still applies even when federal is zeroed. New Jersey conforms for sales in 2026 and later; Hawaii and Massachusetts partially conform.
 
 ## What the qsbs_check tool computes
 
-The MCP tool \`qsbs_check\` runs all eight tests against your facts and computes the dollar exclusion. It accounts for:
+The MCP tool \`qsbs_check\` runs all six tests against your facts and computes the dollar exclusion. It accounts for:
 
 - Entity type, acquisition date, sale date, acquisition method
 - Asset category (under-50m, 50m-to-75m, over-75m)
 - Industry classification with the disqualifying-services list
 - Active-business attestation
 - Adjusted basis (for 10x basis cap)
-- State conformity (CA, PA, NJ, MS, AL non-conforming)
+- State conformity (CA, AL, PA, MS non-conforming; NJ conforms 2026+; HI, MA partial)
 - Filing status and ordinary income (for tax-saved calculation)
 
-Output: verdict (qualified / disqualified / partial), exclusion percentage, dollar federal tax saved, state tax owed, and per-test pass/fail breakdown.
+Output: verdict (qualifies / partial / too-soon / caveats / disqualified), exclusion percentage, dollar federal tax saved, state tax owed, and per-test pass/fail breakdown.
 
 Full article: ${ARTICLE_BASE}/qsbs
 `,

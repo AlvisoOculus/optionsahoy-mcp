@@ -254,7 +254,22 @@ M6 (em-dashes), M9 (perIssuerCap $10M/$15M), era label 2009-2010 -> pre-2010. RT
 past targetDate with a clear error instead of silent "$0 infeasible"). M7 (anyOf) and M11 (soften
 "hybrid sweep") deferred as polish. 512 tests pass.
 
-### Remaining batch, grouped by decision area (B + C)
+### Batch B DONE (2026-06-24) — resource/prompt tax facts
+Fixed in functions/_lib/mcp-resources.ts + mcp-prompts.ts, bound to engine constants by
+tests/agent-resources-tax-facts.test.ts (OBBBA_CUTOFF now exported from lib/calc/qsbs.ts;
+SS_WAGE_BASE_2026, AMT rates imported). Engine-derivable, locked: B1 (OBBBA date = July 4, 2025),
+B2 (50/75/100% at 3/4/5y), B4 (AMT 26% or 28%), B6 (non-conforming CA/AL/PA/MS; NJ 2026+; HI/MA
+partial), B7 (nso prompt holdYears now required), B14 (SS wage base $184,500), six-tests count
+(resources + prompts), verdict enum (N2). B5 (2027 indexing + 7% AMT-preference era note) added.
+B8/B9 documented as NL-passthrough arg labels in the prompts header.
+MANUAL corrections made in prose (judgment calls, NOT engine-bound -- Andrew may want to review):
+B3 (NSO rate-spread false equivalence rewritten to cite the break-even, no longer claims a 15% drop
+wipes the saving), B10 (dropped "Black-Scholes / daily-refreshed vol surface" -> "current
+option-market implied volatility"), B11 (NVDA/QQQ "~70% correlated" -> generalized), B12 (added
+quarterly-estimates note), B13 (kept 22%/37% rates; aggregation nuance left as-is, low priority).
+527 tests pass.
+
+### Remaining batch (C only)
 1. **MCP descriptions/schemas (mcp-tools.ts)** — M1, M2, M3, M4, M5, M6, M7, M9, M10, M11. Source-repo
    only, engine-bound, low outward-facing risk. Lockable with schema-vs-engine + prose-vs-enum tests.
 2. **Published agent docs (PUBLIC web repo + mcp/public copies, kept in lockstep)** — R1, R2, R3, R5,
