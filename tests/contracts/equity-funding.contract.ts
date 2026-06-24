@@ -60,6 +60,11 @@ export const equityFundingContract: ToolContract<Record<string, any>, any> = {
       applies: (r) => r.recommended?.plan?.feasible === false,
       present: (t) => /nets about \$[\d,]+ after tax/.test(t) && /\$[\d,]+ short of/.test(t),
     },
+    {
+      name: 'feasible: discloses the remainder position when shares are kept',
+      applies: (r) => r.recommended?.plan?.feasible !== false && typeof r.recommended?.plan?.remainingShares === 'number' && r.recommended.plan.remainingShares > 0,
+      present: (t) => /still hold about [\d,]+ shares/.test(t),
+    },
   ],
 
   discriminants: [

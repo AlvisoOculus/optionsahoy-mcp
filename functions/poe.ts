@@ -517,6 +517,13 @@ function headline(tool: string, r: Result): string {
             (typeof rec.totalTax === 'number' ? `, after about ${usd(rec.totalTax)} in taxes` : '') +
             (typeof rec.shortfallProbability === 'number' ? `, with about a ${pct(rec.shortfallProbability)} chance of still falling short.` : '.'),
         );
+        // The position you keep after the plan (the schedule sells only part). (P10)
+        if (typeof plan.remainingShares === 'number' && plan.remainingShares > 0) {
+          lines.push(
+            `After the plan you would still hold about ${Math.round(plan.remainingShares).toLocaleString('en-US')} shares` +
+              (typeof plan.remainingPositionValue === 'number' && plan.remainingPositionValue > 0 ? `, worth roughly ${usd(plan.remainingPositionValue)} at today's price.` : '.'),
+          );
+        }
         // The trade-off across the named alternatives.
         const opt: string[] = [];
         const li = r.lockInNow;

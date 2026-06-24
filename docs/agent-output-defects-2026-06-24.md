@@ -147,6 +147,22 @@ Each fix lands under a failing contract test (tests-first), then green.
   removed as dead/unreachable code (the anti-fabrication guard + sector default mask
   any invalid volatility before it can throw). No change shipped.
 
+- **P10** (equity_funding omits the remainder position) — FIXED. The feasible answer
+  now states the shares still held after the plan and their value
+  (`plan.remainingShares` / `remainingPositionValue`). Locked by the equity-funding
+  contract. (`comparison.optimizedSavingsVsTargetYearSale` is already conveyed by the
+  hold-for-growth trade-off line; not duplicated.)
+
+## Bot answer layer (Phases 0-2): COMPLETE
+
+All 7 tools have answer contracts (tests/contracts/*.contract.ts) bound to the engine
+and run via run-contract.ts. Fixed: P1, P2, P3, P4, P5, P6, P7, P8, P9, P10, P12. P11
+was found not to be a defect (documented above). 447 tests pass. Remaining audit work is
+the non-bot layers: Phase 4 (MCP descriptions/schemas M1-M7, REST + published docs
+R1-R13), Phase 5 (resources/prompts tax-fact binding B1-B14 — includes brand-sensitive
+QSBS/OBBBA/state-conformity corrections, some cross-repo in optionsahoy_web), Phase 6
+(voice/IP lint + degraded-input robustness across all surfaces).
+
 ## Auditor agent IDs (re-queryable this session)
 - Poe bot: af89b010e6aa872bf
 - MCP descriptions: a1a3513eabd3ed012
