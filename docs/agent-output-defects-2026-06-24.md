@@ -124,6 +124,17 @@ Each fix lands under a failing contract test (tests-first), then green.
   long-term (engine `waitForLtInsight.savings`), not just "usually worth it". Locked by
   `tests/contracts/concentration.contract.*` (waiting vs already-long-term).
 
+- **P4** (amt recommends into an already-closed window) — FIXED. The case now detects
+  `timing.windowClosed` (or daysUntilWindowClose <= 0) and leads with a "your exercise
+  window has already closed" warning, marking the figures informational instead of
+  presenting an actionable exercise plan. Locked by `tests/contracts/amt.contract.*`.
+- **P5** (amt carryforward credit hidden) — FIXED. A line now shows
+  `optimized.creditRemaining` whenever credit carries past the plan, not only when some
+  was recovered in-plan. Locked by the amt contract (carryforward fact).
+- **P12** (amt negative lump-sum NFV phrasing) — FIXED. A negative `lumpSum.nfv` now
+  reads "exercising everything at once would actually net a loss of about $X" instead of
+  "far more than ... (-$X)". Locked by a direct formatter test in amt.contract.test.ts.
+
 ## Auditor agent IDs (re-queryable this session)
 - Poe bot: af89b010e6aa872bf
 - MCP descriptions: a1a3513eabd3ed012

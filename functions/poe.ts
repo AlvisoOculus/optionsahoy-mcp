@@ -188,8 +188,16 @@ function headline(tool: string, r: Result): string {
         if (typeof opt.nfv !== 'number') break;
         const years: any[] = Array.isArray(opt.years) ? opt.years : [];
         const allClean = years.length > 0 && years.every((y) => typeof y.shares === 'number' && y.shares >= 0);
+        const t = r.timing;
+        // An already-closed exercise window (departed and past the post-termination
+        // deadline) means unexercised options have likely expired -- never present
+        // an exercise plan as if it can still be acted on. (P4)
+        const windowClosed = !!(t && (t.windowClosed || (typeof t.daysUntilWindowClose === 'number' && t.daysUntilWindowClose <= 0)));
         const lines: string[] = [];
-        if (allClean) {
+        if (windowClosed) {
+          lines.push('**Your exercise window has already closed, so any unexercised incentive stock options have likely expired.**');
+          lines.push('The figures below are informational only. If you already exercised and still hold the shares, the after-tax and credit numbers apply; otherwise treat this as a what-if.');
+        } else if (allClean) {
           const plan = years
             .map((y) => `${Math.round(y.shares).toLocaleString('en-US')} in year ${y.year}`)
             .join(', ');
@@ -205,7 +213,11 @@ function headline(tool: string, r: Result): string {
         if (typeof even === 'number' && opt.nfv - even > 0) {
           lines.push(
             `That is roughly ${usd(opt.nfv - even)} more than exercising the same shares in equal amounts each year (${usd(even)})` +
-              (typeof lump === 'number' ? `, and far more than exercising everything at once (${usd(lump)}).` : '.'),
+              (typeof lump === 'number'
+                ? lump >= 0
+                  ? `, and far more than exercising everything at once (${usd(lump)}).`
+                  : `, and exercising everything at once would actually net a loss of about ${usd(Math.abs(lump))}.`
+                : '.'),
           );
         }
         if (typeof opt.exerciseTax === 'number' && opt.exerciseTax > 0) {
@@ -214,9 +226,12 @@ function headline(tool: string, r: Result): string {
               (typeof opt.creditRecovered === 'number' && opt.creditRecovered > 0 ? `, of which roughly ${usd(opt.creditRecovered)} comes back as AMT credit within the plan.` : '.'),
           );
         }
+        // Carryforward AMT credit not recovered within the plan window. (P5)
+        if (typeof opt.creditRemaining === 'number' && opt.creditRemaining > 0) {
+          lines.push(`You would still carry about ${usd(opt.creditRemaining)} of unused AMT credit past the end of the plan, usable against regular tax in later years.`);
+        }
         // Holding-period guardrail: ISO shares need the qualifying-disposition
         // hold for the long-term rate.
-        const t = r.timing;
         if (t && t.qdNotYetEligible && typeof t.qdEligibleDate === 'string') {
           lines.push(`For the lower qualifying rate, hold the exercised shares until ${monthLabel(t.qdEligibleDate)} (two years from grant, one from exercise).`);
         } else if (t && typeof t.daysUntilWindowClose === 'number' && t.daysUntilWindowClose > 0 && t.daysUntilWindowClose < 400) {
