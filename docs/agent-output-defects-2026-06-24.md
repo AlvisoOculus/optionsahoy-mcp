@@ -111,6 +111,14 @@ Each fix lands under a failing contract test (tests-first), then green.
     over-cautious; no spurious branch added. (A separate concern — that NSO silently
     clamps a sub-1yr request — belongs to Phase 6 degraded-input, not P3.)
 
+- **P8** (protective_put: recommended never surfaced; value call could contradict it;
+  no straddle caution) — FIXED. The answer now states the engine's `recommended` pick
+  (protective-put / collar / none) with copy that matches it, replacing the ad-hoc
+  ratio-based "collar is usually better" line that could disagree with `recommended`.
+  Added the holding-period straddle caution (Section 1092). Locked by
+  `tests/contracts/protective-put.contract.*` (a scenario per recommended value, each
+  rejecting the other picks; straddle note required on every answer).
+
 ## Auditor agent IDs (re-queryable this session)
 - Poe bot: af89b010e6aa872bf
 - MCP descriptions: a1a3513eabd3ed012

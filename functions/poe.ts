@@ -350,11 +350,19 @@ function headline(tool: string, r: Result): string {
               (typeof col.capProbability === 'number' ? ` (about a ${pct(col.capProbability)} chance the stock runs past that cap).` : '.'),
           );
         }
-        // Flag when the put is poor value, mirroring the web tool's warning.
-        if (typeof bp.premiumToExpectedProfitRatio === 'number' && bp.premiumToExpectedProfitRatio > 0.4) {
-          lines.push(`One caution: the put's premium eats roughly ${pct(bp.premiumToExpectedProfitRatio)} of your expected upside over the year, so the collar is usually the better value here.`);
+        // One recommendation, taken from the engine's own pick, so the value
+        // call can never disagree with it. ('none' = neither is clean.)
+        if (r.recommended === 'protective-put') {
+          lines.push('Our take: the protective put fits best here. It costs more, but it keeps all of your upside while capping the downside.');
+        } else if (r.recommended === 'collar') {
+          lines.push('Our take: the zero-cost collar is the better value here. It protects the same downside for little or nothing, in exchange for capping your gains above the cap.');
+        } else if (r.recommended === 'none') {
+          lines.push('Neither is a clean win here: the put is expensive for what it actually covers, and the collar would cap your gains too often. Weigh the trade-off against how much upside you are willing to give up.');
+        } else {
+          lines.push('The put keeps your full upside for a yearly premium; the collar is cheaper but trades away gains above the cap.');
         }
-        lines.push('The put keeps your full upside for a yearly premium; the collar is cheaper but trades away gains above the cap.');
+        // Holding-period tax caution, mirroring the web tool's note.
+        lines.push('Tax note: hedging shares you already hold can suspend the holding period and trigger straddle rules under Section 1092, which may affect long-term capital-gains treatment. Confirm with a tax professional before hedging appreciated stock.');
         return lines.join('\n\n');
       }
       case 'qsbs_check': {
