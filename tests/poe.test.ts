@@ -271,6 +271,15 @@ describe('poe error reformatting', () => {
     expect(text).toContain('NVDA');
   });
 
+  it('asks plainly for a missing current price (no live quote, no raw error)', async () => {
+    const a = { ...VALID_ARGS.equity_funding_plan };
+    a.stacks = [{ ticker: 'NVDA', lots: [{ shares: 4000, costBasisPerShare: 60, acquisitionDate: '2023-06-15' }], expectedAnnualGrowth: 0.15, volatility: 0.45 }]; // no currentPrice
+    const text = await ask('equity_funding_plan', a, {}, {}, 'fund $400k from my NVDA, growth and volatility given');
+    expect(text).toMatch(/trading at now|current price/);
+    expect(text).not.toMatch(/field "currentPrice"/);
+    expect(text).not.toContain('must be a finite number');
+  });
+
   it('a non-rate missing field still falls back to a cleaned engine hint', async () => {
     // nso without holdYears (required, not a rate field) -> generic clean ask.
     const a = { ...VALID_ARGS.nso_calculate };

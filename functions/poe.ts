@@ -676,8 +676,15 @@ async function handleQuery(ctx: PagesContext, req: PoeRequest, extractor?: Extra
     // The common case is a missing forward estimate (growth/return/sale price).
     // Ask for it plainly and lead with the easy option (a ticker). Otherwise
     // fall back to the engine hint, stripped of its model-facing meta sentence.
-    const field = raw.match(/field\s+"([^"]+)"\s+required/i)?.[1] ?? '';
+    const field = raw.match(/field\s+"([^"]+)"/i)?.[1] ?? '';
     const FORWARD = new Set(['expectedGrowth', 'volatility', 'expectedPositionReturn', 'expectedSalePrice']);
+    // Current-value fields the user must supply: the engine is offline and does
+    // not look up live quotes, so it cannot invent a price.
+    const PRICE_ASK: Record<string, string> = {
+      currentPrice: 'what the stock is trading at now (the current price per share)',
+      fmv: 'the current fair market value per share',
+      positionValue: 'what the position is worth right now',
+    };
     let ask: string;
     if (FORWARD.has(field)) {
       // A missing forward estimate. One ticker-first ask covering everything the
@@ -688,6 +695,8 @@ async function handleQuery(ctx: PagesContext, req: PoeRequest, extractor?: Extra
       } else {
         ask = `Almost there. Give me the stock's ticker and I will project the price, or tell me the price you expect to sell at.`;
       }
+    } else if (PRICE_ASK[field]) {
+      ask = `Almost there. Tell me ${PRICE_ASK[field]}. I work from the price you give, not a live quote.`;
     } else {
       const m = raw.match(/required:\s*([\s\S]*)/i);
       const hint = clean((m ? m[1] : raw).split(/\.\s*The model/i)[0]).trim();
