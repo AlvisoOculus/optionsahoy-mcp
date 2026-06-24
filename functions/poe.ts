@@ -254,8 +254,13 @@ function headline(tool: string, r: Result): string {
         const hold = r.hold?.netAtYearN;
         if (typeof sell === 'number' && typeof hold === 'number') {
           const d = hold - sell;
+          // Disclose the effective sale price the comparison actually used (the
+          // expected price trimmed for single-stock volatility), so it does not
+          // silently differ from the price the user stated. (P6)
+          const eff = r.hold?.effectiveSalePrice;
+          const effNote = typeof eff === 'number' ? ` (based on an effective sale price of about ${usd(eff)}, your expected price trimmed for single-stock volatility)` : '';
           lines.push(
-            `By your sale date, selling now and reinvesting grows to about ${usd(sell)}, while exercising and holding for the long-term rate reaches about ${usd(hold)}. ` +
+            `By your sale date, selling now and reinvesting grows to about ${usd(sell)}, while exercising and holding for the long-term rate reaches about ${usd(hold)}${effNote}. ` +
               `${d >= 0 ? `Holding wins by about ${usd(d)}` : `Selling wins by about ${usd(-d)}`}, before price risk.`,
           );
         }
@@ -291,8 +296,12 @@ function headline(tool: string, r: Result): string {
           const holdPhrase = longTerm
             ? 'holding the shares for the long-term rate'
             : 'holding the shares to your sale date, under a year and taxed at your ordinary rate,';
+          // Disclose the effective sale price actually used (expected price
+          // trimmed for single-stock volatility), not just the stated one. (P6)
+          const eff = r.hold?.effectiveSalePrice;
+          const effNote = typeof eff === 'number' ? ` (based on an effective sale price of about ${usd(eff)}, your expected price trimmed for single-stock volatility)` : '';
           lines.push(
-            `By your sale date, selling at vest and reinvesting reaches about ${usd(sell)}, while ${holdPhrase} reaches about ${usd(hold)}. ` +
+            `By your sale date, selling at vest and reinvesting reaches about ${usd(sell)}, while ${holdPhrase} reaches about ${usd(hold)}${effNote}. ` +
               `${d >= 0 ? `Holding wins by about ${usd(d)}` : `Selling wins by about ${usd(-d)}`}, before price risk.`,
           );
           if (!longTerm) {

@@ -135,6 +135,18 @@ Each fix lands under a failing contract test (tests-first), then green.
   reads "exercising everything at once would actually net a loss of about $X" instead of
   "far more than ... (-$X)". Locked by a direct formatter test in amt.contract.test.ts.
 
+- **P6** (nso/rsu disclose the stated sale price but compare on the post-haircut
+  effective price) — FIXED. Both hold-vs-sell lines now disclose
+  `hold.effectiveSalePrice` ("your expected price trimmed for single-stock
+  volatility"). Locked by `tests/contracts/nso.contract.*` (Phase 3 reconciliation:
+  the disclosed number must equal the engine's effectiveSalePrice).
+- **P11** (nso missing-volatility ask names the wrong field) — NOT A DEFECT (already
+  mitigated). No tool reaches the generic price-ask branch with a missing volatility:
+  protective_put defaults volatility from the sector/ticker, and amt/concentration
+  route to a volatility-aware ask. A defensive branch + test were prototyped, then
+  removed as dead/unreachable code (the anti-fabrication guard + sector default mask
+  any invalid volatility before it can throw). No change shipped.
+
 ## Auditor agent IDs (re-queryable this session)
 - Poe bot: af89b010e6aa872bf
 - MCP descriptions: a1a3513eabd3ed012
