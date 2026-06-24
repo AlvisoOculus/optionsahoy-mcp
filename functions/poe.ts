@@ -754,12 +754,6 @@ const TOOL_DEFAULTS: Record<string, Record<string, unknown>> = {
 
 // --- query handling --------------------------------------------------------
 
-const INTRO =
-  'Ask an equity-compensation tax question and I return a deterministic, after-tax-optimal answer. ' +
-  'For example: "I have 10,000 incentive stock options at a $2 strike, $40 current value, married filing ' +
-  'jointly, $300,000 income, California, 4-year horizon, granted 2022-01-01, 5% cash return, 12% growth. Best exercise schedule?" ' +
-  'Ask "what can you do?" for the full list and the inputs each one needs.';
-
 // Plain-language guidance for help / capability questions.
 const FRIENDLY: Record<string, string> = {
   amt_iso_optimize: 'plan an incentive stock option (ISO) exercise schedule around the alternative minimum tax (AMT)',
@@ -769,15 +763,6 @@ const FRIENDLY: Record<string, string> = {
   protective_put_price: 'price a hedge (a protective put or a zero-cost collar)',
   qsbs_check: 'check qualified small business stock (QSBS) eligibility',
   equity_funding_plan: 'plan how to fund a cash goal from your equity by a deadline',
-};
-const HELP_INPUTS: Record<string, string> = {
-  amt_iso_optimize: 'how many ISOs, the strike price, the current share value, your filing status, state, and income, the planning horizon in years, the grant date, your cash return rate, and an expected annual growth rate (or a ticker)',
-  nso_calculate: 'how many NSOs, the strike, the current price, your filing status, state, and income, whether you are still employed, how many years you would hold, and an expected sale price (or a ticker)',
-  rsu_sell_vs_hold: 'how many RSUs, the price at vest, your filing status, state, and income, how many years you would hold, and an expected sale price (or a ticker)',
-  concentration_analyze: 'the position value, your cost basis and purchase date, the sector, your filing status, state, and income, your total assets, and an expected annual return (or a ticker)',
-  protective_put_price: 'the position value, the sector, how much downside protection you want (for example 10%), and the tenor in years',
-  qsbs_check: 'the purchase and sale dates, the entity type, how you acquired the shares, the company size and industry, your adjusted basis and expected gain, plus your state, income, and filing status',
-  equity_funding_plan: 'your after-tax cash goal and deadline, the shares you hold (ticker, current price, cost basis, purchase date), and your filing status, state, and income',
 };
 const HELP_EXAMPLE: Record<string, string> = {
   amt_iso_optimize: '"10,000 ISOs, $2 strike, $40 value, married filing jointly, $300k income, CA, 4-year horizon, granted 2022-01-01, 5% cash, 12% growth. Best schedule?"',
@@ -789,23 +774,110 @@ const HELP_EXAMPLE: Record<string, string> = {
   equity_funding_plan: '"Need $400k after tax by 2028-06-01 from 4,000 NVDA bought at $60 in 2023, now $140, 15% growth, married filing jointly, $280k income, CA. Plan?"',
 };
 
+// User-facing labels for each input field. Built per tool FROM the inputSchema so
+// the required/optional menu cannot drift from what the calculator accepts.
+// Empty label = hidden (folded into a per-tool note or internal-only).
+const FIELD_LABELS: Record<string, string> = {
+  shares: 'number of shares', strike: 'strike price', fmv: 'current share value',
+  currentPrice: 'current price', filingStatus: 'filing status', ordinaryIncome: 'annual income',
+  stateCode: 'state', carryforwardCredit: 'AMT credit carryforward', horizon: 'planning horizon in years',
+  cashReturnRate: 'cash return rate', grantDate: 'grant date', hasLeftCompany: "whether you've left the company",
+  terminationDate: '', expectedGrowth: 'expected annual growth rate', ticker: 'ticker symbol',
+  volatility: 'volatility', stillEmployed: "whether you're still employed", holdYears: 'years to hold',
+  holdFunding: 'cash vs sell-to-cover funding', expectedSalePrice: 'expected sale price',
+  expectedMarketReturn: 'expected market return', positionValue: 'position value', costBasis: 'cost basis',
+  acquisitionDate: 'purchase date', sector: 'sector', totalAssets: 'total investable assets',
+  expectedPositionReturn: 'expected annual return', hedgeChoice: 'hedge choice (put or collar)',
+  protectionLevel: 'downside protection level', tenorYears: 'tenor in years', expectedReturn: 'expected return',
+  tickerLabel: '', saleDate: 'sale date', entityType: 'entity type', acquisitionMethod: 'how you acquired the shares',
+  assetCategory: 'company gross-asset size', industry: 'industry', activeBusiness: 'active-business answer',
+  adjustedBasis: 'adjusted basis', expectedGain: 'expected gain', targetAfterTax: 'after-tax cash goal',
+  targetDate: 'deadline', stacks: '', lots: '', expectedAnnualGrowth: '', cashInterestRate: 'cash interest rate',
+  riskToleranceShortfall: 'risk tolerance (max shortfall chance)', defaultVolatility: 'default volatility',
+};
+
+// Schema-required fields the bot safely assumes when unstated (see TOOL_DEFAULTS).
+// Shown under Optional with the assumption so the user knows the default.
+const ASSUMED_LABEL: Record<string, Record<string, string>> = {
+  amt_iso_optimize: { carryforwardCredit: 'assumes none', hasLeftCompany: 'assumes still employed', terminationDate: '' },
+  nso_calculate: { stillEmployed: 'assumes still employed', holdFunding: 'assumes cash exercise' },
+  rsu_sell_vs_hold: { stillEmployed: 'assumes still employed' },
+  protective_put_price: { protectionLevel: 'assumes 10%', tenorYears: 'assumes 1 year' },
+};
+
+// Inputs the schema models as optional/anyOf but the user must effectively supply
+// (the holdings; the forward estimate). Appended to Required and hidden from Optional.
+const REQUIRED_NOTE: Record<string, string> = {
+  amt_iso_optimize: 'and either a ticker or an expected growth rate',
+  nso_calculate: 'and either a ticker or an expected sale price',
+  rsu_sell_vs_hold: 'and either a ticker or an expected sale price',
+  concentration_analyze: 'and either a ticker or an expected annual return',
+  equity_funding_plan: 'and your holdings: for each lot the shares, cost basis, and purchase date, with a ticker or current price',
+};
+const HIDE_OPTIONAL: Record<string, Set<string>> = {
+  amt_iso_optimize: new Set(['expectedGrowth', 'ticker']),
+  nso_calculate: new Set(['expectedSalePrice', 'ticker']),
+  rsu_sell_vs_hold: new Set(['expectedSalePrice', 'ticker']),
+  concentration_analyze: new Set(['expectedPositionReturn', 'ticker']),
+  protective_put_price: new Set(['ticker', 'tickerLabel']),
+  equity_funding_plan: new Set(['stacks', 'lots', 'currentPrice', 'expectedAnnualGrowth']),
+};
+
 function cap(s: string): string {
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
-// Help / capability answer. A specific tool name gives that tool's inputs + an
-// example; anything else gives the full menu.
-function helpText(topic: string): string {
-  if (HELP_INPUTS[topic]) {
-    return `To ${FRIENDLY[topic]}, tell me ${HELP_INPUTS[topic]}.\n\nExample: ${HELP_EXAMPLE[topic]}`;
-  }
-  const lines = ['I turn an equity-compensation question into a deterministic, after-tax-optimal answer. Here is what I can do and what to tell me for each:'];
-  for (const name of Object.keys(FRIENDLY)) {
-    lines.push(`- ${cap(FRIENDLY[name])}: tell me ${HELP_INPUTS[name]}.`);
-  }
-  lines.push(`\nExample question: ${HELP_EXAMPLE.amt_iso_optimize}\n\nGive me the details in plain English and I compute the optimal plan. The first answer is on the house during launch.`);
-  return lines.join('\n');
+// Split a tool's inputSchema into the user-facing required vs optional parameter
+// lists (defaulted-required fields move to optional with their assumption).
+function toolParams(tool: string): { required: string[]; optional: string[] } {
+  const t = TOOLS.find((x) => x.name === tool);
+  const s = (t?.inputSchema ?? {}) as { required?: string[]; properties?: Record<string, unknown> };
+  const req = Array.isArray(s.required) ? s.required : [];
+  const props = Object.keys(s.properties ?? {});
+  const assumed = ASSUMED_LABEL[tool] ?? {};
+  const hide = HIDE_OPTIONAL[tool] ?? new Set<string>();
+  const label = (f: string) => FIELD_LABELS[f] ?? f;
+  const required = req.filter((f) => !(f in assumed)).map(label).filter(Boolean);
+  const optional = [
+    ...req.filter((f) => f in assumed && label(f)).map((f) => `${label(f)} (${assumed[f]})`),
+    ...props.filter((p) => !req.includes(p) && !hide.has(p)).map(label).filter(Boolean),
+  ];
+  return { required, optional };
 }
+
+// One menu entry per tool: purpose + Required + Optional.
+function toolMenuLine(tool: string): string {
+  const p = toolParams(tool);
+  const req = p.required.join(', ') + (REQUIRED_NOTE[tool] ? `, ${REQUIRED_NOTE[tool]}` : '');
+  const opt = p.optional.length ? p.optional.join(', ') : 'none';
+  return `- ${cap(FRIENDLY[tool])}\n   Required: ${req}.\n   Optional: ${opt}.`;
+}
+
+function capabilitiesMenu(): string {
+  return Object.keys(FRIENDLY).map(toolMenuLine).join('\n');
+}
+
+// Help / capability answer. A specific tool name gives that tool's required +
+// optional inputs and an example; anything else gives the full menu.
+function helpText(topic: string): string {
+  if (FRIENDLY[topic]) {
+    const p = toolParams(topic);
+    const req = p.required.join(', ') + (REQUIRED_NOTE[topic] ? `, ${REQUIRED_NOTE[topic]}` : '');
+    const opt = p.optional.length ? p.optional.join(', ') : 'none';
+    return `To ${FRIENDLY[topic]}:\n\nRequired: ${req}.\nOptional: ${opt}.\n\nExample: ${HELP_EXAMPLE[topic]}`;
+  }
+  return (
+    'I turn an equity-compensation question into a deterministic, after-tax-optimal answer. Here is each calculator with its required and optional inputs:\n\n' +
+    capabilitiesMenu() +
+    `\n\nExample question: ${HELP_EXAMPLE.amt_iso_optimize}\n\nGive me the details in plain English and I compute the optimal plan. Give a ticker and I derive growth, volatility, and price. The first answer is on the house during launch.`
+  );
+}
+
+const INTRO =
+  'I turn an equity-compensation tax question into a deterministic, after-tax-optimal answer. ' +
+  'Here are the seven calculators and the inputs each one needs (give a ticker and I derive growth, volatility, and price):\n\n' +
+  capabilitiesMenu() +
+  `\n\nExample: ${HELP_EXAMPLE.amt_iso_optimize}\n\nAsk in plain English. The first answer is on the house during launch.`;
 
 async function handleQuery(ctx: PagesContext, req: PoeRequest, extractor?: Extractor): Promise<Response> {
   const env = (ctx.env ?? {}) as PoeEnv;

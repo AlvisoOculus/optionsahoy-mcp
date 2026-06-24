@@ -233,21 +233,42 @@ describe('poe help', () => {
   it('general help lists every tool and an example', async () => {
     const res = await handleQuery(ctx(), { type: 'query', query: [{ role: 'user', content: 'help' }] }, async () => ({ help: 'general' }));
     const text = await res.text();
-    expect(text).toContain('what I can do');
     expect(text).toContain('Example');
+    // The menu now lists required vs optional inputs per tool.
+    expect(text).toMatch(/Required:/);
+    expect(text).toMatch(/Optional:/);
     for (const frag of ['incentive stock option', 'non-qualified', 'restricted stock', 'concentration', 'hedge', 'QSBS', 'cash goal']) {
       expect(text).toContain(frag);
     }
   });
   it('help with a bare boolean falls back to general', async () => {
     const res = await handleQuery(ctx(), { type: 'query', query: [{ role: 'user', content: 'x' }] }, async () => ({ help: true }));
-    expect(await res.text()).toContain('what I can do');
+    expect(await res.text()).toMatch(/Required:/);
   });
   it('tool-specific help gives that tool inputs + an example', () => {
     const t = helpText('qsbs_check');
     expect(t).toContain('qualified small business stock');
     expect(t).toContain('Example:');
     expect(t).not.toContain('incentive stock option'); // not the general menu
+  });
+  it('every tool help separates Required from Optional', () => {
+    for (const tool of ALL_TOOLS) {
+      const t = helpText(tool);
+      expect(t, tool).toMatch(/Required:/);
+      expect(t, tool).toMatch(/Optional:/);
+    }
+  });
+  it('required inputs are listed; defaulted inputs show under Optional with the assumption', () => {
+    const amt = helpText('amt_iso_optimize');
+    expect(amt).toMatch(/Required:[^]*grant date/); // a genuine must
+    expect(amt).toMatch(/Optional:[^]*assumes still employed/); // a defaulted field, demoted
+    expect(amt).toMatch(/either a ticker or an expected growth rate/); // the forward estimate
+    const put = helpText('protective_put_price');
+    expect(put).toMatch(/Required:[^]*position value/);
+    expect(put).toMatch(/Optional:[^]*assumes 10%/); // protectionLevel defaulted
+    const qsbs = helpText('qsbs_check');
+    expect(qsbs).toMatch(/Required:[^]*entity type/);
+    expect(qsbs).toMatch(/Optional: none/); // qsbs has no optional inputs
   });
 });
 
