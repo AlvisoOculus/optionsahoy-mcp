@@ -84,11 +84,24 @@ function sseText(raw: string): string {
   const m = raw.match(/event: text\ndata: (.*)/);
   return m ? JSON.parse(m[1]).text : '';
 }
-// Default user content mentions "growth" so the anti-fabrication guard treats a
-// supplied expectedGrowth as user-given (tests that need the no-growth path pass
-// an explicit content).
-async function ask(tool: string, args: any, env: Record<string, unknown> = {}, req: any = {}, content = 'here are my details, including the growth and volatility I gave'): Promise<string> {
-  const res = await handleQuery(ctx(env), { type: 'query', query: [{ role: 'user', content }], ...req }, async () => ({ tool, args }));
+// Every number nested in the args (so the default content states them and the
+// anti-fabrication guard keeps them; the real model gets these from user text).
+function numbersIn(o: any): number[] {
+  const out: number[] = [];
+  const walk = (x: any) => {
+    if (typeof x === 'number') out.push(x);
+    else if (Array.isArray(x)) x.forEach(walk);
+    else if (x && typeof x === 'object') Object.values(x).forEach(walk);
+  };
+  walk(o);
+  return out;
+}
+// Default content states every number in the args, so the guard treats them as
+// user-given. Tests of the strip/ask paths pass explicit content that omits the
+// number being tested.
+async function ask(tool: string, args: any, env: Record<string, unknown> = {}, req: any = {}, content?: string): Promise<string> {
+  const c = content ?? `my details: ${numbersIn(args).join(' ')}`;
+  const res = await handleQuery(ctx(env), { type: 'query', query: [{ role: 'user', content: c }], ...req }, async () => ({ tool, args }));
   return sseText(await res.text());
 }
 
@@ -260,16 +273,16 @@ describe('poe error reformatting', () => {
     expect(text).not.toMatch(/field "expectedGrowth"/);
   });
 
-  it('strips a fabricated growth rate when the user never gave one (no guessing)', async () => {
+  it('strips a fabricated growth rate the user never stated (no guessing)', async () => {
     const a = { ...VALID_ARGS.amt_iso_optimize, expectedGrowth: 0.25 };
     delete a.volatility; delete (a as any).ticker;
-    // user content has NO growth word and no ticker -> model "invented" 25%
-    const text = await ask('amt_iso_optimize', a, {}, {}, '10,000 ISOs, $2 strike, $40 value, MFJ, $300k income, CA, 4-year horizon, granted 2022-01-01, 5% cash return.');
+    // Content states every input EXCEPT the fabricated 0.25 growth.
+    const text = await ask('amt_iso_optimize', a, {}, {}, '20,000 ISOs, $2 strike, $200 value, MFJ, $300k income, CA, 4-year horizon, granted 2022-01-01, 5% cash return.');
     expect(text).toContain('growth rate'); // asked, did not compute on a made-up number
     expect(text).not.toContain('most money after taxes');
   });
   it('keeps growth + volatility when the user gave both, and discloses them', async () => {
-    const text = await ask('amt_iso_optimize', VALID_ARGS.amt_iso_optimize, {}, {}, 'best schedule, assume 17% growth and 0.72 volatility');
+    const text = await ask('amt_iso_optimize', VALID_ARGS.amt_iso_optimize); // default content states 0.17 + 0.72
     expect(text).toContain('most money after taxes');
     expect(text).toContain('Assumptions:'); // discloses what it assumed
     expect(text).toContain('17%');
@@ -277,7 +290,7 @@ describe('poe error reformatting', () => {
   it('discloses ticker-derived assumptions', async () => {
     const a = { ...VALID_ARGS.amt_iso_optimize, ticker: 'NVDA' };
     delete a.expectedGrowth; delete a.volatility;
-    const text = await ask('amt_iso_optimize', a, {}, {}, 'my NVDA ISOs, best schedule');
+    const text = await ask('amt_iso_optimize', a); // default content states fmv etc.; ticker drives growth/vol
     expect(text).toContain('Assumptions:');
     expect(text).toContain('NVDA');
   });

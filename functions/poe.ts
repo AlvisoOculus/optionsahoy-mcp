@@ -113,6 +113,32 @@ function clean(s: unknown): string {
   return typeof s === 'string' ? s.replace(/\s*—\s*/g, ', ').replace(/–/g, '-') : '';
 }
 
+// Every number the user actually typed, normalized ($, commas, %, k/m suffixes).
+function convoNumbers(convo: string): number[] {
+  const out: number[] = [];
+  const re = /(\d[\d,]*(?:\.\d+)?)\s*(%|k|m|bn|million|billion)?/gi;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(convo)) !== null) {
+    const n = parseFloat(m[1].replace(/,/g, ''));
+    if (!isFinite(n)) continue;
+    const unit = (m[2] || '').toLowerCase();
+    out.push(n);
+    if (unit === '%') out.push(n / 100);
+    else if (unit === 'k') out.push(n * 1000);
+    else if (unit === 'm' || unit === 'million') out.push(n * 1e6);
+    else if (unit === 'bn' || unit === 'billion') out.push(n * 1e9);
+  }
+  return out;
+}
+
+// True if v plausibly matches one of the user's stated numbers, allowing the
+// percent<->decimal forms (15 vs 0.15).
+function stated(v: unknown, nums: number[]): boolean {
+  if (typeof v !== 'number' || !isFinite(v)) return false;
+  const targets = [v, v * 100, v / 100];
+  return nums.some((n) => targets.some((t) => Math.abs(n - t) <= Math.max(1e-9, Math.abs(t) * 1e-6)));
+}
+
 // The free interactive tool for each calculator, value-first, re-tagged to
 // the Poe attribution bucket. Reuses the canonical /tools slugs from sessions.
 function freeToolLink(toolName: string): string {
@@ -652,22 +678,27 @@ async function handleQuery(ctx: PagesContext, req: PoeRequest, extractor?: Extra
     if (typeof provided.ticker === 'string' && !/^[A-Za-z][A-Za-z.\-]{0,5}$/.test(provided.ticker.trim())) {
       delete provided.ticker;
     }
-    // Drop non-positive price/value fields the model sometimes emits as 0 when
-    // it does not actually have a current price (e.g. only a cost basis was
-    // given). Includes equity_funding's per-stack currentPrice. A 0 price would
-    // otherwise compute a nonsense answer instead of asking.
-    for (const k of ['currentPrice', 'fmv', 'positionValue', 'expectedSalePrice']) {
-      if (typeof provided[k] === 'number' && provided[k] <= 0) delete provided[k];
+    // Anti-fabrication: a price or forward rate the model supplied must actually
+    // appear in the user's text. Otherwise the model fills currentPrice / growth
+    // / volatility from its own knowledge of a named stock (e.g. NVDA ~ $140) --
+    // a made-up tax assumption presented as fact. Strip any value the user did
+    // not state; the bot then asks for it, or (for growth/vol when a ticker is
+    // given) derives it from the bundled trailing snapshot.
+    const nums = convoNumbers(convo);
+    for (const k of ['currentPrice', 'fmv', 'positionValue', 'expectedSalePrice', 'expectedGrowth', 'expectedPositionReturn', 'volatility']) {
+      if (typeof provided[k] === 'number' && !stated(provided[k], nums)) delete provided[k];
     }
     if (Array.isArray(provided.stacks)) {
       for (const s of provided.stacks) {
-        if (s && typeof s.currentPrice === 'number' && s.currentPrice <= 0) delete s.currentPrice;
-        // Confusion guard: the model sometimes copies a lot's cost basis into
-        // currentPrice when no current price was given. If they match exactly,
-        // drop it so the bot asks rather than valuing the stock at its old cost.
+        if (!s) continue;
+        for (const k of ['currentPrice', 'expectedAnnualGrowth', 'volatility']) {
+          if (typeof s[k] === 'number' && !stated(s[k], nums)) delete s[k];
+        }
+        // Also drop a price that is non-positive or exactly a lot's cost basis
+        // (the model mislabeling the purchase price as the current price).
         if (
-          s && typeof s.currentPrice === 'number' && Array.isArray(s.lots) &&
-          s.lots.some((l: any) => typeof l?.costBasisPerShare === 'number' && l.costBasisPerShare === s.currentPrice)
+          typeof s.currentPrice === 'number' &&
+          (s.currentPrice <= 0 || (Array.isArray(s.lots) && s.lots.some((l: any) => l?.costBasisPerShare === s.currentPrice)))
         ) {
           delete s.currentPrice;
         }
@@ -682,31 +713,12 @@ async function handleQuery(ctx: PagesContext, req: PoeRequest, extractor?: Extra
       delete provided.positionValue;
     }
     // Deterministic ticker follow-up: if we just asked for a ticker and the
-    // user's reply is a lone symbol (e.g. "nvda"), use it. The model is
-    // unreliable on such terse one-word turns and sometimes fabricates a rate
-    // instead, so do not depend on it here.
+    // user's reply is a lone symbol (e.g. "nvda"), use it -- the model is
+    // unreliable on such terse one-word turns.
     const lastBot = [...messages].reverse().find((m) => m.role === 'bot');
     const lastUserText = (lastUser.content ?? '').trim();
     if (!provided.ticker && /^[A-Za-z]{1,5}$/.test(lastUserText) && lastBot && /ticker/i.test(lastBot.content ?? '')) {
       provided.ticker = lastUserText.toUpperCase();
-      delete provided.expectedGrowth;
-      delete provided.expectedPositionReturn;
-      delete provided.volatility;
-    }
-    // Anti-fabrication: the optimizer must never run on a forward growth/return
-    // OR volatility the model made up (a made-up tax assumption presented as
-    // fact is brand damage; the model often copies the example's 0.15/0.5). If
-    // the user gave no real ticker and never used the relevant word, strip the
-    // model's value so the bot either asks (growth) or uses the engine's own
-    // documented default (volatility).
-    if (!provided.ticker) {
-      if (!/\b(grow|growth|appreciat|cagr)\w*/i.test(convo)) {
-        delete provided.expectedGrowth;
-        delete provided.expectedPositionReturn;
-      }
-      if (!/\bvol(atility)?\b/i.test(convo)) {
-        delete provided.volatility;
-      }
     }
     const args = { ...(TOOL_DEFAULTS[tool.name] ?? {}), ...provided };
     usedArgs = args;
