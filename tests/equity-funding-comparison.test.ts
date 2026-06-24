@@ -251,6 +251,13 @@ describe('parseEquityFundingInput error paths', () => {
     ).toThrow(/targetDate.*not a valid date/);
   });
 
+  it('rejects a targetDate in the past (RT2)', () => {
+    // TRUSTED_TODAY is 2026-06-01; a March 2026 deadline is already past.
+    expect(() =>
+      parse({ ...BASE, targetDate: '2026-03-01' }),
+    ).toThrow(/targetDate.*today or later|deadline is in the past/i);
+  });
+
   it('throws on body that is not a JSON object', () => {
     expect(() => parse(null)).toThrow(/body must be a JSON object/);
     expect(() => parse([])).toThrow(/body must be a JSON object/);

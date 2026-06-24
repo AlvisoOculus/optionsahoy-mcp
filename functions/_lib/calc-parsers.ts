@@ -314,6 +314,13 @@ export function parseEquityFundingInput(raw: unknown, trustedToday?: Date): Equi
   // use). Tests pass an explicit trusted override; in production the server
   // clock is authoritative. Any `today` in the request body is ignored.
   const today = trustedToday ?? new Date();
+  // Reject a deadline in the past at parse time with a clear message (RT2),
+  // rather than letting it fall through to a confusing "infeasible, $0
+  // achievable" result. Compare by calendar day so "fund by today" is allowed.
+  const dayUTC = (d: Date) => Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+  if (dayUTC(targetDate) < dayUTC(today)) {
+    throw new Error('field "targetDate" must be today or later: the deadline is in the past.');
+  }
   const horizonYears = Math.max(
     0.25,
     (targetDate.getTime() - today.getTime()) / (365.25 * 86_400_000),

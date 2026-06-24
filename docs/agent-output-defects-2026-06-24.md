@@ -244,7 +244,17 @@ runtime ae6808277a0685eee.
 - Runtime CLEAN confirmed: amt/concentration/nso/rsu/protective_put/qsbs have NO caller-injectable clock;
   engines deterministic (no Date.now/Math.random/iteration-order); errors return clean 400s / isError.
 
-### Remaining batch, grouped by decision area (NOT yet started)
+### Batch A DONE (2026-06-24) — MCP descriptions/schemas + RT2
+Fixed in functions/_lib/mcp-tools.ts, locked by tests/agent-docs-consistency.test.ts (engine-bound
+consistency + voice/IP lint): M1 (does-not-qualify -> 5-value enum), M10 (eight -> six tests, in
+description + outputSchema), M2 (nso hold ltcg*/no isLongTerm; removed phantom exercise fields), M3
+(concentration: dropped hedging "NFV + cost" claim + the inert-hedgeChoice over-claim), M4 (real-world
+drift), M5 (IP leaks: lib/ paths, IV_OVER_RV_MULTIPLIER/1.20, Black-Scholes -> behavior language),
+M6 (em-dashes), M9 (perIssuerCap $10M/$15M), era label 2009-2010 -> pre-2010. RT2 (parser rejects a
+past targetDate with a clear error instead of silent "$0 infeasible"). M7 (anyOf) and M11 (soften
+"hybrid sweep") deferred as polish. 512 tests pass.
+
+### Remaining batch, grouped by decision area (B + C)
 1. **MCP descriptions/schemas (mcp-tools.ts)** — M1, M2, M3, M4, M5, M6, M7, M9, M10, M11. Source-repo
    only, engine-bound, low outward-facing risk. Lockable with schema-vs-engine + prose-vs-enum tests.
 2. **Published agent docs (PUBLIC web repo + mcp/public copies, kept in lockstep)** — R1, R2, R3, R5,

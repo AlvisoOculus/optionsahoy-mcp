@@ -114,7 +114,7 @@ const VOLATILITY_SCHEMA = {
   type: 'number',
   minimum: 0,
   description:
-    'Annualized volatility (sigma) of the stock as a decimal (0.72 = 72%). Pass the user-supplied volatility directly; the tool computes the horizon-cumulative drag internally. The model MUST NOT compute drag itself — the correct formula is horizon-dependent and most models get it wrong. If the user does not supply a volatility number AND no `ticker` resolves it from the cached implied-vol table, ASK them.',
+    'Annualized volatility (sigma) of the stock as a decimal (0.72 = 72%). Pass the user-supplied volatility directly; the tool computes the horizon-cumulative drag internally. The model MUST NOT compute drag itself; the correct formula is horizon-dependent and most models get it wrong. If the user does not supply a volatility number AND no `ticker` resolves it from the cached implied-vol table, ASK them.',
 };
 
 // ---------------------------------------------------------------------
@@ -533,11 +533,11 @@ const CONCENTRATION_OUTPUT_SCHEMA: JsonSchema = {
     },
     hedging: {
       type: 'object',
-      description: 'Black-Scholes cost of a 1-year 30%-OTM protective put covering the full position.',
+      description: 'Modeled cost of a 1-year 30%-OTM protective put covering the full position.',
       properties: {
         strike: num('Put strike in dollars (70% of position value).'),
         putPrice: num('Put premium in dollars for the 1-year tenor.'),
-        sigma: num('Annualized volatility used in pricing (explicit/ticker implied vol, else sector realized vol x 1.20).'),
+        sigma: num('Annualized volatility used in pricing (explicit or ticker-implied vol, else a sector-typical implied volatility).'),
         riskFreeRate: num('Annualized risk-free rate used in pricing, as a decimal.'),
       },
       required: ['strike', 'putPrice', 'sigma', 'riskFreeRate'],
@@ -570,7 +570,7 @@ const PROTECTIVE_PUT_OUTPUT_SCHEMA: JsonSchema = {
       },
       required: ['positionValue', 'sector', 'volatility', 'protectionLevel', 'tenorYears'],
     },
-    riskFreeRate: num('Annualized risk-free rate used in Black-Scholes, looked up for the tenor, as a decimal.'),
+    riskFreeRate: num('Annualized risk-free rate used in option pricing, looked up for the tenor, as a decimal.'),
     realWorldDrift: num('Annual real-world drift used for the probability metrics: expectedReturn when supplied, else the sector long-run return. Does not affect premium math.'),
     barePut: {
       type: 'object',
@@ -669,7 +669,7 @@ const QSBS_OUTPUT_SCHEMA: JsonSchema = {
       enum: [0, 0.5, 0.75, 1],
       description: 'Fraction of the capped gain excludable from federal tax, per the era and holding-period tier.',
     },
-    perIssuerCap: num('The $10M statutory per-issuer cap in dollars.'),
+    perIssuerCap: num('Statutory per-issuer cap in dollars: $10M pre-OBBBA, $15M for stock acquired after July 4, 2025.'),
     tenXBasisCap: num('10 x adjustedBasis cap in dollars.'),
     applicableCap: num('max(perIssuerCap, tenXBasisCap): the exclusion cap actually applied, in dollars.'),
     excludableGain: num('Portion of expectedGain excludable from federal tax in dollars.'),
@@ -687,11 +687,11 @@ const QSBS_OUTPUT_SCHEMA: JsonSchema = {
     era: {
       type: 'string',
       enum: ['pre-2009', 'pre-2010', 'pre-obbba', 'obbba'],
-      description: 'Acquisition-era classification that sets the exclusion schedule (50% pre-2009, 75% 2009-2010, 100% at 5y pre-OBBBA, tiered 50/75/100% at 3/4/5y under OBBBA).',
+      description: 'Acquisition-era classification that sets the exclusion schedule (50% pre-2009 era, 75% pre-2010 era, 100% at 5y pre-OBBBA, tiered 50/75/100% at 3/4/5y under OBBBA).',
     },
     tests: {
       type: 'array',
-      description: 'The eight statutory tests with per-test status, so an agent can show exactly which gate failed.',
+      description: 'The six statutory tests with per-test status, so an agent can show exactly which gate failed.',
       items: {
         type: 'object',
         properties: {
@@ -838,7 +838,7 @@ export const TOOLS: McpTool[] = [
     name: 'amt_iso_optimize',
     annotations: { title: 'ISO/AMT Exercise Optimization', ...CALC_HINTS },
     description:
-      'Multi-year Incentive Stock Option (ISO) exercise schedule that maximizes after-tax Net Final Value (NFV) at the planning horizon. NFV is the after-all-tax cash equivalent of the position at year `horizon`, summing exercised shares (held to LTCG) plus the time-valued tax stream paid along the way; the optimizer chooses the per-year share allocation that lands the highest NFV. When the user asks for "maximum value", "best schedule", or "optimal exercise plan", report NFV (in dollars) as the primary headline — `schedules.optimized.nfv` is the recommended plan; compare it against `schedules.lumpSum.nfv` and `schedules.evenSplit.nfv` to show the value delta from the optimization. Use this tool for ISO planning; for NSO grants use `nso_calculate`, for RSUs at vest use `rsu_sell_vs_hold`, for §1202 QSBS qualification use `qsbs_check`. Models AMT credit recovery across future years, grant-expiration timing, and the post-termination exercise window. Pure deterministic computation: no network access, no PII retention; federal + 50-state tax tables and AMT brackets are compiled in. The recommended schedule is produced by exact deterministic optimization (not random sampling or in-context reasoning) and is validated against brute-force ground truth on tractable problem sizes (see https://optionsahoy.com/verification). Returns `schedules` (`lumpSum`, `evenSplit`, `optimized`), `crossoverShares`, `crossoverBargain`, `alreadyInAmt`, `timing`, `stateHasAmt`, `bargainPerShare`, `effectiveHorizon`, and `departedRecommendation`; see `outputSchema` for the full shape. Example call: {shares: 10000, strike: 2, fmv: 200, expectedGrowth: 0.15, volatility: 0.5, filingStatus: "married_joint", ordinaryIncome: 400000, stateCode: "CA", carryforwardCredit: 0, horizon: 4, cashReturnRate: 0.05, grantDate: "2022-01-15", hasLeftCompany: false, terminationDate: null}.' + STRICT_INPUT_NOTE,
+      'Multi-year Incentive Stock Option (ISO) exercise schedule that maximizes after-tax Net Final Value (NFV) at the planning horizon. NFV is the after-all-tax cash equivalent of the position at year `horizon`, summing exercised shares (held to LTCG) plus the time-valued tax stream paid along the way; the optimizer chooses the per-year share allocation that lands the highest NFV. When the user asks for "maximum value", "best schedule", or "optimal exercise plan", report NFV (in dollars) as the primary headline: `schedules.optimized.nfv` is the recommended plan; compare it against `schedules.lumpSum.nfv` and `schedules.evenSplit.nfv` to show the value delta from the optimization. Use this tool for ISO planning; for NSO grants use `nso_calculate`, for RSUs at vest use `rsu_sell_vs_hold`, for §1202 QSBS qualification use `qsbs_check`. Models AMT credit recovery across future years, grant-expiration timing, and the post-termination exercise window. Pure deterministic computation: no network access, no PII retention; federal + 50-state tax tables and AMT brackets are compiled in. The recommended schedule is produced by exact deterministic optimization (not random sampling or in-context reasoning) and is validated against brute-force ground truth on tractable problem sizes (see https://optionsahoy.com/verification). Returns `schedules` (`lumpSum`, `evenSplit`, `optimized`), `crossoverShares`, `crossoverBargain`, `alreadyInAmt`, `timing`, `stateHasAmt`, `bargainPerShare`, `effectiveHorizon`, and `departedRecommendation`; see `outputSchema` for the full shape. Example call: {shares: 10000, strike: 2, fmv: 200, expectedGrowth: 0.15, volatility: 0.5, filingStatus: "married_joint", ordinaryIncome: 400000, stateCode: "CA", carryforwardCredit: 0, horizon: 4, cashReturnRate: 0.05, grantDate: "2022-01-15", hasLeftCompany: false, terminationDate: null}.' + STRICT_INPUT_NOTE,
     inputSchema: {
       type: 'object',
       required: [
@@ -929,7 +929,7 @@ export const TOOLS: McpTool[] = [
     name: 'nso_calculate',
     annotations: { title: 'NSO Sell-vs-Hold Analysis', ...CALC_HINTS },
     description:
-      'After-tax payout on a non-qualified stock option (NSO) exercise: federal, state, and FICA (Social Security + Medicare + Additional Medicare), comparing sell-at-exercise vs hold-for-long-term-capital-gains over the chosen horizon. Use for NSOs; for ISOs use `amt_iso_optimize`, for RSUs use `rsu_sell_vs_hold`. Deterministic, offline; tax tables compiled in. Optional `ticker` resolves `expectedSalePrice` from a bundled trailing-CAGR snapshot.\n\nReturns a top-level object with these keys:\n- `exercise`: bargainElement, federal, state, socialSecurity, medicare, additionalMedicare, total, netCashSellAll, sharesSoldToCover, sharesRetained.\n- `hold`: expectedGain, capGainFederal, capGainState, capGainTotal, isLongTerm at end of holdYears (LTCG triggers at holdYears ≥ 1).\n- `sellNowInvest`: counterfactual where shares are sold at exercise and proceeds reinvested at expectedMarketReturn.\n- `holdMinusCashless`: dollar delta between `hold` and `sellNowInvest`.\n- `bracketJump`: fromRate, toRate, thresholdAtJump describing the marginal bracket change at exercise.\n\nExample call: {shares: 5000, strike: 10, currentPrice: 50, ordinaryIncome: 180000, filingStatus: "single", stateCode: "CA", stillEmployed: true, holdYears: 2, volatility: 0.3, holdFunding: "cash", ticker: "AAPL"}.' + STRICT_INPUT_NOTE,
+      'After-tax payout on a non-qualified stock option (NSO) exercise: federal, state, and FICA (Social Security + Medicare + Additional Medicare), comparing sell-at-exercise vs hold-for-long-term-capital-gains over the chosen horizon. Use for NSOs; for ISOs use `amt_iso_optimize`, for RSUs use `rsu_sell_vs_hold`. Deterministic, offline; tax tables compiled in. Optional `ticker` resolves `expectedSalePrice` from a bundled trailing-CAGR snapshot.\n\nReturns a top-level object with these keys:\n- `exercise`: bargainElement, federal, state, socialSecurity, medicare, additionalMedicare, total, netCashSellAll.\n- `hold`: costBasis, strikeCost, sharesSoldToCover, sharesRetained, effectiveSalePrice, expectedGain, ltcgFederal, ltcgState, ltcgTotal, afterTaxProceedsAtSale, netAtYearN. NSO hold is always long-term (sub-1-year is out of scope), so there is no separate long-term flag.\n- `sellNowInvest`: counterfactual where shares are sold at exercise and proceeds reinvested at expectedMarketReturn.\n- `holdMinusCashless`: dollar delta between `hold` and `sellNowInvest`.\n- `bracketJump`: fromRate, toRate, thresholdAtJump describing the marginal bracket change at exercise.\n\nExample call: {shares: 5000, strike: 10, currentPrice: 50, ordinaryIncome: 180000, filingStatus: "single", stateCode: "CA", stillEmployed: true, holdYears: 2, volatility: 0.3, holdFunding: "cash", ticker: "AAPL"}.' + STRICT_INPUT_NOTE,
     inputSchema: {
       type: 'object',
       required: [
@@ -1072,7 +1072,7 @@ export const TOOLS: McpTool[] = [
     name: 'concentration_analyze',
     annotations: { title: 'Single-Stock Concentration Analysis', ...CALC_HINTS },
     description:
-      'Single-stock concentration risk analysis on an existing position. For standalone hedge pricing use `protective_put_price`; for the tax math on the option exercise or RSU vest that created the concentration, route to `amt_iso_optimize` / `nso_calculate` / `rsu_sell_vs_hold` first. Quantifies drawdown exposure at 30/50/70% downside, then compares three after-tax strategies over a three-year horizon (sell-down to target weight, hold, hedge with put or zero-cost collar), accounting for federal LTCG, state tax, the 3.8% Net Investment Income Tax (NIIT), and reinvestment opportunity cost. `totalAssets` (concentrated position + everything else) frames risk relative to the portfolio and MUST come from the user, never inferred. Returns a top-level object with keys: `concentration` (position/totalAssets), `riskBand` (Low / Moderate / Concentrated / Highly concentrated / Extreme), `isLongTermToday`, `longTermDate`, `daysUntilLongTerm`, `lossExposure` ({drop, dollarLoss, newConcentration} for 30/50/70% drops), `waitForLtInsight`, `schedule` (yearly sales with per-year tax), `hedging` (NFV + cost when hedgeChoice provided), `sectorContextLine`, `advisorBenchmarkLine`. Example call: {positionValue: 400000, costBasis: 100000, acquisitionDate: "2022-01-01", sector: "tech_software", stateCode: "CA", filingStatus: "single", ordinaryIncome: 200000, totalAssets: 1200000, volatility: 0.45, ticker: "NVDA"}.' + STRICT_INPUT_NOTE,
+      'Single-stock concentration risk analysis on an existing position. For standalone hedge pricing use `protective_put_price`; for the tax math on the option exercise or RSU vest that created the concentration, route to `amt_iso_optimize` / `nso_calculate` / `rsu_sell_vs_hold` first. Quantifies drawdown exposure at 30/50/70% downside, then compares three after-tax strategies over a three-year horizon (sell-down to target weight, hold, hedge with put or zero-cost collar), accounting for federal LTCG, state tax, the 3.8% Net Investment Income Tax (NIIT), and reinvestment opportunity cost. `totalAssets` (concentrated position + everything else) frames risk relative to the portfolio and MUST come from the user, never inferred. Returns a top-level object with keys: `concentration` (position/totalAssets), `riskBand` (Low / Moderate / Concentrated / Highly concentrated / Extreme), `isLongTermToday`, `longTermDate`, `daysUntilLongTerm`, `lossExposure` ({drop, dollarLoss, newConcentration} for 30/50/70% drops), `waitForLtInsight`, `schedule` (yearly sales with per-year tax), `hedging` ({strike, putPrice, sigma, riskFreeRate}), `sectorContextLine`, `advisorBenchmarkLine`. Example call: {positionValue: 400000, costBasis: 100000, acquisitionDate: "2022-01-01", sector: "tech_software", stateCode: "CA", filingStatus: "single", ordinaryIncome: 200000, totalAssets: 1200000, volatility: 0.45, ticker: "NVDA"}.' + STRICT_INPUT_NOTE,
     inputSchema: {
       type: 'object',
       required: [
@@ -1099,7 +1099,7 @@ export const TOOLS: McpTool[] = [
         sector: {
           ...SECTOR_SCHEMA,
           description:
-            'Sector tag. Drives the default volatility used in the hedge-cost computation when no explicit volatility is provided. See lib/markets/sector-stats.ts for the per-sector annualVol table; this tool applies IV_OVER_RV_MULTIPLIER (1.20) to the realized vol to approximate implied vol.',
+            'Sector tag. Drives the default volatility used in the hedge-cost computation when no explicit volatility is provided (a sector-typical implied volatility).',
         },
         stateCode: {
           ...STATE_SCHEMA,
@@ -1135,19 +1135,19 @@ export const TOOLS: McpTool[] = [
           type: 'number',
           minimum: 0,
           description:
-            'Annualized volatility (sigma) of the stock as a decimal (0.72 = 72%). Pass the user-supplied volatility directly; the tool uses it both for hedge pricing (as implied vol) and for the 3y horizon drag, computed internally. The model MUST NOT compute drag itself — the correct formula is horizon-dependent and most models get it wrong. If the user does not supply a volatility number AND no `ticker` resolves it from the cached implied-vol table, ASK them; only as a last fallback does hedge pricing use sector_stats.annualVol × 1.20.',
+            'Annualized volatility (sigma) of the stock as a decimal (0.72 = 72%). Pass the user-supplied volatility directly; the tool uses it both for hedge pricing (as implied vol) and for the 3y horizon drag, computed internally. The model MUST NOT compute drag itself; the correct formula is horizon-dependent and most models get it wrong. If the user does not supply a volatility number AND no `ticker` resolves it from the cached implied-vol table, ASK them; only as a last fallback does hedge pricing fall back to a sector-typical implied volatility.',
         },
         hedgeChoice: {
           type: 'object',
           required: ['kind', 'protectionLevel', 'tenorYears'],
           description:
-            'Optional hedge specification. When provided, adds a hedged scenario to the sell-down-vs-hold comparison and computes the post-tax NFV of the hedged hold. Omit to compare only sell-down vs. hold.',
+            'Optional hedge specification. Note: this tool does not currently fold a hedged scenario into its sell-down-vs-hold output; for standalone hedge pricing use `protective_put_price`.',
           properties: {
             kind: {
               type: 'string',
               enum: ['put', 'collar'],
               description:
-                "Hedge instrument: 'put' (bare protective put — pay premium for downside protection) or 'collar' (put financed by a short call — caps upside in exchange for lower or zero net premium).",
+                "Hedge instrument: 'put' (bare protective put, pay premium for downside protection) or 'collar' (put financed by a short call, caps upside in exchange for lower or zero net premium).",
             },
             protectionLevel: {
               type: 'number',
@@ -1176,7 +1176,7 @@ export const TOOLS: McpTool[] = [
     name: 'protective_put_price',
     annotations: { title: 'Protective Put / Collar Pricing', ...CALC_HINTS },
     description:
-      'Black-Scholes pricing of a protective put or zero-cost collar on a single-stock position. Use for standalone hedge pricing on a single-stock position; for concentration-vs-hedge tax-cost comparison, use `concentration_analyze` with a `hedgeChoice`. Parameter interactions an agent should know: `volatility` omitted falls back to `sector_stats[sector].annualVol × 1.20` (the implied-over-realized vol multiplier); supply an explicit sigma when the user provides one. For collars, omitting `upsideCapPct` lets the tool back-solve the cap that zeros the net premium (truly zero-cost collar); supplying `upsideCapPct` overrides the solver and yields a non-zero net premium when the cap is wider than zero-cost. `tenorYears` drives the risk-free-rate lookup AND the floor-hit / cap-hit probability metrics, so changing tenor shifts every probability output even at fixed strike. `expectedReturn` affects only the probability metrics (real-world drift in the floor-hit / cap-hit calculations); premium math is risk-neutral and ignores it (default 0). `protectionLevel` sets the put strike as `(1 − protectionLevel) × spot`; raising it widens the protected zone but raises premium roughly linearly. Closed-form, deterministic, offline: sector volatility table and risk-free-rate curve compiled in. Reports annualized hedge cost as a percentage of position value, maximum loss with the hedge in place, upside-participation cap (collar only, since the short call offsets the long put premium), and probability of hitting the protection floor over the tenor. Returns a top-level object with keys: `inputs` (echoed canonical input), `riskFreeRate` (used in Black-Scholes), `realWorldDrift` (from expectedReturn), `barePut` (strike, premium, annualCost, annualCostPct, maxLoss, badYearPrice, badYearDropPct, coveredLossAtBadYear, premiumToCoveredRatio, expectedProfit, premiumToExpectedProfitRatio), `collar` (putStrike, callStrike, netPremium, annualCost, annualCostPct, maxLoss, upsideCap, upsideCapPct, isZeroCost, capProbability), `payoffTable`, `payoffRange`, and `recommended` (the better of bare put vs collar given the inputs). Both `barePut` and `collar` blocks are always returned regardless of caller preference; the caller picks. Example call: {positionValue: 400000, sector: "tech_software", protectionLevel: 0.10, tenorYears: 1}.' + STRICT_INPUT_NOTE_NO_TICKER,
+      'Closed-form pricing of a protective put or zero-cost collar on a single-stock position. Use for standalone hedge pricing on a single-stock position; for concentration-vs-hedge tax-cost comparison, use `concentration_analyze` with a `hedgeChoice`. Parameter interactions an agent should know: `volatility` omitted falls back to a sector-typical implied volatility; supply an explicit sigma when the user provides one. For collars, omitting `upsideCapPct` lets the tool back-solve the cap that zeros the net premium (truly zero-cost collar); supplying `upsideCapPct` overrides the solver and yields a non-zero net premium when the cap is wider than zero-cost. `tenorYears` drives the risk-free-rate lookup AND the floor-hit / cap-hit probability metrics, so changing tenor shifts every probability output even at fixed strike. `expectedReturn` affects only the probability metrics (real-world drift in the floor-hit / cap-hit calculations); premium math is risk-neutral and ignores it (default 0). `protectionLevel` sets the put strike as `(1 − protectionLevel) × spot`; raising it widens the protected zone but raises premium roughly linearly. Closed-form, deterministic, offline: sector volatility table and risk-free-rate curve compiled in. Reports annualized hedge cost as a percentage of position value, maximum loss with the hedge in place, upside-participation cap (collar only, since the short call offsets the long put premium), and probability of hitting the protection floor over the tenor. Returns a top-level object with keys: `inputs` (echoed canonical input), `riskFreeRate` (used in option pricing), `realWorldDrift` (from expectedReturn), `barePut` (strike, premium, annualCost, annualCostPct, maxLoss, badYearPrice, badYearDropPct, coveredLossAtBadYear, premiumToCoveredRatio, expectedProfit, premiumToExpectedProfitRatio), `collar` (putStrike, callStrike, netPremium, annualCost, annualCostPct, maxLoss, upsideCap, upsideCapPct, isZeroCost, capProbability), `payoffTable`, `payoffRange`, and `recommended` (the better of bare put vs collar given the inputs). Both `barePut` and `collar` blocks are always returned regardless of caller preference; the caller picks. Example call: {positionValue: 400000, sector: "tech_software", protectionLevel: 0.10, tenorYears: 1}.' + STRICT_INPUT_NOTE_NO_TICKER,
     inputSchema: {
       type: 'object',
       required: ['positionValue', 'sector', 'protectionLevel', 'tenorYears'],
@@ -1190,7 +1190,7 @@ export const TOOLS: McpTool[] = [
         sector: {
           ...SECTOR_SCHEMA,
           description:
-            'Sector tag. Drives the default volatility when no explicit `volatility` is supplied. Lookup table is in lib/markets/sector-stats.ts.',
+            'Sector tag. Drives the default volatility when no explicit `volatility` is supplied (a sector-typical implied volatility).',
         },
         volatility: {
           type: 'number',
@@ -1217,7 +1217,7 @@ export const TOOLS: McpTool[] = [
         expectedReturn: {
           type: 'number',
           description:
-            'Annual expected stock return (decimal). Drives risk-neutral drift in the cap-hit / floor-hit probability metrics. Does not affect premium math. Default 0.',
+            'Annual expected stock return (decimal). Drives the real-world drift in the cap-hit / floor-hit probability metrics. Does not affect premium math. Default 0.',
         },
         tickerLabel: {
           type: 'string',
@@ -1232,7 +1232,7 @@ export const TOOLS: McpTool[] = [
     name: 'qsbs_check',
     annotations: { title: 'QSBS Qualification Check', ...CALC_HINTS },
     description:
-      'Section 1202 Qualified Small Business Stock (QSBS) qualification check. Use this tool for §1202 / QSBS qualification. For AMT timing on the ISO exercise that produced the QSBS holding, use `amt_iso_optimize` first. Parameter interactions an agent should know: `entityType="other"` short-circuits the verdict to `does-not-qualify` regardless of other fields; `acquisitionMethod="secondary"` does the same; `assetCategory="over-75m"` likewise fails immediately. Under `acquisitionMethod="gift-or-inheritance"` the holding period tacks from the original holder, so supply that earlier date as `acquisitionDate` if known. `acquisitionDate` drives era classification independent of holding period: before 2009-02-17 caps exclusion at 50%, 2009-02-17 to 2010-09-27 at 75%, 2010-09-28 through 2025-07-04 reaches 100% after a 5-year hold (pre-OBBBA), and 2025-07-05 onward uses the OBBBA tiered schedule (50% at 3y, 75% at 4y, 100% at 5y). The per-issuer exclusion cap is `max($10M, 10 × adjustedBasis)`; when `expectedGain` exceeds it, the overage is fully taxable and the response surfaces `taxableGain` for that delta. `industry` is the dominant industry (>80% revenue) when the corp operates in multiple. Evaluates the eight statutory tests: domestic C-corporation entity, original-issuance acquisition method, gross assets at issuance (under $50M / $50-75M / over $75M tiered cap), qualified-trade-or-business industry, active-business posture (80% asset use), holding period (3 / 4 / 5-year tiers under OBBBA), adjusted basis, and expected gain at sale. Pure stateless check: no filing, reporting, or IRS lookup happens; the eight tests are evaluated against the bundled OBBBA 2026 rule set and per-state conformity table. Returns a top-level object with keys: `verdict` (qualifies / partial / does-not-qualify), `exclusionPercent` (0..1), `perIssuerCap` and `tenXBasisCap` (the two cap inputs), `applicableCap` (max of the two), `excludableGain`, `taxableGain`, `federalTaxSaved` (LTCG bracket on the excluded gain), `stateConforms` (full / partial / none) and `stateNote` (per-state explanation), `holdingYears`, `yearsUntilFullExclusion`, `era` (pre-2009 / 2009-2010 / pre-obbba / obbba), and `tests` (array of {id, label, status, detail} for each of the eight statutory tests so an agent can show which gate failed). Example call: {acquisitionDate: "2020-01-15", saleDate: "2026-06-01", entityType: "us-c-corp", acquisitionMethod: "original-issuance", assetCategory: "under-50m", industry: "tech-software", activeBusiness: "yes", adjustedBasis: 100000, expectedGain: 5000000, stateCode: "CA", ordinaryIncome: 250000, filingStatus: "single"}.' + STRICT_INPUT_NOTE_NO_TICKER,
+      'Section 1202 Qualified Small Business Stock (QSBS) qualification check. Use this tool for §1202 / QSBS qualification. For AMT timing on the ISO exercise that produced the QSBS holding, use `amt_iso_optimize` first. Parameter interactions an agent should know: `entityType="other"` short-circuits the verdict to `disqualified` regardless of other fields; `acquisitionMethod="secondary"` does the same; `assetCategory="over-75m"` likewise fails immediately. Under `acquisitionMethod="gift-or-inheritance"` the holding period tacks from the original holder, so supply that earlier date as `acquisitionDate` if known. `acquisitionDate` drives era classification independent of holding period: before 2009-02-17 caps exclusion at 50%, 2009-02-17 to 2010-09-27 at 75%, 2010-09-28 through 2025-07-04 reaches 100% after a 5-year hold (pre-OBBBA), and 2025-07-05 onward uses the OBBBA tiered schedule (50% at 3y, 75% at 4y, 100% at 5y). The per-issuer exclusion cap is `max($10M, 10 × adjustedBasis)` ($15M base for stock acquired after July 4, 2025); when `expectedGain` exceeds it, the overage is fully taxable and the response surfaces `taxableGain` for that delta. `industry` is the dominant industry (>80% revenue) when the corp operates in multiple. Evaluates the six statutory tests: domestic C-corporation entity, original-issuance acquisition method, gross assets at issuance (under $50M / $50-75M / over $75M tiered cap), qualified-trade-or-business industry, active-business posture (80% asset use), and holding period (3 / 4 / 5-year tiers under OBBBA). Pure stateless check: no filing, reporting, or IRS lookup happens; the six tests are evaluated against the bundled OBBBA 2026 rule set and per-state conformity table. Returns a top-level object with keys: `verdict` (qualifies / partial / too-soon / caveats / disqualified), `exclusionPercent` (0..1), `perIssuerCap` and `tenXBasisCap` (the two cap inputs), `applicableCap` (max of the two), `excludableGain`, `taxableGain`, `federalTaxSaved` (LTCG bracket on the excluded gain), `stateConforms` (full / partial / none) and `stateNote` (per-state explanation), `holdingYears`, `yearsUntilFullExclusion`, `era` (pre-2009 / pre-2010 / pre-obbba / obbba), and `tests` (array of {id, label, status, detail} for each of the six statutory tests so an agent can show which gate failed). Example call: {acquisitionDate: "2020-01-15", saleDate: "2026-06-01", entityType: "us-c-corp", acquisitionMethod: "original-issuance", assetCategory: "under-50m", industry: "tech-software", activeBusiness: "yes", adjustedBasis: 100000, expectedGain: 5000000, stateCode: "CA", ordinaryIncome: 250000, filingStatus: "single"}.' + STRICT_INPUT_NOTE_NO_TICKER,
     inputSchema: {
       type: 'object',
       required: [
@@ -1244,7 +1244,7 @@ export const TOOLS: McpTool[] = [
         acquisitionDate: {
           ...ISO_DATE,
           description:
-            'Date the QSBS shares were acquired (YYYY-MM-DD). Drives the holding-period test and the era classification (50% pre-2009, 75% 2009-2010, 100% 2010-2025-07-04, OBBBA tiered after 2025-07-05).',
+            'Date the QSBS shares were acquired (YYYY-MM-DD). Drives the holding-period test and the era classification (50% pre-2009 era, 75% pre-2010 era, 100% after a 5-year hold for acquisitions from 2010-09-28 through 2025-07-04, OBBBA tiered after 2025-07-05).',
         },
         saleDate: {
           ...ISO_DATE,
