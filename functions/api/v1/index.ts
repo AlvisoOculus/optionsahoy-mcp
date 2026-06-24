@@ -50,6 +50,12 @@ const ENDPOINTS = [
     description: 'Section 1202 qualified small business stock (QSBS) qualification check.',
   },
   {
+    method: 'POST',
+    path: '/api/v1/equity-funding',
+    description:
+      'Plan the minimum-tax sell schedule to net a target after-tax amount by a deadline from equity holdings.',
+  },
+  {
     method: 'GET',
     path: '/api/v1/stats',
     description:

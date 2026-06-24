@@ -3,8 +3,8 @@
   "info": {
     "title": "OptionsAhoy Calculator API",
     "summary": "Deterministic equity-compensation calculator endpoints. JSON in, JSON out.",
-    "description": "Multi-year equity-compensation optimization engine. Seven free calculators that compute the globally-optimal schedule across the candidate space (not heuristics, not samples). Full federal tax code plus all 50 states and DC: ordinary brackets, long-term capital gains, AMT with credit recovery, FICA, NIIT; state AMT modeled for CA, CO, CT, MN. Unauthenticated, wide-open CORS. Same engine as the in-browser tools at https://optionsahoy.com/tools — response is byte-identical. Reference implementation and request-body source-of-truth: https://github.com/AlvisoOculus/optionsahoy_web/tree/main/web/lib/calc. Determinism is a side benefit: same inputs always return the same answer, so the optimizer's recommendation is verifiable. The tax math is independently verified: every 2026 federal constant matches its IRS Rev. Proc. 2025-32 value, federal cases reproduce to the cent against the independently-maintained PSL Tax-Calculator (https://github.com/PSLmodels/Tax-Calculator), and state tax reproduces to the cent against OpenTaxSolver (https://opentaxsolver.sourceforge.net/) across CA, NY, NJ, PA, and MA, with the proof recomputed live at https://optionsahoy.com/verification. Empirical justification for using an optimizer rather than letting a chatbot do the math: https://optionsahoy.com/benchmark (live, updated for the latest models) and https://hackernoon.com/but-can-it-do-taxes-though-why-you-shouldnt-trust-chatbots-with-tax-optimization-math",
-    "version": "1.0.0",
+    "description": "Multi-year equity-compensation optimization engine. Seven free calculators that compute the globally-optimal schedule across the candidate space (not heuristics, not samples). Full federal tax code plus all 50 states and DC: ordinary brackets, long-term capital gains, AMT with credit recovery, FICA, NIIT; state AMT modeled for CA, CO, CT, MN. Unauthenticated, wide-open CORS. Same engine as the in-browser tools at https://optionsahoy.com/tools: response is byte-identical. Determinism is a side benefit: same inputs always return the same answer, so the optimizer's recommendation is verifiable. The tax math is independently verified: every 2026 federal constant matches its IRS Rev. Proc. 2025-32 value, federal cases reproduce to the cent against the independently-maintained PSL Tax-Calculator (https://github.com/PSLmodels/Tax-Calculator), and state tax reproduces to the cent against OpenTaxSolver (https://opentaxsolver.sourceforge.net/) across CA, NY, NJ, PA, and MA, with the proof recomputed live at https://optionsahoy.com/verification. Empirical justification for using an optimizer rather than letting a chatbot do the math: https://optionsahoy.com/benchmark (live, updated for the latest models) and https://hackernoon.com/but-can-it-do-taxes-though-why-you-shouldnt-trust-chatbots-with-tax-optimization-math",
+    "version": "1.9.5",
     "contact": {
       "name": "AlphaLatitude Inc.",
       "email": "andrew@alphalatitude.com",
@@ -120,7 +120,7 @@
     "/api/v1/amt-iso": {
       "post": {
         "summary": "Multi-year ISO exercise schedule optimization",
-        "description": "Returns the globally-optimal multi-year Incentive Stock Option (ISO) exercise schedule that minimizes federal and state Alternative Minimum Tax (AMT) across the horizon, accounting for AMT credit recovery in later years, qualifying-disposition timing, grant expiration, and the post-termination exercise window. Engine: chunk-grid search with one-share refinement across the full candidate space. Result is reproducible (same inputs → same schedule).",
+        "description": "Returns the globally-optimal multi-year Incentive Stock Option (ISO) exercise schedule that minimizes federal and state Alternative Minimum Tax (AMT) across the horizon, accounting for AMT credit recovery in later years, qualifying-disposition timing, grant expiration, and the post-termination exercise window. Returns the optimum across the full candidate space (reproducible: same inputs, same result).",
         "operationId": "optimizeAmtIso",
         "tags": [
           "ISO"
@@ -275,7 +275,7 @@
     "/api/v1/qsbs": {
       "post": {
         "summary": "Section 1202 QSBS qualification check",
-        "description": "Evaluates Section 1202 Qualified Small Business Stock (QSBS) against the eight statutory tests, returning the verdict, exclusion percentage, federal tax saved, and state conformity under OBBBA 2026 tiered exclusion rules.",
+        "description": "Evaluates Section 1202 Qualified Small Business Stock (QSBS) against the six statutory tests, returning the verdict, exclusion percentage, federal tax saved, and state conformity under OBBBA 2026 tiered exclusion rules.",
         "operationId": "checkQsbs",
         "tags": [
           "QSBS"
@@ -306,7 +306,7 @@
     "/api/v1/equity-funding": {
       "post": {
         "summary": "Multi-plan equity-funding comparison: Lock-in-now / Balanced / Hold-for-growth / Recommended",
-        "description": "Returns four named plans on the risk/wealth frontier plus the full hybrid frontier. Bracket-aware greedy fills across (year, month, stack, lot) cells; lognormal price exposure drives the shortfall probability; after-tax retained-share value acts as a backstop in the shortfall calculation. The `recommended` plan is the wealth-maximal plan whose shortfall is at or below `riskToleranceShortfall` (default 0.10). Wealth-at-target is compared apples-to-apples on after-tax basis (cash netted plus after-tax retained-share value, both compounded at the after-tax cash-interest rate).",
+        "description": "Returns four named plans on the risk/wealth frontier plus the full hybrid frontier. Returns the optimum across the full candidate space (reproducible: same inputs, same result); lognormal price exposure drives the shortfall probability; after-tax retained-share value acts as a backstop in the shortfall calculation. The `recommended` plan is the wealth-maximal plan whose shortfall is at or below `riskToleranceShortfall` (default 0.10). Wealth-at-target is compared apples-to-apples on after-tax basis (cash netted plus after-tax retained-share value, both compounded at the after-tax cash-interest rate).",
         "operationId": "planEquityFunding",
         "tags": [
           "EquityFunding"
@@ -503,7 +503,7 @@
   "components": {
     "responses": {
       "CalculatorSuccess": {
-        "description": "Calculation result. The exact shape of `result` is the return type of the corresponding compute function in `web/lib/calc/*.ts` — sample a call to discover the full structure.",
+        "description": "Calculation result. The exact shape of `result` varies by endpoint: sample a call to discover the full structure.",
         "content": {
           "application/json": {
             "schema": {
@@ -954,7 +954,7 @@
           "volatility": {
             "type": "number",
             "minimum": 0,
-            "description": "Annualized implied volatility (σ). Defaults to a sector-typical IV (sector_stats.annualVol × 1.20) when omitted."
+            "description": "Annualized implied volatility (σ). Defaults to a sector-typical implied volatility when omitted."
           },
           "protectionLevel": {
             "type": "number",
@@ -974,6 +974,10 @@
           "tickerLabel": {
             "type": "string",
             "description": "Optional ticker for warning copy (e.g. \"AAPL\")."
+          },
+          "ticker": {
+            "type": "string",
+            "description": "Optional public-stock symbol to derive implied volatility (e.g. \"AAPL\")."
           }
         }
       },
@@ -1083,6 +1087,19 @@
           "ordinaryIncome",
           "filingStatus",
           "stateCode"
+        ],
+        "anyOf": [
+          {
+            "required": [
+              "stacks"
+            ]
+          },
+          {
+            "required": [
+              "lots",
+              "currentPrice"
+            ]
+          }
         ],
         "properties": {
           "targetAfterTax": {
@@ -1210,10 +1227,6 @@
             "type": "number",
             "minimum": 0,
             "description": "Annualized σ used for stacks that omit their own `volatility`. Default 0.30."
-          },
-          "today": {
-            "$ref": "#/components/schemas/IsoDate",
-            "description": "Optional override for \"now\". Defaults to the server's current date."
           }
         }
       }

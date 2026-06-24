@@ -227,10 +227,11 @@ describe('GET /api/v1', () => {
     });
     expect(res.status).toBe(200);
     const json = (await res.json()) as { endpoints: Array<{ path: string }> };
-    expect(json.endpoints).toHaveLength(7);
+    expect(json.endpoints).toHaveLength(8);
     expect(json.endpoints.map((e) => e.path).sort()).toEqual([
       '/api/v1/amt-iso',
       '/api/v1/concentration',
+      '/api/v1/equity-funding',
       '/api/v1/nso',
       '/api/v1/protective-put',
       '/api/v1/qsbs',
