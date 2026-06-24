@@ -172,6 +172,34 @@ The anti-fabrication guard stripped fake prices/rates but not `today`.
   `today` from the public schema (keep a separate test-only injection), or have the parser reject a
   `today` earlier than the real now. Tracked for the Phase 4 schema cleanup; not yet shipped.
 
+## P14 (NEW, found by Andrew 2026-06-24) — trade-off figures drift across follow-up turns
+
+The "trade-off, safe to aggressive" line (lockInNow / balanced / holdForGrowth wealth + shortfall)
+changed between a 10% and a 2% follow-up on the SAME scenario. Those three are fixed strategies and
+are computed independently of riskToleranceShortfall (`equityFunding.ts` buildPlan calls; only
+`recommended`/`findOptimalHybrid` use tolerance), so they MUST be identical given identical inputs.
+Verified by a deterministic invariant test (named plans identical at 2% vs 10%). Therefore the drift
+came entirely from the underlying assumptions (price/growth/volatility) differing across turns: the
+extractor (gpt-4o-mini) inconsistently dropped or re-derived the AMZN ticker on the tweak turn (it
+even asked "what is the growth rate?" for growth it had derived from the ticker in turn 1), so the
+snapshot-derived inputs were not reproduced. Same extraction-fragility class as P13, same root: a weak
+extractor model with an old cutoff re-parsing the whole transcript each turn.
+
+- **Extractor prompt** — IMPROVED. Added: (1) a follow-up turn usually just adjusts one parameter, so
+  KEEP every field established earlier (ticker, shares, basis, dates, income, state, filing) and only
+  change what the new turn states; (2) a TICKER IS SUFFICIENT -- when a stock's ticker is present its
+  growth/volatility/price are derived automatically, so never ask for them or clarify for a rate, and
+  for equity_funding a stack with a ticker needs no expectedAnnualGrowth/volatility. Guarded by a
+  prompt-content test; behavior validated via the manual live e2e script (scripts/poe-e2e-extract.mts).
+- **Engine invariant** — LOCKED. tests/contracts/equity-funding.contract.test.ts asserts the three
+  named trade-off plans are identical across risk tolerances, so a future engine change that couples
+  them fails, and the diagnosis (drift = input drift, never tolerance) stays true.
+- **Root reliability lever (RECOMMENDATION, Andrew's call)** — both P13 and P14 stem from the cheap
+  extractor (gpt-4o-mini: old training cutoff + inconsistent multi-turn carry-forward). Upgrading
+  OPENROUTER_MODEL to a stronger, recent-cutoff model would cut this class at the source (also removes
+  the stale-`today` tendency). Cost rises modestly per query; prompt fixes reduce but cannot fully
+  eliminate small-model drift.
+
 ## Bot answer layer (Phases 0-2): COMPLETE
 
 All 7 tools have answer contracts (tests/contracts/*.contract.ts) bound to the engine

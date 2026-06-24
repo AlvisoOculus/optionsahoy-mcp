@@ -497,6 +497,14 @@ describe('poe helpers', () => {
     expect(p).toContain('{"clarify"');
     expect(p).toContain('{"reject"');
   });
+  it('extractorPrompt tells the model a ticker is sufficient and to carry fields across turns', () => {
+    // Guards against the multi-turn drift where a tweak turn ("2% shortfall risk")
+    // dropped the ticker / re-asked for growth, changing the trade-off figures.
+    const p = extractorPrompt('q');
+    expect(p).toMatch(/TICKER IS SUFFICIENT/);
+    expect(p).toMatch(/equity_funding/);
+    expect(p).toMatch(/KEEP every field already established/);
+  });
   it('toolSpec exposes required fields, enum values, and an example per tool', () => {
     const spec = toolSpec();
     expect(spec).toContain('filingStatus=[single|married_joint|head_household]');
