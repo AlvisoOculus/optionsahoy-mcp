@@ -269,7 +269,26 @@ option-market implied volatility"), B11 (NVDA/QQQ "~70% correlated" -> generaliz
 quarterly-estimates note), B13 (kept 22%/37% rates; aggregation nuance left as-is, low priority).
 527 tests pass.
 
-### Remaining batch (C only)
+### Batch C DONE (2026-06-24) — published agent docs (mcp mirrors a3ece23/943749e; web ae38ddd7)
+Fixed across optionsahoy-mcp/public/* (+ functions/api/v1/index.ts) and the PUBLIC
+optionsahoy_web/web/{public/*, app/for-agents/page.tsx}, kept in lockstep:
+R1 (for-agents protective-put curl now sends a valid body), R2/R3 (eight->six tests, verdict enum
+-> real five values), R5 (softened the response-schema over-claim), R6 (dropped the false
+daily-refreshed option-chain claim), R7 (removed chunk-grid/greedy search-strategy IP), R8 (openapi
+ProtectivePutInput gains ticker), R9 (EquityFundingInput gains the stacks/lots anyOf), R10 (removed
+internal web/lib path + em-dash), R11 (removed em-dashes), R12 (openapi version 1.9.5), N1 (removed
+the test-only `today` from openapi/toolspec/llms-full -- server already ignores it), N2 (GET /api/v1
+now lists equity-funding; inventory test updated to 8), N3 (for-agents Resources 6->7), N4 + the
+Black-Scholes model name neutralized everywhere. mcp 527 tests pass; web pre-commit suite 1081 pass;
+all JSON validated; for-agents type-checks. R13 (llms-full AMT schedule prose under-listing) left as
+low-priority polish.
+
+NOTE / follow-up: llms-full.txt and toolspec.json are HAND-MAINTAINED full mirrors of the tool
+descriptions; they were synced for every audited defect, but a durable fix is a generator that emits
+them from the TOOLS source (the Phase-4 "generated docs --check" the plan calls for, not yet built),
+so future description edits can't silently desync the public copies.
+
+### Remaining (polish only)
 1. **MCP descriptions/schemas (mcp-tools.ts)** — M1, M2, M3, M4, M5, M6, M7, M9, M10, M11. Source-repo
    only, engine-bound, low outward-facing risk. Lockable with schema-vs-engine + prose-vs-enum tests.
 2. **Published agent docs (PUBLIC web repo + mcp/public copies, kept in lockstep)** — R1, R2, R3, R5,
