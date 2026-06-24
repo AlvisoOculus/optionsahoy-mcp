@@ -305,10 +305,15 @@ function parseEquityFundingStack(
   return { stack, volatility };
 }
 
-export function parseEquityFundingInput(raw: unknown): EquityFundingComparisonInput {
+export function parseEquityFundingInput(raw: unknown, trustedToday?: Date): EquityFundingComparisonInput {
   const o = asObject(raw);
   const targetDate = p.date(o, 'targetDate');
-  const today = o.today !== undefined ? p.date(o, 'today') : new Date();
+  // The current date is NEVER taken from external input. A caller -- or an LLM
+  // extractor with a stale training cutoff -- could otherwise set `today` and
+  // anchor the entire sell schedule in the past (defect P13/RT1, hit in live
+  // use). Tests pass an explicit trusted override; in production the server
+  // clock is authoritative. Any `today` in the request body is ignored.
+  const today = trustedToday ?? new Date();
   const horizonYears = Math.max(
     0.25,
     (targetDate.getTime() - today.getTime()) / (365.25 * 86_400_000),

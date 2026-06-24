@@ -210,6 +210,54 @@ R1-R13), Phase 5 (resources/prompts tax-fact binding B1-B14 — includes brand-s
 QSBS/OBBBA/state-conformity corrections, some cross-repo in optionsahoy_web), Phase 6
 (voice/IP lint + degraded-input robustness across all surfaces).
 
+## Comprehensive review round 2 (2026-06-24) — agent-facing surfaces (MCP / REST / docs / resources)
+
+Four parallel auditors re-verified the M/R/B inventory against CURRENT code and hunted for what the
+first pass missed (esp. runtime input-trust). HEADLINE: every M1-M7, R1-R13, B1-B14 is STILL OPEN
+(none of the non-Poe layers have been fixed). New findings below. Auditor IDs (re-queryable):
+descriptions abd390c9eb8ae1329, REST/docs a5eb7bbd9ae6951b3, resources/prompts a3c685a99124954c3,
+runtime ae6808277a0685eee.
+
+### Fixed now
+- **RT1 / M8 / N1 (CRIT) — `today` poisoning open on MCP + REST + A2A** — FIXED. All three surfaces
+  funnel through `parseEquityFundingInput`, which trusted `o.today`; the engine's guard only fires when
+  the target YEAR < start year, so silent past-dating slipped through (the public-API version of the
+  live P13 bug). Parser now ignores any request-body `today` and uses the server clock; tests pin the
+  clock via a trusted second arg. `today` removed from the MCP input schema (mcp-tools.ts). Locked by a
+  regression test (a stale body `today` must not date the schedule in the past). Poe's `delete today`
+  is now redundant belt-and-suspenders. NOTE: the published doc copies (openapi.json/toolspec.json/
+  llms-full in BOTH repos) still advertise `today` -> remove in the doc batch (now harmless: ignored).
+
+### New, still open (from round 2)
+- **M9 (MED)** mcp-tools.ts:672 — qsbs `perIssuerCap` doc says "$10M"; engine returns $15M for OBBBA era.
+- **M10 / R2-echo (HIGH)** — "eight statutory tests" is also in the MCP description + outputSchema (:694,
+  :1235), not just the published docs; engine returns SIX. Same phantom-count class as R2.
+- **M3 worse than logged (HIGH)** — concentration `hedgeChoice` is INERT: the MCP tool's `calculate()`
+  never reads it, yet the description says it adds a hedged NFV scenario. Drop the field or the claim.
+- **N2 (MED)** functions/api/v1/index.ts — the `GET /api/v1` discovery list OMITS `/api/v1/equity-funding`.
+- **RT2 (MED)** — a `targetDate` strictly before today is silently clamped to "infeasible, $0 achievable"
+  instead of a clear "deadline is in the past" error. (Not yet fixed; small parser guard.)
+- **N3 (LOW)** for-agents page says "Resources (6)" and omits the equity-funding briefing (there are 7).
+- **N4 (LOW)** openapi/toolspec protective-put vol field leaks "sector_stats.annualVol x 1.20" (IP, = M5).
+- **RT3 (LOW, by design)** MCP `_meta.optionsahoy` is session-count-dependent and absent from REST; not a
+  result-correctness issue. Document `_meta` as advisory; agents key on structuredContent.
+- Runtime CLEAN confirmed: amt/concentration/nso/rsu/protective_put/qsbs have NO caller-injectable clock;
+  engines deterministic (no Date.now/Math.random/iteration-order); errors return clean 400s / isError.
+
+### Remaining batch, grouped by decision area (NOT yet started)
+1. **MCP descriptions/schemas (mcp-tools.ts)** — M1, M2, M3, M4, M5, M6, M7, M9, M10, M11. Source-repo
+   only, engine-bound, low outward-facing risk. Lockable with schema-vs-engine + prose-vs-enum tests.
+2. **Published agent docs (PUBLIC web repo + mcp/public copies, kept in lockstep)** — R1, R2, R3, R5,
+   R6, R7, R8, R9, R10, R11, R12, R13, N2(handler), N3, N4. OUTWARD-FACING (optionsahoy_web is deployed
+   publicly): for-agents/page.tsx, web/public/{llms.txt,llms-full.txt,openapi.json,toolspec.json} +
+   optionsahoy-mcp/public/* mirrors. Needs Andrew's nod before editing public site assets.
+3. **Resource/prompt tax facts (mcp-resources.ts, mcp-prompts.ts)** — B1-B14 + N1/N2/N3(resource).
+   BRAND-SENSITIVE. Engine-derivable (bindable to constants in tests): B1, B2, B4, B5, B6, B7, B8, B9,
+   B14, the six-tests count, the verdict enum, SS wage base $184,500. Manual sign-off (not engine-
+   derivable): B3 (NSO rate-spread false equivalence), B10 (vol-surface phrasing), B11 (NVDA/QQQ 70%),
+   B12 (quarterly estimates), B13 ($1M supplemental aggregation).
+4. **RT2** parser guard (reject past targetDate) — quick, source-only.
+
 ## Auditor agent IDs (re-queryable this session)
 - Poe bot: af89b010e6aa872bf
 - MCP descriptions: a1a3513eabd3ed012

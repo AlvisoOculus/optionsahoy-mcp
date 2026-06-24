@@ -1428,10 +1428,6 @@ export const TOOLS: McpTool[] = [
           minimum: 0,
           description: 'Annualized σ assumed for any stack that omits its own `volatility`. Drives the per-sale σ × √Δt shortfall calculation. Override per-stack on the stack object when one position is materially more or less volatile than the rest. Default 0.30.',
         },
-        today: {
-          ...ISO_DATE,
-          description: 'Reference "now" for year classification and projection compounding. Defaults to the server\'s current date; tests pass an explicit value for deterministic results.',
-        },
       },
     },
     outputSchema: EQUITY_FUNDING_OUTPUT_SCHEMA,
