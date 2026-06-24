@@ -357,7 +357,7 @@ function headline(tool: string, r: Result): string {
               ? '**This partially qualifies for the QSBS gain exclusion.**'
               : v === 'too-soon'
                 ? '**Not yet, but it is on track to qualify for the QSBS gain exclusion once the holding period is met.**'
-                : v === 'likely' || v === 'likely-qualifies'
+                : v === 'caveats'
                   ? '**This likely qualifies for the QSBS gain exclusion, with a couple of items to confirm.**'
                   : '**This does not appear to qualify for the QSBS gain exclusion.**';
         const lines = [verdictLine];
@@ -369,9 +369,16 @@ function headline(tool: string, r: Result): string {
           );
         }
         if (typeof r.taxableGain === 'number' && r.taxableGain > 0) {
+          // Only attribute the taxable remainder to the cap when the gain
+          // genuinely exceeds it (the engine sets cappedOverageNote then). For a
+          // tier haircut, too-soon, or a disqualified verdict the cap is not the
+          // reason, so no per-company-cap parenthetical.
+          const cappedOverage = typeof r.cappedOverageNote === 'string' && r.cappedOverageNote.length > 0;
           lines.push(
             `About ${usd(r.taxableGain)} of gain stays taxable` +
-              (typeof r.applicableCap === 'number' && r.applicableCap > 0 ? ` (the exclusion is capped at ${usd(r.applicableCap)} per company).` : '.'),
+              (cappedOverage && typeof r.applicableCap === 'number'
+                ? ` (your gain tops the ${usd(r.applicableCap)} per-company exclusion cap, so the excess is taxable no matter how long you hold).`
+                : '.'),
           );
         }
         // Name the specific tests that are blocking or pending, the actionable
