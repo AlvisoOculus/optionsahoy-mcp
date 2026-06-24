@@ -305,6 +305,13 @@ describe('poe error reformatting', () => {
     expect(text).not.toContain('must be a finite number');
   });
 
+  it('cleans nested null stack fields so the ticker derives growth (was "must be a finite number")', async () => {
+    const args = { targetAfterTax: 400000, targetDate: '2027-07-01', stacks: [{ ticker: 'AMZN', currentPrice: null, expectedAnnualGrowth: null, volatility: null, lots: [{ shares: 250, costBasisPerShare: 16, acquisitionDate: '2014-05-01' }] }], ordinaryIncome: 200000, filingStatus: 'married_joint', stateCode: 'CA' };
+    const text = await ask('equity_funding_plan', args, {}, {}, 'cash goal 400k by 07.2027, 250 AMZN cost basis 16 bought 05.2014, MFJ CA 200k');
+    expect(text).toContain('Recommended plan');
+    expect(text).not.toContain('must be a finite number');
+  });
+
   it('suggests the current price from a ticker (covered), disclosed', async () => {
     const a = { shares: 10000, strike: 2, ticker: 'NVDA', filingStatus: 'married_joint', ordinaryIncome: 300000, stateCode: 'CA', horizon: 4, cashReturnRate: 0.05, grantDate: '2022-01-01' };
     const text = await ask('amt_iso_optimize', a, {}, {}, '10,000 NVDA ISOs, $2 strike, 300k income, MFJ, CA, 4yr, 5% cash');

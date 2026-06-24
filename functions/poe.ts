@@ -114,6 +114,23 @@ function clean(s: unknown): string {
   return typeof s === 'string' ? s.replace(/\s*—\s*/g, ', ').replace(/–/g, '-') : '';
 }
 
+// Recursively drop null / undefined / blank values (including inside nested
+// objects like equity_funding stacks and lots) so the calculator's own
+// "undefined -> derive from ticker / default" paths take effect. A nested
+// `expectedAnnualGrowth: null` would otherwise throw "must be a finite number".
+function dropEmpty(v: any): any {
+  if (Array.isArray(v)) return v.map(dropEmpty);
+  if (v && typeof v === 'object') {
+    const out: Record<string, any> = {};
+    for (const [k, val] of Object.entries(v)) {
+      if (val === null || val === undefined || val === '') continue;
+      out[k] = dropEmpty(val);
+    }
+    return out;
+  }
+  return v;
+}
+
 // Every number the user actually typed, normalized ($, commas, %, k/m suffixes).
 function convoNumbers(convo: string): number[] {
   const out: number[] = [];
@@ -359,7 +376,7 @@ function assumptionsLine(tool: string, a: Record<string, any>): string {
       break;
     }
     case 'equity_funding_plan': {
-      parts.push('the growth and volatility you gave for each holding');
+      parts.push("each holding's growth and volatility (from your numbers, or its ticker's history)");
       break;
     }
     // qsbs_check has no forward-looking assumptions (dates + amounts only).
@@ -667,14 +684,12 @@ async function handleQuery(ctx: PagesContext, req: PoeRequest, extractor?: Extra
   let usedArgs: Record<string, any> = {};
   let priceNote = '';
   try {
-    // Drop null/undefined/blank values the extractor emitted for fields the
-    // user did not state, so the safe defaults below actually take effect
-    // (an explicit null would otherwise override a default like
-    // carryforwardCredit: 0). Note: terminationDate legitimately may be null,
-    // and its default is already null, so dropping it is harmless.
-    const provided: Record<string, any> = Object.fromEntries(
-      Object.entries(extracted.args ?? {}).filter(([, v]) => v !== null && v !== undefined && v !== ''),
-    );
+    // Drop null/undefined/blank values (recursively, including inside stacks)
+    // the extractor emitted for fields the user did not state, so the safe
+    // defaults and the calculator's ticker-derivation take effect. An explicit
+    // null would otherwise override a default (carryforwardCredit: 0) or throw
+    // ("stacks[0].expectedAnnualGrowth must be a finite number").
+    const provided: Record<string, any> = dropEmpty(extracted.args ?? {});
     // Drop a placeholder/implausible ticker the model sometimes emits
     // ("unknown", "n/a", a whole phrase). A real symbol is 1-6 letters.
     if (typeof provided.ticker === 'string' && !/^[A-Za-z][A-Za-z.\-]{0,5}$/.test(provided.ticker.trim())) {
