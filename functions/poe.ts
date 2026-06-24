@@ -390,7 +390,7 @@ function extractorPrompt(conversation: string): string {
     '- If a required field is missing and cannot be inferred, reply {"clarify":"<one short, friendly question naming what you need>"}. Never invent a tax rate, cash return rate, growth rate, or grant date.',
     '- If the user asks what you can do, what inputs you need, or how to use you (instead of giving a scenario), reply {"help":"<the tool name if they asked about a specific one, otherwise general>"}.',
     '- If the chat is not about equity-compensation tax planning at all, reply {"reject":"<one short sentence>"}.',
-    '- Do NOT confuse prices. A purchase/"bought at"/"paid"/cost basis/strike price is a PAST price; it is costBasisPerShare / adjustedBasis / strike, NEVER currentPrice or fmv. currentPrice and fmv are the value the stock has NOW. Only set currentPrice/fmv from an explicit current value (e.g. "trading at $140", "$140 today", "now worth"). If the user gives only a purchase/cost price and no current value, leave currentPrice/fmv unset.',
+    '- Do NOT confuse prices. currentPrice/fmv is the value NOW: phrases like "$40 value", "$40 current value", "$200 value", "now $140", "trading at $140", "currently $200", "worth $X" all set currentPrice/fmv. A purchase price ("bought at $60", "paid $60", cost basis, strike) is a PAST price; it is costBasisPerShare / adjustedBasis / strike, NEVER currentPrice/fmv. If the ONLY price the user gives is a purchase/cost price (no current value), OMIT currentPrice/fmv entirely (do not output 0 or null, and do not reuse the purchase price).',
     '- filingStatus must be one of: single, married_joint, head_household. stateCode is a two-letter code.',
     '',
     'Conversation so far (resolve the latest user turn using all earlier turns):',
@@ -651,6 +651,30 @@ async function handleQuery(ctx: PagesContext, req: PoeRequest, extractor?: Extra
     // ("unknown", "n/a", a whole phrase). A real symbol is 1-6 letters.
     if (typeof provided.ticker === 'string' && !/^[A-Za-z][A-Za-z.\-]{0,5}$/.test(provided.ticker.trim())) {
       delete provided.ticker;
+    }
+    // Drop non-positive price/value fields the model sometimes emits as 0 when
+    // it does not actually have a current price (e.g. only a cost basis was
+    // given). Includes equity_funding's per-stack currentPrice. A 0 price would
+    // otherwise compute a nonsense answer instead of asking.
+    for (const k of ['currentPrice', 'fmv', 'positionValue', 'expectedSalePrice']) {
+      if (typeof provided[k] === 'number' && provided[k] <= 0) delete provided[k];
+    }
+    if (Array.isArray(provided.stacks)) {
+      for (const s of provided.stacks) {
+        if (s && typeof s.currentPrice === 'number' && s.currentPrice <= 0) delete s.currentPrice;
+      }
+    }
+    // Deterministic ticker follow-up: if we just asked for a ticker and the
+    // user's reply is a lone symbol (e.g. "nvda"), use it. The model is
+    // unreliable on such terse one-word turns and sometimes fabricates a rate
+    // instead, so do not depend on it here.
+    const lastBot = [...messages].reverse().find((m) => m.role === 'bot');
+    const lastUserText = (lastUser.content ?? '').trim();
+    if (!provided.ticker && /^[A-Za-z]{1,5}$/.test(lastUserText) && lastBot && /ticker/i.test(lastBot.content ?? '')) {
+      provided.ticker = lastUserText.toUpperCase();
+      delete provided.expectedGrowth;
+      delete provided.expectedPositionReturn;
+      delete provided.volatility;
     }
     // Anti-fabrication: the optimizer must never run on a forward growth/return
     // OR volatility the model made up (a made-up tax assumption presented as

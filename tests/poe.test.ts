@@ -204,6 +204,17 @@ describe('poe clarify / reject / fallback', () => {
     const res = await handleQuery(ctx(), { type: 'query', query: [{ role: 'user', content: 'x' }] }, async () => { throw new Error('boom'); });
     expect(await res.text()).toContain('optionsahoy.com/tools');
   });
+  it('uses a one-word ticker reply deterministically after a ticker request', async () => {
+    // The flaky model sometimes drops the bare "nvda"; handleQuery sets it.
+    const a = { shares: 10000, strike: 2, fmv: 40, filingStatus: 'married_joint', ordinaryIncome: 300000, stateCode: 'CA', horizon: 4, cashReturnRate: 0.05, grantDate: '2022-01-01' };
+    const res = await handleQuery(ctx(), { type: 'query', query: [
+      { role: 'user', content: '10,000 ISOs, $2 strike, $40 value, MFJ, $300k income, CA, 4-year, granted 2022-01-01, 5% cash' },
+      { role: 'bot', content: 'Give me the stock ticker or a growth rate' },
+      { role: 'user', content: 'nvda' },
+    ] }, async () => ({ tool: 'amt_iso_optimize', args: a }));
+    expect(await res.text()).toContain('most money after taxes');
+  });
+
   it('passes the full recent transcript (so a "nvda" follow-up keeps the original scenario)', async () => {
     let seen = '';
     const res = await handleQuery(ctx(), { type: 'query', query: [
