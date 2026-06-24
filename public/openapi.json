@@ -902,7 +902,7 @@
           "volatility": {
             "type": "number",
             "minimum": 0,
-            "description": "Annualized volatility (sigma). Used for the Black-Scholes hedging path AND, when `volatilityDrag` is omitted, derives drag = 1 - exp(-(sigma^2 / 2) * 3). Either this OR `volatilityDrag` is required for drag."
+            "description": "Annualized volatility (sigma). Used for the closed-form option pricing hedging path AND, when `volatilityDrag` is omitted, derives drag = 1 - exp(-(sigma^2 / 2) * 3). Either this OR `volatilityDrag` is required for drag."
           },
           "hedgeChoice": {
             "type": "object",
