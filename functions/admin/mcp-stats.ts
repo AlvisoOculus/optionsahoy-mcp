@@ -22,7 +22,7 @@ interface ToolRow { tool: string; n: number; errors: number }
 interface ErrorRow { endpoint: string; tool: string | null; error_msg: string; n: number }
 interface ClientRow { client_name: string; n: number }
 interface CountryRow { country: string | null; n: number }
-interface SampleRow { ts: number; surface: string; tool: string | null; query: string | null; answer: string | null }
+interface SampleRow { ts: number; surface: string; tool: string | null; client_name: string | null; query: string | null; answer: string | null }
 
 const DEFAULT_DAYS = 30;
 const MAX_DAYS = 365;
@@ -104,8 +104,8 @@ export const onRequest: PagesFunction = async (ctx) => {
   try {
     const surface = url.searchParams.get('surface');
     const sql = surface
-      ? 'SELECT ts, surface, tool, query, answer FROM mcp_samples WHERE ts >= ? AND surface = ? ORDER BY ts DESC LIMIT 50'
-      : 'SELECT ts, surface, tool, query, answer FROM mcp_samples WHERE ts >= ? ORDER BY ts DESC LIMIT 50';
+      ? 'SELECT ts, surface, tool, client_name, query, answer FROM mcp_samples WHERE ts >= ? AND surface = ? ORDER BY ts DESC LIMIT 50'
+      : 'SELECT ts, surface, tool, client_name, query, answer FROM mcp_samples WHERE ts >= ? ORDER BY ts DESC LIMIT 50';
     const stmt = surface ? db.prepare(sql).bind(sinceMs, surface) : db.prepare(sql).bind(sinceMs);
     samples = (await stmt.all<SampleRow>()).results;
   } catch {
@@ -185,6 +185,7 @@ function renderHtml(d: RenderInput): string {
   code { background: #f4f4f4; padding: 1px 4px; border-radius: 3px; font-size: 12px; }
   details.ex { border-bottom: 1px solid #eee; padding: 6px 0; }
   details.ex summary { cursor: pointer; color: #555; }
+  details.ex summary .cl { color: #888; }
   details.ex pre { white-space: pre-wrap; word-break: break-word; background: #fafafa; padding: 8px; border-radius: 4px; font-size: 12px; overflow-x: auto; }
 </style>
 </head>
@@ -247,7 +248,8 @@ ${
     : d.samples
         .map((s) => {
           const when = new Date(s.ts).toISOString().replace('T', ' ').slice(0, 16);
-          return `<details class="ex"><summary>${esc(when)} &middot; <b>${esc(s.surface)}</b> &middot; ${esc(s.tool) || '<i>-</i>'}</summary><pre><b>Q:</b> ${esc(s.query)}\n\n<b>A:</b> ${esc(s.answer)}</pre></details>`;
+          const client = s.client_name ? esc(s.client_name) : '<i>unknown</i>';
+          return `<details class="ex"><summary>${esc(when)} &middot; <b>${esc(s.surface)}</b> &middot; ${esc(s.tool) || '<i>-</i>'} &middot; <span class="cl">${client}</span></summary><pre><b>Q:</b> ${esc(s.query)}\n\n<b>A:</b> ${esc(s.answer)}</pre></details>`;
         })
         .join('\n')
 }

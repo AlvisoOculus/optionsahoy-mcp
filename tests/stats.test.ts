@@ -230,4 +230,22 @@ describe('logSample (example capture)', () => {
     expect(cutoff).toBeLessThanOrEqual(Date.now());
     expect(cutoff).toBeGreaterThan(Date.now() - 8 * 86_400_000); // ~7 days back
   });
+
+  it('falls back to the request User-Agent as the client when none is given', async () => {
+    const { db, recorded } = mockDb();
+    const c = ctx({ db, ua: 'curl/8.1.2' });
+    logSample(c, { surface: 'rest', tool: 'equity-funding', query: 'q', answer: 'a' });
+    await Promise.all(c.waited);
+    const insert = recorded.find((r) => r.sql.startsWith('INSERT INTO mcp_samples'))!;
+    expect(insert.bindings[3]).toBe('curl/8.1.2'); // client_name = UA
+  });
+
+  it('keeps an explicit clientName over the User-Agent', async () => {
+    const { db, recorded } = mockDb();
+    const c = ctx({ db, ua: 'curl/8.1.2' });
+    logSample(c, { surface: 'poe', clientName: 'poe', query: 'q', answer: 'a' });
+    await Promise.all(c.waited);
+    const insert = recorded.find((r) => r.sql.startsWith('INSERT INTO mcp_samples'))!;
+    expect(insert.bindings[3]).toBe('poe');
+  });
 });

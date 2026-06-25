@@ -126,17 +126,22 @@ export function logSamples(ctx: PagesContext, batch: SampleFields[]): void {
   const db = ctx.env?.MCP_STATS;
   if (!db) return;
   const ts = Date.now();
+  // REST/MCP calls carry no handshake client name; fall back to the request's
+  // User-Agent so each example is attributable (curl/browser = a test, a real
+  // integration's UA otherwise). Poe passes clientName 'poe' explicitly.
+  const ua = ctx.request.headers.get('user-agent') ?? undefined;
   const cut = (s: string | undefined, max: number) => (s ? s.slice(0, max) : null);
-  const stmts = batch.map((f) =>
-    db.prepare(SAMPLE_INSERT_SQL).bind(
+  const stmts = batch.map((f) => {
+    const client = f.clientName ?? ua;
+    return db.prepare(SAMPLE_INSERT_SQL).bind(
       ts,
       f.surface,
       f.tool ?? null,
-      f.clientName ? f.clientName.slice(0, CLIENT_NAME_MAX) : null,
+      client ? client.slice(0, CLIENT_NAME_MAX) : null,
       cut(f.query, SAMPLE_QUERY_MAX),
       cut(f.answer, SAMPLE_ANSWER_MAX),
-    ),
-  );
+    );
+  });
   stmts.push(db.prepare(SAMPLE_PRUNE_SQL).bind(ts - SAMPLE_RETENTION_MS));
   const writes: Promise<unknown> = db.batch ? db.batch(stmts) : Promise.all(stmts.map((s) => s.run()));
   const promise = writes.catch(() => undefined);
