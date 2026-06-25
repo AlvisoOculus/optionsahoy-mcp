@@ -746,7 +746,7 @@ async function poeCost(
 // always override them. Real inputs (amounts, prices, rates, dates) are NOT
 // defaulted, so the bot still asks for those when missing.
 const TOOL_DEFAULTS: Record<string, Record<string, unknown>> = {
-  amt_iso_optimize: { carryforwardCredit: 0, hasLeftCompany: false, terminationDate: null },
+  amt_iso_optimize: { carryforwardCredit: 0, hasLeftCompany: false, terminationDate: null, cashReturnRate: 0.05 },
   nso_calculate: { stillEmployed: true, holdFunding: 'cash' },
   rsu_sell_vs_hold: { stillEmployed: true },
   protective_put_price: { protectionLevel: 0.1, tenorYears: 1 },
@@ -798,26 +798,34 @@ const FIELD_LABELS: Record<string, string> = {
 
 // Schema-required fields the bot safely assumes when unstated (see TOOL_DEFAULTS).
 // Shown under Optional with the assumption so the user knows the default.
+// Schema-required fields the Poe bot safely assumes when unstated (TOOL_DEFAULTS).
+// Shown under Optional with the assumption so the user knows the default. NOTE:
+// the MCP/REST API still requires these; the assumption is a Poe-bot convenience.
 const ASSUMED_LABEL: Record<string, Record<string, string>> = {
-  amt_iso_optimize: { carryforwardCredit: 'assumes none', hasLeftCompany: 'assumes still employed', terminationDate: '' },
+  amt_iso_optimize: { carryforwardCredit: 'assumes none', hasLeftCompany: 'assumes still employed', terminationDate: '', cashReturnRate: 'assumes 5%' },
   nso_calculate: { stillEmployed: 'assumes still employed', holdFunding: 'assumes cash exercise' },
   rsu_sell_vs_hold: { stillEmployed: 'assumes still employed' },
   protective_put_price: { protectionLevel: 'assumes 10%', tenorYears: 'assumes 1 year' },
 };
 
-// Inputs the schema models as optional/anyOf but the user must effectively supply
-// (the holdings; the forward estimate). Appended to Required and hidden from Optional.
+// The "give a ticker or supply these" alternative. The Poe bot fills the current
+// price and the forward estimate (and volatility) from a ticker snapshot, so
+// those fields are not hard-required even though the raw API schema lists some of
+// them as required. Appended to Required as one clause.
 const REQUIRED_NOTE: Record<string, string> = {
-  amt_iso_optimize: 'and either a ticker or an expected growth rate',
-  nso_calculate: 'and either a ticker or an expected sale price',
-  rsu_sell_vs_hold: 'and either a ticker or an expected sale price',
-  concentration_analyze: 'and either a ticker or an expected annual return',
+  amt_iso_optimize: 'and a ticker, or the current share value and an expected growth rate',
+  nso_calculate: 'and a ticker, or the current price and an expected sale price',
+  rsu_sell_vs_hold: 'and a ticker, or the current price and an expected sale price',
+  concentration_analyze: 'and a ticker, or an expected annual return',
   equity_funding_plan: 'and your holdings: for each lot the shares, cost basis, and purchase date, with a ticker or current price',
 };
-const HIDE_OPTIONAL: Record<string, Set<string>> = {
-  amt_iso_optimize: new Set(['expectedGrowth', 'ticker']),
-  nso_calculate: new Set(['expectedSalePrice', 'ticker']),
-  rsu_sell_vs_hold: new Set(['expectedSalePrice', 'ticker']),
+// Fields folded into REQUIRED_NOTE (the ticker-or alternative) -- excluded from
+// BOTH the Required and Optional lists. Includes price fields the schema marks
+// required but the Poe bot derives from a ticker (fmv, currentPrice).
+const EXCLUDE: Record<string, Set<string>> = {
+  amt_iso_optimize: new Set(['fmv', 'expectedGrowth', 'ticker']),
+  nso_calculate: new Set(['currentPrice', 'expectedSalePrice', 'ticker']),
+  rsu_sell_vs_hold: new Set(['currentPrice', 'expectedSalePrice', 'ticker']),
   concentration_analyze: new Set(['expectedPositionReturn', 'ticker']),
   protective_put_price: new Set(['ticker', 'tickerLabel']),
   equity_funding_plan: new Set(['stacks', 'lots', 'currentPrice', 'expectedAnnualGrowth']),
@@ -835,12 +843,12 @@ function toolParams(tool: string): { required: string[]; optional: string[] } {
   const req = Array.isArray(s.required) ? s.required : [];
   const props = Object.keys(s.properties ?? {});
   const assumed = ASSUMED_LABEL[tool] ?? {};
-  const hide = HIDE_OPTIONAL[tool] ?? new Set<string>();
+  const exclude = EXCLUDE[tool] ?? new Set<string>();
   const label = (f: string) => FIELD_LABELS[f] ?? f;
-  const required = req.filter((f) => !(f in assumed)).map(label).filter(Boolean);
+  const required = req.filter((f) => !(f in assumed) && !exclude.has(f)).map(label).filter(Boolean);
   const optional = [
     ...req.filter((f) => f in assumed && label(f)).map((f) => `${label(f)} (${assumed[f]})`),
-    ...props.filter((p) => !req.includes(p) && !hide.has(p)).map(label).filter(Boolean),
+    ...props.filter((p) => !req.includes(p) && !exclude.has(p)).map(label).filter(Boolean),
   ];
   return { required, optional };
 }

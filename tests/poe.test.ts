@@ -262,7 +262,8 @@ describe('poe help', () => {
     const amt = helpText('amt_iso_optimize');
     expect(amt).toMatch(/Required:[^]*grant date/); // a genuine must
     expect(amt).toMatch(/Optional:[^]*assumes still employed/); // a defaulted field, demoted
-    expect(amt).toMatch(/either a ticker or an expected growth rate/); // the forward estimate
+    expect(amt).toMatch(/a ticker, or the current share value and an expected growth rate/); // fmv is ticker-derivable, not hard-required
+    expect(amt).toMatch(/Optional:[^]*cash return rate \(assumes 5%\)/); // defaulted, not required
     const put = helpText('protective_put_price');
     expect(put).toMatch(/Required:[^]*position value/);
     expect(put).toMatch(/Optional:[^]*assumes 10%/); // protectionLevel defaulted
