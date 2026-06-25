@@ -12,7 +12,7 @@
 // connection to https://optionsahoy.com/mcp. No auth.
 
 import { type PagesFunction } from './_lib/api';
-import { logCalls, type CallFields, type D1Database } from './_lib/stats';
+import { logCalls, logSamples, type CallFields, type SampleFields, type D1Database } from './_lib/stats';
 import { TOOLS } from './_lib/mcp-tools';
 import { RESOURCES } from './_lib/mcp-resources';
 import { PROMPTS } from './_lib/mcp-prompts';
@@ -97,6 +97,7 @@ function isParams(v: unknown): v is Record<string, unknown> {
 async function handle(
   req: JsonRpcRequest,
   logs: CallFields[],
+  samples: SampleFields[],
   sessionDeps: { sessionId: string; db: D1Database } | undefined,
 ): Promise<JsonRpcResponse | null> {
   const id = req.id ?? null;
@@ -146,6 +147,13 @@ async function handle(
       try {
         const result = tool.handler(args ?? {}) as Record<string, unknown>;
         logs.push({ endpoint, tool: name, isError: false });
+        // Capture this successful call as an example (7-day rolling, admin-gated).
+        // Stringify the result now, before _meta injection, so it stays clean.
+        try {
+          samples.push({ surface: 'mcp', tool: name, query: JSON.stringify(args ?? {}), answer: JSON.stringify(result) });
+        } catch {
+          // never let example capture break the tool response
+        }
         // Inject the next-step conversion block (free tool -> complementary
         // tool -> beta) into _meta.optionsahoy. The full block fires only on
         // the first tools/call per session; later calls get the bare
@@ -274,17 +282,19 @@ export const onRequest: PagesFunction = async (ctx) => {
   }
 
   const responses: JsonRpcResponse[] = [];
+  const samples: SampleFields[] = [];
   for (const r of requests) {
     if (!r || typeof r !== 'object' || (r as { jsonrpc?: unknown }).jsonrpc !== '2.0' || typeof (r as { method?: unknown }).method !== 'string') {
       logs.push({ endpoint: 'mcp:invalid-request', isError: true });
       responses.push(err(null, -32600, 'Invalid Request'));
       continue;
     }
-    const out = await handle(r as JsonRpcRequest, logs, sessionDeps);
+    const out = await handle(r as JsonRpcRequest, logs, samples, sessionDeps);
     if (out !== null) responses.push(out);
   }
 
   logCalls(ctx, logs);
+  logSamples(ctx, samples);
 
   if (responses.length === 0) {
     // All-notifications batch. Per spec, return 204 No Content.

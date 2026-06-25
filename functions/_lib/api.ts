@@ -32,6 +32,15 @@ export const CORS_HEADERS: Record<string, string> = {
   'access-control-max-age': '86400',
 };
 
+// Best-effort JSON for example capture; never throws into the request path.
+function safeStringify(v: unknown): string | undefined {
+  try {
+    return JSON.stringify(v);
+  } catch {
+    return undefined;
+  }
+}
+
 export function jsonResponse(status: number, body: unknown): Response {
   return new Response(JSON.stringify(body), {
     status,
@@ -46,7 +55,7 @@ export function preflight(): Response {
 // Parse and run a calculator. Returns the result as JSON on success, or
 // a 400 with the error message if parsing / validation / the calc throws.
 // Logs one row to MCP_STATS per inbound POST (preflight OPTIONS skipped).
-import { logCall } from './stats';
+import { logCall, logSample } from './stats';
 
 export async function runCalc<I, O>(
   context: PagesContext,
@@ -78,6 +87,12 @@ export async function runCalc<I, O>(
   try {
     const output = compute(input);
     logCall(context, { endpoint, isError: false });
+    logSample(context, {
+      surface: 'rest',
+      tool: endpoint.replace(/^rest:/, ''),
+      query: safeStringify(raw),
+      answer: safeStringify(output),
+    });
     return jsonResponse(200, { ok: true, result: output });
   } catch (err) {
     const errorMsg = err instanceof Error ? err.message : String(err);

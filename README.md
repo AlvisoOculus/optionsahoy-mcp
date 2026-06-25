@@ -311,9 +311,13 @@ aggregates at `https://optionsahoy-mcp.pages.dev/admin/mcp-stats?token=<ADMIN_TO
 cd /Users/andrewk/Projects/optionsahoy-mcp
 npx wrangler d1 create optionsahoy-mcp-stats
 
-# 2. Apply the schema.
+# 2. Apply the schema (run each migration in order).
 npx wrangler d1 execute optionsahoy-mcp-stats --remote \
   --file=db/migrations/0001_init.sql
+npx wrangler d1 execute optionsahoy-mcp-stats --remote \
+  --file=db/migrations/0002_mcp_sessions.sql
+npx wrangler d1 execute optionsahoy-mcp-stats --remote \
+  --file=db/migrations/0003_mcp_samples.sql   # 7-day example capture for /admin/mcp-stats
 
 # 3. Generate a token.
 openssl rand -hex 32

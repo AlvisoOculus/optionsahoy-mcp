@@ -21,7 +21,7 @@
 
 import { TOOLS } from './_lib/mcp-tools';
 import { PER_TOOL_FREE_TOOL_BARE } from './_lib/sessions';
-import { logCall } from './_lib/stats';
+import { logCall, logSample } from './_lib/stats';
 import { getCurrentPrice } from '../lib/data/prices';
 import type { PagesContext, PagesFunction } from './_lib/api';
 
@@ -1104,6 +1104,9 @@ async function handleQuery(ctx: PagesContext, req: PoeRequest, extractor?: Extra
     (assume ? `${assume}\n\n` : '') +
     `${cta}\n\n` +
     `_Worked out by the OptionsAhoy optimizer across the full federal tax code plus all 50 states and DC, not estimated._`;
+  // Capture this successful answer as an example (7-day rolling, admin-gated) so
+  // we can see what people actually ask and what we return.
+  logSample(ctx, { surface: 'poe', tool: tool.name, clientName: 'poe', query: convo, answer: body });
   return textReply(body);
 }
 

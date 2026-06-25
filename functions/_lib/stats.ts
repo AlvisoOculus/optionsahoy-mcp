@@ -96,3 +96,53 @@ export function logCalls(ctx: PagesContext, batch: CallFields[]): void {
 export function logCall(ctx: PagesContext, fields: CallFields): void {
   logCalls(ctx, [fields]);
 }
+
+// --- example capture (mcp_samples) -----------------------------------------
+//
+// A rolling 7-day sample of real inputs+outputs, for product feedback. UNLIKE
+// the metadata-only mcp_calls table, this stores query+answer text (financial
+// details), so it is admin-token-gated, pruned to 7 days on every write, and
+// only written for successful calls. See db/migrations/0003_mcp_samples.sql.
+
+const SAMPLE_QUERY_MAX = 4000;
+const SAMPLE_ANSWER_MAX = 8000;
+const SAMPLE_RETENTION_MS = 7 * 86_400_000; // 7 days rolling
+const SAMPLE_INSERT_SQL =
+  'INSERT INTO mcp_samples (ts, surface, tool, client_name, query, answer) VALUES (?, ?, ?, ?, ?, ?)';
+const SAMPLE_PRUNE_SQL = 'DELETE FROM mcp_samples WHERE ts < ?';
+
+export interface SampleFields {
+  surface: string; // poe | mcp | rest
+  tool?: string;
+  clientName?: string;
+  query?: string;
+  answer?: string;
+}
+
+// Write N example rows + prune the >7-day tail, in one fire-and-forget round
+// trip. No-op when the MCP_STATS binding is absent.
+export function logSamples(ctx: PagesContext, batch: SampleFields[]): void {
+  if (batch.length === 0) return;
+  const db = ctx.env?.MCP_STATS;
+  if (!db) return;
+  const ts = Date.now();
+  const cut = (s: string | undefined, max: number) => (s ? s.slice(0, max) : null);
+  const stmts = batch.map((f) =>
+    db.prepare(SAMPLE_INSERT_SQL).bind(
+      ts,
+      f.surface,
+      f.tool ?? null,
+      f.clientName ? f.clientName.slice(0, CLIENT_NAME_MAX) : null,
+      cut(f.query, SAMPLE_QUERY_MAX),
+      cut(f.answer, SAMPLE_ANSWER_MAX),
+    ),
+  );
+  stmts.push(db.prepare(SAMPLE_PRUNE_SQL).bind(ts - SAMPLE_RETENTION_MS));
+  const writes: Promise<unknown> = db.batch ? db.batch(stmts) : Promise.all(stmts.map((s) => s.run()));
+  const promise = writes.catch(() => undefined);
+  if (ctx.waitUntil) ctx.waitUntil(promise);
+}
+
+export function logSample(ctx: PagesContext, fields: SampleFields): void {
+  logSamples(ctx, [fields]);
+}

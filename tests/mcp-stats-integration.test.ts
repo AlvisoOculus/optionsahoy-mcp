@@ -24,7 +24,7 @@ function mockDb(): { db: D1Database; rows: LoggedRow[] } {
   return {
     rows,
     db: {
-      prepare(): D1PreparedStatement {
+      prepare(query: string): D1PreparedStatement {
         let bindings: unknown[] = [];
         const obj: D1PreparedStatement = {
           bind(...values: unknown[]) {
@@ -32,6 +32,9 @@ function mockDb(): { db: D1Database; rows: LoggedRow[] } {
             return obj;
           },
           async run() {
+            // Only record mcp_calls inserts; ignore the mcp_samples insert/prune
+            // (example capture) so these metadata assertions stay focused.
+            if (!query.startsWith('INSERT INTO mcp_calls')) return undefined;
             rows.push({
               ts: bindings[0] as number,
               endpoint: bindings[1] as string,

@@ -11,6 +11,7 @@ import { describe, it, expect, vi } from 'vitest';
 import {
   logCall,
   logCalls,
+  logSample,
   type D1Database,
   type D1PreparedStatement,
   type PagesContext,
@@ -191,5 +192,42 @@ describe('logCalls (batch)', () => {
     await Promise.all(c.waited);
     const timestamps = recorded.map((r) => r.bindings[0]);
     expect(new Set(timestamps).size).toBe(1);
+  });
+});
+
+describe('logSample (example capture)', () => {
+  it('is a no-op without the MCP_STATS binding', () => {
+    const c = ctx({}); // no db
+    expect(() => logSample(c, { surface: 'poe', query: 'q', answer: 'a' })).not.toThrow();
+    expect(c.waited).toHaveLength(0);
+  });
+
+  it('writes one mcp_samples insert + a 7-day prune, truncates, hands promise to waitUntil', async () => {
+    const { db, recorded } = mockDb();
+    const c = ctx({ db });
+    logSample(c, {
+      surface: 'poe',
+      tool: 'qsbs_check',
+      clientName: 'poe',
+      query: 'Q'.repeat(5000),
+      answer: 'A'.repeat(9000),
+    });
+    expect(c.waited).toHaveLength(1);
+    await Promise.all(c.waited);
+
+    const inserts = recorded.filter((r) => r.sql.startsWith('INSERT INTO mcp_samples'));
+    const prunes = recorded.filter((r) => r.sql.startsWith('DELETE FROM mcp_samples'));
+    expect(inserts).toHaveLength(1);
+    expect(prunes).toHaveLength(1);
+
+    const b = inserts[0].bindings; // ts, surface, tool, client_name, query, answer
+    expect(b[1]).toBe('poe');
+    expect(b[2]).toBe('qsbs_check');
+    expect((b[4] as string).length).toBe(4000); // query truncated
+    expect((b[5] as string).length).toBe(8000); // answer truncated
+
+    const cutoff = prunes[0].bindings[0] as number;
+    expect(cutoff).toBeLessThanOrEqual(Date.now());
+    expect(cutoff).toBeGreaterThan(Date.now() - 8 * 86_400_000); // ~7 days back
   });
 });

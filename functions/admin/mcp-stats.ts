@@ -22,6 +22,7 @@ interface ToolRow { tool: string; n: number; errors: number }
 interface ErrorRow { endpoint: string; tool: string | null; error_msg: string; n: number }
 interface ClientRow { client_name: string; n: number }
 interface CountryRow { country: string | null; n: number }
+interface SampleRow { ts: number; surface: string; tool: string | null; query: string | null; answer: string | null }
 
 const DEFAULT_DAYS = 30;
 const MAX_DAYS = 365;
@@ -96,8 +97,23 @@ export const onRequest: PagesFunction = async (ctx) => {
     endpointErrors = r.results;
   }
 
+  // Recent examples (real query+answer, 7-day rolling capture). Resilient: if
+  // the mcp_samples table is not yet created (migration 0003 not applied) the
+  // query throws and we show none. Optional ?surface=poe|mcp|rest filter.
+  let samples: SampleRow[] = [];
+  try {
+    const surface = url.searchParams.get('surface');
+    const sql = surface
+      ? 'SELECT ts, surface, tool, query, answer FROM mcp_samples WHERE ts >= ? AND surface = ? ORDER BY ts DESC LIMIT 50'
+      : 'SELECT ts, surface, tool, query, answer FROM mcp_samples WHERE ts >= ? ORDER BY ts DESC LIMIT 50';
+    const stmt = surface ? db.prepare(sql).bind(sinceMs, surface) : db.prepare(sql).bind(sinceMs);
+    samples = (await stmt.all<SampleRow>()).results;
+  } catch {
+    samples = [];
+  }
+
   if (url.searchParams.get('format') === 'json') {
-    const body = JSON.stringify({ days, endpoints, daily, dailyRest, dailyMcp, tools, errors, clients, countries, endpointErrors });
+    const body = JSON.stringify({ days, endpoints, daily, dailyRest, dailyMcp, tools, errors, clients, countries, endpointErrors, samples });
     return new Response(body, {
       status: 200,
       headers: {
@@ -107,7 +123,7 @@ export const onRequest: PagesFunction = async (ctx) => {
     });
   }
 
-  const html = renderHtml({ days, endpoints, daily, dailyRest, dailyMcp, tools, errors, clients, countries });
+  const html = renderHtml({ days, endpoints, daily, dailyRest, dailyMcp, tools, errors, clients, countries, samples });
   return new Response(html, {
     status: 200,
     headers: {
@@ -127,6 +143,7 @@ interface RenderInput {
   errors: ErrorRow[];
   clients: ClientRow[];
   countries: CountryRow[];
+  samples: SampleRow[];
 }
 
 function esc(s: string | null | undefined): string {
@@ -166,6 +183,9 @@ function renderHtml(d: RenderInput): string {
   td.num { text-align: right; }
   .empty { color: #aaa; font-style: italic; }
   code { background: #f4f4f4; padding: 1px 4px; border-radius: 3px; font-size: 12px; }
+  details.ex { border-bottom: 1px solid #eee; padding: 6px 0; }
+  details.ex summary { cursor: pointer; color: #555; }
+  details.ex pre { white-space: pre-wrap; word-break: break-word; background: #fafafa; padding: 8px; border-radius: 4px; font-size: 12px; overflow-x: auto; }
 </style>
 </head>
 <body>
@@ -219,6 +239,18 @@ ${table(
   ['Endpoint', 'Tool', 'Error', 'Count'],
   d.errors.map((r) => [esc(r.endpoint), esc(r.tool) || '<i>-</i>', `<code>${esc(r.error_msg)}</code>`, `<span class="num">${r.n.toLocaleString()}</span>`]),
 )}
+
+<h2>Recent examples (7-day capture, max 50 &middot; filter with <code>?surface=poe|mcp|rest</code>)</h2>
+${
+  d.samples.length === 0
+    ? '<p class="empty">no examples captured yet (needs migration 0003 applied + recent successful calls)</p>'
+    : d.samples
+        .map((s) => {
+          const when = new Date(s.ts).toISOString().replace('T', ' ').slice(0, 16);
+          return `<details class="ex"><summary>${esc(when)} &middot; <b>${esc(s.surface)}</b> &middot; ${esc(s.tool) || '<i>-</i>'}</summary><pre><b>Q:</b> ${esc(s.query)}\n\n<b>A:</b> ${esc(s.answer)}</pre></details>`;
+        })
+        .join('\n')
+}
 
 </body>
 </html>`;
