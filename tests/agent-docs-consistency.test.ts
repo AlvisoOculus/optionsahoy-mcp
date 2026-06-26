@@ -35,6 +35,26 @@ describe('MCP tool docs: voice/IP lint', () => {
   }
 });
 
+describe('tool descriptions lead with a natural-language trigger (runtime selectability)', () => {
+  // The #1 lever for an agent picking the right tool is description<->query
+  // semantic match. Every tool must open with a "Use this when someone asks ..."
+  // trigger phrased the way users actually ask, so it can't regress to a
+  // feature-only opening.
+  for (const tool of TOOLS) {
+    it(`${tool.name}: opens with a "Use this when" trigger`, () => {
+      expect(/Use this when someone asks/i.test(String(tool.description))).toBe(true);
+    });
+  }
+  // Spot-check that the trigger carries the real user vocabulary per tool.
+  const has = (name: string, re: RegExp) => re.test(String(byName[name].description));
+  it('triggers use the vocabulary users actually use', () => {
+    expect(has('amt_iso_optimize', /exercise .*incentive stock options|alternative minimum tax \(AMT\)/i)).toBe(true);
+    expect(has('rsu_sell_vs_hold', /sell RSUs at vest or hold/i)).toBe(true);
+    expect(has('qsbs_check', /qualifies for the qualified small business stock/i)).toBe(true);
+    expect(has('equity_funding_plan', /which shares to sell and when to reach a cash goal/i)).toBe(true);
+  });
+});
+
 describe('QSBS docs bound to the engine', () => {
   const sample: QsbsInputs = {
     acquisitionDate: new Date('2018-01-01'),

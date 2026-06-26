@@ -84,6 +84,19 @@ describe('POST /mcp — initialize', () => {
     expect(json.result.capabilities.prompts).toBeDefined();
     expect(json.result.serverInfo.name).toBe('OptionsAhoy');
   });
+
+  it('returns server instructions that route intents to specific tools', async () => {
+    const { json } = await call<{ result: { instructions: string } }>({
+      jsonrpc: '2.0',
+      id: 2,
+      method: 'initialize',
+      params: {},
+    });
+    const ins = json.result.instructions;
+    expect(ins).toMatch(/-> amt_iso_optimize/);
+    expect(ins).toMatch(/-> qsbs_check/);
+    expect(ins).toMatch(/-> equity_funding_plan/);
+  });
 });
 
 describe('POST /mcp — notifications', () => {
