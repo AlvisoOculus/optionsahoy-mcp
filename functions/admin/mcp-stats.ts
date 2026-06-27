@@ -22,7 +22,8 @@ interface ToolRow { tool: string; n: number; errors: number }
 interface ErrorRow { endpoint: string; tool: string | null; error_msg: string; n: number }
 interface ClientRow { client_name: string; n: number }
 interface CountryRow { country: string | null; n: number }
-interface SampleRow { ts: number; surface: string; tool: string | null; client_name: string | null; query: string | null; answer: string | null }
+interface SampleRow { ts: number; surface: string; tool: string | null; client_name: string | null; query: string | null; answer: string | null; country: string | null; region: string | null; city: string | null; as_org: string | null; asn: number | null }
+interface RestNetRow { as_org: string; city: string; region: string; country: string; n: number }
 
 // --- real-vs-bot classification of a captured example -----------------------
 //
@@ -76,6 +77,28 @@ export function classifyClient(
   return { kind: 'unknown', label: 'unknown' };
 }
 
+// --- originating-network classification (the primary bot signal) ------------
+//
+// Matches the AS organization name against known cloud/hosting networks vs
+// consumer ISPs. A direct REST caller from a hosting network is almost
+// certainly automation; a real person comes from a consumer ISP. Conservative:
+// only a positive hosting match flags a datacenter, so an unmatched org stays
+// 'unknown' rather than being assumed human. NOTE: this only discriminates on
+// the REST/direct surface. MCP calls from a real user originate from the
+// assistant's cloud, so cloud origin is EXPECTED there and is not a bot tell.
+export type NetworkKind = 'hosting' | 'residential' | 'unknown';
+
+const HOSTING_RE = /amazon|aws|\bec2\b|google|gcp|microsoft|azure|oracle|ovh|hetzner|digital\s?ocean|linode|akamai|fastly|cloudflare|vultr|choopa|constant company|scaleway|contabo|leaseweb|m247|stackpath|limelight|datacamp|tencent|alibaba|aliyun|huawei|kamatera|upcloud|gcore|hosting|data\s?cent(?:er|re)|colo(?:cation)?|\bvps\b|servers\.com/i;
+const RESIDENTIAL_RE = /comcast|xfinity|verizon|at&t|t-?mobile|sprint|charter|spectrum|cox\b|centurylink|lumen|frontier|cable|broadband|telecom|wireless|fios|vodafone|deutsche telekom|orange|telefonica|movistar|bell canada|rogers|shaw|telus|virgin media|\bjio\b|airtel/i;
+
+export function networkKind(asOrg: string | null | undefined): NetworkKind {
+  const s = (asOrg ?? '').toLowerCase();
+  if (!s) return 'unknown';
+  if (HOSTING_RE.test(s)) return 'hosting';
+  if (RESIDENTIAL_RE.test(s)) return 'residential';
+  return 'unknown';
+}
+
 const DEFAULT_DAYS = 30;
 const MAX_DAYS = 365;
 
@@ -97,6 +120,10 @@ const SQL_ERRORS = 'SELECT endpoint, tool, error_msg, COUNT(*) AS n FROM mcp_cal
 // no handshake: each poe:* row carries client_name 'poe').
 const SQL_CLIENTS = "SELECT client_name, COUNT(*) AS n FROM mcp_calls WHERE client_name IS NOT NULL AND (endpoint = 'mcp:initialize' OR endpoint LIKE 'poe:%') AND ts >= ? GROUP BY client_name ORDER BY n DESC";
 const SQL_COUNTRIES = 'SELECT country, COUNT(*) AS n FROM mcp_calls WHERE ts >= ? GROUP BY country ORDER BY n DESC LIMIT 20';
+// REST/direct callers by originating network + coarse location. This is where
+// the datacenter-vs-residential bot signal is meaningful (MCP is excluded: its
+// cloud origin is expected and says nothing about bot-ness).
+const SQL_REST_NET = "SELECT COALESCE(as_org, '(unknown)') AS as_org, COALESCE(city, '') AS city, COALESCE(region, '') AS region, COALESCE(country, '') AS country, COUNT(*) AS n FROM mcp_calls WHERE endpoint LIKE 'rest:%' AND ts >= ? GROUP BY as_org, city, region, country ORDER BY n DESC LIMIT 40";
 
 async function q<T>(db: D1Database, sql: string, sinceMs: number): Promise<T[]> {
   const res = await db.prepare(sql).bind(sinceMs).all<T>();
@@ -125,7 +152,7 @@ export const onRequest: PagesFunction = async (ctx) => {
   const days = Number.isFinite(daysParam) && daysParam > 0 && daysParam <= MAX_DAYS ? daysParam : DEFAULT_DAYS;
   const sinceMs = Date.now() - days * 86_400_000;
 
-  const [endpoints, daily, dailyRest, dailyMcp, tools, errors, clients, countries] = await Promise.all([
+  const [endpoints, daily, dailyRest, dailyMcp, tools, errors, clients, countries, restNet] = await Promise.all([
     q<EndpointRow>(db, SQL_ENDPOINTS, sinceMs),
     q<DayRow>(db, SQL_DAILY, sinceMs),
     q<DayRow>(db, SQL_DAILY_REST, sinceMs),
@@ -134,6 +161,9 @@ export const onRequest: PagesFunction = async (ctx) => {
     q<ErrorRow>(db, SQL_ERRORS, sinceMs),
     q<ClientRow>(db, SQL_CLIENTS, sinceMs),
     q<CountryRow>(db, SQL_COUNTRIES, sinceMs),
+    // Resilient: pre-0004 databases lack as_org/region/city, so this throws
+    // until the migration is applied. Degrade to an empty rollup, not a 500.
+    q<RestNetRow>(db, SQL_REST_NET, sinceMs).catch(() => [] as RestNetRow[]),
   ]);
 
   // Optional ?errEndpoint=<exact endpoint>: the error_msg breakdown for one
@@ -155,9 +185,10 @@ export const onRequest: PagesFunction = async (ctx) => {
   let samples: SampleRow[] = [];
   try {
     const surface = url.searchParams.get('surface');
+    const cols = 'ts, surface, tool, client_name, query, answer, country, region, city, as_org, asn';
     const sql = surface
-      ? 'SELECT ts, surface, tool, client_name, query, answer FROM mcp_samples WHERE ts >= ? AND surface = ? ORDER BY ts DESC LIMIT 200'
-      : 'SELECT ts, surface, tool, client_name, query, answer FROM mcp_samples WHERE ts >= ? ORDER BY ts DESC LIMIT 200';
+      ? `SELECT ${cols} FROM mcp_samples WHERE ts >= ? AND surface = ? ORDER BY ts DESC LIMIT 200`
+      : `SELECT ${cols} FROM mcp_samples WHERE ts >= ? ORDER BY ts DESC LIMIT 200`;
     const stmt = surface ? db.prepare(sql).bind(sinceMs, surface) : db.prepare(sql).bind(sinceMs);
     samples = (await stmt.all<SampleRow>()).results;
   } catch {
@@ -169,7 +200,12 @@ export const onRequest: PagesFunction = async (ctx) => {
   const surfaceParam = url.searchParams.get('surface');
   const kindFilter = (url.searchParams.get('kind') ?? '')
     .split(',').map((s) => s.trim().toLowerCase()).filter(Boolean);
-  const classified: ClassifiedSample[] = samples.map((s) => ({ ...s, kind: classifyClient(s.client_name, s.surface).kind }));
+  const classified: ClassifiedSample[] = samples.map((s) => ({
+    ...s,
+    kind: classifyClient(s.client_name, s.surface).kind,
+    // Network is only a meaningful signal on direct (non-MCP) surfaces.
+    network: s.surface === 'mcp' ? 'unknown' : networkKind(s.as_org),
+  }));
   const sampleCounts: Partial<Record<ClientKind, number>> = {};
   for (const s of classified) sampleCounts[s.kind] = (sampleCounts[s.kind] ?? 0) + 1;
   const shownSamples = (kindFilter.length
@@ -178,7 +214,7 @@ export const onRequest: PagesFunction = async (ctx) => {
   ).slice(0, 50);
 
   if (url.searchParams.get('format') === 'json') {
-    const body = JSON.stringify({ days, endpoints, daily, dailyRest, dailyMcp, tools, errors, clients, countries, endpointErrors, samples: classified, sampleCounts });
+    const body = JSON.stringify({ days, endpoints, daily, dailyRest, dailyMcp, tools, errors, clients, countries, restNet, endpointErrors, samples: classified, sampleCounts });
     return new Response(body, {
       status: 200,
       headers: {
@@ -188,7 +224,7 @@ export const onRequest: PagesFunction = async (ctx) => {
     });
   }
 
-  const html = renderHtml({ days, endpoints, daily, dailyRest, dailyMcp, tools, errors, clients, countries, samples: shownSamples, sampleCounts, kindFilter, token, surface: surfaceParam });
+  const html = renderHtml({ days, endpoints, daily, dailyRest, dailyMcp, tools, errors, clients, countries, restNet, samples: shownSamples, sampleCounts, kindFilter, token, surface: surfaceParam });
   return new Response(html, {
     status: 200,
     headers: {
@@ -198,7 +234,7 @@ export const onRequest: PagesFunction = async (ctx) => {
   });
 };
 
-type ClassifiedSample = SampleRow & { kind: ClientKind };
+type ClassifiedSample = SampleRow & { kind: ClientKind; network: NetworkKind };
 
 interface RenderInput {
   days: number;
@@ -210,6 +246,7 @@ interface RenderInput {
   errors: ErrorRow[];
   clients: ClientRow[];
   countries: CountryRow[];
+  restNet: RestNetRow[];
   samples: ClassifiedSample[];
   sampleCounts: Partial<Record<ClientKind, number>>;
   kindFilter: string[];
@@ -305,6 +342,9 @@ function renderHtml(d: RenderInput): string {
   .k-tool     { background: #fff3bf; color: #7d5a00; }
   .k-smoke    { background: #e9ecef; color: #868e96; }
   .k-crawler  { background: #ffe3e3; color: #c92a2a; }
+  .net-hosting     { background: #ffe3e3; color: #c92a2a; }
+  .net-residential { background: #d8f3dc; color: #1b4332; }
+  .geo { color: #999; font-size: 11px; }
   .legend { color: #888; font-size: 12px; margin: 4px 0 10px; }
   .legend a { color: #1864ab; text-decoration: none; margin-right: 8px; }
 </style>
@@ -355,6 +395,22 @@ ${table(
   d.countries.map((r) => [esc(r.country) || '<i>n/a</i>', `<span class="num">${r.n.toLocaleString()}</span>`]),
 )}
 
+<h2>REST callers (network + location)</h2>
+<p class="legend">Direct REST callers by originating network and city. On this surface a datacenter network is almost certainly a bot; a consumer ISP is likely a person. MCP is excluded (its cloud origin is expected and is not a bot tell). Needs migration 0004.</p>
+${table(
+  ['Network', 'Location', 'Calls'],
+  d.restNet.map((r) => {
+    const nk = networkKind(r.as_org);
+    const badge = nk === 'hosting'
+      ? '<span class="badge net-hosting">datacenter</span> '
+      : nk === 'residential'
+        ? '<span class="badge net-residential">residential</span> '
+        : '';
+    const loc = [r.city, r.region, r.country].filter(Boolean).join(', ');
+    return [`${badge}${esc(r.as_org)}`, esc(loc) || '<i>n/a</i>', `<span class="num">${r.n.toLocaleString()}</span>`];
+  }),
+)}
+
 <h2>Top errors (top 25)</h2>
 ${table(
   ['Endpoint', 'Tool', 'Error', 'Count'],
@@ -371,7 +427,16 @@ ${
           const when = new Date(s.ts).toISOString().replace('T', ' ').slice(0, 16);
           const client = s.client_name ? esc(s.client_name) : '<i>unknown</i>';
           const badge = `<span class="badge k-${s.kind}">${esc(KIND_LABEL[s.kind])}</span>`;
-          return `<details class="ex"><summary>${badge} ${esc(when)} &middot; <b>${esc(s.surface)}</b> &middot; ${esc(s.tool) || '<i>-</i>'} &middot; <span class="cl">${client}</span></summary><pre><b>Q:</b> ${esc(s.query)}\n\n<b>A:</b> ${esc(s.answer)}</pre></details>`;
+          const netBadge = s.network === 'hosting'
+            ? ' <span class="badge net-hosting">datacenter</span>'
+            : s.network === 'residential'
+              ? ' <span class="badge net-residential">residential</span>'
+              : '';
+          // Location is only shown for direct surfaces; an MCP row's geo is the
+          // assistant's cloud, not the user's, so it would mislead.
+          const loc = s.surface !== 'mcp' ? [s.city, s.region, s.country].filter(Boolean).join(', ') : '';
+          const geo = loc ? ` <span class="geo">${esc(loc)}${s.as_org ? ' &middot; ' + esc(s.as_org) : ''}</span>` : '';
+          return `<details class="ex"><summary>${badge}${netBadge} ${esc(when)} &middot; <b>${esc(s.surface)}</b> &middot; ${esc(s.tool) || '<i>-</i>'} &middot; <span class="cl">${client}</span>${geo}</summary><pre><b>Q:</b> ${esc(s.query)}\n\n<b>A:</b> ${esc(s.answer)}</pre></details>`;
         })
         .join('\n')
 }

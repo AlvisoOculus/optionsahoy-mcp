@@ -55,9 +55,36 @@ export interface CallFields {
 const UA_MAX = 200;
 const ERROR_MSG_MAX = 500;
 const CLIENT_NAME_MAX = 100;
+const GEO_MAX = 100;
+
+interface CfGeo {
+  country: string | null;
+  region: string | null;
+  city: string | null;
+  asOrg: string | null;
+  asn: number | null;
+}
+
+// Coarse geo + originating network from Cloudflare's request.cf. The raw IP is
+// never read or stored. Country falls back to the cf-ipcountry header; every
+// field is null when cf is absent (local dev, tests).
+function readCf(request: Request): CfGeo {
+  const cf = (request as {
+    cf?: { country?: string; region?: string; city?: string; asOrganization?: string; asn?: number };
+  }).cf;
+  const cut = (s: string | undefined | null) => (s ? String(s).slice(0, GEO_MAX) : null);
+  const country = cf?.country ?? request.headers.get('cf-ipcountry') ?? undefined;
+  return {
+    country: cut(country),
+    region: cut(cf?.region),
+    city: cut(cf?.city),
+    asOrg: cut(cf?.asOrganization),
+    asn: typeof cf?.asn === 'number' ? cf.asn : null,
+  };
+}
 
 const INSERT_SQL =
-  'INSERT INTO mcp_calls (ts, endpoint, tool, is_error, error_msg, client_name, ua, country) VALUES (?, ?, ?, ?, ?, ?, ?, ?)';
+  'INSERT INTO mcp_calls (ts, endpoint, tool, is_error, error_msg, client_name, ua, country, as_org, asn, region, city) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)';
 
 // Write N call records in one D1 round-trip. Reads ua/country once (they
 // are constant across a JSON-RPC batch). Uses db.batch() if the binding
@@ -68,7 +95,7 @@ export function logCalls(ctx: PagesContext, batch: CallFields[]): void {
   const db = ctx.env?.MCP_STATS;
   if (!db) return;
   const ua = ctx.request.headers.get('user-agent');
-  const country = ctx.request.headers.get('cf-ipcountry');
+  const geo = readCf(ctx.request);
   const truncUa = ua ? ua.slice(0, UA_MAX) : null;
   const ts = Date.now();
   const stmts = batch.map((f) =>
@@ -80,7 +107,11 @@ export function logCalls(ctx: PagesContext, batch: CallFields[]): void {
       f.errorMsg ? f.errorMsg.slice(0, ERROR_MSG_MAX) : null,
       f.clientName ? f.clientName.slice(0, CLIENT_NAME_MAX) : null,
       truncUa,
-      country,
+      geo.country,
+      geo.asOrg,
+      geo.asn,
+      geo.region,
+      geo.city,
     ),
   );
   const writes: Promise<unknown> =
@@ -108,7 +139,7 @@ const SAMPLE_QUERY_MAX = 4000;
 const SAMPLE_ANSWER_MAX = 8000;
 const SAMPLE_RETENTION_MS = 7 * 86_400_000; // 7 days rolling
 const SAMPLE_INSERT_SQL =
-  'INSERT INTO mcp_samples (ts, surface, tool, client_name, query, answer) VALUES (?, ?, ?, ?, ?, ?)';
+  'INSERT INTO mcp_samples (ts, surface, tool, client_name, query, answer, country, region, city, as_org, asn) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)';
 const SAMPLE_PRUNE_SQL = 'DELETE FROM mcp_samples WHERE ts < ?';
 
 export interface SampleFields {
@@ -130,6 +161,7 @@ export function logSamples(ctx: PagesContext, batch: SampleFields[]): void {
   // User-Agent so each example is attributable (curl/browser = a test, a real
   // integration's UA otherwise). Poe passes clientName 'poe' explicitly.
   const ua = ctx.request.headers.get('user-agent') ?? undefined;
+  const geo = readCf(ctx.request);
   const cut = (s: string | undefined, max: number) => (s ? s.slice(0, max) : null);
   const stmts = batch.map((f) => {
     const client = f.clientName ?? ua;
@@ -140,6 +172,11 @@ export function logSamples(ctx: PagesContext, batch: SampleFields[]): void {
       client ? client.slice(0, CLIENT_NAME_MAX) : null,
       cut(f.query, SAMPLE_QUERY_MAX),
       cut(f.answer, SAMPLE_ANSWER_MAX),
+      geo.country,
+      geo.region,
+      geo.city,
+      geo.asOrg,
+      geo.asn,
     );
   });
   stmts.push(db.prepare(SAMPLE_PRUNE_SQL).bind(ts - SAMPLE_RETENTION_MS));

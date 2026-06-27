@@ -7,7 +7,7 @@
 // pin the unambiguous buckets, not every conceivable string.
 
 import { describe, it, expect } from 'vitest';
-import { classifyClient, KIND_RANK, type ClientKind } from '../functions/admin/mcp-stats';
+import { classifyClient, networkKind, KIND_RANK, type ClientKind } from '../functions/admin/mcp-stats';
 
 const kind = (c: string | null | undefined, surface = 'rest'): ClientKind =>
   classifyClient(c, surface).kind;
@@ -65,5 +65,25 @@ describe('classifyClient — real-vs-bot of captured examples', () => {
     expect(kind('zxqv-internal-9000')).toBe('unknown');
     expect(KIND_RANK.unknown).toBeGreaterThan(KIND_RANK.agent);
     expect(KIND_RANK.unknown).toBeLessThan(KIND_RANK.tool);
+  });
+});
+
+describe('networkKind — datacenter vs residential origin (the bot signal)', () => {
+  it('cloud / hosting AS orgs are hosting', () => {
+    for (const o of ['Amazon.com, Inc.', 'AMAZON-02', 'Google LLC', 'Microsoft Corporation', 'Hetzner Online GmbH', 'OVH SAS', 'DigitalOcean, LLC', 'Vultr Holdings', 'Oracle Corporation']) {
+      expect(networkKind(o)).toBe('hosting');
+    }
+  });
+
+  it('consumer ISPs are residential (= likely a real person)', () => {
+    for (const o of ['Comcast Cable Communications', 'Verizon Business', 'AT&T Services, Inc.', 'T-Mobile USA', 'Charter Communications', 'Cox Communications']) {
+      expect(networkKind(o)).toBe('residential');
+    }
+  });
+
+  it('empty or unrecognized orgs are unknown, never assumed human', () => {
+    expect(networkKind(null)).toBe('unknown');
+    expect(networkKind('')).toBe('unknown');
+    expect(networkKind('Some Regional Net ZZ-9')).toBe('unknown');
   });
 });

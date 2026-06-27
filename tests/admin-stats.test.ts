@@ -134,14 +134,26 @@ describe('admin /mcp-stats', () => {
     expect(html).toMatch(/&lt;script&gt;alert/);
   });
 
-  // Two captured examples with distinct real-vs-bot signals.
+  // Two captured examples with distinct real-vs-bot signals + geo/network.
+  // The GROUP BY as_org matcher must precede SAMPLE_ROWS so the REST-network
+  // rollup query resolves to it rather than the generic rest-daily matcher.
   const WITH_SAMPLES = [
+    {
+      match: /GROUP BY as_org/,
+      rows: [
+        { as_org: 'Amazon.com, Inc.', city: 'Ashburn', region: 'Virginia', country: 'US', n: 7 },
+        { as_org: 'Comcast Cable', city: 'San Jose', region: 'California', country: 'US', n: 2 },
+      ],
+    },
     ...SAMPLE_ROWS,
     {
       match: /FROM mcp_samples/,
       rows: [
-        { ts: 1_750_000_000_000, surface: 'mcp', tool: 'amt_iso_optimize', client_name: 'Claude-User', query: '{"shares":10000}', answer: '{"ok":true}' },
-        { ts: 1_749_999_000_000, surface: 'rest', tool: 'qsbs_check', client_name: 'OptionsAhoy-smoke/1.0 (Mozilla/5.0 compatible)', query: '{"x":1}', answer: '{"ok":true}' },
+        // MCP from Anthropic's cloud: geo must be suppressed (city is unique so
+        // we can assert it never renders).
+        { ts: 1_750_000_000_000, surface: 'mcp', tool: 'amt_iso_optimize', client_name: 'Claude-User', query: '{"shares":10000}', answer: '{"ok":true}', country: 'US', region: 'Virginia', city: 'Quantico', as_org: 'Amazon', asn: 16509 },
+        // Direct REST from a datacenter: gets a datacenter badge + location.
+        { ts: 1_749_999_000_000, surface: 'rest', tool: 'qsbs_check', client_name: 'OptionsAhoy-smoke/1.0 (Mozilla/5.0 compatible)', query: '{"x":1}', answer: '{"ok":true}', country: 'US', region: 'Oregon', city: 'Boardman', as_org: 'Amazon.com, Inc.', asn: 16509 },
       ],
     },
   ];
@@ -174,5 +186,35 @@ describe('admin /mcp-stats', () => {
     const body = await res.json();
     expect(body.samples.map((s: { kind: string }) => s.kind)).toEqual(['human', 'smoke']);
     expect(body.sampleCounts).toMatchObject({ human: 1, smoke: 1 });
+  });
+
+  it('renders the REST callers network+location rollup with datacenter/residential badges', async () => {
+    const env: Env = { ADMIN_TOKEN: 'secret', MCP_STATS: mockDb(WITH_SAMPLES) };
+    const res = await onRequest(ctx(env, req('?token=secret&days=7')));
+    const html = await res.text();
+    expect(html).toMatch(/REST callers \(network/);
+    expect(html).toMatch(/class="badge net-hosting">datacenter/);
+    expect(html).toMatch(/class="badge net-residential">residential/);
+    expect(html).toMatch(/Ashburn/);
+  });
+
+  it('shows location + datacenter on a direct REST example, suppresses geo on MCP', async () => {
+    const env: Env = { ADMIN_TOKEN: 'secret', MCP_STATS: mockDb(WITH_SAMPLES) };
+    const res = await onRequest(ctx(env, req('?token=secret&days=7&surface=rest')));
+    const html = await res.text();
+    // REST example shows its town and a datacenter network badge.
+    expect(html).toMatch(/Boardman/);
+    // MCP example's geo (its unique town) is never rendered: cloud origin is
+    // the assistant's, not the user's.
+    const all = await (await onRequest(ctx(env, req('?token=secret&days=7')))).text();
+    expect(all).not.toMatch(/Quantico/);
+  });
+
+  it('format=json marks sample network per surface (mcp blind, rest classified)', async () => {
+    const env: Env = { ADMIN_TOKEN: 'secret', MCP_STATS: mockDb(WITH_SAMPLES) };
+    const res = await onRequest(ctx(env, req('?token=secret&days=7&format=json')));
+    const body = await res.json();
+    expect(body.samples.map((s: { network: string }) => s.network)).toEqual(['unknown', 'hosting']);
+    expect(body.restNet).toHaveLength(2);
   });
 });
