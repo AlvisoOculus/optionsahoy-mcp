@@ -24,6 +24,51 @@ interface ClientRow { client_name: string; n: number }
 interface CountryRow { country: string | null; n: number }
 interface SampleRow { ts: number; surface: string; tool: string | null; client_name: string | null; query: string | null; answer: string | null }
 
+// --- real-vs-bot classification of a captured example -----------------------
+//
+// Heuristic, NOT proof. The signal we classify on (client_name) is:
+//   - the MCP handshake clientInfo.name for mcp: calls (e.g. 'Claude-User'),
+//   - the literal 'poe' for Poe (a human typed into the consumer bot),
+//   - the raw User-Agent for rest: calls, which is trivially spoofable.
+// Two structural facts make the heuristic usable anyway: (1) only successful,
+// valid-input calls are written to mcp_samples, so the worst fuzzer/probe
+// noise (which fails input validation) never appears here; (2) our own smoke
+// monitor sends a distinctive UA, so synthetic traffic self-identifies.
+export type ClientKind = 'human' | 'assistant' | 'smoke' | 'tool' | 'crawler' | 'unknown';
+
+// Display order on the dashboard: most-valuable (a real person/agent) first.
+export const KIND_RANK: Record<ClientKind, number> = {
+  human: 0, assistant: 1, unknown: 2, tool: 3, smoke: 4, crawler: 5,
+};
+
+export function classifyClient(
+  clientName: string | null | undefined,
+  surface: string,
+): { kind: ClientKind; label: string } {
+  const c = (clientName ?? '').trim().toLowerCase();
+  // Our own synthetic monitor (data/agent-campaign smoke + uptime checks).
+  if (c.includes('optionsahoy-smoke')) return { kind: 'smoke', label: 'smoke test' };
+  // A person typed into the Poe consumer bot.
+  if (surface === 'poe' || c === 'poe') return { kind: 'human', label: 'human (Poe)' };
+  // Web crawlers / training bots / security scanners. Checked before the
+  // assistant list so 'claudebot' (Anthropic's crawler) is not confused with
+  // 'Claude-User' (a real person driving Claude).
+  if (/\b(bot|crawler|spider)\b|gptbot|oai-searchbot|claudebot|google-extended|googlebot|bingbot|applebot|slurp|duckduckbot|yandex|baiduspider|semrush|ahrefs|mj12|dotbot|petalbot|nuclei|zgrab|masscan|censys|shodan|nmap|sqlmap/.test(c))
+    return { kind: 'crawler', label: 'crawler/scanner' };
+  // Recognized real AI assistant / agent clients (a real user is behind one).
+  if (/claude-user|claude\.ai|claude-code|claude-desktop|anthropic|chatgpt-user|chatgpt|openai|cursor|cline|roo|windsurf|continue|zed|librechat|goose|witsy|cherry|chatwise|5ire|fast-?agent|highlight|tome|copilot|vscode|jetbrains|langchain|llama-?index|crewai|mcp-/.test(c))
+    return { kind: 'assistant', label: 'AI assistant' };
+  // Generic programmatic HTTP clients: a dev test or an unknown integration.
+  if (c === '') return { kind: 'tool', label: 'no UA (script)' };
+  if (/curl|wget|python-requests|python-httpx|httpx|aiohttp|node-fetch|undici|axios|okhttp|go-http-client|java\/|apache-httpclient|libwww|postmanruntime|insomnia|restsharp|guzzle|httpie/.test(c))
+    return { kind: 'tool', label: 'script/tool' };
+  // A raw browser UA hitting the JSON API directly: real browsers don't, so
+  // this is a manual test (Postman-as-browser) or a script with a copied UA.
+  if (/mozilla\/|chrome\/|safari\/|firefox\/|webkit/.test(c))
+    return { kind: 'tool', label: 'browser/manual' };
+  return { kind: 'unknown', label: 'unknown' };
+}
+
 const DEFAULT_DAYS = 30;
 const MAX_DAYS = 365;
 
@@ -104,16 +149,29 @@ export const onRequest: PagesFunction = async (ctx) => {
   try {
     const surface = url.searchParams.get('surface');
     const sql = surface
-      ? 'SELECT ts, surface, tool, client_name, query, answer FROM mcp_samples WHERE ts >= ? AND surface = ? ORDER BY ts DESC LIMIT 50'
-      : 'SELECT ts, surface, tool, client_name, query, answer FROM mcp_samples WHERE ts >= ? ORDER BY ts DESC LIMIT 50';
+      ? 'SELECT ts, surface, tool, client_name, query, answer FROM mcp_samples WHERE ts >= ? AND surface = ? ORDER BY ts DESC LIMIT 200'
+      : 'SELECT ts, surface, tool, client_name, query, answer FROM mcp_samples WHERE ts >= ? ORDER BY ts DESC LIMIT 200';
     const stmt = surface ? db.prepare(sql).bind(sinceMs, surface) : db.prepare(sql).bind(sinceMs);
     samples = (await stmt.all<SampleRow>()).results;
   } catch {
     samples = [];
   }
 
+  // Classify each captured example real-vs-bot, tally by kind, and (optionally)
+  // filter the rendered list with ?kind=human,assistant (comma-separated).
+  const surfaceParam = url.searchParams.get('surface');
+  const kindFilter = (url.searchParams.get('kind') ?? '')
+    .split(',').map((s) => s.trim().toLowerCase()).filter(Boolean);
+  const classified: ClassifiedSample[] = samples.map((s) => ({ ...s, kind: classifyClient(s.client_name, s.surface).kind }));
+  const sampleCounts: Partial<Record<ClientKind, number>> = {};
+  for (const s of classified) sampleCounts[s.kind] = (sampleCounts[s.kind] ?? 0) + 1;
+  const shownSamples = (kindFilter.length
+    ? classified.filter((s) => kindFilter.includes(s.kind))
+    : classified
+  ).slice(0, 50);
+
   if (url.searchParams.get('format') === 'json') {
-    const body = JSON.stringify({ days, endpoints, daily, dailyRest, dailyMcp, tools, errors, clients, countries, endpointErrors, samples });
+    const body = JSON.stringify({ days, endpoints, daily, dailyRest, dailyMcp, tools, errors, clients, countries, endpointErrors, samples: classified, sampleCounts });
     return new Response(body, {
       status: 200,
       headers: {
@@ -123,7 +181,7 @@ export const onRequest: PagesFunction = async (ctx) => {
     });
   }
 
-  const html = renderHtml({ days, endpoints, daily, dailyRest, dailyMcp, tools, errors, clients, countries, samples });
+  const html = renderHtml({ days, endpoints, daily, dailyRest, dailyMcp, tools, errors, clients, countries, samples: shownSamples, sampleCounts, kindFilter, token, surface: surfaceParam });
   return new Response(html, {
     status: 200,
     headers: {
@@ -132,6 +190,8 @@ export const onRequest: PagesFunction = async (ctx) => {
     },
   });
 };
+
+type ClassifiedSample = SampleRow & { kind: ClientKind };
 
 interface RenderInput {
   days: number;
@@ -143,8 +203,21 @@ interface RenderInput {
   errors: ErrorRow[];
   clients: ClientRow[];
   countries: CountryRow[];
-  samples: SampleRow[];
+  samples: ClassifiedSample[];
+  sampleCounts: Partial<Record<ClientKind, number>>;
+  kindFilter: string[];
+  token: string;
+  surface: string | null;
 }
+
+const KIND_LABEL: Record<ClientKind, string> = {
+  human: 'human',
+  assistant: 'AI assistant',
+  unknown: 'unknown',
+  tool: 'script/tool',
+  smoke: 'smoke test',
+  crawler: 'crawler',
+};
 
 function esc(s: string | null | undefined): string {
   if (s == null) return '';
@@ -163,6 +236,37 @@ function table(headers: string[], rows: string[][]): string {
     .map((r) => '<tr>' + r.map((c) => `<td>${c}</td>`).join('') + '</tr>')
     .join('');
   return `<table><thead><tr>${thead}</tr></thead><tbody>${tbody}</tbody></table>`;
+}
+
+// Counts of captured examples by kind + one-click filters. Links carry the
+// token + current window/surface so they work inside the ops iframe.
+function samplesLegend(d: RenderInput): string {
+  const href = (kind?: string) => {
+    const p = new URLSearchParams();
+    p.set('token', d.token);
+    p.set('days', String(d.days));
+    if (d.surface) p.set('surface', d.surface);
+    if (kind) p.set('kind', kind);
+    return esc('?' + p.toString());
+  };
+  const n = (k: ClientKind) => d.sampleCounts[k] ?? 0;
+  const active = d.kindFilter.join(',');
+  const link = (label: string, kind: string) =>
+    `<a href="${href(kind || undefined)}"${active === kind ? ' style="font-weight:700"' : ''}>${esc(label)}</a>`;
+  const counts =
+    `real: <b>${n('human')}</b> human &middot; <b>${n('assistant')}</b> AI assistant` +
+    ` &nbsp;|&nbsp; noise: <b>${n('smoke')}</b> smoke &middot; <b>${n('tool')}</b> tool &middot; ` +
+    `<b>${n('crawler')}</b> crawler &middot; <b>${n('unknown')}</b> unknown`;
+  const filters = [
+    link('all', ''),
+    link('real only', 'human,assistant'),
+    link('human', 'human'),
+    link('AI assistant', 'assistant'),
+    link('script/tool', 'tool'),
+    link('smoke', 'smoke'),
+    link('crawler', 'crawler'),
+  ].join(' ');
+  return `<p class="legend">${counts}<br>filter: ${filters}<br><span style="color:#aaa">client is the MCP handshake name / Poe / a (spoofable) User-Agent. A heuristic, not proof</span></p>`;
 }
 
 function renderHtml(d: RenderInput): string {
@@ -187,6 +291,15 @@ function renderHtml(d: RenderInput): string {
   details.ex summary { cursor: pointer; color: #555; }
   details.ex summary .cl { color: #888; }
   details.ex pre { white-space: pre-wrap; word-break: break-word; background: #fafafa; padding: 8px; border-radius: 4px; font-size: 12px; overflow-x: auto; }
+  .badge { display: inline-block; font-size: 11px; font-weight: 600; padding: 1px 6px; border-radius: 3px; vertical-align: middle; }
+  .k-human    { background: #d8f3dc; color: #1b4332; }
+  .k-assistant{ background: #d0ebff; color: #1864ab; }
+  .k-unknown  { background: #f1f3f5; color: #495057; }
+  .k-tool     { background: #fff3bf; color: #7d5a00; }
+  .k-smoke    { background: #e9ecef; color: #868e96; }
+  .k-crawler  { background: #ffe3e3; color: #c92a2a; }
+  .legend { color: #888; font-size: 12px; margin: 4px 0 10px; }
+  .legend a { color: #1864ab; text-decoration: none; margin-right: 8px; }
 </style>
 </head>
 <body>
@@ -241,15 +354,17 @@ ${table(
   d.errors.map((r) => [esc(r.endpoint), esc(r.tool) || '<i>-</i>', `<code>${esc(r.error_msg)}</code>`, `<span class="num">${r.n.toLocaleString()}</span>`]),
 )}
 
-<h2>Recent examples (7-day capture, max 50 &middot; filter with <code>?surface=poe|mcp|rest</code>)</h2>
+<h2>Recent examples (7-day capture)</h2>
+${samplesLegend(d)}
 ${
   d.samples.length === 0
-    ? '<p class="empty">no examples captured yet (needs migration 0003 applied + recent successful calls)</p>'
+    ? '<p class="empty">no examples match (try a wider window, a different filter, or check migration 0003 is applied)</p>'
     : d.samples
         .map((s) => {
           const when = new Date(s.ts).toISOString().replace('T', ' ').slice(0, 16);
           const client = s.client_name ? esc(s.client_name) : '<i>unknown</i>';
-          return `<details class="ex"><summary>${esc(when)} &middot; <b>${esc(s.surface)}</b> &middot; ${esc(s.tool) || '<i>-</i>'} &middot; <span class="cl">${client}</span></summary><pre><b>Q:</b> ${esc(s.query)}\n\n<b>A:</b> ${esc(s.answer)}</pre></details>`;
+          const badge = `<span class="badge k-${s.kind}">${esc(KIND_LABEL[s.kind])}</span>`;
+          return `<details class="ex"><summary>${badge} ${esc(when)} &middot; <b>${esc(s.surface)}</b> &middot; ${esc(s.tool) || '<i>-</i>'} &middot; <span class="cl">${client}</span></summary><pre><b>Q:</b> ${esc(s.query)}\n\n<b>A:</b> ${esc(s.answer)}</pre></details>`;
         })
         .join('\n')
 }

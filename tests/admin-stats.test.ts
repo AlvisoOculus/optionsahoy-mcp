@@ -133,4 +133,45 @@ describe('admin /mcp-stats', () => {
     expect(html).not.toMatch(/<script>alert/);
     expect(html).toMatch(/&lt;script&gt;alert/);
   });
+
+  // Two captured examples with distinct real-vs-bot signals.
+  const WITH_SAMPLES = [
+    ...SAMPLE_ROWS,
+    {
+      match: /FROM mcp_samples/,
+      rows: [
+        { ts: 1_750_000_000_000, surface: 'mcp', tool: 'amt_iso_optimize', client_name: 'Claude-User', query: '{"shares":10000}', answer: '{"ok":true}' },
+        { ts: 1_749_999_000_000, surface: 'rest', tool: 'qsbs_check', client_name: 'OptionsAhoy-smoke/1.0 (Mozilla/5.0 compatible)', query: '{"x":1}', answer: '{"ok":true}' },
+      ],
+    },
+  ];
+
+  it('classifies captured examples and renders a badge per row', async () => {
+    const env: Env = { ADMIN_TOKEN: 'secret', MCP_STATS: mockDb(WITH_SAMPLES) };
+    const res = await onRequest(ctx(env, req('?token=secret&days=7')));
+    const html = await res.text();
+    expect(html).toMatch(/class="badge k-assistant"/);
+    expect(html).toMatch(/class="badge k-smoke"/);
+    // Counts line distinguishes real from noise.
+    expect(html).toMatch(/<b>1<\/b> AI assistant/);
+    expect(html).toMatch(/<b>1<\/b> smoke/);
+    // One-click "real only" filter that preserves the token.
+    expect(html).toMatch(/kind=human%2Cassistant/);
+  });
+
+  it('?kind= filters the rendered examples to the chosen bucket', async () => {
+    const env: Env = { ADMIN_TOKEN: 'secret', MCP_STATS: mockDb(WITH_SAMPLES) };
+    const res = await onRequest(ctx(env, req('?token=secret&days=7&kind=human,assistant')));
+    const html = await res.text();
+    expect(html).toMatch(/class="badge k-assistant"/);
+    expect(html).not.toMatch(/class="badge k-smoke"/);
+  });
+
+  it('format=json annotates each sample with its kind plus a sampleCounts tally', async () => {
+    const env: Env = { ADMIN_TOKEN: 'secret', MCP_STATS: mockDb(WITH_SAMPLES) };
+    const res = await onRequest(ctx(env, req('?token=secret&days=7&format=json')));
+    const body = await res.json();
+    expect(body.samples.map((s: { kind: string }) => s.kind)).toEqual(['assistant', 'smoke']);
+    expect(body.sampleCounts).toMatchObject({ assistant: 1, smoke: 1 });
+  });
 });
