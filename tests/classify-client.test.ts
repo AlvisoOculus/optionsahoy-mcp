@@ -22,19 +22,25 @@ describe('classifyClient — real-vs-bot of captured examples', () => {
     expect(kind(null, 'poe')).toBe('human');
   });
 
-  it('Claude-User (a person driving Claude over MCP) is an assistant', () => {
-    expect(kind('Claude-User', 'mcp')).toBe('assistant');
+  it('Claude-User (a person driving Claude over MCP) is a human', () => {
+    expect(kind('Claude-User', 'mcp')).toBe('human');
   });
 
-  it('recognized assistant clients are assistants', () => {
+  it('interactive AI clients (a person is in the loop) are human', () => {
     for (const c of ['claude.ai', 'Cursor', 'cline', 'Windsurf', 'Continue', 'Zed', 'ChatGPT-User', 'LibreChat']) {
-      expect(kind(c, 'mcp')).toBe('assistant');
+      expect(kind(c, 'mcp')).toBe('human');
+    }
+  });
+
+  it('automated agent frameworks / SDKs are agents, not humans', () => {
+    for (const c of ['langchain', 'llama-index', 'crewai', 'fast-agent', 'anthropic-sdk', 'openai-python']) {
+      expect(kind(c, 'mcp')).toBe('agent');
     }
   });
 
   it('Anthropic crawler claudebot is NOT confused with Claude-User', () => {
     expect(kind('ClaudeBot/1.0 (+https://anthropic.com)')).toBe('crawler');
-    expect(kind('Claude-User')).toBe('assistant');
+    expect(kind('Claude-User')).toBe('human');
   });
 
   it('search/training crawlers and scanners are crawlers', () => {
@@ -55,9 +61,9 @@ describe('classifyClient — real-vs-bot of captured examples', () => {
   });
 
   it('truly unrecognized strings are unknown (ranked above noise, below real)', () => {
-    expect(kind('some-new-mcp-host-we-have-not-seen')).toBe('assistant'); // matches mcp- prefix
+    expect(kind('some-new-mcp-host-we-have-not-seen')).toBe('agent'); // matches mcp- prefix
     expect(kind('zxqv-internal-9000')).toBe('unknown');
-    expect(KIND_RANK.unknown).toBeGreaterThan(KIND_RANK.assistant);
+    expect(KIND_RANK.unknown).toBeGreaterThan(KIND_RANK.agent);
     expect(KIND_RANK.unknown).toBeLessThan(KIND_RANK.tool);
   });
 });

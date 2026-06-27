@@ -34,11 +34,12 @@ interface SampleRow { ts: number; surface: string; tool: string | null; client_n
 // valid-input calls are written to mcp_samples, so the worst fuzzer/probe
 // noise (which fails input validation) never appears here; (2) our own smoke
 // monitor sends a distinctive UA, so synthetic traffic self-identifies.
-export type ClientKind = 'human' | 'assistant' | 'smoke' | 'tool' | 'crawler' | 'unknown';
+export type ClientKind = 'human' | 'agent' | 'smoke' | 'tool' | 'crawler' | 'unknown';
 
-// Display order on the dashboard: most-valuable (a real person/agent) first.
+// Display order on the dashboard: most-valuable (a real person, then an
+// automated agent) first.
 export const KIND_RANK: Record<ClientKind, number> = {
-  human: 0, assistant: 1, unknown: 2, tool: 3, smoke: 4, crawler: 5,
+  human: 0, agent: 1, unknown: 2, tool: 3, smoke: 4, crawler: 5,
 };
 
 export function classifyClient(
@@ -51,13 +52,19 @@ export function classifyClient(
   // A person typed into the Poe consumer bot.
   if (surface === 'poe' || c === 'poe') return { kind: 'human', label: 'human (Poe)' };
   // Web crawlers / training bots / security scanners. Checked before the
-  // assistant list so 'claudebot' (Anthropic's crawler) is not confused with
+  // interactive list so 'claudebot' (Anthropic's crawler) is not confused with
   // 'Claude-User' (a real person driving Claude).
   if (/\b(bot|crawler|spider)\b|gptbot|oai-searchbot|claudebot|google-extended|googlebot|bingbot|applebot|slurp|duckduckbot|yandex|baiduspider|semrush|ahrefs|mj12|dotbot|petalbot|nuclei|zgrab|masscan|censys|shodan|nmap|sqlmap/.test(c))
     return { kind: 'crawler', label: 'crawler/scanner' };
-  // Recognized real AI assistant / agent clients (a real user is behind one).
-  if (/claude-user|claude\.ai|claude-code|claude-desktop|anthropic|chatgpt-user|chatgpt|openai|cursor|cline|roo|windsurf|continue|zed|librechat|goose|witsy|cherry|chatwise|5ire|fast-?agent|highlight|tome|copilot|vscode|jetbrains|langchain|llama-?index|crewai|mcp-/.test(c))
-    return { kind: 'assistant', label: 'AI assistant' };
+  // Interactive AI clients: a real person is in the loop (chat UI, IDE,
+  // desktop app). 'Claude-User' is the name Claude.ai sends for a
+  // user-initiated tool call, so it counts as a human, not an automated agent.
+  if (/claude-user|claude\.ai|claude-desktop|claude-code|chatgpt-user|chatgpt|cursor|cline|roo|windsurf|continue|zed|librechat|witsy|cherry|chatwise|5ire|highlight|tome|copilot|vscode|jetbrains/.test(c))
+    return { kind: 'human', label: 'human (AI assistant)' };
+  // Programmatic AI agent frameworks / SDKs: an automated caller that may have
+  // no person watching the loop.
+  if (/langchain|llama-?index|crewai|fast-?agent|anthropic|openai|\bmcp-|autogpt|agno|smolagents|pydantic-ai|vercel-ai/.test(c))
+    return { kind: 'agent', label: 'AI agent' };
   // Generic programmatic HTTP clients: a dev test or an unknown integration.
   if (c === '') return { kind: 'tool', label: 'no UA (script)' };
   if (/curl|wget|python-requests|python-httpx|httpx|aiohttp|node-fetch|undici|axios|okhttp|go-http-client|java\/|apache-httpclient|libwww|postmanruntime|insomnia|restsharp|guzzle|httpie/.test(c))
@@ -212,7 +219,7 @@ interface RenderInput {
 
 const KIND_LABEL: Record<ClientKind, string> = {
   human: 'human',
-  assistant: 'AI assistant',
+  agent: 'AI agent',
   unknown: 'unknown',
   tool: 'script/tool',
   smoke: 'smoke test',
@@ -254,14 +261,14 @@ function samplesLegend(d: RenderInput): string {
   const link = (label: string, kind: string) =>
     `<a href="${href(kind || undefined)}"${active === kind ? ' style="font-weight:700"' : ''}>${esc(label)}</a>`;
   const counts =
-    `real: <b>${n('human')}</b> human &middot; <b>${n('assistant')}</b> AI assistant` +
+    `real: <b>${n('human')}</b> human &middot; <b>${n('agent')}</b> AI agent` +
     ` &nbsp;|&nbsp; noise: <b>${n('smoke')}</b> smoke &middot; <b>${n('tool')}</b> tool &middot; ` +
     `<b>${n('crawler')}</b> crawler &middot; <b>${n('unknown')}</b> unknown`;
   const filters = [
     link('all', ''),
-    link('real only', 'human,assistant'),
+    link('real only', 'human,agent'),
     link('human', 'human'),
-    link('AI assistant', 'assistant'),
+    link('AI agent', 'agent'),
     link('script/tool', 'tool'),
     link('smoke', 'smoke'),
     link('crawler', 'crawler'),
@@ -293,7 +300,7 @@ function renderHtml(d: RenderInput): string {
   details.ex pre { white-space: pre-wrap; word-break: break-word; background: #fafafa; padding: 8px; border-radius: 4px; font-size: 12px; overflow-x: auto; }
   .badge { display: inline-block; font-size: 11px; font-weight: 600; padding: 1px 6px; border-radius: 3px; vertical-align: middle; }
   .k-human    { background: #d8f3dc; color: #1b4332; }
-  .k-assistant{ background: #d0ebff; color: #1864ab; }
+  .k-agent    { background: #d0ebff; color: #1864ab; }
   .k-unknown  { background: #f1f3f5; color: #495057; }
   .k-tool     { background: #fff3bf; color: #7d5a00; }
   .k-smoke    { background: #e9ecef; color: #868e96; }

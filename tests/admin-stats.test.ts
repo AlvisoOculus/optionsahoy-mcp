@@ -150,20 +150,21 @@ describe('admin /mcp-stats', () => {
     const env: Env = { ADMIN_TOKEN: 'secret', MCP_STATS: mockDb(WITH_SAMPLES) };
     const res = await onRequest(ctx(env, req('?token=secret&days=7')));
     const html = await res.text();
-    expect(html).toMatch(/class="badge k-assistant"/);
+    // Claude-User is a person driving Claude, so it reads as human.
+    expect(html).toMatch(/class="badge k-human"/);
     expect(html).toMatch(/class="badge k-smoke"/);
     // Counts line distinguishes real from noise.
-    expect(html).toMatch(/<b>1<\/b> AI assistant/);
+    expect(html).toMatch(/<b>1<\/b> human/);
     expect(html).toMatch(/<b>1<\/b> smoke/);
     // One-click "real only" filter that preserves the token.
-    expect(html).toMatch(/kind=human%2Cassistant/);
+    expect(html).toMatch(/kind=human%2Cagent/);
   });
 
   it('?kind= filters the rendered examples to the chosen bucket', async () => {
     const env: Env = { ADMIN_TOKEN: 'secret', MCP_STATS: mockDb(WITH_SAMPLES) };
-    const res = await onRequest(ctx(env, req('?token=secret&days=7&kind=human,assistant')));
+    const res = await onRequest(ctx(env, req('?token=secret&days=7&kind=human,agent')));
     const html = await res.text();
-    expect(html).toMatch(/class="badge k-assistant"/);
+    expect(html).toMatch(/class="badge k-human"/);
     expect(html).not.toMatch(/class="badge k-smoke"/);
   });
 
@@ -171,7 +172,7 @@ describe('admin /mcp-stats', () => {
     const env: Env = { ADMIN_TOKEN: 'secret', MCP_STATS: mockDb(WITH_SAMPLES) };
     const res = await onRequest(ctx(env, req('?token=secret&days=7&format=json')));
     const body = await res.json();
-    expect(body.samples.map((s: { kind: string }) => s.kind)).toEqual(['assistant', 'smoke']);
-    expect(body.sampleCounts).toMatchObject({ assistant: 1, smoke: 1 });
+    expect(body.samples.map((s: { kind: string }) => s.kind)).toEqual(['human', 'smoke']);
+    expect(body.sampleCounts).toMatchObject({ human: 1, smoke: 1 });
   });
 });
