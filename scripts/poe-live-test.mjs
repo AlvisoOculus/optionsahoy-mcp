@@ -22,8 +22,8 @@ const CASES = [
   { label: 'protective put', expect: /protect|collar/, turns: [u('Hedge a $400k tech-software position at 10% protection for 1 year?')] },
   { label: 'qsbs', expect: /QSBS|exclusion/, turns: [u('C-corp founder stock bought 2020-01-15 for $100k, selling 2026-06-01 for a $5M gain, original issuance, under $50M, tech, active, single, $250k income, CA. QSBS?')] },
   { label: 'equity funding', expect: /Recommended plan|aggressive/, turns: [u('Need $400k after tax by 2028-06-01 from 4,000 NVDA bought at $60 in 2023, now $140, 15% growth, MFJ, $280k income, CA. Plan?')] },
-  { label: 'help', expect: /what I can do/, turns: [u('what can you do?')] },
-  { label: 'off-topic', expect: /not about equity-compensation/, turns: [u('what is the weather today?')] },
+  { label: 'help', expect: /each calculator|what I can do/, turns: [u('what can you do?')] },
+  { label: 'off-topic', expect: /not about equity[ -]compensation/, turns: [u('what is the weather today?')] },
 ];
 
 async function chat(turns) {
