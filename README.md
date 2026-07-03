@@ -73,6 +73,8 @@ However your agent is built, there is a drop-in piece. All are public and keyles
 
 The live widget on [optionsahoy.com/for-agents](https://optionsahoy.com/for-agents) calls this same endpoint from your browser. No client, no config.
 
+Prefer a chat interface? The same calculators answer plain-language questions at [poe.com/OptionsAhoy](https://poe.com/OptionsAhoy).
+
 Or watch a real session:
 
 [![Demo: Claude Code installing and using the OptionsAhoy MCP](docs/demo-claude-code-poster.jpg)](https://optionsahoy.com/for-agents#demo)
