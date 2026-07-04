@@ -617,9 +617,11 @@ function toolSpec(): string {
 }
 
 function extractorPrompt(conversation: string): string {
+  const today = new Date().toISOString().slice(0, 10);
   return [
     'You route an equity-compensation chat to one OptionsAhoy calculator and extract its inputs.',
     'Do NOT compute anything yourself. Reply with a single JSON object and nothing else.',
+    `Today is ${today} (UTC). Resolve every relative date ("next summer", "in two years", "by June") against it, and never emit a deadline in the past.`,
     '',
     'Tools:',
     toolSpec(),
@@ -630,7 +632,7 @@ function extractorPrompt(conversation: string): string {
     '- If the chat fits a tool AND every required (*) field is present or safely inferable, reply {"tool":"<name>","args":{...}} using the exact field names.',
     '- Include EVERY field the user provides, not just the required ones. Map their words to the field names: "17% growth" -> expectedGrowth: 0.17, "0.72 vol" / "volatility 0.72" -> volatility: 0.72, "married" -> filingStatus: "married_joint", "$300k income" -> ordinaryIncome: 300000, percentages as decimals. When the user names a stock ("my NVDA position", "I hold AAPL", "5,000 NVDA shares"), set ticker to that symbol (e.g. "NVDA").',
     '- Some tools need a forward estimate -- expectedGrowth for ISOs, expectedPositionReturn for concentration, expectedSalePrice for NSOs, and for equity_funding each stack\'s expectedAnnualGrowth and volatility -- OR a ticker symbol to derive it. A TICKER IS SUFFICIENT: when a stock\'s ticker is present, its growth, volatility, and price are derived automatically, so do NOT ask for them and do NOT clarify for a growth/return rate. For equity_funding, a stack with a ticker (e.g. {ticker:"AMZN", lots:[...]}) needs no expectedAnnualGrowth or volatility from you. Only when there is NEITHER a rate NOR a ticker, reply {"clarify":"ask for an expected annual growth rate (e.g. 10%) or a ticker"}. Never invent a growth rate, and NEVER reuse cashReturnRate (the return on idle cash) as the stock growth. Do not output a placeholder ticker like "unknown"; omit ticker if you do not have a real symbol.',
-    '- If a required field is missing and cannot be inferred, reply {"clarify":"<one short, friendly question naming what you need>"}. Never invent a tax rate, cash return rate, growth rate, or grant date.',
+    '- If required fields are missing and cannot be inferred, reply {"clarify":"<one short, friendly question naming EVERYTHING you need>"} -- list every missing field in that single question so the user is not asked twice. Never invent a tax rate, cash return rate, growth rate, or grant date.',
     '- If the user asks what you can do, what inputs you need, or how to use you (instead of giving a scenario), reply {"help":"<the tool name if they asked about a specific one, otherwise general>"}.',
     '- If the chat is not about equity-compensation tax planning at all, reply {"reject":"<one short sentence>"}.',
     '- Do NOT confuse prices. currentPrice/fmv is the value NOW: phrases like "$40 value", "$40 current value", "$200 value", "now $140", "trading at $140", "currently $200", "worth $X" all set currentPrice/fmv. A purchase price ("bought at $60", "paid $60", cost basis, strike) is a PAST price; it is costBasisPerShare / adjustedBasis / strike, NEVER currentPrice/fmv. If the ONLY price the user gives is a purchase/cost price (no current value), OMIT currentPrice/fmv entirely (do not output 0 or null, and do not reuse the purchase price).',
@@ -748,7 +750,7 @@ async function poeCost(
 const TOOL_DEFAULTS: Record<string, Record<string, unknown>> = {
   amt_iso_optimize: { carryforwardCredit: 0, hasLeftCompany: false, terminationDate: null, cashReturnRate: 0.05 },
   nso_calculate: { stillEmployed: true, holdFunding: 'cash' },
-  rsu_sell_vs_hold: { stillEmployed: true },
+  rsu_sell_vs_hold: { stillEmployed: true, holdYears: 1 },
   protective_put_price: { protectionLevel: 0.1, tenorYears: 1 },
 };
 
@@ -804,7 +806,7 @@ const FIELD_LABELS: Record<string, string> = {
 const ASSUMED_LABEL: Record<string, Record<string, string>> = {
   amt_iso_optimize: { carryforwardCredit: 'assumes none', hasLeftCompany: 'assumes still employed', terminationDate: '', cashReturnRate: 'assumes 5%' },
   nso_calculate: { stillEmployed: 'assumes still employed', holdFunding: 'assumes cash exercise' },
-  rsu_sell_vs_hold: { stillEmployed: 'assumes still employed' },
+  rsu_sell_vs_hold: { stillEmployed: 'assumes still employed', holdYears: 'assumes a 1-year hold' },
   protective_put_price: { protectionLevel: 'assumes 10%', tenorYears: 'assumes 1 year' },
 };
 
@@ -974,6 +976,32 @@ async function handleQuery(ctx: PagesContext, req: PoeRequest, extractor?: Extra
     if (typeof provided.ticker === 'string' && !/^[A-Za-z][A-Za-z.\-]{0,5}$/.test(provided.ticker.trim())) {
       delete provided.ticker;
     }
+    // Benign date normalization: users answer "2023" or "2023-06" to a
+    // when-was-it-granted ask; the engine wants a full ISO date. Pinning to
+    // Jan 1 / the 1st adds no invented tax fact. Applies to top-level date
+    // fields and to equity_funding's nested lots.
+    const normDate = (v: unknown): unknown =>
+      typeof v === 'string' && /^\d{4}$/.test(v.trim()) ? `${v.trim()}-01-01`
+      : typeof v === 'string' && /^\d{4}-\d{2}$/.test(v.trim()) ? `${v.trim()}-01`
+      : v;
+    for (const k of ['grantDate', 'acquisitionDate', 'saleDate', 'targetDate', 'terminationDate']) {
+      if (k in provided) provided[k] = normDate(provided[k]);
+    }
+    if (Array.isArray(provided.stacks)) {
+      for (const st of provided.stacks) {
+        if (st && Array.isArray(st.lots)) {
+          for (const lot of st.lots) {
+            if (lot && 'acquisitionDate' in lot) lot.acquisitionDate = normDate(lot.acquisitionDate);
+          }
+        }
+      }
+    }
+    // "Sell at vest or hold?" often extracts holdYears 0; below the engine's
+    // 0.25 minimum it would throw. Drop it so the disclosed 1-year default
+    // (TOOL_DEFAULTS) applies instead of a validation error.
+    if (tool.name === 'rsu_sell_vs_hold' && typeof provided.holdYears === 'number' && provided.holdYears < 0.25) {
+      delete provided.holdYears;
+    }
     // The current date is the server's to know, never the model's. The extractor
     // (its training cutoff in the past) otherwise emits a stale `today` that
     // anchors equity_funding's schedule years before the real date. Always drop
@@ -1065,6 +1093,15 @@ async function handleQuery(ctx: PagesContext, req: PoeRequest, extractor?: Extra
       fmv: 'the current fair market value per share',
       positionValue: 'what the position is worth right now',
     };
+    // Plain asks for date fields whose value was missing or malformed. The raw
+    // engine hint ("must be an ISO date string") is model-facing and doubly
+    // confusing next to ISO = incentive stock option.
+    const DATE_ASK: Record<string, string> = {
+      grantDate: 'when the options were granted. A year is fine, for example 2023',
+      acquisitionDate: 'when you acquired the shares. A year is fine, for example 2022',
+      saleDate: 'when you plan to sell (for example 2027-06-01)',
+      targetDate: 'when you need the cash by, as a future date (for example 2027-06-01)',
+    };
     let ask: string;
     if (FORWARD.has(field)) {
       // A missing forward estimate. One ticker-first ask covering everything the
@@ -1077,6 +1114,12 @@ async function handleQuery(ctx: PagesContext, req: PoeRequest, extractor?: Extra
       }
     } else if (PRICE_ASK[field]) {
       ask = `Almost there. Tell me ${PRICE_ASK[field]}. I work from the price you give, not a live quote.`;
+    } else if (DATE_ASK[field]) {
+      ask = `Almost there. Tell me ${DATE_ASK[field]}.`;
+    } else if (field && FIELD_LABELS[field]) {
+      // Any other named-field validation failure: ask for the field by its
+      // user-facing label instead of leaking the schema wording.
+      ask = `Almost there. Tell me your ${FIELD_LABELS[field]}.`;
     } else {
       const m = raw.match(/required:\s*([\s\S]*)/i);
       const hint = clean((m ? m[1] : raw).split(/\.\s*The model/i)[0]).trim();
