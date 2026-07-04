@@ -86,10 +86,11 @@ function sseText(raw: string): string {
 }
 // Every number nested in the args (so the default content states them and the
 // anti-fabrication guard keeps them; the real model gets these from user text).
-function numbersIn(o: any): number[] {
-  const out: number[] = [];
+function numbersIn(o: any): (number | string)[] {
+  const out: (number | string)[] = [];
   const walk = (x: any) => {
     if (typeof x === 'number') out.push(x);
+    else if (typeof x === 'string' && /^\d{4}(-\d{2}){0,2}$/.test(x)) out.push(x); // dates count as stated
     else if (Array.isArray(x)) x.forEach(walk);
     else if (x && typeof x === 'object') Object.values(x).forEach(walk);
   };
@@ -280,9 +281,11 @@ describe('poe clarify / reject / fallback', () => {
     const res = await handleQuery(ctx(), { type: 'query', query: [{ role: 'user', content: 'q' }] }, async () => ({ clarify: 'What is your filing status?' }));
     expect(await res.text()).toContain('What is your filing status?');
   });
-  it('handles an off-topic rejection', async () => {
+  it('handles an off-topic rejection with fixed copy (never echoing the model sentence)', async () => {
     const res = await handleQuery(ctx(), { type: 'query', query: [{ role: 'user', content: 'q' }] }, async () => ({ reject: 'That is off topic.' }));
-    expect(await res.text()).toContain('off topic');
+    const text = await res.text();
+    expect(text).toContain('outside what I cover');
+    expect(text).not.toContain('off topic');
   });
   it('returns the intro for an empty query', async () => {
     const res = await handleQuery(ctx(), { type: 'query', query: [] }, async () => null);
@@ -403,7 +406,7 @@ describe('poe error reformatting', () => {
 
   it('suggests the current price from a ticker (covered), disclosed', async () => {
     const a = { shares: 10000, strike: 2, ticker: 'NVDA', filingStatus: 'married_joint', ordinaryIncome: 300000, stateCode: 'CA', horizon: 4, cashReturnRate: 0.05, grantDate: '2022-01-01' };
-    const text = await ask('amt_iso_optimize', a, {}, {}, '10,000 NVDA ISOs, $2 strike, 300k income, MFJ, CA, 4yr, 5% cash');
+    const text = await ask('amt_iso_optimize', a, {}, {}, '10,000 NVDA ISOs granted in 2022, $2 strike, 300k income, MFJ, CA, 4yr, 5% cash');
     expect(text).toContain('most money after taxes'); // computed, did not ask
     expect(text).toMatch(/Using NVDA at \$/); // price disclosed
   });
@@ -536,6 +539,64 @@ describe('poe battery fixes (2026-07-03): humanized asks, date normalization, rs
   it('extractor prompt demands one bundled clarify question', () => {
     const prompt = extractorPrompt('User: hi');
     expect(prompt).toContain('EVERYTHING you need');
+  });
+});
+
+describe('poe anti-fabrication scoped to user turns (2026-07-04)', () => {
+  it('a growth rate appearing only in a BOT turn (the intro example) is not user-stated', async () => {
+    // The greeting embeds "12% growth"; the extractor copies it. The guard
+    // must strip it because the USER never said 12%.
+    const a = { ...VALID_ARGS.amt_iso_optimize, expectedGrowth: 0.12 };
+    delete a.volatility;
+    const res = await handleQuery(
+      ctx({}),
+      { type: 'query', query: [
+        { role: 'bot', content: 'Example: 10,000 ISOs, granted 2022-01-01, 5% cash, 12% growth. Best schedule?' },
+        { role: 'user', content: 'I have 20000 ISOs, $2 strike, $200 value, married joint, $300k income, CA, 4 years, granted 2022-01-01, 0.055 cash return' },
+      ] } as any,
+      async () => ({ tool: 'amt_iso_optimize', args: a }),
+    );
+    const text = sseText(await res.text());
+    expect(text).toContain('growth');
+    expect(text).not.toContain('most money after taxes');
+  });
+
+  it('an invented grantDate (no date wording in user text) is stripped and asked for', async () => {
+    const a = { ...VALID_ARGS.amt_iso_optimize };
+    const text = await ask('amt_iso_optimize', a, {}, {},
+      '20,000 ISOs, $2 strike, $200 value, 17% growth, 0.72 vol, married joint, $300k income, CA, 4 year horizon, 0.055 cash return');
+    expect(text).toContain('when the options were granted');
+    expect(text).not.toContain('most money after taxes');
+  });
+
+  it('a stated grant year keeps the extractor-resolved grantDate', async () => {
+    const a = { ...VALID_ARGS.amt_iso_optimize };
+    const text = await ask('amt_iso_optimize', a, {}, {},
+      '20,000 ISOs granted in 2022, $2 strike, $200 value, 17% growth, 0.72 vol, married joint, $300k income, CA, 4 year horizon, 0.055 cash return');
+    expect(text).toContain('most money after taxes');
+  });
+
+  it('a non-object args payload gets the friendly could-not-read reply, not a JSON error', async () => {
+    const text = await ask('concentration_analyze', 'garbage' as any);
+    expect(text).not.toMatch(/JSON object/);
+    expect(text).toContain('could not read');
+  });
+
+  it('the reject lead-in is fixed copy, never the model sentence (which can garble)', async () => {
+    const res = await handleQuery(
+      ctx({}),
+      { type: 'query', query: [{ role: 'user', content: 'what is the weather' }] } as any,
+      async () => ({ reject: 'This chat is about equity compensation tax planning.' }),
+    );
+    const text = sseText(await res.text());
+    expect(text).toContain('That is outside what I cover.');
+    expect(text).not.toContain('This chat is about equity compensation tax planning.');
+  });
+
+  it('extractor prompt carries the assetCategory threshold mapping', () => {
+    const prompt = extractorPrompt('User: founder stock, $8M in assets');
+    expect(prompt).toContain('"under-50m"');
+    expect(prompt).toContain('Never confuse the expected GAIN');
   });
 });
 
