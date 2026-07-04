@@ -445,6 +445,100 @@ describe('poe error reformatting', () => {
 
 // --- pricing / monetization ------------------------------------------------
 
+describe('poe battery fixes (2026-07-03): humanized asks, date normalization, rsu hold default', () => {
+  it('malformed grantDate asks in plain words, never "ISO date string"', async () => {
+    const a = { ...VALID_ARGS.amt_iso_optimize, grantDate: 'unknown' };
+    const text = await ask('amt_iso_optimize', a);
+    expect(text).toContain('when the options were granted');
+    expect(text).not.toContain('ISO date string');
+    expect(text).not.toMatch(/field "grantDate"/);
+  });
+
+  it('missing acquisitionDate on concentration asks in plain words', async () => {
+    const a = { ...VALID_ARGS.concentration_analyze };
+    delete a.acquisitionDate;
+    const text = await ask('concentration_analyze', a);
+    expect(text).toContain('when you acquired the shares');
+    expect(text).not.toMatch(/field "acquisitionDate"/);
+  });
+
+  it('past targetDate asks for a future deadline, no raw hint or double period', async () => {
+    const a = { ...VALID_ARGS.equity_funding_plan, targetDate: '2020-01-01' };
+    const text = await ask('equity_funding_plan', a);
+    expect(text).toContain('future date');
+    expect(text).not.toContain('deadline is in the past');
+    expect(text).not.toContain('..');
+  });
+
+  it('NUMERIC year grantDate (2023) normalizes and computes (p.date requires a string)', async () => {
+    const a = { ...VALID_ARGS.amt_iso_optimize, grantDate: 2023 };
+    const text = await ask('amt_iso_optimize', a);
+    expect(text).toContain('most money after taxes');
+  });
+
+  it('numeric lot acquisitionDate normalizes inside stacks and computes', async () => {
+    const a = JSON.parse(JSON.stringify(VALID_ARGS.equity_funding_plan));
+    a.stacks[0].lots[0].acquisitionDate = 2023;
+    const text = await ask('equity_funding_plan', a);
+    expect(text).toContain('sell');
+  });
+
+  it('year-only targetDate pins to year END, not January (deadline direction)', async () => {
+    const year = new Date().getUTCFullYear();
+    const a = JSON.parse(JSON.stringify(VALID_ARGS.equity_funding_plan));
+    a.targetDate = String(year); // "end of <this year>" mid-year: Jan 1 would be past
+    const text = await ask('equity_funding_plan', a);
+    expect(text).not.toContain('future date');
+    expect(text).toMatch(/sell|expected wealth/);
+  });
+
+  it('boolean field emitted as "yes" coerces instead of asking a garbled question', async () => {
+    const a = { ...VALID_ARGS.amt_iso_optimize, hasLeftCompany: 'no' };
+    const text = await ask('amt_iso_optimize', a);
+    expect(text).toContain('most money after taxes');
+    expect(text).not.toContain('Tell me your whether');
+  });
+
+  it('malformed lot vestDate asks in plain words (nested field, no raw leak)', async () => {
+    const a = JSON.parse(JSON.stringify(VALID_ARGS.equity_funding_plan));
+    a.stacks[0].lots[0].vestDate = 'unknown';
+    const text = await ask('equity_funding_plan', a);
+    expect(text).not.toMatch(/field "vestDate"/);
+  });
+
+  it('an explicit short hold (2 months) is not silently overridden to 1 year', async () => {
+    const a = { ...VALID_ARGS.rsu_sell_vs_hold, holdYears: 0.167 };
+    const text = await ask('rsu_sell_vs_hold', a);
+    expect(text).not.toContain('1-year hold');
+  });
+
+  it('rsu "sell at vest or hold" with holdYears 0 computes on the disclosed 1-year default', async () => {
+    const a = { ...VALID_ARGS.rsu_sell_vs_hold, holdYears: 0 };
+    const text = await ask('rsu_sell_vs_hold', a);
+    expect(text).not.toMatch(/holdYears/);
+    expect(text).toContain('Assumptions:');
+    expect(text).toContain('1-year hold');
+  });
+
+  it('rsu with no holdYears at all computes on the same default', async () => {
+    const a = { ...VALID_ARGS.rsu_sell_vs_hold };
+    delete a.holdYears;
+    const text = await ask('rsu_sell_vs_hold', a);
+    expect(text).toContain('1-year hold');
+  });
+
+  it('extractor prompt anchors relative dates to the real current date', () => {
+    const prompt = extractorPrompt('User: need cash by next summer');
+    expect(prompt).toContain(`Today is ${new Date().toISOString().slice(0, 10)}`);
+    expect(prompt).toContain('never emit a deadline in the past');
+  });
+
+  it('extractor prompt demands one bundled clarify question', () => {
+    const prompt = extractorPrompt('User: hi');
+    expect(prompt).toContain('EVERYTHING you need');
+  });
+});
+
 describe('poe pricing', () => {
   it('helpers default to $0.30 and honor the free window', () => {
     expect(priceMilliCents({})).toBe(30000);
