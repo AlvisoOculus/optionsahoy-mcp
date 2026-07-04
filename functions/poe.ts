@@ -995,8 +995,11 @@ async function handleQuery(ctx: PagesContext, req: PoeRequest, extractor?: Extra
     if (typeof provided.ticker === 'string' && !/^[A-Za-z][A-Za-z.\-]{0,5}$/.test(provided.ticker.trim())) {
       delete provided.ticker;
     }
+    // Token comparison, not a dynamic RegExp (no injection surface): split the
+    // user text on anything that cannot be part of a ticker and compare.
+    const userTokens = new Set(userText.toUpperCase().split(/[^A-Z.\-]+/));
     const tickerStated = (t: unknown): boolean =>
-      typeof t === 'string' && new RegExp(`\\b${t.trim().replace(/[.\-]/g, '\\$&')}\\b`, 'i').test(userText);
+      typeof t === 'string' && userTokens.has(t.trim().toUpperCase());
     if (typeof provided.ticker === 'string' && !tickerStated(provided.ticker)) {
       delete provided.ticker;
     }
