@@ -637,6 +637,7 @@ function extractorPrompt(conversation: string): string {
     '- If the chat is not about equity-compensation tax planning at all, reply {"reject":"<one short sentence>"}.',
     '- Do NOT confuse prices. currentPrice/fmv is the value NOW: phrases like "$40 value", "$40 current value", "$200 value", "now $140", "trading at $140", "currently $200", "worth $X" all set currentPrice/fmv. A purchase price ("bought at $60", "paid $60", cost basis, strike) is a PAST price; it is costBasisPerShare / adjustedBasis / strike, NEVER currentPrice/fmv. If the ONLY price the user gives is a purchase/cost price (no current value), OMIT currentPrice/fmv entirely (do not output 0 or null, and do not reuse the purchase price).',
     '- filingStatus must be one of: single, married_joint, head_household. stateCode is a two-letter code.',
+    '- assetCategory maps the company\'s stated GROSS ASSETS AT ISSUANCE to a bucket: under $50 million -> "under-50m" (so "$8M in assets" -> "under-50m"); $50M to $75M -> "50m-to-75m"; above $75M -> "over-75m"; not stated -> "unsure". Never confuse the expected GAIN with the company\'s assets.',
     '',
     'Conversation so far (resolve the latest user turn using all earlier turns):',
     conversation,
@@ -911,6 +912,14 @@ async function handleQuery(ctx: PagesContext, req: PoeRequest, extractor?: Extra
     .slice(-12)
     .map((m) => `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.content.trim()}`)
     .join('\n');
+  // User turns only, for the anti-fabrication guard: numbers in OUR OWN
+  // greeting/help/answers (the intro embeds a worked example with "12% growth,
+  // granted 2022-01-01") must never count as user-stated.
+  const userText = messages
+    .filter((m) => m.role === 'user' && typeof m.content === 'string' && m.content.trim())
+    .slice(-12)
+    .map((m) => m.content.trim())
+    .join('\n');
 
   let extracted: any | null;
   try {
@@ -937,7 +946,9 @@ async function handleQuery(ctx: PagesContext, req: PoeRequest, extractor?: Extra
   }
   if (typeof extracted.reject === 'string') {
     log({ endpoint: 'poe:query' });
-    return textReply(`${extracted.reject}\n\nI focus on equity-compensation tax planning. ${INTRO}`);
+    // Fixed lead-in: the model's own reject sentence occasionally garbles
+    // (dropping a "not"), so never echo it to the user.
+    return textReply(`That is outside what I cover.\n\nI focus on equity-compensation tax planning. ${INTRO}`);
   }
 
   const tool = TOOLS.find((t) => t.name === extracted.tool);
@@ -970,6 +981,9 @@ async function handleQuery(ctx: PagesContext, req: PoeRequest, extractor?: Extra
     // defaults and the calculator's ticker-derivation take effect. An explicit
     // null would otherwise override a default (carryforwardCredit: 0) or throw
     // ("stacks[0].expectedAnnualGrowth must be a finite number").
+    if (extracted.args !== undefined && (typeof extracted.args !== 'object' || extracted.args === null || Array.isArray(extracted.args))) {
+      throw new Error('extractor returned a non-object args payload');
+    }
     const provided: Record<string, any> = dropEmpty(extracted.args ?? {});
     // Drop a placeholder/implausible ticker the model sometimes emits
     // ("unknown", "n/a", a whole phrase). A real symbol is 1-6 letters.
@@ -1003,6 +1017,14 @@ async function handleQuery(ctx: PagesContext, req: PoeRequest, extractor?: Extra
         }
       }
     }
+    // A grantDate with NO date wording anywhere in the user's text is the
+    // extractor inventing one (usually copied from the worked example). Strip
+    // it and ask. Any year, month name, or relative-date phrase counts as
+    // date wording; this never blocks a date the user actually gave.
+    const DATE_WORDING = /\b(19|20)\d{2}\b|january|february|march|april|may|june|july|august|september|october|november|december|years? ago|last year|next year|granted (in|on|last)/i;
+    if (typeof provided.grantDate === 'string' && !DATE_WORDING.test(userText)) {
+      delete provided.grantDate;
+    }
     // The extractor sometimes answers boolean fields with "yes"/"no" strings;
     // the engine requires real booleans. Coerce the unambiguous cases.
     for (const k of ['hasLeftCompany', 'stillEmployed']) {
@@ -1030,7 +1052,7 @@ async function handleQuery(ctx: PagesContext, req: PoeRequest, extractor?: Extra
     // a made-up tax assumption presented as fact. Strip any value the user did
     // not state; the bot then asks for it, or (for growth/vol when a ticker is
     // given) derives it from the bundled trailing snapshot.
-    const nums = convoNumbers(convo);
+    const nums = convoNumbers(userText);
     for (const k of ['currentPrice', 'fmv', 'positionValue', 'expectedSalePrice', 'expectedGrowth', 'expectedPositionReturn', 'volatility']) {
       if (typeof provided[k] === 'number' && !stated(provided[k], nums)) delete provided[k];
     }
@@ -1140,6 +1162,8 @@ async function handleQuery(ctx: PagesContext, req: PoeRequest, extractor?: Extra
       // are already clauses ("whether you've left the company") skip "your".
       const label = FIELD_LABELS[field];
       ask = `Almost there. Tell me ${label.startsWith('whether') ? label : `your ${label}`}.`;
+    } else if (/json|non-object/i.test(raw)) {
+      ask = 'I could not read that into a calculation. Try restating it with the specifics, for example the share count, strike, current price, filing status, state, and horizon.';
     } else {
       const m = raw.match(/required:\s*([\s\S]*)/i);
       const hint = clean((m ? m[1] : raw).split(/\.\s*The model/i)[0]).trim();
