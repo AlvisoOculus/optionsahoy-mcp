@@ -91,6 +91,7 @@ function numbersIn(o: any): (number | string)[] {
   const walk = (x: any) => {
     if (typeof x === 'number') out.push(x);
     else if (typeof x === 'string' && /^\d{4}(-\d{2}){0,2}$/.test(x)) out.push(x); // dates count as stated
+    else if (typeof x === 'string' && /^[A-Z][A-Za-z.\-]{0,5}$/.test(x)) out.push(x); // tickers count as stated
     else if (Array.isArray(x)) x.forEach(walk);
     else if (x && typeof x === 'object') Object.values(x).forEach(walk);
   };
@@ -624,6 +625,47 @@ describe('poe round-4 fixes: stack tickers, uncovered symbols, bundled grant ask
     const text = await ask('amt_iso_optimize', a);
     expect(text).toContain('ticker');
     expect(text).toContain('granted');
+  });
+});
+
+describe('poe ticker fabrication guard (2026-07-04 r4 grader FAIL)', () => {
+  it('a stack ticker the user never said is stripped; the plan computes flat-price with disclosure', async () => {
+    const a = JSON.parse(JSON.stringify(VALID_ARGS.equity_funding_plan));
+    delete a.stacks[0].expectedAnnualGrowth; delete a.stacks[0].volatility;
+    // a.stacks[0].ticker stays NVDA, but the user text never mentions it
+    const text = await ask('equity_funding_plan', a, {}, {},
+      'I need $400,000 after tax by 2028-06-01 from 4,000 shares of my company stock at $140, basis $60, bought 2023-06-15. Married joint, $280k income, CA.');
+    expect(text).not.toMatch(/NVDA/); // the fabricated ticker never surfaces
+    expect(text).toContain('flat stock price'); // conservative default disclosed
+  });
+
+  it('a lowercase user-stated ticker is kept (nvda follow-up path)', async () => {
+    const a = JSON.parse(JSON.stringify(VALID_ARGS.equity_funding_plan));
+    delete a.stacks[0].expectedAnnualGrowth; delete a.stacks[0].volatility;
+    const text = await ask('equity_funding_plan', a, {}, {},
+      'I need $400,000 after tax by 2028-06-01 from 4,000 nvda at $140, basis $60, bought 2023-06-15. Married joint, $280k income, CA.');
+    expect(text).toMatch(/sell|expected wealth/);
+  });
+
+  it('a top-level fabricated ticker is stripped for amt too', async () => {
+    const a = { ...VALID_ARGS.amt_iso_optimize, ticker: 'NVDA' };
+    delete a.expectedGrowth; delete a.volatility;
+    const text = await ask('amt_iso_optimize', a, {}, {},
+      '20,000 ISOs granted in 2022, $2 strike, $200 value, married joint, $300k income, CA, 4 year horizon, 0.055 cash return');
+    expect(text).not.toContain('most money after taxes');
+    expect(text).toContain('ticker');
+  });
+
+  it('remaining shares are labeled at the projected target-date price, not today', async () => {
+    const text = await ask('equity_funding_plan', VALID_ARGS.equity_funding_plan, {}, {},
+      "my details: 400000 2028-06-01 NVDA 140 0.15 0.45 4000 60 2023-06-15 280000 0.04 0.1");
+    expect(text).not.toContain("at today's price");
+  });
+
+  it('equity_funding assumptions name the stack ticker actually used', async () => {
+    const text = await ask('equity_funding_plan', VALID_ARGS.equity_funding_plan, {}, {},
+      "my details: 400000 2028-06-01 NVDA 140 0.15 0.45 4000 60 2023-06-15 280000 0.04 0.1");
+    expect(text).toMatch(/Assumptions:.*NVDA/s);
   });
 });
 

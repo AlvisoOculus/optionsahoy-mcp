@@ -521,7 +521,7 @@ function headline(tool: string, r: Result): string {
         if (typeof plan.remainingShares === 'number' && plan.remainingShares > 0) {
           lines.push(
             `After the plan you would still hold about ${Math.round(plan.remainingShares).toLocaleString('en-US')} shares` +
-              (typeof plan.remainingPositionValue === 'number' && plan.remainingPositionValue > 0 ? `, worth roughly ${usd(plan.remainingPositionValue)} at today's price.` : '.'),
+              (typeof plan.remainingPositionValue === 'number' && plan.remainingPositionValue > 0 ? `, worth roughly ${usd(plan.remainingPositionValue)} at the projected price on your target date.` : '.'),
           );
         }
         // The trade-off across the named alternatives.
@@ -574,7 +574,12 @@ function assumptionsLine(tool: string, a: Record<string, any>): string {
       break;
     }
     case 'equity_funding_plan': {
-      parts.push("each holding's growth and volatility (from your numbers, or its ticker's history)");
+      const stacks = Array.isArray(a.stacks) ? a.stacks : [];
+      const tks = [...new Set(stacks.map((st: any) => (st && typeof st.ticker === 'string' ? st.ticker.toUpperCase() : '')).filter(Boolean))];
+      const anyFlat = stacks.some((st: any) => st && typeof st.expectedAnnualGrowth !== 'number' && typeof st.ticker !== 'string');
+      if (tks.length) parts.push(`growth and volatility from ${tks.join(', ')}'s historical returns`);
+      if (anyFlat) parts.push('a flat stock price for holdings without a stated growth rate or ticker');
+      if (!tks.length && !anyFlat) parts.push("each holding's growth and volatility from your numbers");
       break;
     }
     // qsbs_check has no forward-looking assumptions (dates + amounts only).
@@ -990,6 +995,11 @@ async function handleQuery(ctx: PagesContext, req: PoeRequest, extractor?: Extra
     if (typeof provided.ticker === 'string' && !/^[A-Za-z][A-Za-z.\-]{0,5}$/.test(provided.ticker.trim())) {
       delete provided.ticker;
     }
+    const tickerStated = (t: unknown): boolean =>
+      typeof t === 'string' && new RegExp(`\\b${t.trim().replace(/[.\-]/g, '\\$&')}\\b`, 'i').test(userText);
+    if (typeof provided.ticker === 'string' && !tickerStated(provided.ticker)) {
+      delete provided.ticker;
+    }
     // Benign date normalization: users answer "2023" or "2023-06" to a
     // when-was-it-granted ask; the engine wants a full ISO date. Pinning to
     // Jan 1 / the 1st adds no invented tax fact. Applies to top-level date
@@ -1059,7 +1069,7 @@ async function handleQuery(ctx: PagesContext, req: PoeRequest, extractor?: Extra
     if (Array.isArray(provided.stacks)) {
       for (const s of provided.stacks) {
         if (!s) continue;
-        if (typeof s.ticker === 'string' && !/^[A-Za-z][A-Za-z.\-]{0,5}$/.test(s.ticker.trim())) {
+        if (typeof s.ticker === 'string' && (!/^[A-Za-z][A-Za-z.\-]{0,5}$/.test(s.ticker.trim()) || !tickerStated(s.ticker))) {
           delete s.ticker;
         }
         for (const k of ['currentPrice', 'expectedAnnualGrowth', 'volatility']) {
