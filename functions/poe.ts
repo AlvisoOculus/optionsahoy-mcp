@@ -1059,6 +1059,9 @@ async function handleQuery(ctx: PagesContext, req: PoeRequest, extractor?: Extra
     if (Array.isArray(provided.stacks)) {
       for (const s of provided.stacks) {
         if (!s) continue;
+        if (typeof s.ticker === 'string' && !/^[A-Za-z][A-Za-z.\-]{0,5}$/.test(s.ticker.trim())) {
+          delete s.ticker;
+        }
         for (const k of ['currentPrice', 'expectedAnnualGrowth', 'volatility']) {
           if (typeof s[k] === 'number' && !stated(s[k], nums)) delete s[k];
         }
@@ -1149,6 +1152,9 @@ async function handleQuery(ctx: PagesContext, req: PoeRequest, extractor?: Extra
       if (tool.name === 'amt_iso_optimize' || tool.name === 'concentration_analyze') {
         const word = tool.name === 'amt_iso_optimize' ? 'growth' : 'return';
         ask = `Almost there. Give me the stock's ticker and I will use its historical ${word} and volatility, or tell me both an expected annual ${word} rate (for example 10%) and a volatility (for example 0.5).`;
+        if (tool.name === 'amt_iso_optimize' && !usedArgs.grantDate) {
+          ask += ' Also tell me roughly when the options were granted; a year is fine.';
+        }
       } else {
         ask = `Almost there. Give me the stock's ticker and I will project the price, or tell me the price you expect to sell at.`;
       }
@@ -1162,6 +1168,8 @@ async function handleQuery(ctx: PagesContext, req: PoeRequest, extractor?: Extra
       // are already clauses ("whether you've left the company") skip "your".
       const label = FIELD_LABELS[field];
       ask = `Almost there. Tell me ${label.startsWith('whether') ? label : `your ${label}`}.`;
+    } else if (/trailing-returns table/i.test(raw)) {
+      ask = 'Almost there. I do not have history for that stock symbol. Give me a covered public ticker, or tell me an expected annual growth rate (for example 10%) and a volatility (for example 0.5).';
     } else if (/json|non-object/i.test(raw)) {
       ask = 'I could not read that into a calculation. Try restating it with the specifics, for example the share count, strike, current price, filing status, state, and horizon.';
     } else {
