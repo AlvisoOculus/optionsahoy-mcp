@@ -23,7 +23,7 @@ const CASES = [
   { label: 'qsbs', expect: /QSBS|exclusion/, turns: [u('C-corp founder stock bought 2020-01-15 for $100k, selling 2026-06-01 for a $5M gain, original issuance, under $50M, tech, active, single, $250k income, CA. QSBS?')] },
   { label: 'equity funding', expect: /Recommended plan|aggressive/, turns: [u('Need $400k after tax by 2028-06-01 from 4,000 NVDA bought at $60 in 2023, now $140, 15% growth, MFJ, $280k income, CA. Plan?')] },
   { label: 'help', expect: /each calculator|what I can do/, turns: [u('what can you do?')] },
-  { label: 'off-topic', expect: /not about equity[ -]compensation/, turns: [u('what is the weather today?')] },
+  { label: 'off-topic', expect: /outside what I cover/, turns: [u('what is the weather today?')] },
 ];
 
 async function chat(turns) {

@@ -600,6 +600,33 @@ describe('poe anti-fabrication scoped to user turns (2026-07-04)', () => {
   });
 });
 
+describe('poe round-4 fixes: stack tickers, uncovered symbols, bundled grant ask', () => {
+  it('a placeholder ticker inside stacks is dropped; explicit growth/vol still compute', async () => {
+    const a = JSON.parse(JSON.stringify(VALID_ARGS.equity_funding_plan));
+    a.stacks[0].ticker = 'unknown';
+    const text = await ask('equity_funding_plan', a);
+    expect(text).not.toContain('trailing-returns');
+    expect(text).toMatch(/sell|expected wealth/);
+  });
+
+  it('an uncovered real-format ticker asks in plain words, no table/field leak', async () => {
+    const a = { ...VALID_ARGS.amt_iso_optimize, ticker: 'ZZZZ' };
+    delete a.expectedGrowth; delete a.volatility;
+    const text = await ask('amt_iso_optimize', a);
+    expect(text).not.toContain('trailing-returns table');
+    expect(text).not.toContain('Pass "expectedAnnualGrowth"');
+    expect(text).toMatch(/covered public ticker|growth rate/);
+  });
+
+  it('the ISO growth ask bundles the grant-year question when grantDate is also missing', async () => {
+    const a = { ...VALID_ARGS.amt_iso_optimize };
+    delete a.expectedGrowth; delete a.volatility; delete a.grantDate;
+    const text = await ask('amt_iso_optimize', a);
+    expect(text).toContain('ticker');
+    expect(text).toContain('granted');
+  });
+});
+
 describe('poe pricing', () => {
   it('helpers default to $0.30 and honor the free window', () => {
     expect(priceMilliCents({})).toBe(30000);
