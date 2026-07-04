@@ -980,26 +980,42 @@ async function handleQuery(ctx: PagesContext, req: PoeRequest, extractor?: Extra
     // when-was-it-granted ask; the engine wants a full ISO date. Pinning to
     // Jan 1 / the 1st adds no invented tax fact. Applies to top-level date
     // fields and to equity_funding's nested lots.
-    const normDate = (v: unknown): unknown =>
-      typeof v === 'string' && /^\d{4}$/.test(v.trim()) ? `${v.trim()}-01-01`
-      : typeof v === 'string' && /^\d{4}-\d{2}$/.test(v.trim()) ? `${v.trim()}-01`
-      : v;
+    const normDate = (v: unknown, deadline: boolean): unknown => {
+      const y = typeof v === 'number' && Number.isInteger(v) && v >= 1900 && v <= 2100
+        ? String(v)
+        : typeof v === 'string' && /^\d{4}$/.test(v.trim()) ? v.trim() : null;
+      if (y) return deadline ? `${y}-12-31` : `${y}-01-01`;
+      if (typeof v === 'string' && /^\d{4}-\d{2}$/.test(v.trim())) {
+        return deadline ? `${v.trim()}-28` : `${v.trim()}-01`;
+      }
+      return v;
+    };
     for (const k of ['grantDate', 'acquisitionDate', 'saleDate', 'targetDate', 'terminationDate']) {
-      if (k in provided) provided[k] = normDate(provided[k]);
+      if (k in provided) provided[k] = normDate(provided[k], k === 'targetDate');
     }
     if (Array.isArray(provided.stacks)) {
       for (const st of provided.stacks) {
         if (st && Array.isArray(st.lots)) {
           for (const lot of st.lots) {
-            if (lot && 'acquisitionDate' in lot) lot.acquisitionDate = normDate(lot.acquisitionDate);
+            if (lot && 'acquisitionDate' in lot) lot.acquisitionDate = normDate(lot.acquisitionDate, false);
+            if (lot && 'vestDate' in lot) lot.vestDate = normDate(lot.vestDate, false);
           }
         }
+      }
+    }
+    // The extractor sometimes answers boolean fields with "yes"/"no" strings;
+    // the engine requires real booleans. Coerce the unambiguous cases.
+    for (const k of ['hasLeftCompany', 'stillEmployed']) {
+      if (typeof provided[k] === 'string') {
+        const t = provided[k].trim().toLowerCase();
+        if (t === 'yes' || t === 'true') provided[k] = true;
+        else if (t === 'no' || t === 'false') provided[k] = false;
       }
     }
     // "Sell at vest or hold?" often extracts holdYears 0; below the engine's
     // 0.25 minimum it would throw. Drop it so the disclosed 1-year default
     // (TOOL_DEFAULTS) applies instead of a validation error.
-    if (tool.name === 'rsu_sell_vs_hold' && typeof provided.holdYears === 'number' && provided.holdYears < 0.25) {
+    if (tool.name === 'rsu_sell_vs_hold' && typeof provided.holdYears === 'number' && provided.holdYears <= 0) {
       delete provided.holdYears;
     }
     // The current date is the server's to know, never the model's. The extractor
@@ -1101,6 +1117,8 @@ async function handleQuery(ctx: PagesContext, req: PoeRequest, extractor?: Extra
       acquisitionDate: 'when you acquired the shares. A year is fine, for example 2022',
       saleDate: 'when you plan to sell (for example 2027-06-01)',
       targetDate: 'when you need the cash by, as a future date (for example 2027-06-01)',
+      vestDate: 'when the shares vested. A year is fine, for example 2024',
+      terminationDate: 'when you left the company (for example 2026-03-15)',
     };
     let ask: string;
     if (FORWARD.has(field)) {
@@ -1118,8 +1136,10 @@ async function handleQuery(ctx: PagesContext, req: PoeRequest, extractor?: Extra
       ask = `Almost there. Tell me ${DATE_ASK[field]}.`;
     } else if (field && FIELD_LABELS[field]) {
       // Any other named-field validation failure: ask for the field by its
-      // user-facing label instead of leaking the schema wording.
-      ask = `Almost there. Tell me your ${FIELD_LABELS[field]}.`;
+      // user-facing label instead of leaking the schema wording. Labels that
+      // are already clauses ("whether you've left the company") skip "your".
+      const label = FIELD_LABELS[field];
+      ask = `Almost there. Tell me ${label.startsWith('whether') ? label : `your ${label}`}.`;
     } else {
       const m = raw.match(/required:\s*([\s\S]*)/i);
       const hint = clean((m ? m[1] : raw).split(/\.\s*The model/i)[0]).trim();
