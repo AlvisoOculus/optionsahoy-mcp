@@ -439,6 +439,13 @@ function headline(tool: string, r: Result): string {
         } else if (waiting.length) {
           lines.push(`Just a matter of time: ${waiting.map((t: any) => clean(t.detail)).join('; ')}`);
         }
+        // Name the tests it cleared, so the verdict is checkable, not a bare
+        // yes/no. Six tests come from the engine; the reader can spot a wrong
+        // input (e.g. a misread asset size) from this line alone.
+        const passed = tests.filter((t: any) => t.status === 'pass');
+        if (passed.length) {
+          lines.push(`Clears ${passed.length} of ${tests.length} statutory tests: ${passed.map((t: any) => String(t.label).toLowerCase()).join(', ')}.`);
+        }
         if (unsure.length) lines.push(`Confirm these with a tax professional before relying on it: ${unsure.map((t: any) => String(t.label).toLowerCase()).join(', ')}.`);
         if (typeof r.stateNote === 'string') lines.push(clean(r.stateNote));
         if (!waiting.length && typeof r.yearsUntilFullExclusion === 'number' && r.yearsUntilFullExclusion > 0) {
@@ -943,7 +950,7 @@ async function handleQuery(ctx: PagesContext, req: PoeRequest, extractor?: Extra
   }
   if (typeof extracted.clarify === 'string') {
     log({ endpoint: 'poe:query' });
-    return textReply(extracted.clarify);
+    return textReply(`${extracted.clarify}\n\nYou can also use the free tools directly at optionsahoy.com/tools`);
   }
   if (typeof extracted.help !== 'undefined') {
     log({ endpoint: 'poe:help' });
