@@ -669,6 +669,25 @@ describe('poe ticker fabrication guard (2026-07-04 r4 grader FAIL)', () => {
   });
 });
 
+describe('poe r5 WARN fixes: qsbs cleared tests + clarify funnel link', () => {
+  it('a qualifying QSBS verdict names the tests it cleared', async () => {
+    const text = await ask('qsbs_check', VALID_ARGS.qsbs_check);
+    expect(text).toMatch(/Clears \d of \d statutory tests/);
+    expect(text.toLowerCase()).toContain('c-corporation');
+  });
+
+  it('an extractor clarify carries the free-tools pointer', async () => {
+    const res = await handleQuery(
+      ctx({}),
+      { type: 'query', query: [{ role: 'user', content: 'help with my options' }] } as any,
+      async () => ({ clarify: 'How many shares, and what is the strike?' }),
+    );
+    const text = sseText(await res.text());
+    expect(text).toContain('How many shares');
+    expect(text).toContain('optionsahoy.com/tools');
+  });
+});
+
 describe('poe pricing', () => {
   it('helpers default to $0.30 and honor the free window', () => {
     expect(priceMilliCents({})).toBe(30000);
