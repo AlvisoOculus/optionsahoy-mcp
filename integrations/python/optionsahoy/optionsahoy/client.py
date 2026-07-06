@@ -290,22 +290,29 @@ class OptionsAhoyClient:
         tenorYears: float,
         volatility: Optional[float] = None,
         expectedReturn: Optional[float] = None,
+        spreadRiskLevel: Optional[float] = None,
         tickerLabel: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Price a protective put hedge for a stock position at a given downside
-        protection level and tenor."""
-        return self._post(
-            "/api/v1/protective-put",
-            {
-                "positionValue": positionValue,
-                "sector": sector,
-                "protectionLevel": protectionLevel,
-                "tenorYears": tenorYears,
-                "volatility": volatility,
-                "expectedReturn": expectedReturn,
-                "tickerLabel": tickerLabel,
-            },
-        )
+        protection level and tenor.
+
+        spreadRiskLevel: Put spread floor breach risk - probability the stock ends
+        below the spread's short strike (presets 0.20 / 0.10 / 0.05 / 0.01, i.e.
+        1 in 5 / 10 / 20 / 100; off-preset snaps to the nearest). Affects only the
+        putSpread block. Default 0.10.
+        """
+        payload: Dict[str, Any] = {
+            "positionValue": positionValue,
+            "sector": sector,
+            "protectionLevel": protectionLevel,
+            "tenorYears": tenorYears,
+            "volatility": volatility,
+            "expectedReturn": expectedReturn,
+            "tickerLabel": tickerLabel,
+        }
+        if spreadRiskLevel is not None:
+            payload["spreadRiskLevel"] = spreadRiskLevel
+        return self._post("/api/v1/protective-put", payload)
 
     def qsbs(
         self,

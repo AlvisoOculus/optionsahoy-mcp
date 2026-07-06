@@ -167,12 +167,13 @@ export const PROMPTS: McpPrompt[] = [
   {
     name: 'price-protective-put',
     description:
-      'Price a protective put or zero-cost collar on a single-stock position against current option-market implied volatility. Uses the protective_put_price tool.',
+      'Price a protective put, zero-cost collar, or put spread on a single-stock position against current option-market implied volatility. Uses the protective_put_price tool.',
     arguments: [
       { name: 'positionValue', description: 'Current market value of the position, USD', required: true },
       { name: 'protectionLevel', description: 'Strike as a percentage below current price (e.g. 0.10 for 10% OTM)', required: false },
       { name: 'tenorYears', description: 'Years to expiration (e.g. 1 for 12-month)', required: false },
       { name: 'sector', description: 'Sector tag for default volatility', required: false },
+      { name: 'spreadRiskLevel', description: "Put spread's floor breach risk: probability the stock ends below the short strike (e.g. 0.10 for 1 in 10)", required: false },
     ],
     build: (a) =>
       templatePrompt({
@@ -183,12 +184,15 @@ export const PROMPTS: McpPrompt[] = [
             : 'Use a 10% out-of-the-money strike by default. ',
           a.tenorYears ? `Tenor: ${a.tenorYears} year(s). ` : 'Use a 1-year tenor by default. ',
           a.sector && `Sector: ${a.sector}. `,
+          a.spreadRiskLevel
+            ? `Put spread floor breach risk: ${a.spreadRiskLevel}. `
+            : 'For the put spread, use a 1-in-10 floor breach risk by default. ',
         ],
         instruction:
-          `Use the protective_put_price tool to price both a protective put and a zero-cost collar.`,
+          `Use the protective_put_price tool to price a protective put, a zero-cost collar, and a put spread, then say which one it recommends and why.`,
         followUpFields: 'the sector or implied volatility for an unusual position',
         outputs:
-          'annual cost as a percentage of position, dollar cost, max loss with hedge, upside cap (for the collar), and bad-year coverage',
+          'annual cost as a percentage of position, dollar cost, max loss with hedge, upside cap (for the collar), the protected band (for the put spread), and bad-year coverage',
       }),
   },
   {

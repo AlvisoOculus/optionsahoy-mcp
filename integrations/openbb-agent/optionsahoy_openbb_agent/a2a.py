@@ -76,11 +76,17 @@ _SKILL_META: Dict[str, Dict[str, Any]] = {
         ],
     },
     "protective_put": {
-        "name": "Protective put and collar pricing",
-        "tags": ["hedging", "protective-put", "zero-cost-collar", "options-pricing"],
+        "name": "Protective put, collar, and put spread pricing",
+        "tags": [
+            "hedging",
+            "protective-put",
+            "zero-cost-collar",
+            "put-spread",
+            "options-pricing",
+        ],
         "examples": [
-            "What would a protective put or a zero-cost collar on my 10,000 shares "
-            "cost?"
+            "What would a protective put, a zero-cost collar, or a put spread on my "
+            "10,000 shares cost?"
         ],
     },
     "qsbs": {

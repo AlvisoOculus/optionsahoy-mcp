@@ -274,10 +274,11 @@ class OptionsAhoyToolSpec(BaseToolSpec):
         volatility: Optional[float] = None,
         expectedReturn: Optional[float] = None,
         tickerLabel: Optional[str] = None,
+        spreadRiskLevel: Optional[float] = None,
     ) -> Dict[str, Any]:
-        """Price a protective put hedge for a stock position at a chosen downside
-        protection level and tenor, returning the estimated premium and net cost of the
-        hedge.
+        """Price downside hedges for a stock position at a chosen protection level and
+        tenor, returning the estimated premium and net cost of each structure (protective
+        put, zero-cost collar, and put spread) and which one is recommended.
 
         Args:
             positionValue: Market value of the position to hedge.
@@ -287,6 +288,10 @@ class OptionsAhoyToolSpec(BaseToolSpec):
             volatility: Annualized volatility of the stock.
             expectedReturn: Expected annual return of the stock.
             tickerLabel: Display label for the ticker.
+            spreadRiskLevel: Put spread floor breach risk - probability the stock ends
+                below the spread's short strike (presets 0.20 / 0.10 / 0.05 / 0.01, i.e.
+                1 in 5 / 10 / 20 / 100; off-preset snaps to the nearest). Affects only the
+                putSpread block. Default 0.10.
         """
         return self._client.protective_put(
             positionValue=positionValue,
@@ -296,6 +301,7 @@ class OptionsAhoyToolSpec(BaseToolSpec):
             volatility=volatility,
             expectedReturn=expectedReturn,
             tickerLabel=tickerLabel,
+            spreadRiskLevel=spreadRiskLevel,
         )
 
     def qsbs_check(

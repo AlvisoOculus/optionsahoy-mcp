@@ -44,7 +44,7 @@
     },
     {
       "name": "Hedging",
-      "description": "Protective put / collar pricing"
+      "description": "Protective put, collar, and put spread pricing"
     },
     {
       "name": "QSBS",
@@ -243,8 +243,8 @@
     },
     "/api/v1/protective-put": {
       "post": {
-        "summary": "Protective put / zero-cost collar pricing",
-        "description": "Prices a protective put or zero-cost collar on a single-stock position. Reports annual cost, maximum loss, upside cap, and bad-year coverage.",
+        "summary": "Protective put, zero-cost collar, and put-spread pricing",
+        "description": "Prices a protective put, a zero-cost collar, and a put spread on a single-stock position. Reports annual cost, maximum loss, upside cap (collar), protected band (put spread), and bad-year coverage, plus which structure it recommends.",
         "operationId": "priceProtectivePut",
         "tags": [
           "Hedging"
@@ -970,6 +970,12 @@
           "expectedReturn": {
             "type": "number",
             "description": "Override sector long-run drift μ."
+          },
+          "spreadRiskLevel": {
+            "type": "number",
+            "minimum": 0.01,
+            "maximum": 0.2,
+            "description": "Put spread floor breach risk: target probability the stock ends below the spread's short strike. Presets 0.20 / 0.10 / 0.05 / 0.01; off-preset values snap to the nearest. Affects only the putSpread block. Default 0.10."
           },
           "tickerLabel": {
             "type": "string",

@@ -584,7 +584,7 @@
   },
   {
     "name": "OPTIONSAHOY__PROTECTIVE_PUT_PRICE",
-    "description": "Prices a protective put or zero-cost collar on a single-stock position using Black-Scholes. Reports annual cost, maximum loss, upside cap, bad-year coverage, a payoff table, and a recommended structure. Every required field must come from the user; never invent a value.",
+    "description": "Prices three hedge structures on a single-stock position using Black-Scholes: a protective put, a zero-cost collar, and a put spread. Reports annual cost, maximum loss, upside cap, bad-year coverage, a payoff table, and a recommended structure. Every required field must come from the user; never invent a value.",
     "tags": ["finance", "hedging", "options"],
     "visibility": "public",
     "active": true,
@@ -656,6 +656,12 @@
               "type": "number",
               "description": "Override the sector long-run drift (mu) for probability metrics; does not affect premium math."
             },
+            "spreadRiskLevel": {
+              "type": "number",
+              "minimum": 0.01,
+              "maximum": 0.2,
+              "description": "Put spread floor breach risk: probability the stock ends below the spread's short strike (presets 0.20 / 0.10 / 0.05 / 0.01, i.e. 1 in 5 / 10 / 20 / 100; off-preset snaps to the nearest). Affects only the putSpread block. Default 0.10."
+            },
             "tickerLabel": {
               "type": "string",
               "description": "Optional ticker for warning copy (e.g. \"AAPL\")."
@@ -674,6 +680,7 @@
             "tenorYears",
             "volatility",
             "expectedReturn",
+            "spreadRiskLevel",
             "tickerLabel"
           ],
           "additionalProperties": false

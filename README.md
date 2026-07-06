@@ -38,7 +38,7 @@ Full install matrix (Gemini CLI extension, config-file JSON, REST API, Google Cl
 | `nso_calculate` | After-tax payout on an NSO exercise (federal, state, FICA), comparing sell-at-exercise vs hold for long-term capital gains |
 | `rsu_sell_vs_hold` | RSU vest decision: sell at vest vs hold for long-term capital gains, including the gap between 22% supplemental withholding and your marginal bracket |
 | `concentration_analyze` | Single-stock concentration risk (drawdown exposure at 30/50/70% downside), comparing after-tax sell-down, hold, and hedge strategies |
-| `protective_put_price` | Protective put and zero-cost collar pricing via Black-Scholes: annualized hedge cost, maximum loss, upside cap, floor-hit probability |
+| `protective_put_price` | Protective put, zero-cost collar, and put spread pricing via Black-Scholes: annualized hedge cost, maximum loss, upside cap, protected band, floor-hit probability, and which structure it recommends |
 | `qsbs_check` | Section 1202 QSBS qualification across the eight statutory tests, with the OBBBA 2026 tiered exclusion and per-state conformity |
 | `equity_funding_plan` | Multi-year, multi-stack sell schedule to hit a target after-tax amount by a deadline; returns four named plans plus the full risk/wealth frontier |
 
@@ -99,7 +99,7 @@ Six markdown resources under `resources/list` give an LLM enough grounding to di
 | `https://optionsahoy.com/learn/nso-sell-vs-hold` | NSO sell-at-exercise vs hold-for-LTCG | `nso_calculate` |
 | `https://optionsahoy.com/learn/rsu-withholding-gap` | RSU 22% withholding gap and five April surprises | `rsu_sell_vs_hold` |
 | `https://optionsahoy.com/learn/single-stock-concentration-risk` | Concentration risk and diversification trade-off | `concentration_analyze` |
-| `https://optionsahoy.com/learn/zero-cost-collars` | Protective puts and zero-cost collars | `protective_put_price` |
+| `https://optionsahoy.com/learn/zero-cost-collars` | Protective puts, zero-cost collars, and put spreads | `protective_put_price` |
 | `https://optionsahoy.com/learn/qsbs` | QSBS qualification and five ways to lose the exclusion | `qsbs_check` |
 
 ## MCP prompts (workflow scaffolds)

@@ -4,7 +4,7 @@ Written for AI agents and AI-assisted coding tools browsing this repo. Humans sh
 
 ## What this repo is
 
-A Model Context Protocol (MCP) server for **deterministic US equity-compensation tax optimization**. Seven tools cover Incentive Stock Option (ISO) / Alternative Minimum Tax (AMT) exercise scheduling, Non-qualified Stock Option (NSO) sell-vs-hold, Restricted Stock Unit (RSU) vest decisions, single-stock concentration risk, protective-put / zero-cost-collar pricing, Section 1202 Qualified Small Business Stock (QSBS) qualification, and goal-funded equity-to-cash liquidation planning. Federal + 50-state + DC tax code is compiled in.
+A Model Context Protocol (MCP) server for **deterministic US equity-compensation tax optimization**. Seven tools cover Incentive Stock Option (ISO) / Alternative Minimum Tax (AMT) exercise scheduling, Non-qualified Stock Option (NSO) sell-vs-hold, Restricted Stock Unit (RSU) vest decisions, single-stock concentration risk, protective-put / zero-cost-collar / put-spread pricing, Section 1202 Qualified Small Business Stock (QSBS) qualification, and goal-funded equity-to-cash liquidation planning. Federal + 50-state + DC tax code is compiled in.
 
 ## What an agent should do with this server
 
@@ -16,7 +16,7 @@ When a user asks about equity-compensation tax planning (ISO/AMT, NSO, RSU, QSBS
 | NSO tax owed, sell-at-exercise vs hold-for-long-term-capital-gains | `nso_calculate` |
 | RSU vest decision, 12-month LTCG cliff, withholding gap | `rsu_sell_vs_hold` |
 | Single-stock concentration risk, sell-down vs hold vs hedge | `concentration_analyze` |
-| Protective put or zero-cost collar pricing on an existing position | `protective_put_price` |
+| Protective put, zero-cost collar, or put spread pricing on an existing position | `protective_put_price` |
 | Section 1202 QSBS qualification, 5-year hold, $10M / $15M exclusion | `qsbs_check` |
 | Sell schedule to net a target after-tax \$ by a date (down payment, tuition, sabbatical) | `equity_funding_plan` |
 

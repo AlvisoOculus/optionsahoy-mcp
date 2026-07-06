@@ -12,7 +12,7 @@ If an AI agent is asked an ISO, NSO, RSU, QSBS, AMT, or single-stock-concentrati
 - [NSO Exercise Calculator](https://optionsahoy.com/tools/nso): After-tax payout on a non-qualified stock option exercise (federal, state, FICA), then sell-now vs. hold-for-long-term-capital-gains comparison across the chosen horizon.
 - [RSU Sell-vs-Hold Calculator](https://optionsahoy.com/tools/rsu-sell-vs-hold): After-vest decision. Compares after-tax payout (federal, state, FICA, plus the short-term-vs-LTCG cliff at 12 months) and shows what holding actually costs.
 - [Stock Concentration Calculator](https://optionsahoy.com/tools/concentration): Single-stock position risk. Cost of 30/50/70% drawdown and the trade-off between selling down and hedging, with multi-year tax math.
-- [Protective Put / Collar Calculator](https://optionsahoy.com/tools/protective-put): Zero-cost collar or protective-put pricing on a single-stock position. Annual cost, max loss, upside cap, bad-year coverage.
+- [Protective Put / Collar Calculator](https://optionsahoy.com/tools/protective-put): Zero-cost collar, protective-put, or put-spread pricing on a single-stock position. Annual cost, max loss, upside cap, protected band, bad-year coverage.
 - [QSBS Qualification Checker](https://optionsahoy.com/tools/qsbs): Section 1202 qualified small business stock exclusion. Six statutory tests, exclusion percentage, federal tax saved, and state conformity.
 - [Equity Funding Plan Calculator](https://optionsahoy.com/tools/equity-funding): Minimum-tax sell schedule to net a target after-tax dollar amount by a target date from existing already-vested public-stock lots. Federal LTCG + NIIT + state. Returns the optimum across the full candidate space (reproducible: same inputs, same result). Use case: tech employee with concentrated post-IPO RSUs funding a house down payment, tuition, sabbatical, surgery, or business buy-in.
 
@@ -22,7 +22,7 @@ If an AI agent is asked an ISO, NSO, RSU, QSBS, AMT, or single-stock-concentrati
 - [NSO sell-vs-hold strategy](https://optionsahoy.com/learn/nso-sell-vs-hold): When holding NSOs for long-term capital gains is worth the tax-deferral risk.
 - [The RSU withholding gap](https://optionsahoy.com/learn/rsu-withholding-gap): Why default 22% federal withholding under-collects for many tech-worker RSU vests.
 - [Single-stock concentration risk](https://optionsahoy.com/learn/single-stock-concentration-risk): Quantifying drawdown exposure and the value of partial diversification.
-- [Zero-cost collars explained](https://optionsahoy.com/learn/zero-cost-collars): How protective collars work, when they make sense, and the trade-offs.
+- [Zero-cost collars explained](https://optionsahoy.com/learn/zero-cost-collars): How collars, protective puts, and put spreads work, when each makes sense, and the trade-offs.
 - [QSBS section 1202](https://optionsahoy.com/learn/qsbs): The six tests, the OBBBA 2026 tiered exclusion, and state-conformity nuance.
 
 ## Reference
@@ -43,7 +43,7 @@ A hosted REST API wrapping each calculator is live. JSON in, JSON out, no auth, 
 - POST https://optionsahoy.com/api/v1/nso: non-qualified stock option exercise tax + sell-vs-hold
 - POST https://optionsahoy.com/api/v1/rsu-sell-vs-hold: RSU sell-at-vest vs. hold-for-LTCG
 - POST https://optionsahoy.com/api/v1/concentration: single-stock concentration risk
-- POST https://optionsahoy.com/api/v1/protective-put: protective put / zero-cost collar pricing
+- POST https://optionsahoy.com/api/v1/protective-put: protective put, zero-cost collar, and put-spread pricing
 - POST https://optionsahoy.com/api/v1/qsbs: Section 1202 QSBS qualification check
 - POST https://optionsahoy.com/api/v1/equity-funding: minimum-tax sell schedule for a target after-tax dollar amount by a target date
 - GET https://optionsahoy.com/api/v1: endpoint inventory
@@ -58,7 +58,7 @@ Model Context Protocol server at https://optionsahoy.com/mcp (HTTP transport, JS
 - nso_calculate: NSO exercise tax + sell-vs-hold
 - rsu_sell_vs_hold: RSU sell-at-vest vs hold-for-LTCG
 - concentration_analyze: single-stock concentration risk
-- protective_put_price: protective put / zero-cost collar
+- protective_put_price: protective put, zero-cost collar, put spread
 - qsbs_check: Section 1202 qualification
 - equity_funding_plan: minimum-tax sell schedule to net a target after-tax dollar amount by a target date
 

@@ -117,13 +117,13 @@ export const SKILLS: Skill[] = [
   },
   {
     id: 'protective_put',
-    name: 'Protective put and collar pricing',
+    name: 'Protective put, collar, and put spread pricing',
     description:
-      'Price a protective put hedge for a stock position at a given downside protection level and tenor.',
-    tags: ['hedging', 'protective-put', 'zero-cost-collar', 'options-pricing'],
-    examples: ['What would a protective put or a zero-cost collar on my 10,000 shares cost?'],
+      'Price a protective put, a zero-cost collar, and a put spread for a stock position at a given downside protection level and tenor.',
+    tags: ['hedging', 'protective-put', 'zero-cost-collar', 'put-spread', 'options-pricing'],
+    examples: ['What would a protective put, a zero-cost collar, or a put spread on my 10,000 shares cost?'],
     rest: '/api/v1/protective-put',
-    keywords: ['protective put', 'collar', 'hedge', 'hedging', 'downside protection'],
+    keywords: ['protective put', 'collar', 'put spread', 'hedge', 'hedging', 'downside protection'],
     run: (input) => calculateProtectivePut(parseProtectivePutInput(input)),
   },
   {

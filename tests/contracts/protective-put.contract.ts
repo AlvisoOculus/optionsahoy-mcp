@@ -25,6 +25,7 @@ function input(o: Partial<ProtectivePutInputs>): ProtectivePutInputs {
 
 const PICK_PUT = /Our take: the protective put fits best/;
 const PICK_COLLAR = /the zero-cost collar is the better value/;
+const PICK_SPREAD = /Our take: the put spread fits best/;
 const PICK_NONE = /Neither is a clean win/;
 const STRADDLE = /straddle rules under Section 1092/;
 const FALLBACK = /Your optimized result is ready/;
@@ -46,9 +47,14 @@ export const protectivePutContract: ToolContract<ProtectivePutInputs, Protective
       present: (t) => /collar: .*caps your loss at about \$[\d,]+/.test(t),
     },
     {
+      name: 'put spread structure shown when available',
+      applies: (r) => r.putSpread?.available === true,
+      present: (t) => /Put spread: .*protection stops at \$[\d,]+/.test(t),
+    },
+    {
       name: 'a recommendation is surfaced',
       applies: () => true,
-      present: (t) => PICK_PUT.test(t) || PICK_COLLAR.test(t) || PICK_NONE.test(t),
+      present: (t) => PICK_PUT.test(t) || PICK_COLLAR.test(t) || PICK_SPREAD.test(t) || PICK_NONE.test(t),
     },
     {
       name: 'holding-period straddle tax caution shown',
@@ -60,7 +66,7 @@ export const protectivePutContract: ToolContract<ProtectivePutInputs, Protective
   discriminants: [
     {
       field: 'recommended',
-      values: ['protective-put', 'collar', 'none'],
+      values: ['protective-put', 'collar', 'put-spread', 'none'],
       read: (r) => String(r.recommended),
     },
   ],
@@ -73,21 +79,37 @@ export const protectivePutContract: ToolContract<ProtectivePutInputs, Protective
       inputs: input({ volatility: 0.15, protectionLevel: 0.2, tenorYears: 1 as any }),
       expect: { recommended: 'collar' },
       headlineMatches: PICK_COLLAR,
-      answerRejects: [FALLBACK, PICK_PUT, PICK_NONE],
+      answerRejects: [FALLBACK, PICK_PUT, PICK_SPREAD, PICK_NONE],
     },
     {
       name: 'protective put recommended',
       inputs: input({ volatility: 0.3, protectionLevel: 0.05, tenorYears: 2 as any }),
       expect: { recommended: 'protective-put' },
       headlineMatches: PICK_PUT,
-      answerRejects: [FALLBACK, PICK_COLLAR, PICK_NONE],
+      answerRejects: [FALLBACK, PICK_COLLAR, PICK_SPREAD, PICK_NONE],
+    },
+    {
+      name: 'put spread recommended',
+      // Collar caps too often (~49% under 20% drift) and the shallow 5% floor
+      // makes the bare put expensive, but a 1-in-20 short strike leaves a wide,
+      // cleanly-priced band - so the engine's clean pick is the spread.
+      inputs: input({
+        volatility: 0.3,
+        protectionLevel: 0.05,
+        tenorYears: 1 as any,
+        expectedReturn: 0.2,
+        spreadRiskLevel: 0.05,
+      }),
+      expect: { recommended: 'put-spread' },
+      headlineMatches: PICK_SPREAD,
+      answerRejects: [FALLBACK, PICK_PUT, PICK_COLLAR, PICK_NONE],
     },
     {
       name: 'neither recommended (none)',
       inputs: input({ volatility: 0.15, protectionLevel: 0.05, tenorYears: 1 as any }),
       expect: { recommended: 'none' },
       headlineMatches: PICK_NONE,
-      answerRejects: [FALLBACK, PICK_PUT, PICK_COLLAR],
+      answerRejects: [FALLBACK, PICK_PUT, PICK_COLLAR, PICK_SPREAD],
     },
   ],
 };

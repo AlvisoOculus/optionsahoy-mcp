@@ -361,8 +361,9 @@ function headline(tool: string, r: Result): string {
       case 'protective_put_price': {
         const bp = r.barePut ?? {};
         const col = r.collar ?? {};
+        const sp = r.putSpread ?? {};
         if (typeof bp.annualCostPct !== 'number' && typeof bp.maxLoss !== 'number') break;
-        const lines = ['**Here are your two ways to protect this position.**'];
+        const lines = ['**Here are the ways to protect this position.**'];
         if (typeof bp.maxLoss === 'number') {
           lines.push(
             `Protective put: about ${pct(bp.annualCostPct)} of the position per year (${usd(bp.annualCost)})` +
@@ -379,12 +380,24 @@ function headline(tool: string, r: Result): string {
               (typeof col.capProbability === 'number' ? ` (about a ${pct(col.capProbability)} chance the stock runs past that cap).` : '.'),
           );
         }
+        if (sp.available === true && typeof sp.maxLossInBand === 'number') {
+          lines.push(
+            `Put spread: about ${pct(sp.annualCostPct)} of the position per year (${usd(sp.annualCost)})` +
+              (typeof sp.longStrike === 'number' ? `, same floor at ${usd(sp.longStrike)}` : '') +
+              (typeof sp.shortStrike === 'number'
+                ? `, but protection stops at ${usd(sp.shortStrike)} (about ${pct(sp.shortStrikeDropPct)} down); below that your losses resume.`
+                : '.') +
+              (typeof sp.savingsPct === 'number' ? ` Cuts the put's premium by about ${pct(sp.savingsPct)}, and needs no short call, so it works even on unexercised options.` : ''),
+          );
+        }
         // One recommendation, taken from the engine's own pick, so the value
         // call can never disagree with it. ('none' = neither is clean.)
         if (r.recommended === 'protective-put') {
           lines.push('Our take: the protective put fits best here. It costs more, but it keeps all of your upside while capping the downside.');
         } else if (r.recommended === 'collar') {
           lines.push('Our take: the zero-cost collar is the better value here. It protects the same downside for little or nothing, in exchange for capping your gains above the cap.');
+        } else if (r.recommended === 'put-spread') {
+          lines.push('Our take: the put spread fits best here. It finances the same floor with a short put instead of a short call, so it is cheaper than the bare put and keeps all of your upside; the trade-off is that protection stops at the lower strike and your losses resume below it.');
         } else if (r.recommended === 'none') {
           lines.push('Neither is a clean win here: the put is expensive for what it actually covers, and the collar would cap your gains too often. Weigh the trade-off against how much upside you are willing to give up.');
         } else {

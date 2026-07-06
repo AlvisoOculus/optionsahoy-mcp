@@ -554,7 +554,7 @@ const CONCENTRATION_OUTPUT_SCHEMA: JsonSchema = {
 
 const PROTECTIVE_PUT_OUTPUT_SCHEMA: JsonSchema = {
   type: 'object',
-  description: 'Protective put and zero-cost collar pricing. All dollar amounts are USD.',
+  description: 'Protective put, zero-cost collar, and put-spread pricing on a single-stock position. All dollar amounts are USD.',
   properties: {
     inputs: {
       type: 'object',
@@ -620,18 +620,55 @@ const PROTECTIVE_PUT_OUTPUT_SCHEMA: JsonSchema = {
         'upsideCap', 'upsideCapPct', 'isZeroCost', 'capProbability',
       ],
     },
+    putSpread: {
+      type: 'object',
+      description: 'Put debit spread: long put at the protection floor financed by a short put at a lower strike. Cheaper than the bare put and needs no short call (so it works on unexercised employee options a collar cannot cover), but protection stops at the short strike and losses resume below it. The short strike is solved so the real-world probability the stock ENDS below it equals spreadRiskLevel.',
+      properties: {
+        available: bool('False when no useful spread exists at these inputs: the 1-in-N short strike lands at/above the floor (floor already deep for this risk level) or the short leg does not reduce cost. When false, render unavailableReason instead of the numbers.'),
+        unavailableReason: {
+          type: ['string', 'null'],
+          enum: ['floor', 'no-rebate', null],
+          description: "Why the spread is unavailable; null when available. 'floor' = the solved short strike sits at/above the protection floor (or within 1% of position of it). 'no-rebate' = the short leg does not strictly reduce cost.",
+        },
+        longStrike: num('Long put strike in dollars (same floor as the bare put).'),
+        longPremium: num('Long put premium in dollars for the full tenor (same as barePut.premium).'),
+        shortStrike: num('Short put strike in dollars, solved so P(end below it) = spreadRiskLevel.'),
+        shortPremium: num('Short put premium in dollars received for the full tenor.'),
+        shortSigma: num('Annualized sigma used to price the short leg, as a decimal (equals volatility in flat-sigma mode).'),
+        netPremium: num('Net debit in dollars: long premium - short premium, floored at 0.'),
+        annualCost: num('Net premium annualized, in dollars per year.'),
+        annualCostPct: num('Annualized net premium as a fraction of position value.'),
+        maxLossInBand: num('Loss in dollars if the stock ends anywhere inside the protected band (floor holds): position - longStrike + netPremium. Below the short strike, losses resume dollar-for-dollar on top of this.'),
+        bandWidth: num('Width of the protected band in dollars: longStrike - shortStrike (the spread max payout).'),
+        shortStrikeDropPct: num('Short strike as a drawdown from spot, as a fraction of position value.'),
+        breachProbability: num('Achieved real-world probability (0..1) the stock ends below the short strike; approximately spreadRiskLevel after the solve.'),
+        riskLevel: num('The spreadRiskLevel preset the solve targeted (0.20 / 0.10 / 0.05 / 0.01), after snapping.'),
+        savingsPct: num('Fraction of the bare put premium rebated by the short leg: shortPremium / longPremium.'),
+        coveredLossAtBadYear: num('Dollars the spread pays at the bad-year price, capped at bandWidth; 0 when the bad-year drop never reaches the floor.'),
+      },
+      required: [
+        'available', 'unavailableReason', 'longStrike', 'longPremium', 'shortStrike',
+        'shortPremium', 'shortSigma', 'netPremium', 'annualCost', 'annualCostPct',
+        'maxLossInBand', 'bandWidth', 'shortStrikeDropPct', 'breachProbability',
+        'riskLevel', 'savingsPct', 'coveredLossAtBadYear',
+      ],
+    },
     payoffTable: {
       type: 'array',
-      description: 'Terminal P&L in dollars at each 10%-step drawdown across payoffRange, for the bare put, the collar, and the unhedged position.',
+      description: 'Terminal P&L in dollars at each 10%-step drawdown across payoffRange, for the bare put, the collar, the put spread, and the unhedged position.',
       items: {
         type: 'object',
         properties: {
           drawdownPct: num('Price move as a fraction of spot (-0.30 = down 30%, 0.2 = up 20%).'),
           barePutPnl: num('Position + put P&L in dollars at this move.'),
           collarPnl: num('Position + collar P&L in dollars at this move.'),
+          spreadPnl: {
+            type: ['number', 'null'],
+            description: 'Position + put-spread P&L in dollars at this move. null (serialized from NaN) when putSpread.available is false.',
+          },
           unhedgedPnl: num('Unhedged position P&L in dollars at this move.'),
         },
-        required: ['drawdownPct', 'barePutPnl', 'collarPnl', 'unhedgedPnl'],
+        required: ['drawdownPct', 'barePutPnl', 'collarPnl', 'spreadPnl', 'unhedgedPnl'],
       },
     },
     payoffRange: {
@@ -645,13 +682,13 @@ const PROTECTIVE_PUT_OUTPUT_SCHEMA: JsonSchema = {
     },
     recommended: {
       type: 'string',
-      enum: ['collar', 'protective-put', 'none'],
-      description: 'Suggested structure: collar unless its cap binds too often (>20% probability); protective-put when the put is reasonably priced; none when neither is clean.',
+      enum: ['collar', 'protective-put', 'put-spread', 'none'],
+      description: 'Suggested structure, in triage order: collar unless its cap binds too often (>20% probability); then protective-put unless the put is expensive; then put-spread when one is available and cleanly priced (cheaper by construction); none when nothing is clean. The recommended structure is the one whose card carries no warning.',
     },
   },
   required: [
-    'inputs', 'riskFreeRate', 'realWorldDrift', 'barePut', 'collar', 'payoffTable',
-    'payoffRange', 'recommended',
+    'inputs', 'riskFreeRate', 'realWorldDrift', 'barePut', 'collar', 'putSpread',
+    'payoffTable', 'payoffRange', 'recommended',
   ],
 };
 
@@ -1176,7 +1213,7 @@ export const TOOLS: McpTool[] = [
     name: 'protective_put_price',
     annotations: { title: 'Protective Put / Collar Pricing', ...CALC_HINTS },
     description:
-      'Use this when someone asks how much it costs to hedge or protect a stock position against a drop, or to price a protective put or a zero-cost collar. Closed-form pricing of a protective put or zero-cost collar on a single-stock position. Use for standalone hedge pricing on a single-stock position; for concentration-vs-hedge tax-cost comparison, use `concentration_analyze` with a `hedgeChoice`. Parameter interactions an agent should know: `volatility` omitted falls back to a sector-typical implied volatility; supply an explicit sigma when the user provides one. For collars, omitting `upsideCapPct` lets the tool back-solve the cap that zeros the net premium (truly zero-cost collar); supplying `upsideCapPct` overrides the solver and yields a non-zero net premium when the cap is wider than zero-cost. `tenorYears` drives the risk-free-rate lookup AND the floor-hit / cap-hit probability metrics, so changing tenor shifts every probability output even at fixed strike. `expectedReturn` affects only the probability metrics (real-world drift in the floor-hit / cap-hit calculations); premium math is risk-neutral and ignores it (default 0). `protectionLevel` sets the put strike as `(1 − protectionLevel) × spot`; raising it widens the protected zone but raises premium roughly linearly. Closed-form, deterministic, offline: sector volatility table and risk-free-rate curve compiled in. Reports annualized hedge cost as a percentage of position value, maximum loss with the hedge in place, upside-participation cap (collar only, since the short call offsets the long put premium), and probability of hitting the protection floor over the tenor. Returns a top-level object with keys: `inputs` (echoed canonical input), `riskFreeRate` (used in option pricing), `realWorldDrift` (from expectedReturn), `barePut` (strike, premium, annualCost, annualCostPct, maxLoss, badYearPrice, badYearDropPct, coveredLossAtBadYear, premiumToCoveredRatio, expectedProfit, premiumToExpectedProfitRatio), `collar` (putStrike, callStrike, netPremium, annualCost, annualCostPct, maxLoss, upsideCap, upsideCapPct, isZeroCost, capProbability), `payoffTable`, `payoffRange`, and `recommended` (the better of bare put vs collar given the inputs). Both `barePut` and `collar` blocks are always returned regardless of caller preference; the caller picks. Example call: {positionValue: 400000, sector: "tech_software", protectionLevel: 0.10, tenorYears: 1}.' + STRICT_INPUT_NOTE_NO_TICKER,
+      'Use this when someone asks how much it costs to hedge or protect a stock position against a drop, or to price a protective put, a zero-cost collar, or a put spread. Closed-form pricing of a protective put, a zero-cost collar, and a put spread on a single-stock position. Use for standalone hedge pricing on a single-stock position; for concentration-vs-hedge tax-cost comparison, use `concentration_analyze` with a `hedgeChoice`. Parameter interactions an agent should know: `volatility` omitted falls back to a sector-typical implied volatility; supply an explicit sigma when the user provides one. For collars, omitting `upsideCapPct` lets the tool back-solve the cap that zeros the net premium (truly zero-cost collar); supplying `upsideCapPct` overrides the solver and yields a non-zero net premium when the cap is wider than zero-cost. `tenorYears` drives the risk-free-rate lookup AND the floor-hit / cap-hit probability metrics, so changing tenor shifts every probability output even at fixed strike. `expectedReturn` affects only the probability metrics (real-world drift in the floor-hit / cap-hit calculations); premium math is risk-neutral and ignores it (default 0). `protectionLevel` sets the put strike as `(1 − protectionLevel) × spot`; raising it widens the protected zone but raises premium roughly linearly. `spreadRiskLevel` (default 0.10) sets the put spread\'s short strike by targeting the probability the stock ends below it; it affects only the `putSpread` block. The put spread finances the same floor with a short put at a lower strike (not a short call), so it is cheaper than the bare put and needs no shares to sell calls against, which makes it the one structure of the three that works on unexercised employee options; the trade-off is that protection stops at the short strike and losses resume below it. Closed-form, deterministic, offline: sector volatility table and risk-free-rate curve compiled in. Reports annualized hedge cost as a percentage of position value, maximum loss with the hedge in place, upside-participation cap (collar only, since the short call offsets the long put premium), and probability of hitting the protection floor over the tenor. Returns a top-level object with keys: `inputs` (echoed canonical input), `riskFreeRate` (used in option pricing), `realWorldDrift` (from expectedReturn), `barePut` (strike, premium, annualCost, annualCostPct, maxLoss, badYearPrice, badYearDropPct, coveredLossAtBadYear, premiumToCoveredRatio, expectedProfit, premiumToExpectedProfitRatio), `collar` (putStrike, callStrike, netPremium, annualCost, annualCostPct, maxLoss, upsideCap, upsideCapPct, isZeroCost, capProbability), `putSpread` (available, unavailableReason, longStrike, longPremium, shortStrike, shortPremium, shortSigma, netPremium, annualCost, annualCostPct, maxLossInBand, bandWidth, shortStrikeDropPct, breachProbability, riskLevel, savingsPct, coveredLossAtBadYear), `payoffTable`, `payoffRange`, and `recommended` (the cleanest of collar / bare put / put spread given the inputs, or none). The `barePut`, `collar`, and `putSpread` blocks are always returned regardless of caller preference; the caller picks. When `putSpread.available` is false, render `putSpread.unavailableReason` instead of its numbers. Example call: {positionValue: 400000, sector: "tech_software", protectionLevel: 0.10, tenorYears: 1, spreadRiskLevel: 0.10}.' + STRICT_INPUT_NOTE_NO_TICKER,
     inputSchema: {
       type: 'object',
       required: ['positionValue', 'sector', 'protectionLevel', 'tenorYears'],
@@ -1218,6 +1255,13 @@ export const TOOLS: McpTool[] = [
           type: 'number',
           description:
             'Annual expected stock return (decimal). Drives the real-world drift in the cap-hit / floor-hit probability metrics. Does not affect premium math. Default 0.',
+        },
+        spreadRiskLevel: {
+          type: 'number',
+          minimum: 0.01,
+          maximum: 0.2,
+          description:
+            'Put-spread floor breach risk: target probability the stock ENDS below the spread\'s short (lower) strike at expiration. Presets 0.20 / 0.10 / 0.05 / 0.01 ("1 in 5 / 10 / 20 / 100"); off-preset values snap to the nearest. A lower value pushes the short strike deeper, widening the protected band and raising the net premium toward the bare put. Only affects the `putSpread` block. Default 0.10.',
         },
         tickerLabel: {
           type: 'string',

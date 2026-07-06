@@ -130,6 +130,16 @@ class ProtectivePutArgs(BaseModel):
     tenorYears: float = Field(..., ge=0.25, description="Hedge tenor in years.")
     volatility: Optional[float] = Field(None, ge=0, description="Annualized volatility of the stock.")
     expectedReturn: Optional[float] = Field(None, description="Expected annual return of the stock.")
+    spreadRiskLevel: Optional[float] = Field(
+        None,
+        ge=0.01,
+        le=0.2,
+        description=(
+            "Put spread floor breach risk: probability the stock ends below the spread's "
+            "short strike (presets 0.20 / 0.10 / 0.05 / 0.01, i.e. 1 in 5 / 10 / 20 / 100; "
+            "off-preset snaps to the nearest). Affects only the putSpread block. Default 0.10."
+        ),
+    )
     tickerLabel: Optional[str] = Field(None, description="Display label for the ticker.")
 
 
@@ -275,8 +285,12 @@ class ConcentrationTool(_OptionsAhoyTool):
 class ProtectivePutTool(_OptionsAhoyTool):
     name: str = "optionsahoy_protective_put_price"
     description: str = (
-        "Price a protective put hedge for a stock position at a chosen downside protection "
-        "level and tenor, returning the estimated premium and net cost of the hedge."
+        "Price hedges for a stock position at a chosen downside protection level and tenor, "
+        "returning the estimated premium and net cost of each structure: a protective put, a "
+        "zero-cost collar, and a put spread. The put spread finances the same floor with a "
+        "short put instead of a short call, so it is cheaper than the bare put and needs no "
+        "shares to write calls against (it works on unexercised employee options a collar "
+        "cannot cover); protection stops at the short strike and losses resume below it."
     )
     args_schema: Type[BaseModel] = ProtectivePutArgs
     client_method: str = "protective_put"

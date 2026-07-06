@@ -206,15 +206,17 @@ Full article: ${ARTICLE_BASE}/single-stock-concentration-risk
   },
   {
     uri: `${ARTICLE_BASE}/zero-cost-collars`,
-    name: 'Protective puts and zero-cost collars on a concentrated position',
+    name: 'Protective puts, zero-cost collars, and put spreads on a concentrated position',
     description:
-      'How a protective put or zero-cost collar truncates single-stock downside, what the protection actually costs in dollars and forgone upside, and seven common mistakes. Pair with protective_put_price.',
+      'How a protective put, zero-cost collar, or put spread truncates single-stock downside, what the protection actually costs in dollars and forgone upside, and seven common mistakes. Pair with protective_put_price.',
     mimeType: 'text/markdown',
-    contents: `# Protective puts and zero-cost collars
+    contents: `# Protective puts, zero-cost collars, and put spreads
 
 A **protective put** is a long put option on a stock you own. If the stock falls below the strike, the put pays the difference. It is insurance: positive expected cost, negative expected return, but it truncates the left tail.
 
 A **zero-cost collar** is a protective put plus a short call at a higher strike. The premium from selling the call funds the put. Net cash outlay at trade is roughly zero. The cost shows up as a cap on upside: any gain above the call strike is forfeited.
+
+A **put spread** is a protective put plus a short put at a lower strike. The premium from selling the lower put reduces the cost of the floor, so it is cheaper than the bare put. The trade-off is a bottom: protection only holds between the two strikes, and below the short strike your losses resume dollar-for-dollar. Because it sells a put rather than a call, it caps nothing on the upside and needs no shares to write calls against, which makes it the one structure of the three that works on unexercised employee options (you cannot sell a covered call on shares you do not yet hold). Size the short strike by the probability you are willing to accept that the stock ends below it, not by a fixed distance.
 
 Typical pricing for a 1-year 10%-out-of-the-money (OTM) put on a 30% implied-volatility stock: ~3% of position value, per year. Over 10 years compounding, that is ~26% of the position - paid for ongoing protection against a tail event.
 
@@ -236,15 +238,15 @@ Typical pricing for a 1-year 10%-out-of-the-money (OTM) put on a 30% implied-vol
 
 ## What the protective_put_price tool computes
 
-The MCP tool \`protective_put_price\` prices a protective put or zero-cost collar against current option-market implied volatility (a sector-typical volatility when no ticker is supplied). It accounts for:
+The MCP tool \`protective_put_price\` prices all three structures - a protective put, a zero-cost collar, and a put spread - against current option-market implied volatility (a sector-typical volatility when no ticker is supplied). It accounts for:
 
 - Strike (defined as percentage below current price)
 - Tenor (months to expiration)
 - Sector default volatility, or user-supplied volatility
 - Risk-free rate
-- Dividend yield assumption
+- \`spreadRiskLevel\`: the probability the stock ends below the put spread's short strike (presets 1 in 5 / 10 / 20 / 100), which sets that short strike
 
-Output: annual cost as a percentage of position, dollar cost, max loss with hedge, upside cap (for collar), and bad-year coverage (percentage of historical drawdowns the hedge would have covered).
+Output: for each structure, annual cost as a percentage of position, dollar cost, max loss with hedge, upside cap (collar only), and bad-year coverage. The \`recommended\` field names the structure whose card carries no warning: the collar unless its cap binds too often, then the bare put unless it is expensive, then the put spread when one is cleanly priced. The put spread reports \`available: false\` only when the chosen risk level leaves no short strike worth selling below the floor, or the short leg does not reduce cost; render \`unavailableReason\` ('floor' or 'no-rebate') rather than the numbers in that case. A spread that is available but merely narrow (a thin protected band) or thin on rebate still returns numbers, and is simply not the recommended structure.
 
 Full article: ${ARTICLE_BASE}/zero-cost-collars
 `,

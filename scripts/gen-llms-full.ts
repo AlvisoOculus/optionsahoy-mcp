@@ -36,7 +36,7 @@ const EXAMPLES: Record<string, unknown> = {
   },
   protective_put_price: {
     positionValue: 500000, sector: 'tech_software', volatility: 0.35,
-    protectionLevel: 0.2, tenorYears: 1,
+    protectionLevel: 0.2, tenorYears: 1, spreadRiskLevel: 0.1,
   },
   qsbs_check: {
     acquisitionDate: '2020-03-01', saleDate: '2026-03-15',
