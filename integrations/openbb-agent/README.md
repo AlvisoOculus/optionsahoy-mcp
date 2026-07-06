@@ -19,7 +19,8 @@ The agent answers questions such as:
 - "Do my shares qualify for qualified small business stock (QSBS) treatment?"
 - "How concentrated is my single-stock position, and what does diversifying cost
   after tax?"
-- "What would a protective put hedge on my position cost?"
+- "What would a protective put, a zero-cost collar, or a put spread on my position
+  cost?"
 - "Which lots should I sell, and when, to fund a cash goal by a target date?"
 
 For each question, a language model selects exactly one calculator and extracts its

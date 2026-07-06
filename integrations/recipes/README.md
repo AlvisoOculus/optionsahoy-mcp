@@ -3,7 +3,8 @@
 Copy-paste Python recipes for common equity-compensation tax questions: incentive
 stock options (ISOs) and the alternative minimum tax (AMT), non-qualified stock
 options (NSOs), restricted stock units (RSUs), qualified small business stock (QSBS),
-single-stock concentration, protective puts, and funding a cash goal from stock.
+single-stock concentration, protective puts, collars, and put spreads, and funding a cash
+goal from stock.
 
 Each recipe is one self-contained file that calls the **keyless** OptionsAhoy REST API
 (no API key) with nothing but `requests`. The financial math is deterministic and
@@ -66,15 +67,21 @@ result = analyze_concentration(position_value=800000, cost_basis=100000,
                                sector="tech_software", total_assets=1200000, ticker="NVDA")
 ```
 
-### How do I price a protective put or a zero-cost collar?
+### How do I price a protective put, a zero-cost collar, or a put spread?
 
 [`price_protective_put_or_collar.py`](price_protective_put_or_collar.py)
+
+The put spread (long put at the floor, short put at a lower strike) needs no short call, so
+it works on unexercised employee options a collar cannot cover; its protection stops at the
+short strike and losses resume below it. Pass `spread_risk_level` (0.20, 0.10, 0.05, or
+0.01) to set the short strike.
 
 ```python
 from price_protective_put_or_collar import price_protective_put
 
 result = price_protective_put(position_value=500000, sector="semiconductors",
-                              protection_level=0.10, tenor_years=1, ticker_label="NVDA")
+                              protection_level=0.10, tenor_years=1, ticker_label="NVDA",
+                              spread_risk_level=0.10)
 ```
 
 ### Do my shares qualify for QSBS (Section 1202)?

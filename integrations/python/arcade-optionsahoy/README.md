@@ -24,7 +24,7 @@ The toolkit exposes seven Arcade tools, each a `@tool`-decorated function with `
 - `NsoCalculate` - non-qualified stock option (NSO) exercise tax, sell-at-exercise versus hold
 - `RsuSellVsHold` - restricted stock unit (RSU) sell at vest versus hold for long-term capital gains
 - `ConcentrationAnalyze` - single-stock concentration risk and the after-tax cost of diversifying
-- `ProtectivePutPrice` - protective put and zero-cost collar pricing
+- `ProtectivePutPrice` - protective put, zero-cost collar, and put spread pricing
 - `QsbsCheck` - qualified small business stock (QSBS) Section 1202 eligibility and exclusion
 - `EquityFundingPlan` - multi-year plan to fund a cash goal from equity by a target date
 
@@ -59,10 +59,10 @@ Quantifies single-stock concentration risk and compares the after-tax cost of th
 - Returns: `concentration` (0 to 1); `riskBand`; `isLongTermToday`, `longTermDate`, `daysUntilLongTerm`; `lossExposure[]`; `schedule[]` (after-tax sell-down plans); `hedging` (present when `hedge_choice` is given); `sectorContextLine` and `advisorBenchmarkLine`.
 
 ### `ProtectivePutPrice`
-Prices a protective put and a zero-cost collar for a stock position at a chosen downside-protection level and tenor.
+Prices a protective put, a zero-cost collar, and a put spread for a stock position at a chosen downside-protection level and tenor. The put spread finances the same floor with a short put instead of a short call, cheaper than the bare put, and needs no short call (so it works on unexercised employee options a collar cannot cover); protection stops at the short strike and losses resume below it.
 - Inputs (required): `position_value` (USD), `sector` (same set as concentration), `protection_level` (0.05 to 0.5), `tenor_years` (at least 0.25).
-- Optional: `volatility` (decimal), `expected_return` (decimal), `ticker_label`.
-- Returns: `inputs`; `riskFreeRate` and `realWorldDrift`; `barePut` (the put alone); `collar` (put financed by selling a call, with `upsideCap` and `isZeroCost`); `payoffTable[]`; `payoffRange`; `recommended` (`bare-put` | `collar` | `none`).
+- Optional: `volatility` (decimal), `expected_return` (decimal), `ticker_label`, `spread_risk_level` (floor breach probability for the put spread, presets 0.20 / 0.10 / 0.05 / 0.01, default 0.10).
+- Returns: `inputs`; `riskFreeRate` and `realWorldDrift`; `barePut` (the put alone); `collar` (put financed by selling a call, with `upsideCap` and `isZeroCost`); `putSpread` (put financed by selling a lower-strike put, with long and short strikes and net cost); `payoffTable[]`; `payoffRange`; `recommended` (`bare-put` | `collar` | `put-spread` | `none`).
 
 ### `QsbsCheck`
 Checks qualified small business stock (QSBS) Section 1202 eligibility and computes the resulting federal capital-gains exclusion.

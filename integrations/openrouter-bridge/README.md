@@ -39,7 +39,7 @@ The OptionsAhoy MCP server (`https://optionsahoy.com/mcp`) needs no key and no
 auth. It exposes seven read-only calculators: incentive stock option (ISO) and
 alternative minimum tax (AMT) schedule optimization, non-qualified stock option
 (NSO) exercise tax, restricted stock unit (RSU) sell-vs-hold, single-stock
-concentration, protective puts and collars, Section 1202 qualified small business
+concentration, protective puts, collars, and put spreads, Section 1202 qualified small business
 stock (QSBS) qualification, and funding a cash goal from stock.
 
 ## What the contrast looks like

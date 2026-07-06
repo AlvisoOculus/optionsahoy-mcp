@@ -255,11 +255,20 @@ def protective_put_price(
         Optional[float], "Expected annual return of the stock, as a decimal."
     ] = None,
     ticker_label: Annotated[Optional[str], "Display label for the ticker."] = None,
-) -> Annotated[Dict[str, Any], "Bare put and zero-cost collar pricing with a payoff table."]:
-    """Price a protective put and a zero-cost collar for a stock position at a chosen
+    spread_risk_level: Annotated[
+        Optional[float],
+        "Put spread floor breach risk: probability the stock ends below the spread's short strike "
+        "(presets 0.20 / 0.10 / 0.05 / 0.01, i.e. 1 in 5 / 10 / 20 / 100; off-preset snaps to the "
+        "nearest). Affects only the putSpread block. Default 0.10.",
+    ] = None,
+) -> Annotated[
+    Dict[str, Any],
+    "Bare put, zero-cost collar, and put spread pricing with a payoff table.",
+]:
+    """Price a protective put, a zero-cost collar, and a put spread for a stock position at a chosen
     downside-protection level and tenor. Returns the put premium and annual cost, the collar's
-    put and call strikes and upside cap, a profit-and-loss payoff table across drawdowns, and a
-    recommendation."""
+    put and call strikes and upside cap, the put spread's long and short strikes and net cost, a
+    profit-and-loss payoff table across drawdowns, and a recommendation."""
     with _client() as client:
         return client.protective_put(
             positionValue=position_value,
@@ -269,6 +278,7 @@ def protective_put_price(
             volatility=volatility,
             expectedReturn=expected_return,
             tickerLabel=ticker_label,
+            spreadRiskLevel=spread_risk_level,
         )
 
 

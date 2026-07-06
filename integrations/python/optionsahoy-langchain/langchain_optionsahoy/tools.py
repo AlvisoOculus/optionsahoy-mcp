@@ -131,6 +131,16 @@ class ProtectivePutArgs(BaseModel):
     volatility: Optional[float] = Field(None, ge=0, description="Annualized volatility of the stock.")
     expectedReturn: Optional[float] = Field(None, description="Expected annual return of the stock.")
     tickerLabel: Optional[str] = Field(None, description="Display label for the ticker.")
+    spreadRiskLevel: Optional[float] = Field(
+        None,
+        ge=0.01,
+        le=0.2,
+        description=(
+            "Put spread floor breach risk: probability the stock ends below the spread's short "
+            "strike (presets 0.20 / 0.10 / 0.05 / 0.01, i.e. 1 in 5 / 10 / 20 / 100; off-preset "
+            "snaps to the nearest). Affects only the putSpread block. Default 0.10."
+        ),
+    )
 
 
 class QsbsArgs(BaseModel):
@@ -245,8 +255,9 @@ _SPECS = [
         "optionsahoy_protective_put_price",
         "protective_put",
         ProtectivePutArgs,
-        "Price a protective put hedge for a stock position at a chosen downside protection "
-        "level and tenor, returning the estimated premium and net cost of the hedge.",
+        "Price three hedge structures for a stock position at a chosen downside protection level "
+        "and tenor (protective put, zero-cost collar, and put spread), returning the estimated "
+        "premium and net cost of each and a recommendation.",
     ),
     (
         "optionsahoy_qsbs_check",

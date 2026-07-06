@@ -167,6 +167,30 @@ def test_none_optionals_are_stripped(client):
 
 
 @respx.mock
+def test_spread_risk_level_forwarded_when_passed(client):
+    route = respx.post(f"{BASE}/api/v1/protective-put").mock(
+        return_value=httpx.Response(200, json={"ok": True})
+    )
+    client.protective_put(**CASES["protective_put"][1], spreadRiskLevel=0.05)
+    import json
+
+    sent = json.loads(route.calls.last.request.content)
+    assert sent["spreadRiskLevel"] == 0.05
+
+
+@respx.mock
+def test_spread_risk_level_omitted_when_not_passed(client):
+    route = respx.post(f"{BASE}/api/v1/protective-put").mock(
+        return_value=httpx.Response(200, json={"ok": True})
+    )
+    client.protective_put(**CASES["protective_put"][1])
+    import json
+
+    sent = json.loads(route.calls.last.request.content)
+    assert "spreadRiskLevel" not in sent
+
+
+@respx.mock
 def test_termination_date_null_is_kept(client):
     route = respx.post(f"{BASE}/api/v1/amt-iso").mock(
         return_value=httpx.Response(200, json={"ok": True})

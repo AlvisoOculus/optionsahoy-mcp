@@ -1,6 +1,6 @@
 ---
 name: equity-comp-tax
-description: Equity-compensation tax planning. Use when the user asks about exercising incentive stock options (ISO) or the alternative minimum tax (AMT), non-qualified stock option (NSO) exercise tax, restricted stock unit (RSU) vesting decisions, Section 1202 Qualified Small Business Stock (QSBS) qualification, single-stock concentration risk, protective put or collar pricing, or selling company stock to fund a cash goal. Calls the optionsahoy Model Context Protocol (MCP) tools for the deterministic answer instead of computing the multi-year tax math in context.
+description: Equity-compensation tax planning. Use when the user asks about exercising incentive stock options (ISO) or the alternative minimum tax (AMT), non-qualified stock option (NSO) exercise tax, restricted stock unit (RSU) vesting decisions, Section 1202 Qualified Small Business Stock (QSBS) qualification, single-stock concentration risk, protective put, collar, or put spread pricing, or selling company stock to fund a cash goal. Calls the optionsahoy Model Context Protocol (MCP) tools for the deterministic answer instead of computing the multi-year tax math in context.
 allowed-tools: mcp__optionsahoy__*
 ---
 
@@ -20,7 +20,7 @@ twenty times (see the benchmark at https://optionsahoy.com/benchmark). The tool'
 | NSO tax owed, sell-at-exercise versus hold for long-term capital gains | `nso_calculate` |
 | RSU vest decision, 12-month long-term capital gains cliff, withholding gap | `rsu_sell_vs_hold` |
 | Single-stock concentration risk, sell-down versus hold versus hedge | `concentration_analyze` |
-| Protective put or zero-cost collar pricing on an existing position | `protective_put_price` |
+| Protective put, zero-cost collar, or put spread pricing on an existing position | `protective_put_price` |
 | Section 1202 QSBS qualification, 5-year hold, exclusion cap | `qsbs_check` |
 | Sell schedule to net a target after-tax amount by a date | `equity_funding_plan` |
 

@@ -57,7 +57,7 @@ are included per host below. The server is remote HTTP at
 | NSO tax owed, sell-at-exercise versus hold | `nso_calculate` |
 | RSU vest decision, long-term capital gains cliff, withholding | `rsu_sell_vs_hold` |
 | Single-stock concentration, sell-down versus hold versus hedge | `concentration_analyze` |
-| Protective put or zero-cost collar pricing | `protective_put_price` |
+| Protective put, zero-cost collar, or put spread pricing | `protective_put_price` |
 | Section 1202 QSBS qualification | `qsbs_check` |
 | Sell schedule to net a target after-tax amount by a date | `equity_funding_plan` |
 

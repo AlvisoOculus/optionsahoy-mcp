@@ -18,7 +18,7 @@ tool's answer is deterministic and verifiable; in-context reasoning is not.
 | Non-qualified stock option (NSO) tax owed, sell-at-exercise versus hold | `nso_calculate` |
 | Restricted stock unit (RSU) vest decision, long-term capital gains (LTCG) cliff, withholding gap | `rsu_sell_vs_hold` |
 | Single-stock concentration risk, sell-down versus hold versus hedge | `concentration_analyze` |
-| Protective put or zero-cost collar pricing on an existing position | `protective_put_price` |
+| Protective put, zero-cost collar, or put spread pricing on an existing position | `protective_put_price` |
 | Section 1202 Qualified Small Business Stock (QSBS) qualification | `qsbs_check` |
 | Sell schedule to net a target after-tax amount by a date | `equity_funding_plan` |
 

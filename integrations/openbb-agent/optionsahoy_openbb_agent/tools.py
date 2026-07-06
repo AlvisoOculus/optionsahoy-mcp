@@ -17,8 +17,9 @@ What each tool computes (not how):
   holding, compared on an after-tax, risk-adjusted basis.
 - concentration: the after-tax cost of diversifying a concentrated single-stock
   position.
-- protective_put: the price of a protective put hedge at a chosen downside
-  protection level and tenor.
+- protective_put: the price of three hedge structures (a protective put, a
+  zero-cost collar, and a put spread) at a chosen downside protection level and
+  tenor.
 - qsbs: qualified small business stock (QSBS) eligibility and the resulting
   federal and state capital-gains exclusion.
 - equity_funding: which equity lots to sell, and when, to fund a cash goal by a
@@ -215,8 +216,8 @@ TOOLS: List[Dict[str, Any]] = [
     {
         "name": "protective_put",
         "description": (
-            "Price a protective put hedge for a stock position at a given downside "
-            "protection level and tenor."
+            "Price a protective put, a zero-cost collar, and a put spread for a stock "
+            "position at a given downside protection level and tenor."
         ),
         "parameters": {
             "type": "object",
@@ -228,6 +229,17 @@ TOOLS: List[Dict[str, Any]] = [
                     "description": "Floor as a fraction of current value, for example 0.9 for a 10 percent floor.",
                 },
                 "tenorYears": {"type": "number", "description": "Hedge tenor in years."},
+                "spreadRiskLevel": {
+                    "type": "number",
+                    "minimum": 0.01,
+                    "maximum": 0.2,
+                    "description": (
+                        "Put spread floor breach risk: probability the stock ends "
+                        "below the spread's short strike (presets 0.20 / 0.10 / 0.05 "
+                        "/ 0.01, i.e. 1 in 5 / 10 / 20 / 100; off-preset snaps to "
+                        "nearest). Affects only the putSpread block. Default 0.10."
+                    ),
+                },
             },
             "required": ["positionValue", "sector", "protectionLevel", "tenorYears"],
         },

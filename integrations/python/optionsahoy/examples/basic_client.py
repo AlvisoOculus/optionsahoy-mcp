@@ -12,7 +12,7 @@ The seven calculators:
 2. nso              - non-qualified stock option (NSO) exercise, hold versus sell
 3. rsu_sell_vs_hold - restricted stock unit (RSU) at vest, hold versus sell
 4. concentration    - single-stock concentration risk and the cost of diversifying
-5. protective_put   - protective put and zero-cost collar pricing
+5. protective_put   - protective put, zero-cost collar, and put spread pricing
 6. qsbs             - qualified small business stock (QSBS) Section 1202 eligibility
 7. equity_funding   - plan which lots to sell, and when, to fund a cash goal
 
@@ -122,17 +122,24 @@ def main() -> None:
               f"({conc['concentration'] * 100:.0f}% of the portfolio)")
         print()
 
-        # 5) Protective put: price downside protection (a bare put and a zero-cost
-        # collar) for a position. The sector sets a default volatility.
+        # 5) Protective put: price downside protection (a bare put, a zero-cost
+        # collar, and a put spread) for a position. The sector sets a default
+        # volatility; spreadRiskLevel tunes only the put spread's short strike.
         put = client.protective_put(
             positionValue=400000,
             sector="tech_software",
             protectionLevel=0.10,
             tenorYears=1,
+            spreadRiskLevel=0.10,
         )["result"]
         print("5. Protective put pricing")
         print(f"   bare put costs {put['barePut']['annualCostPct'] * 100:.1f}% per year "
               f"for 10% downside protection")
+        spread = put.get("putSpread")
+        if spread is not None:
+            print(f"   put spread costs {spread['annualCostPct'] * 100:.1f}% per year, "
+                  f"with losses resuming below the short strike")
+        print(f"   recommended structure: {put['recommended']}")
         print()
 
         # 6) QSBS: can this founder exclude gain on a planned sale?
