@@ -152,8 +152,19 @@ export type ConcentrationOutputs = {
   waitForLtInsight: WaitForLtInsight | null;
   schedule: SchedulePlan[];
   hedging: {
-    strike: number;
-    putPrice: number;
+    // Which structure was priced: 'put' (default) or 'collar', when the caller
+    // threads a hedgeChoice with kind: 'collar' and an upsideCapPct.
+    kind: 'put' | 'collar';
+    // Floor as a fraction below spot (0.30 default = a 30%-OTM put).
+    protectionLevel: number;
+    tenorYears: number;
+    strike: number;              // long put strike in dollars
+    putPrice: number;            // gross long-put premium in dollars
+    // Collar short-call leg; present only when kind === 'collar'.
+    callStrike?: number;
+    callPrice?: number;
+    // Net premium paid: putPrice for a put; max(0, putPrice − callPrice) for a collar.
+    netPremium: number;
     sigma: number;
     riskFreeRate: number;
   };
@@ -601,19 +612,40 @@ export function calculate(inputs: ConcentrationInputs, now?: Date): Concentratio
     };
   }
 
-  // Hedging cost via Black-Scholes (1-year 30%-OTM put). When the chain UI
-  // hands us a real implied vol, use it directly (no IV adjustment — it's
-  // already implied). Otherwise fall back to sector RV × multiplier so the
-  // legacy / sector-only flow still produces market-realistic premiums.
+  // Hedging cost via Black-Scholes. Default: a 1-year 30%-OTM put. When the
+  // caller threads a hedgeChoice (kind / protectionLevel / tenorYears, plus
+  // upsideCapPct for collars — set via the Protective Put tool's "Apply to
+  // plan" handoff), that structure is priced instead. Identical pricing to
+  // buildCustomPlan's hedge leg so the two concentration paths never diverge.
+  // Chain-supplied implied vol is used directly (already implied); otherwise
+  // sector RV × multiplier keeps the legacy / sector-only flow realistic.
   const sigma = inputs.volatility ?? SECTOR_STATS[inputs.sector].annualVol * IV_OVER_RV_MULTIPLIER;
-  const strike = inputs.positionValue * PUT_STRIKE_RATIO;
+  const hedgePick = inputs.hedgeChoice;
+  const hedgeKind: 'put' | 'collar' = hedgePick?.kind ?? 'put';
+  const floorFrac = hedgePick ? hedgePick.protectionLevel : 1 - PUT_STRIKE_RATIO;
+  const hedgeTenor = hedgePick ? hedgePick.tenorYears : HEDGE_TENOR_YEARS;
+  const strike = inputs.positionValue * (1 - floorFrac);
   const putPrice = blackScholesPut({
     spot: inputs.positionValue,
     strike,
     riskFreeRate: RISK_FREE_RATE_1Y,
     volatility: sigma,
-    timeYears: HEDGE_TENOR_YEARS,
+    timeYears: hedgeTenor,
   });
+  let callStrike: number | undefined;
+  let callPrice: number | undefined;
+  let netPremium = putPrice;
+  if (hedgeKind === 'collar' && typeof hedgePick?.upsideCapPct === 'number') {
+    callStrike = inputs.positionValue * (1 + hedgePick.upsideCapPct);
+    callPrice = blackScholesCall({
+      spot: inputs.positionValue,
+      strike: callStrike,
+      riskFreeRate: RISK_FREE_RATE_1Y,
+      volatility: sigma,
+      timeYears: hedgeTenor,
+    });
+    netPremium = Math.max(0, putPrice - callPrice);
+  }
 
   const sectorContextLine = SECTOR_STATS[inputs.sector].contextLine;
   const concentrationPct = Math.round(concentration * 100);
@@ -630,8 +662,14 @@ export function calculate(inputs: ConcentrationInputs, now?: Date): Concentratio
     waitForLtInsight,
     schedule: plans,
     hedging: {
+      kind: hedgeKind,
+      protectionLevel: floorFrac,
+      tenorYears: hedgeTenor,
       strike,
       putPrice,
+      callStrike,
+      callPrice,
+      netPremium,
       sigma,
       riskFreeRate: RISK_FREE_RATE_1Y,
     },

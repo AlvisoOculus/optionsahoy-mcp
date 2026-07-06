@@ -113,3 +113,26 @@ describe('parser range validation (accepts in-contract boundary values)', () => 
     expect(() => parseAmtIsoInput({ ...AMT, strike: 0 })).not.toThrow();
   });
 });
+
+describe('parser stateCode validation (rejects codes the tax engine cannot model)', () => {
+  // Regression for the silent-$0-state-tax defect: stateCode was `p.str` with
+  // an `^[A-Z]{2}$` schema, so a typo or non-state code ("ZZ", "PR", "UK", or a
+  // transposed "AC") passed validation and produced $0 state tax with no error.
+  // It is now validated against the 50 states + DC the engine actually models.
+  it('rejects unknown / mistyped two-letter codes across every tool', () => {
+    for (const bad of ['ZZ', 'PR', 'UK', 'AC']) {
+      expect(() => parseAmtIsoInput({ ...AMT, stateCode: bad })).toThrow(/stateCode.*must be one of/);
+      expect(() => parseNsoInput({ ...NSO, stateCode: bad })).toThrow(/stateCode.*must be one of/);
+      expect(() => parseRsuInput({ ...RSU, stateCode: bad })).toThrow(/stateCode.*must be one of/);
+      expect(() => parseConcentrationInput({ ...CONC, stateCode: bad })).toThrow(/stateCode.*must be one of/);
+      expect(() => parseQsbsInput({ ...QSBS, stateCode: bad })).toThrow(/stateCode.*must be one of/);
+    }
+  });
+
+  it('accepts every real state including no-income-tax states (TX, FL, WA)', () => {
+    for (const ok of ['CA', 'NY', 'TX', 'FL', 'WA', 'DC']) {
+      expect(() => parseAmtIsoInput({ ...AMT, stateCode: ok })).not.toThrow();
+      expect(() => parseNsoInput({ ...NSO, stateCode: ok })).not.toThrow();
+    }
+  });
+});

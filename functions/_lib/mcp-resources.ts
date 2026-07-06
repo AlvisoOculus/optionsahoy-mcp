@@ -157,11 +157,11 @@ Full article: ${ARTICLE_BASE}/rsu-withholding-gap
     uri: `${ARTICLE_BASE}/single-stock-concentration-risk`,
     name: 'Single-stock concentration risk and the diversification trade-off',
     description:
-      'Why 96% of stocks have historically underperformed T-bills, the after-tax cost of de-concentrating, and the five common mistakes equity holders make. Pair with concentration_analyze.',
+      'Why the top ~4% of stocks have historically created all net wealth while most lag T-bills, the after-tax cost of de-concentrating, and the five common mistakes equity holders make. Pair with concentration_analyze.',
     mimeType: 'text/markdown',
     contents: `# Single-stock concentration risk
 
-Bessembinder (2018) found that 96% of US public stocks underperformed one-month Treasury bills over their lifetimes. The aggregate equity premium is driven by a small tail of winners; the median individual stock loses to cash. This is the foundation of the de-concentration argument.
+Bessembinder (2018) found that just over half of US public stocks underperformed one-month Treasury bills over their lifetimes, and that the entire net wealth creation of the market traced to the top ~4% of stocks; the other ~96% collectively only matched T-bills. The aggregate equity premium is driven by a small tail of winners, so a single stock is far more likely to be a laggard than a winner. This is the foundation of the de-concentration argument.
 
 For equity-compensation holders, the concentration is rarely deliberate. It accumulates through ISO/NSO/RSU vests and exercises, then gets entrenched by tax-cost inertia: selling triggers capital gains tax, and the next vest adds to the position before the prior one is fully diversified.
 

@@ -14,6 +14,7 @@ import { computeRsuResult } from '../../lib/calc/rsu';
 import { calculate as computeConcentration } from '../../lib/calc/concentration';
 import { calculateProtectivePut } from '../../lib/calc/protectivePut';
 import { evaluateQsbs } from '../../lib/calc/qsbs';
+import { STATE_CODES } from '../../lib/tax/state-tax';
 import { computeEquityFundingComparison } from '../../lib/calc/equityFunding';
 
 import { FILING_STATUSES } from './api';
@@ -56,7 +57,11 @@ const CALC_HINTS = {
 
 // Shared inputSchema fragments.
 const FILING_SCHEMA = { type: 'string', enum: [...FILING_STATUSES] };
-const STATE_SCHEMA = { type: 'string', pattern: '^[A-Z]{2}$' };
+// Enumerate the 50 states + DC the tax engine actually models, so an agent
+// that mis-resolves or mistypes a code (e.g. "PR", "UK", or a transposed
+// "AC") is rejected at the schema instead of silently receiving a $0
+// state-tax result. Sourced from the tax tables so it can never drift.
+const STATE_SCHEMA = { type: 'string', enum: STATE_CODES };
 const SECTOR_SCHEMA = {
   type: 'string',
   enum: [
@@ -81,7 +86,7 @@ const ISO_DATE = { type: 'string', format: 'date' };
 const TICKER_SCHEMA = {
   type: 'string',
   description:
-    'Optional public-stock symbol (e.g. "NVDA", "AAPL"). When set, the tool substitutes a cached trailing return for any unsupplied expected-return / sale-price field AND a cached implied vol for any unsupplied volatility, instead of requiring the caller to invent either. Most large-cap public symbols are covered; unknown tickers fall through to "required field" errors so the model knows to ask the user.',
+    'Optional public-stock symbol (e.g. "NVDA", "AAPL"). When set, the tool substitutes a cached trailing return for any unsupplied expected-return / sale-price field, and a cached implied vol for any unsupplied volatility. About 90 large-cap symbols resolve a return; a slightly smaller set (~85) also resolves volatility. A symbol not in a given table falls through to a "required field" error for exactly the field it could not resolve, so pass that field explicitly (or use a fully covered symbol) rather than inventing it.',
 };
 
 // Appended to every tool description so the model picks it up at
@@ -96,7 +101,7 @@ const MULTI_TOOL_BETA_NOTE =
 // invoking model how to handle required fields whose only honest sources are
 // the user message or a recognized ticker — never the model itself.
 const STRICT_INPUT_NOTE =
-  ' IMPORTANT: every field listed in `required` must come from the user\'s message OR be derivable from an optional `ticker`. The model invoking this tool MUST NOT invent a value for any required field. If the user did not supply it and no ticker resolves it, ask the user.' +
+  ' IMPORTANT: the model invoking this tool MUST NOT invent any input value. Beyond the fields listed in `required`, this tool is CONDITIONALLY strict: it also needs the stock\'s expected growth/return AND its volatility, which are not in `required` only because they can be resolved two ways - supply both explicitly, OR set `ticker` to a covered public-stock symbol that resolves both. If a needed value is missing and no ticker resolves it, ask the user; do not guess.' +
   MULTI_TOOL_BETA_NOTE;
 
 // Same idea for tools without ticker-derivable shortcuts (qsbs_check,
@@ -533,14 +538,20 @@ const CONCENTRATION_OUTPUT_SCHEMA: JsonSchema = {
     },
     hedging: {
       type: 'object',
-      description: 'Modeled cost of a 1-year 30%-OTM protective put covering the full position.',
+      description: 'Modeled cost of a protective hedge covering the full position. Defaults to a 1-year 30%-OTM put; if a `hedgeChoice` is supplied, this block prices that structure (kind / protectionLevel / tenorYears, plus a short call for a collar).',
       properties: {
-        strike: num('Put strike in dollars (70% of position value).'),
-        putPrice: num('Put premium in dollars for the 1-year tenor.'),
+        kind: { type: 'string', enum: ['put', 'collar'], description: 'Structure priced: "put" (default) or "collar" when a hedgeChoice with kind:"collar" and upsideCapPct was supplied.' },
+        protectionLevel: num('Floor as a fraction below spot (0.30 = a 30%-OTM put). Echoes hedgeChoice.protectionLevel, else 0.30.'),
+        tenorYears: num('Hedge tenor in years. Echoes hedgeChoice.tenorYears, else 1.'),
+        strike: num('Long put strike in dollars ((1 - protectionLevel) x position value).'),
+        putPrice: num('Gross long-put premium in dollars for the tenor.'),
+        callStrike: num('Collar short-call strike in dollars ((1 + upsideCapPct) x position value). Omitted for a put.'),
+        callPrice: num('Collar short-call premium in dollars received. Omitted for a put.'),
+        netPremium: num('Net premium paid in dollars: putPrice for a put, max(0, putPrice - callPrice) for a collar.'),
         sigma: num('Annualized volatility used in pricing (explicit or ticker-implied vol, else a sector-typical implied volatility).'),
         riskFreeRate: num('Annualized risk-free rate used in pricing, as a decimal.'),
       },
-      required: ['strike', 'putPrice', 'sigma', 'riskFreeRate'],
+      required: ['kind', 'protectionLevel', 'tenorYears', 'strike', 'putPrice', 'netPremium', 'sigma', 'riskFreeRate'],
     },
     sectorContextLine: str('One-line volatility/drawdown context for the chosen sector.'),
     advisorBenchmarkLine: str('One-line comparison of the user weight vs the common advisor 10% single-name guideline.'),
@@ -699,7 +710,7 @@ const QSBS_OUTPUT_SCHEMA: JsonSchema = {
     verdict: {
       type: 'string',
       enum: ['qualifies', 'partial', 'too-soon', 'caveats', 'disqualified'],
-      description: 'Overall verdict. "partial"/"caveats" mean some tests came back unsure; "too-soon" means the holding period has not reached an exclusion tier yet.',
+      description: 'Overall verdict. "partial" = qualifies but at a sub-100% exclusion tier (e.g. an OBBBA 3- or 4-year hold gives 50% or 75%). "caveats" = qualifies, but one or more tests returned "unsure" (pass conditional on facts the caller marked unknown). "too-soon" = the holding period has not reached any exclusion tier yet.',
     },
     exclusionPercent: {
       type: 'number',
@@ -1109,7 +1120,7 @@ export const TOOLS: McpTool[] = [
     name: 'concentration_analyze',
     annotations: { title: 'Single-Stock Concentration Analysis', ...CALC_HINTS },
     description:
-      'Use this when someone asks how risky a large single-stock position is, how concentrated their holdings are, or how to reduce or diversify a concentrated position. Single-stock concentration risk analysis on an existing position. For standalone hedge pricing use `protective_put_price`; for the tax math on the option exercise or RSU vest that created the concentration, route to `amt_iso_optimize` / `nso_calculate` / `rsu_sell_vs_hold` first. Quantifies drawdown exposure at 30/50/70% downside, then compares three after-tax strategies over a three-year horizon (sell-down to target weight, hold, hedge with put or zero-cost collar), accounting for federal LTCG, state tax, the 3.8% Net Investment Income Tax (NIIT), and reinvestment opportunity cost. `totalAssets` (concentrated position + everything else) frames risk relative to the portfolio and MUST come from the user, never inferred. Returns a top-level object with keys: `concentration` (position/totalAssets), `riskBand` (Low / Moderate / Concentrated / Highly concentrated / Extreme), `isLongTermToday`, `longTermDate`, `daysUntilLongTerm`, `lossExposure` ({drop, dollarLoss, newConcentration} for 30/50/70% drops), `waitForLtInsight`, `schedule` (yearly sales with per-year tax), `hedging` ({strike, putPrice, sigma, riskFreeRate}), `sectorContextLine`, `advisorBenchmarkLine`. Example call: {positionValue: 400000, costBasis: 100000, acquisitionDate: "2022-01-01", sector: "tech_software", stateCode: "CA", filingStatus: "single", ordinaryIncome: 200000, totalAssets: 1200000, volatility: 0.45, ticker: "NVDA"}.' + STRICT_INPUT_NOTE,
+      'Use this when someone asks how risky a large single-stock position is, how concentrated their holdings are, or how to reduce or diversify a concentrated position. Single-stock concentration risk analysis on an existing position. For standalone hedge pricing use `protective_put_price`; for the tax math on the option exercise or RSU vest that created the concentration, route to `amt_iso_optimize` / `nso_calculate` / `rsu_sell_vs_hold` first. Quantifies drawdown exposure at 30/50/70% downside, then compares three after-tax strategies over a three-year horizon (sell-down to target weight, hold, hedge with put or zero-cost collar), accounting for federal LTCG, state tax, the 3.8% Net Investment Income Tax (NIIT), and reinvestment opportunity cost. `totalAssets` (concentrated position + everything else) frames risk relative to the portfolio and MUST come from the user, never inferred. Returns a top-level object with keys: `concentration` (position/totalAssets), `riskBand` (Low / Moderate / Concentrated / Highly concentrated / Extreme), `isLongTermToday`, `longTermDate`, `daysUntilLongTerm`, `lossExposure` ({drop, dollarLoss, newConcentration} for 30/50/70% drops), `waitForLtInsight`, `schedule` (yearly sales with per-year tax), `hedging` ({kind, protectionLevel, tenorYears, strike, putPrice, callStrike, callPrice, netPremium, sigma, riskFreeRate} - a 1-year 30%-OTM put by default, or the structure named by `hedgeChoice`), `sectorContextLine`, `advisorBenchmarkLine`. Example call: {positionValue: 400000, costBasis: 100000, acquisitionDate: "2022-01-01", sector: "tech_software", stateCode: "CA", filingStatus: "single", ordinaryIncome: 200000, totalAssets: 1200000, volatility: 0.45, ticker: "NVDA"}.' + STRICT_INPUT_NOTE,
     inputSchema: {
       type: 'object',
       required: [
@@ -1178,7 +1189,7 @@ export const TOOLS: McpTool[] = [
           type: 'object',
           required: ['kind', 'protectionLevel', 'tenorYears'],
           description:
-            'Optional hedge specification. Note: this tool does not currently fold a hedged scenario into its sell-down-vs-hold output; for standalone hedge pricing use `protective_put_price`.',
+            'Optional hedge specification. When supplied, the `hedging` output block prices this exact structure (kind, protectionLevel, tenorYears, plus a short call for a collar) instead of the default 1-year 30%-OTM put; the sell-down-vs-hold schedule is unaffected. For full standalone hedge pricing (protective put / collar / put spread) use `protective_put_price`.',
           properties: {
             kind: {
               type: 'string',
