@@ -493,7 +493,7 @@
         }
       },
       "annotations": {
-        "title": "Protective Put / Collar Pricing",
+        "title": "Protective Put / Collar / Put Spread Pricing",
         "readOnlyHint": true,
         "idempotentHint": true,
         "destructiveHint": false,

@@ -1,6 +1,6 @@
 // AlphaLatitude Inc. © 2026
 //
-// POST /api/v1/protective-put — protective put / zero-cost collar pricing.
+// POST /api/v1/protective-put - protective put, zero-cost collar, and put spread pricing.
 
 import { calculateProtectivePut } from '../../../lib/calc/protectivePut';
 import { runCalc, type PagesFunction } from '../../_lib/api';
