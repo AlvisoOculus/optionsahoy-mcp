@@ -69,19 +69,22 @@ export const PROMPTS: McpPrompt[] = [
       { name: 'shares', description: 'Total ISO shares available to exercise', required: true },
       { name: 'strike', description: 'Strike price per share, USD', required: true },
       { name: 'fmv', description: 'Current fair market value per share, USD', required: true },
-      { name: 'volatility', description: 'Annualized volatility (sigma) as a decimal (e.g. 0.5 for 50%)', required: true },
+      { name: 'ticker', description: 'Covered public-stock symbol (e.g. NVDA) that auto-resolves volatility and expected growth; an alternative to passing volatility', required: false },
+      { name: 'volatility', description: 'Annualized volatility (sigma) as a decimal (e.g. 0.5 for 50%). Optional when you pass a covered ticker', required: false },
       { name: 'state', description: 'Two-letter state code (e.g. CA, NY, TX)', required: false },
       { name: 'ordinaryIncome', description: 'Annual W-2 ordinary income, USD', required: false },
     ],
     build: (a) =>
       templatePrompt({
-        scenario: `I have ${arg(a, 'shares')} Incentive Stock Options (ISOs) with a strike of $${arg(a, 'strike')} per share and current fair market value of $${arg(a, 'fmv')} per share. Annualized volatility on the stock is ${arg(a, 'volatility')}. `,
+        scenario: `I have ${arg(a, 'shares')} Incentive Stock Options (ISOs) with a strike of $${arg(a, 'strike')} per share and current fair market value of $${arg(a, 'fmv')} per share. `,
         optional: [
+          a.ticker && `The stock ticker is ${a.ticker}. `,
+          a.volatility && `Annualized volatility on the stock is ${a.volatility}. `,
           a.state && `I live in ${a.state}. `,
           a.ordinaryIncome && `My annual ordinary income is $${a.ordinaryIncome}. `,
         ],
         instruction:
-          `Plan an exercise schedule across the next several years that maximizes my after-tax Net Final Value (NFV) at the planning horizon. Use the amt_iso_optimize tool; pass volatility directly and do not compute drag yourself.`,
+          `Plan an exercise schedule across the next several years that maximizes my after-tax Net Final Value (NFV) at the planning horizon. Use the amt_iso_optimize tool: if I gave a ticker, pass it so volatility and growth resolve automatically; otherwise pass the volatility I provided and do not compute drag yourself. If neither a covered ticker nor a volatility is available, ask me for volatility first.`,
         followUpFields: 'filing status, state, ordinary income, grant date, idle-cash after-tax return rate, or post-termination status',
         outputs:
           "the optimized schedule's after-tax NFV vs the lump-sum and even-split alternatives, the recommended per-year share count, and the AMT credit carryforward at horizon",
@@ -95,18 +98,21 @@ export const PROMPTS: McpPrompt[] = [
       { name: 'shares', description: 'NSO shares to exercise', required: true },
       { name: 'strike', description: 'Strike price per share, USD', required: true },
       { name: 'currentPrice', description: 'Current share price, USD', required: true },
-      { name: 'volatility', description: 'Annualized volatility (sigma) as a decimal (e.g. 0.4 for 40%)', required: true },
+      { name: 'ticker', description: 'Covered public-stock symbol (e.g. NVDA) that auto-resolves volatility and expected sale price; an alternative to passing volatility', required: false },
+      { name: 'volatility', description: 'Annualized volatility (sigma) as a decimal (e.g. 0.4 for 40%). Optional when you pass a covered ticker', required: false },
       { name: 'holdYears', description: 'Years to hold after exercise (minimum 1; the calculator requires it)', required: true },
       { name: 'state', description: 'Two-letter state code', required: false },
     ],
     build: (a) =>
       templatePrompt({
-        scenario: `I'm considering exercising ${arg(a, 'shares')} non-qualified stock options (NSOs) with a strike of $${arg(a, 'strike')} per share. The current share price is $${arg(a, 'currentPrice')}. Annualized volatility on the stock is ${arg(a, 'volatility')}. `,
+        scenario: `I'm considering exercising ${arg(a, 'shares')} non-qualified stock options (NSOs) with a strike of $${arg(a, 'strike')} per share. The current share price is $${arg(a, 'currentPrice')}. `,
         optional: [
+          a.ticker && `The stock ticker is ${a.ticker}. `,
+          a.volatility && `Annualized volatility on the stock is ${a.volatility}. `,
           a.holdYears && `I'm thinking about holding for ${a.holdYears} year(s) after exercise to get long-term capital gains treatment on the appreciation. `,
           a.state && `I live in ${a.state}. `,
         ],
-        instruction: `Compare sell-at-exercise vs hold-for-LTCG using the nso_calculate tool. Pass volatility directly; do not compute the haircut yourself.`,
+        instruction: `Compare sell-at-exercise vs hold-for-LTCG using the nso_calculate tool. If I gave a ticker, pass it so volatility resolves automatically; otherwise pass the volatility I provided and do not compute the haircut yourself. If neither is available, ask me for volatility first.`,
         followUpFields:
           'my filing status, ordinary income, state, expected sale price, or whether I am still employed at the company',
         outputs: 'after-tax dollar payout under each route, the break-even sale price, and your recommendation',
@@ -119,19 +125,22 @@ export const PROMPTS: McpPrompt[] = [
     arguments: [
       { name: 'shares', description: 'RSU shares vesting', required: true },
       { name: 'currentPrice', description: 'Current share price, USD', required: true },
-      { name: 'volatility', description: 'Annualized volatility (sigma) as a decimal (e.g. 0.4 for 40%)', required: true },
+      { name: 'ticker', description: 'Covered public-stock symbol (e.g. NVDA) that auto-resolves volatility and expected sale price; an alternative to passing volatility', required: false },
+      { name: 'volatility', description: 'Annualized volatility (sigma) as a decimal (e.g. 0.4 for 40%). Optional when you pass a covered ticker', required: false },
       { name: 'holdYears', description: 'Years to hold after vest', required: false },
       { name: 'state', description: 'Two-letter state code', required: false },
     ],
     build: (a) =>
       templatePrompt({
-        scenario: `I have ${arg(a, 'shares')} Restricted Stock Units (RSUs) vesting at a current price of $${arg(a, 'currentPrice')} per share. Annualized volatility on the stock is ${arg(a, 'volatility')}. `,
+        scenario: `I have ${arg(a, 'shares')} Restricted Stock Units (RSUs) vesting at a current price of $${arg(a, 'currentPrice')} per share. `,
         optional: [
+          a.ticker && `The stock ticker is ${a.ticker}. `,
+          a.volatility && `Annualized volatility on the stock is ${a.volatility}. `,
           a.holdYears && `I'm thinking about holding for ${a.holdYears} year(s). `,
           a.state && `I live in ${a.state}. `,
         ],
         instruction:
-          `Compare selling all shares at vest vs holding for long-term capital gains. Use the rsu_sell_vs_hold tool. Pass volatility directly; do not compute the haircut yourself.`,
+          `Compare selling all shares at vest vs holding for long-term capital gains. Use the rsu_sell_vs_hold tool. If I gave a ticker, pass it so volatility resolves automatically; otherwise pass the volatility I provided and do not compute the haircut yourself. If neither is available, ask me for volatility first.`,
         followUpFields: 'my filing status, ordinary income, state, expected sale price, or whether I am still employed',
         outputs:
           'the after-tax payout under each route, flag the 22% withholding gap (most equity holders under-withhold), and recommend a path',
@@ -145,19 +154,22 @@ export const PROMPTS: McpPrompt[] = [
       { name: 'positionValue', description: 'Current market value of the single-stock position, USD', required: true },
       { name: 'costBasis', description: 'Total cost basis of the position, USD', required: true },
       { name: 'totalAssets', description: 'Total investable assets, USD (for concentration ratio)', required: true },
-      { name: 'volatility', description: 'Annualized volatility (sigma) as a decimal (e.g. 0.4 for 40%)', required: true },
+      { name: 'ticker', description: 'Covered public-stock symbol (e.g. NVDA) that auto-resolves volatility and expected return; an alternative to passing volatility', required: false },
+      { name: 'volatility', description: 'Annualized volatility (sigma) as a decimal (e.g. 0.4 for 40%). Optional when you pass a covered ticker', required: false },
       { name: 'sector', description: 'Sector tag (e.g. tech_software, healthcare_biotech, semiconductors)', required: false },
       { name: 'state', description: 'Two-letter state code', required: false },
     ],
     build: (a) =>
       templatePrompt({
-        scenario: `I have a single-stock position worth $${arg(a, 'positionValue')} with a cost basis of $${arg(a, 'costBasis')}. My total investable assets are $${arg(a, 'totalAssets')}. Annualized volatility on the stock is ${arg(a, 'volatility')}. `,
+        scenario: `I have a single-stock position worth $${arg(a, 'positionValue')} with a cost basis of $${arg(a, 'costBasis')}. My total investable assets are $${arg(a, 'totalAssets')}. `,
         optional: [
+          a.ticker && `The stock ticker is ${a.ticker}. `,
+          a.volatility && `Annualized volatility on the stock is ${a.volatility}. `,
           a.sector && `The stock is in the ${a.sector} sector. `,
           a.state && `I live in ${a.state}. `,
         ],
         instruction:
-          `Quantify my concentration risk and compare selling down, holding, and hedging using the concentration_analyze tool. Pass volatility directly; do not compute drag yourself.`,
+          `Quantify my concentration risk and compare selling down, holding, and hedging using the concentration_analyze tool. If I gave a ticker, pass it so volatility and expected return resolve automatically; otherwise pass the volatility I provided and do not compute drag yourself. If neither is available, ask me for volatility first.`,
         followUpFields:
           'my filing status, ordinary income, expected position return, expected market return, or hedge preference (put vs collar)',
         outputs:

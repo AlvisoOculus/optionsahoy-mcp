@@ -82,7 +82,7 @@ export async function runCalc<I, O>(
   } catch (err) {
     const errorMsg = err instanceof Error ? err.message : String(err);
     logCall(context, { endpoint, isError: true, errorMsg: `parse: ${errorMsg}` });
-    return jsonResponse(400, { error: `Invalid input: ${errorMsg}` });
+    return jsonResponse(400, { error: `Invalid input: ${errorMsg}`, code: 'invalid_input' });
   }
   try {
     const output = compute(input);
@@ -100,7 +100,7 @@ export async function runCalc<I, O>(
     // can distinguish "fix your request" (4xx) from "retry / report" (5xx).
     const errorMsg = err instanceof Error ? err.message : String(err);
     logCall(context, { endpoint, isError: true, errorMsg: `calc: ${errorMsg}` });
-    return jsonResponse(500, { error: `Calculation failed: ${errorMsg}` });
+    return jsonResponse(500, { error: `Calculation failed: ${errorMsg}`, code: 'computation_error' });
   }
 }
 

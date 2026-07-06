@@ -16,8 +16,7 @@
           "horizon",
           "cashReturnRate",
           "grantDate",
-          "hasLeftCompany",
-          "terminationDate"
+          "hasLeftCompany"
         ],
         "properties": {
           "shares": {
@@ -153,7 +152,7 @@
                 "type": "null"
               }
             ],
-            "description": "Separation date (YYYY-MM-DD) when hasLeftCompany=true; null when still employed. Together with hasLeftCompany, drives the 90-day exercise window deadline."
+            "description": "Separation date (YYYY-MM-DD). Required only when hasLeftCompany=true (it drives the 90-day exercise-window deadline); omit it or pass null when still employed. No longer in `required` so the common employed case needs no placeholder."
           }
         }
       },
