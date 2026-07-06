@@ -38,11 +38,11 @@ This is a living backlog. Status: `TODO` / `WIP` / `DONE` (PR #). Execute top-do
 
 | ID | Status | Finding | Effort |
 |----|--------|---------|--------|
-| O1 | TODO | Server `instructions` never mention the `ticker` auto-fill shortcut (biggest first-call lever) — `mcp.ts:128` | S |
-| O2 | TODO | Surface per-tool output schemas + request/response examples into OpenAPI (`result` is bare `{}` today) | M |
-| O3 | TODO | Structured error codes `{code, field, message}` instead of free-text on every surface | M |
-| O4 | TODO | A `covered_tickers` resource/enum so agents stop guessing and eating round-trips | S |
-| O5 | TODO | Prompts: demote `volatility` to optional + add `ticker` arg; default `cashReturnRate`; optional `terminationDate` when employed | S |
+| O1 | DONE (PR #141) | Server `instructions` never mention the `ticker` auto-fill shortcut (biggest first-call lever) | Added the ticker-shortcut sentence to the MCP server `instructions` |
+| O2 | DEFERRED | Surface per-tool output schemas + request/response examples into OpenAPI (`result` is bare `{}` today) | Hand-transcribing 7 output schemas into OpenAPI creates exactly the drift the audit flags in O10. **Do it via codegen, paired with O10** (generate the OpenAPI result schemas + examples from the tool descriptors). |
+| O3 | DONE (PR #141) | Structured error codes instead of free-text on every surface | REST error responses now carry an additive `code` (`invalid_input` for 400, `computation_error` for 500) alongside the human `error` string. Per-field `field` extraction left as a further step. |
+| O4 | DEFERRED | A `covered_tickers` resource/enum so agents stop guessing and eating round-trips | A new resource would be the **8th**, breaking the "seven resources / prompts / tools" trust-fact invariant just corrected in D10 across ~5 surfaces. Worth doing, but needs a deliberate reframe of that invariant (or exposing the list off-resource). Own change. |
+| O5 | DONE (PR #141) | Prompts force `volatility`; `terminationDate` required when employed; `cashReturnRate` required | Demoted `volatility` to optional and added a `ticker` arg on all 4 growth prompts (with build + instruction updates); made `amt_iso_optimize.terminationDate` optional (parser already null-safe). `cashReturnRate` default DEFERRED - defaulting it silently changes optimizer NFV, so it needs a decision on the default value. |
 
 ## P4 — Reach / adoption
 

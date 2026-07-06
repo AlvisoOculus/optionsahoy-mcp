@@ -893,7 +893,7 @@ export const TOOLS: McpTool[] = [
       required: [
         'shares', 'strike', 'fmv', 'filingStatus',
         'ordinaryIncome', 'stateCode', 'carryforwardCredit', 'horizon', 'cashReturnRate',
-        'grantDate', 'hasLeftCompany', 'terminationDate',
+        'grantDate', 'hasLeftCompany',
       ],
       properties: {
         shares: {
@@ -967,7 +967,7 @@ export const TOOLS: McpTool[] = [
         terminationDate: {
           oneOf: [ISO_DATE, { type: 'null' }],
           description:
-            'Separation date (YYYY-MM-DD) when hasLeftCompany=true; null when still employed. Together with hasLeftCompany, drives the 90-day exercise window deadline.',
+            'Separation date (YYYY-MM-DD). Required only when hasLeftCompany=true (it drives the 90-day exercise-window deadline); omit it or pass null when still employed. No longer in `required` so the common employed case needs no placeholder.',
         },
       },
     },
