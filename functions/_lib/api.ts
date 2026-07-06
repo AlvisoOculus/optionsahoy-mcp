@@ -95,9 +95,12 @@ export async function runCalc<I, O>(
     });
     return jsonResponse(200, { ok: true, result: output });
   } catch (err) {
+    // The input already parsed and validated, so a throw here is a server-side
+    // computation failure, not a caller error - surface it as 5xx so agents
+    // can distinguish "fix your request" (4xx) from "retry / report" (5xx).
     const errorMsg = err instanceof Error ? err.message : String(err);
     logCall(context, { endpoint, isError: true, errorMsg: `calc: ${errorMsg}` });
-    return jsonResponse(400, { error: `Calculation failed: ${errorMsg}` });
+    return jsonResponse(500, { error: `Calculation failed: ${errorMsg}` });
   }
 }
 

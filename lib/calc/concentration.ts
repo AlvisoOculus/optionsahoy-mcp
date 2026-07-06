@@ -505,6 +505,65 @@ function buildPlan(args: {
 }
 
 // ---------------------------------------------------------------
+// Shared hedge pricing
+// ---------------------------------------------------------------
+// Prices the hedge leg used by both the static hedging line (calculate) and
+// the per-year custom plan (buildCustomPlan). Default: a 1-year 30%-OTM put.
+// When the caller threads a hedgeChoice (kind / protectionLevel / tenorYears,
+// plus upsideCapPct for collars — set via the Protective Put tool's "Apply to
+// plan" handoff), that structure is priced instead. Extracted so the two
+// concentration paths can never diverge. σ is passed in already resolved
+// (chain-implied if provided, else sector RV × IV adjustment).
+
+type HedgePricing = {
+  kind: 'put' | 'collar';
+  protectionLevel: number;     // floor as a fraction below spot (0.30 = 30%-OTM)
+  tenorYears: number;
+  strike: number;              // long put strike in dollars
+  putPrice: number;            // gross long-put premium in dollars
+  callStrike?: number;         // collar short-call strike; present only for a collar
+  callPrice?: number;          // collar short-call premium; present only for a collar
+  netPremium: number;          // putPrice for a put; max(0, putPrice − callPrice) for a collar
+};
+
+function priceHedge(
+  spot: number,
+  sigma: number,
+  hedgeChoice: ConcentrationInputs['hedgeChoice'],
+  riskFreeRate: number,
+): HedgePricing {
+  const kind: 'put' | 'collar' = hedgeChoice?.kind ?? 'put';
+  const protectionLevel = hedgeChoice ? hedgeChoice.protectionLevel : 1 - PUT_STRIKE_RATIO;
+  const tenorYears = hedgeChoice ? hedgeChoice.tenorYears : HEDGE_TENOR_YEARS;
+  const strike = spot * (1 - protectionLevel);
+  const putPrice = blackScholesPut({
+    spot,
+    strike,
+    riskFreeRate,
+    volatility: sigma,
+    timeYears: tenorYears,
+  });
+  let callStrike: number | undefined;
+  let callPrice: number | undefined;
+  let netPremium = putPrice;
+  // For a collar, sell a call at +upsideCapPct above spot and net the premium.
+  // Clamped at 0 — a credit collar's residual cash isn't routed back into the
+  // wealth path, so display as free rather than negative-cost.
+  if (kind === 'collar' && typeof hedgeChoice?.upsideCapPct === 'number') {
+    callStrike = spot * (1 + hedgeChoice.upsideCapPct);
+    callPrice = blackScholesCall({
+      spot,
+      strike: callStrike,
+      riskFreeRate,
+      volatility: sigma,
+      timeYears: tenorYears,
+    });
+    netPremium = Math.max(0, putPrice - callPrice);
+  }
+  return { kind, protectionLevel, tenorYears, strike, putPrice, callStrike, callPrice, netPremium };
+}
+
+// ---------------------------------------------------------------
 // Main orchestrator
 // ---------------------------------------------------------------
 
@@ -612,40 +671,12 @@ export function calculate(inputs: ConcentrationInputs, now?: Date): Concentratio
     };
   }
 
-  // Hedging cost via Black-Scholes. Default: a 1-year 30%-OTM put. When the
-  // caller threads a hedgeChoice (kind / protectionLevel / tenorYears, plus
-  // upsideCapPct for collars — set via the Protective Put tool's "Apply to
-  // plan" handoff), that structure is priced instead. Identical pricing to
-  // buildCustomPlan's hedge leg so the two concentration paths never diverge.
-  // Chain-supplied implied vol is used directly (already implied); otherwise
-  // sector RV × multiplier keeps the legacy / sector-only flow realistic.
+  // Hedging cost via Black-Scholes on the current position value. Chain-supplied
+  // implied vol is used directly (already implied); otherwise sector RV ×
+  // multiplier keeps the legacy / sector-only flow realistic. Structure (put or
+  // collar, floor, tenor) follows the threaded hedgeChoice — see priceHedge.
   const sigma = inputs.volatility ?? SECTOR_STATS[inputs.sector].annualVol * IV_OVER_RV_MULTIPLIER;
-  const hedgePick = inputs.hedgeChoice;
-  const hedgeKind: 'put' | 'collar' = hedgePick?.kind ?? 'put';
-  const floorFrac = hedgePick ? hedgePick.protectionLevel : 1 - PUT_STRIKE_RATIO;
-  const hedgeTenor = hedgePick ? hedgePick.tenorYears : HEDGE_TENOR_YEARS;
-  const strike = inputs.positionValue * (1 - floorFrac);
-  const putPrice = blackScholesPut({
-    spot: inputs.positionValue,
-    strike,
-    riskFreeRate: RISK_FREE_RATE_1Y,
-    volatility: sigma,
-    timeYears: hedgeTenor,
-  });
-  let callStrike: number | undefined;
-  let callPrice: number | undefined;
-  let netPremium = putPrice;
-  if (hedgeKind === 'collar' && typeof hedgePick?.upsideCapPct === 'number') {
-    callStrike = inputs.positionValue * (1 + hedgePick.upsideCapPct);
-    callPrice = blackScholesCall({
-      spot: inputs.positionValue,
-      strike: callStrike,
-      riskFreeRate: RISK_FREE_RATE_1Y,
-      volatility: sigma,
-      timeYears: hedgeTenor,
-    });
-    netPremium = Math.max(0, putPrice - callPrice);
-  }
+  const hedge = priceHedge(inputs.positionValue, sigma, inputs.hedgeChoice, RISK_FREE_RATE_1Y);
 
   const sectorContextLine = SECTOR_STATS[inputs.sector].contextLine;
   const concentrationPct = Math.round(concentration * 100);
@@ -662,14 +693,14 @@ export function calculate(inputs: ConcentrationInputs, now?: Date): Concentratio
     waitForLtInsight,
     schedule: plans,
     hedging: {
-      kind: hedgeKind,
-      protectionLevel: floorFrac,
-      tenorYears: hedgeTenor,
-      strike,
-      putPrice,
-      callStrike,
-      callPrice,
-      netPremium,
+      kind: hedge.kind,
+      protectionLevel: hedge.protectionLevel,
+      tenorYears: hedge.tenorYears,
+      strike: hedge.strike,
+      putPrice: hedge.putPrice,
+      callStrike: hedge.callStrike,
+      callPrice: hedge.callPrice,
+      netPremium: hedge.netPremium,
       sigma,
       riskFreeRate: RISK_FREE_RATE_1Y,
     },
@@ -813,35 +844,13 @@ export function buildCustomPlan(
     // defaults. Otherwise: long 30%-OTM put for 1 year.
     if (willHedge && positionAtYearStart > 0) {
       const pick = inputs.hedgeChoice;
-      // Floor as a fraction below spot (0.30 default → 70% strike).
-      const floorFrac = pick ? pick.protectionLevel : 1 - PUT_STRIKE_RATIO;
-      const strikeRatio = 1 - floorFrac;
-      const tenor = pick ? pick.tenorYears : HEDGE_TENOR_YEARS;
-      const strike = positionAtYearStart * strikeRatio;
-      const putPrice = blackScholesPut({
-        spot: positionAtYearStart,
-        strike,
-        riskFreeRate: RISK_FREE_RATE_1Y,
-        volatility: sigma,
-        timeYears: tenor,
-      });
-      // For a collar, sell a call at +upsideCapPct above spot and net
-      // the premium. Clamped at 0 — a credit collar's residual cash
-      // isn't routed back into the wealth path here, so display as
-      // free rather than negative-cost.
-      let hedgePrice = putPrice;
-      let capStrike: number | undefined;
-      if (pick?.kind === 'collar' && typeof pick.upsideCapPct === 'number') {
-        capStrike = positionAtYearStart * (1 + pick.upsideCapPct);
-        const callPrice = blackScholesCall({
-          spot: positionAtYearStart,
-          strike: capStrike,
-          riskFreeRate: RISK_FREE_RATE_1Y,
-          volatility: sigma,
-          timeYears: tenor,
-        });
-        hedgePrice = Math.max(0, putPrice - callPrice);
-      }
+      // Same put-or-collar pricing as the static hedging line, on the
+      // year-start position value (see priceHedge).
+      const hedge = priceHedge(positionAtYearStart, sigma, pick, RISK_FREE_RATE_1Y);
+      const strikeRatio = 1 - hedge.protectionLevel; // 0.70 default → 30%-OTM
+      const strike = hedge.strike;
+      const hedgePrice = hedge.netPremium;
+      const capStrike = hedge.callStrike;
       hedgeCosts.push(hedgePrice);
       totalHedgeCost += hedgePrice;
 

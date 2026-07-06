@@ -15,6 +15,7 @@ from unittest.mock import MagicMock
 from a2a.types import AgentCard
 
 from optionsahoy_openbb_agent.a2a import (
+    _SKILL_ID_BY_TOOL,
     OptionsAhoyAgentExecutor,
     build_agent_card,
     card_json,
@@ -23,6 +24,9 @@ from optionsahoy_openbb_agent.tools import TOOLS_BY_NAME
 
 CARD_FILE = Path(__file__).resolve().parent.parent / ".well-known" / "agent-card.json"
 TOOL_NAMES = set(TOOLS_BY_NAME)
+# The A2A skill ids are the OptionsAhoy (MCP) tool names, not the OpenBB registry
+# names in TOOLS_BY_NAME; one skill id per registered tool.
+SKILL_IDS = set(_SKILL_ID_BY_TOOL.values())
 
 
 class FakeQueue:
@@ -63,7 +67,8 @@ def test_card_required_fields_and_version():
 
 def test_skills_cover_all_seven_tools():
     skill_ids = {s["id"] for s in card_json()["skills"]}
-    assert skill_ids == TOOL_NAMES
+    assert skill_ids == SKILL_IDS
+    assert len(skill_ids) == len(TOOL_NAMES)
     for s in card_json()["skills"]:
         assert s["name"] and s["description"] and s["tags"]
 

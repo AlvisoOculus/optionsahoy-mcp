@@ -26,7 +26,7 @@
       "examples": [
         "When and how many of my 20,000 incentive stock options should I exercise over 4 years to minimize alternative minimum tax?"
       ],
-      "id": "amt_iso",
+      "id": "amt_iso_optimize",
       "name": "ISO exercise and AMT optimizer",
       "tags": [
         "iso",
@@ -41,7 +41,7 @@
       "examples": [
         "How much tax will I owe if I exercise 5,000 non-qualified stock options, and should I sell at exercise or hold?"
       ],
-      "id": "nso",
+      "id": "nso_calculate",
       "name": "NSO exercise tax",
       "tags": [
         "nso",
@@ -67,7 +67,7 @@
       "examples": [
         "Eighty percent of my net worth is in one company's stock. How much should I sell down?"
       ],
-      "id": "concentration",
+      "id": "concentration_analyze",
       "name": "Single-stock concentration analysis",
       "tags": [
         "concentration",
@@ -80,7 +80,7 @@
       "examples": [
         "What would a protective put, a zero-cost collar, or a put spread on my 10,000 shares cost?"
       ],
-      "id": "protective_put",
+      "id": "protective_put_price",
       "name": "Protective put, collar, and put spread pricing",
       "tags": [
         "hedging",
@@ -95,7 +95,7 @@
       "examples": [
         "Do my shares qualify for the Section 1202 qualified small business stock exclusion?"
       ],
-      "id": "qsbs",
+      "id": "qsbs_check",
       "name": "QSBS Section 1202 check",
       "tags": [
         "qsbs",
@@ -108,7 +108,7 @@
       "examples": [
         "I need 200,000 dollars after tax for a down payment in 2 years. What should I sell and when?"
       ],
-      "id": "equity_funding",
+      "id": "equity_funding_plan",
       "name": "Fund a cash goal from equity",
       "tags": [
         "equity-funding",

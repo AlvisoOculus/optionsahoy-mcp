@@ -22,17 +22,17 @@ This is a living backlog. Status: `TODO` / `WIP` / `DONE` (PR #). Execute top-do
 
 | ID | Status | Finding | Evidence |
 |----|--------|---------|----------|
-| D8 | TODO | OpenAPI `version` stuck at 1.9.5 vs 1.9.6 everywhere; `build-mcpb.mjs` sync array omits `openapi.json`; test only checks it's a string | `openapi.json:7`; `build-mcpb.mjs:9` |
-| D9 | TODO | A2A skill IDs != MCP tool names for 6/7 tools; `a2a.ts:45` comment claims they match -> cross-protocol delegation fails | `a2a.ts:61-140` vs `mcp-tools.ts` names |
-| D10 | TODO | `AGENTS.md`/`README` undercount resources & prompts to "six", omit the equity-funding pair; README resource table (6) contradicts its prompt table (7) | `AGENTS.md:68`; `README.md:92-103` |
-| D11 | TODO | OpenAPI `EquityFunding` tag referenced but undeclared | `openapi.json:311` vs `:24-53` |
-| D12 | TODO | Version reporting inconsistent across surfaces; MCP `GET /mcp` descriptor has no `version` | `api/v1/index.ts:80`; `mcp.ts:45-53` |
-| D13 | TODO | `protective_put_price` output `inputs`-echo schema omits `spreadRiskLevel` (added the input, not the echo doc) | `mcp-tools.ts:559-571` |
-| D14 | TODO | `concentration_analyze` silently accepts undocumented `volatilityDrag` input | `calc-parsers.ts:39-40` vs schema |
-| D15 | TODO | `equity_funding_plan` uses the no-ticker strict note despite per-stack ticker growth resolution | `mcp-tools.ts:1367`; `calc-parsers.ts:298` |
-| D16 | TODO | REST returns compute failures as 400 (indistinguishable from validation 400) | `api.ts:87-101` |
-| D17 | TODO | Stale hygiene: `mcp.ts:6` "six tools" header; test-count drift (157+ vs 172); em-dashes in `AGENTS.md:73-78` | — |
-| D18 | TODO | README hides shipped work: Zed, ACI.dev, OpenRouter unlinked; no `integrations/README.md` index | `README.md:53-70` |
+| D8 | DONE (PR #140) | OpenAPI `version` stuck at 1.9.5 vs 1.9.6; `build-mcpb.mjs` sync array omitted `openapi.json`; test only checked it's a string | Bumped to 1.9.6; build:mcpb now syncs `info.version` textually; test asserts `info.version === package.json version` (drift fails CI) |
+| D9 | DONE (PR #140) | A2A skill IDs != MCP tool names for 6/7 tools; `a2a.ts` comment claimed they match | **Aligned** (Andrew's call): renamed the 6 skill ids to their MCP tool names on the main A2A surface (+ regenerated static cards, updated tests, fixed the comment) and on the openbb-agent mirror (advertising layer only; internal dispatch names unchanged). A capability now carries one name across MCP / REST / A2A. |
+| D10 | DONE (PR #140) | `AGENTS.md`/`README` undercount resources & prompts to "six", omit the equity-funding pair; README resource table (6) vs prompt table (7) | Corrected to seven + added the equity-funding resource row |
+| D11 | DONE (PR #140) | OpenAPI `EquityFunding` tag referenced but undeclared | Tag declared |
+| D12 | DONE (PR #140) | Version reporting inconsistent; MCP `GET /mcp` descriptor has no `version` | Added `version: SERVER_VERSION` to the MCP GET descriptor and `serverVersion` to `/api/v1` |
+| D13 | DONE (PR #140) | `protective_put_price` output `inputs`-echo schema omits `spreadRiskLevel` | Added to the echo schema |
+| D14 | DONE (PR #140) | `concentration_analyze` silently accepts undocumented `volatilityDrag` input | Documented it in the input schema (alternative to `volatility`) |
+| D15 | DONE (PR #140) | `equity_funding_plan` uses the no-ticker strict note despite per-stack ticker growth resolution | Added a ticker-shortcut sentence to its description |
+| D16 | DONE (PR #140) | REST returns compute failures as 400 (indistinguishable from validation 400) | Post-parse compute throws now return 500 |
+| D17 | DONE (PR #140) | Stale hygiene: `mcp.ts` "six tools" header; test-count drift; em-dashes in `AGENTS.md` | Counts de-brittled, em-dashes removed |
+| D18 | DONE (PR #140) | README hides shipped work: Zed, ACI.dev, OpenRouter unlinked; no `integrations/README.md` index | Added the three links + a new `integrations/README.md` index |
 
 ## P3 — First-call-success opportunities (high leverage, mostly small)
 

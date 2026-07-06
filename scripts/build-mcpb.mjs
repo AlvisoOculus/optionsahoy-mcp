@@ -15,6 +15,19 @@ for (const path of ['mcpb/manifest.json', 'gemini-extension.json', 'server.json'
   }
 }
 
+// OpenAPI carries its version under info.version and is hand-formatted, so
+// patch just that field textually rather than re-serializing the whole doc.
+// (A test asserts info.version === package.json version, so drift fails CI.)
+{
+  const path = 'public/openapi.json';
+  const text = readFileSync(path, 'utf8');
+  const patched = text.replace(/("version":\s*")[^"]+(")/, `$1${pkg.version}$2`);
+  if (patched !== text) {
+    writeFileSync(path, patched);
+    console.log(`${path} info.version synced to ${pkg.version}`);
+  }
+}
+
 mkdirSync('mcpb/server', { recursive: true });
 copyFileSync('dist/stdio-server.js', 'mcpb/server/index.js');
 

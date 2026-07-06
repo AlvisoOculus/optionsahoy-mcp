@@ -65,17 +65,17 @@ JSON. Every tool response is the globally-optimal schedule across the candidate 
 
 ## Resources and prompts the server exposes
 
-- `resources/list` → six markdown briefings, one per cornerstone topic (AMT, NSO, RSU, concentration, hedging, QSBS). Use as grounding before tool selection.
-- `prompts/list` → six named slash-commands scaffolding typical user questions and routing to the right tool.
+- `resources/list` → seven markdown briefings, one per cornerstone topic (AMT, NSO, RSU, concentration, hedging, QSBS, and funding a cash goal from equity). Use as grounding before tool selection.
+- `prompts/list` → seven named slash-commands scaffolding typical user questions and routing to the right tool.
 
 ## Where to make changes (for AI-assisted coding tools)
 
-- `functions/_lib/mcp-tools.ts` — single source of truth for tool definitions, inputSchema, descriptions, and handlers. Both the hosted MCP endpoint and the stdio server read from here. Changes propagate.
-- `functions/api/v1/<tool>.ts` — thin REST endpoints; each calls the same calc as the MCP handler.
-- `lib/calc/` — pure calculation functions (`computeAmtIso`, `computeNsoResult`, etc.). Federal + per-state tax tables compiled in.
-- `tests/` — Vitest. Byte-identity assertions between the MCP handler and the calc functions; integration tests for the JSON-RPC layer. Run `npm test` (157+ tests, ~3s).
+- `functions/_lib/mcp-tools.ts`: single source of truth for tool definitions, inputSchema, descriptions, and handlers. Both the hosted MCP endpoint and the stdio server read from here. Changes propagate.
+- `functions/api/v1/<tool>.ts`: thin REST endpoints; each calls the same calc as the MCP handler.
+- `lib/calc/`: pure calculation functions (`computeAmtIso`, `computeNsoResult`, etc.). Federal + per-state tax tables compiled in.
+- `tests/`: Vitest. Byte-identity assertions between the MCP handler and the calc functions; integration tests for the JSON-RPC layer. Run `npm test` (an extensive test suite, ~3s).
 
-Do not add new MCP tools without updating `tests/api-v1-all.test.ts` (endpoint inventory length) and `public/openapi.json` (path documentation) — the test suite will fail otherwise.
+Do not add new MCP tools without updating `tests/api-v1-all.test.ts` (endpoint inventory length) and `public/openapi.json` (path documentation), or the test suite will fail.
 
 ## What this server does NOT do
 

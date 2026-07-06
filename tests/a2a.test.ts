@@ -27,14 +27,16 @@ function sendMessage(parts: unknown[], id: unknown = 1): Request {
   return rpcReq({ jsonrpc: '2.0', id, method: 'message/send', params: { message: { parts } } });
 }
 
+// A2A skill ids are aligned 1:1 with the MCP tool names so a capability can be
+// delegated across protocols under the same name.
 const EXPECTED_SKILL_IDS = [
-  'amt_iso',
-  'nso',
+  'amt_iso_optimize',
+  'nso_calculate',
   'rsu_sell_vs_hold',
-  'concentration',
-  'protective_put',
-  'qsbs',
-  'equity_funding',
+  'concentration_analyze',
+  'protective_put_price',
+  'qsbs_check',
+  'equity_funding_plan',
 ];
 
 const QSBS_INPUT = {
@@ -108,7 +110,7 @@ describe('A2A Agent Card', () => {
 describe('A2A message/send: deterministic dispatch', () => {
   it('runs the qsbs calculator from a structured data part, byte-identical to the REST calc', async () => {
     const res = await a2aHandler({
-      request: sendMessage([{ kind: 'data', data: { skill: 'qsbs', input: QSBS_INPUT } }]),
+      request: sendMessage([{ kind: 'data', data: { skill: 'qsbs_check', input: QSBS_INPUT } }]),
     });
     expect(res.status).toBe(200);
     const body = (await res.json()) as { id: number; result: { parts: Array<Record<string, unknown>> } };
@@ -122,7 +124,7 @@ describe('A2A message/send: deterministic dispatch', () => {
   it('runs the concentration calculator too', async () => {
     const res = await a2aHandler({
       request: sendMessage([
-        { kind: 'data', data: { skill: 'concentration', input: CONCENTRATION_INPUT } },
+        { kind: 'data', data: { skill: 'concentration_analyze', input: CONCENTRATION_INPUT } },
       ]),
     });
     const body = (await res.json()) as { result: { parts: Array<Record<string, unknown>> } };
@@ -137,7 +139,7 @@ describe('A2A message/send: deterministic dispatch', () => {
 
   it('returns a readable error message (not a JSON-RPC error) on invalid calculator input', async () => {
     const res = await a2aHandler({
-      request: sendMessage([{ kind: 'data', data: { skill: 'qsbs', input: { adjustedBasis: -1 } } }]),
+      request: sendMessage([{ kind: 'data', data: { skill: 'qsbs_check', input: { adjustedBasis: -1 } } }]),
     });
     const body = (await res.json()) as { result: { parts: Array<{ text?: string }> }; error?: unknown };
     expect(body.error).toBeUndefined();
@@ -153,19 +155,19 @@ describe('A2A message/send: deterministic dispatch', () => {
     const body = (await res.json()) as { result: { parts: Array<{ text?: string }> } };
     const text = body.result.parts[0].text ?? '';
     expect(text).toContain('Unknown or missing "skill"');
-    expect(text).toContain('amt_iso');
+    expect(text).toContain('amt_iso_optimize');
   });
 });
 
 describe('A2A free-text routing: no language model', () => {
   it('keyword-routes a QSBS question to the qsbs skill', () => {
     const matched = routeByKeyword('Do my shares qualify for the Section 1202 exclusion?');
-    expect(matched?.id).toBe('qsbs');
+    expect(matched?.id).toBe('qsbs_check');
   });
 
-  it('keyword-routes an ISO/AMT question to amt_iso', () => {
+  it('keyword-routes an ISO/AMT question to amt_iso_optimize', () => {
     const matched = routeByKeyword('When should I exercise my incentive stock options for AMT?');
-    expect(matched?.id).toBe('amt_iso');
+    expect(matched?.id).toBe('amt_iso_optimize');
   });
 
   it('points a matched free-text message at the skill and its schema', async () => {
@@ -237,8 +239,8 @@ describe('A2A JSON-RPC and CORS', () => {
 
 describe('A2A handleMessage helper', () => {
   it('reports the skill that ran for telemetry', () => {
-    const ran = handleMessage([{ kind: 'data', data: { skill: 'qsbs', input: QSBS_INPUT } }]);
-    expect(ran.skill).toBe('qsbs');
+    const ran = handleMessage([{ kind: 'data', data: { skill: 'qsbs_check', input: QSBS_INPUT } }]);
+    expect(ran.skill).toBe('qsbs_check');
     const unmatched = handleMessage([{ kind: 'text', text: 'hello' }]);
     expect(unmatched.skill).toBeNull();
   });

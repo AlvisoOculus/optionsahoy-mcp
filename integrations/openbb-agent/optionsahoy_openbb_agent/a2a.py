@@ -7,7 +7,9 @@ Card and delegate equity-compensation questions to it. Targets a2a-sdk 0.3.x
 (Agent Card protocol version "0.3.0", served at /.well-known/agent-card.json).
 
 The Agent Card is the discovery primitive: a calling agent fetches it, reads the
-seven skills, and routes a question here. The executor reuses the OpenBB agent's
+seven skills, and routes a question here. Each skill id is the OptionsAhoy tool
+name that MCP ``tools/list`` publishes, so a capability found over MCP can be
+delegated over A2A under the same name. The executor reuses the OpenBB agent's
 tool layer (the same OptionsAhoy client and ``call_tool``), and its language-model
 router is injectable, so the card and the routing can be tested without an API key.
 """
@@ -40,10 +42,25 @@ AGENT_DESCRIPTION = (
 # Default endpoint advertised in the card. Override with A2A_AGENT_URL once deployed.
 DEFAULT_AGENT_URL = os.environ.get("A2A_AGENT_URL", "https://optionsahoy.com/a2a")
 
-# Human-readable skill name + discovery tags + one example per calculator. The
-# skill id is the tool name, so a calling agent's routing lines up with call_tool.
+# Map each OpenBB tool-registry name (the ``OptionsAhoyClient`` method that
+# ``call_tool`` invokes) to its canonical OptionsAhoy tool name. The canonical
+# name is what MCP ``tools/list`` publishes and what this agent advertises as the
+# A2A skill id, so a capability discovered over MCP can be delegated over A2A
+# under the same name.
+_SKILL_ID_BY_TOOL: Dict[str, str] = {
+    "amt_iso": "amt_iso_optimize",
+    "nso": "nso_calculate",
+    "rsu_sell_vs_hold": "rsu_sell_vs_hold",
+    "concentration": "concentration_analyze",
+    "protective_put": "protective_put_price",
+    "qsbs": "qsbs_check",
+    "equity_funding": "equity_funding_plan",
+}
+
+# Human-readable skill name + discovery tags + one example per calculator, keyed
+# by the A2A skill id (the OptionsAhoy/MCP tool name).
 _SKILL_META: Dict[str, Dict[str, Any]] = {
-    "amt_iso": {
+    "amt_iso_optimize": {
         "name": "ISO exercise and AMT optimizer",
         "tags": ["iso", "amt", "exercise-timing", "equity-compensation", "tax"],
         "examples": [
@@ -51,7 +68,7 @@ _SKILL_META: Dict[str, Dict[str, Any]] = {
             "exercise over 4 years to minimize alternative minimum tax?"
         ],
     },
-    "nso": {
+    "nso_calculate": {
         "name": "NSO exercise tax",
         "tags": ["nso", "non-qualified-stock-options", "tax"],
         "examples": [
@@ -67,7 +84,7 @@ _SKILL_META: Dict[str, Dict[str, Any]] = {
             "long-term capital gains?"
         ],
     },
-    "concentration": {
+    "concentration_analyze": {
         "name": "Single-stock concentration analysis",
         "tags": ["concentration", "single-stock-risk", "hedging"],
         "examples": [
@@ -75,7 +92,7 @@ _SKILL_META: Dict[str, Dict[str, Any]] = {
             "should I sell down?"
         ],
     },
-    "protective_put": {
+    "protective_put_price": {
         "name": "Protective put, collar, and put spread pricing",
         "tags": [
             "hedging",
@@ -89,7 +106,7 @@ _SKILL_META: Dict[str, Dict[str, Any]] = {
             "10,000 shares cost?"
         ],
     },
-    "qsbs": {
+    "qsbs_check": {
         "name": "QSBS Section 1202 check",
         "tags": ["qsbs", "section-1202", "tax-exclusion"],
         "examples": [
@@ -97,7 +114,7 @@ _SKILL_META: Dict[str, Dict[str, Any]] = {
             "stock exclusion?"
         ],
     },
-    "equity_funding": {
+    "equity_funding_plan": {
         "name": "Fund a cash goal from equity",
         "tags": ["equity-funding", "liquidity", "planning"],
         "examples": [
@@ -109,13 +126,14 @@ _SKILL_META: Dict[str, Dict[str, Any]] = {
 
 
 def build_skills() -> List[AgentSkill]:
-    """One AgentSkill per OptionsAhoy calculator, ids aligned with ``call_tool``."""
+    """One AgentSkill per OptionsAhoy calculator, ids = the OptionsAhoy tool names."""
     skills: List[AgentSkill] = []
     for tool in TOOLS:
-        meta = _SKILL_META[tool["name"]]
+        skill_id = _SKILL_ID_BY_TOOL[tool["name"]]
+        meta = _SKILL_META[skill_id]
         skills.append(
             AgentSkill(
-                id=tool["name"],
+                id=skill_id,
                 name=meta["name"],
                 description=tool["description"],
                 tags=meta["tags"],

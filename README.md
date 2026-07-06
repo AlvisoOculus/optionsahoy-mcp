@@ -68,6 +68,9 @@ However your agent is built, there is a drop-in piece. All are public and keyles
 | [Builder templates](integrations/agent-builder-templates) | An importable n8n workflow plus build recipes for Flowise, Langflow, and Dify. |
 | [Tool-use eval](integrations/eval) | An inspect_ai evaluation measuring whether an agent reaches the provable optimum on a multi-year ISO problem, with and without the tool. |
 | [A2A discovery](integrations/openbb-agent) | An Agent2Agent (A2A) Agent Card so other agents can discover and delegate equity-compensation questions to the planner. |
+| [Zed extension](integrations/zed) | A Zed editor context-server extension that connects the editor's agent to the OptionsAhoy MCP server. |
+| [ACI.dev app](integrations/aci) | The OptionsAhoy app definition for the ACI.dev open-source agent-tool platform. |
+| [OpenRouter bridge](integrations/openrouter-bridge) | A recipe for attaching the keyless OptionsAhoy MCP server to any model routed through OpenRouter's OpenAI-compatible endpoint. |
 
 ## Try it without installing
 
@@ -91,7 +94,7 @@ Or watch a real session:
 
 ## MCP resources (topical briefings)
 
-Six markdown resources under `resources/list` give an LLM enough grounding to discuss the topic before picking a tool. Each maps 1:1 with a cornerstone article on [optionsahoy.com/learn](https://optionsahoy.com/learn) and the matching calculator.
+Seven markdown resources under `resources/list` give an LLM enough grounding to discuss the topic before picking a tool. Most map 1:1 with a cornerstone article on [optionsahoy.com/learn](https://optionsahoy.com/learn) and the matching calculator; the equity-funding briefing maps to its calculator.
 
 | Resource URI | Topic | Pair with |
 |---|---|---|
@@ -101,6 +104,7 @@ Six markdown resources under `resources/list` give an LLM enough grounding to di
 | `https://optionsahoy.com/learn/single-stock-concentration-risk` | Concentration risk and diversification trade-off | `concentration_analyze` |
 | `https://optionsahoy.com/learn/zero-cost-collars` | Protective puts, zero-cost collars, and put spreads | `protective_put_price` |
 | `https://optionsahoy.com/learn/qsbs` | QSBS qualification and five ways to lose the exclusion | `qsbs_check` |
+| `https://optionsahoy.com/tools/equity-funding` | Selling equity to fund a cash goal by a deadline | `equity_funding_plan` |
 
 ## MCP prompts (workflow scaffolds)
 
@@ -195,14 +199,14 @@ lib/               Optimizer + tax-code logic
   options/         Black-Scholes, risk-free rates
   data/            Type definitions for option-chain data
 public/            Static assets: OpenAPI spec, llms.txt, discovery manifests
-tests/             Vitest suites (172 tests including byte-identity assertions)
+tests/             Vitest suites (an extensive test suite including byte-identity assertions)
 ```
 
 ## Run tests
 
 ```bash
 npm install
-npm test         # 172 tests, ~3s on a laptop
+npm test         # an extensive test suite, ~3s on a laptop
 npm run typecheck
 ```
 
