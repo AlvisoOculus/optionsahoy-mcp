@@ -13,6 +13,10 @@ API docs: https://optionsahoy.com/for-agents
 Verified math: https://optionsahoy.com/verification
 """
 
+# Defer annotation evaluation so the `list | None` hint below parses on
+# Python 3.9 (PEP 604 unions are only evaluated eagerly from 3.10 on).
+from __future__ import annotations
+
 import json
 
 import requests
