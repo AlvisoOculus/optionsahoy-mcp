@@ -11,6 +11,9 @@ Drop-in ways to reach the OptionsAhoy equity-compensation calculators from whate
 | Arcade toolkit | An Arcade toolkit exposing one `@tool` function per endpoint via the Arcade Tool Development Kit. | [`python/arcade-optionsahoy`](python/arcade-optionsahoy) |
 | LlamaIndex tools | An `OptionsAhoyToolSpec` exposing one tool per endpoint for LlamaIndex agents. | [`python/llama-index-tools-optionsahoy`](python/llama-index-tools-optionsahoy) |
 | LangChain tools | One `StructuredTool` per endpoint via `get_optionsahoy_tools`. | [`python/optionsahoy-langchain`](python/optionsahoy-langchain) |
+| OpenAI Agents SDK tools | One `agents.FunctionTool` per endpoint via `get_optionsahoy_tools`, for `Agent(tools=...)`. | [`python/optionsahoy-openai-agents`](python/optionsahoy-openai-agents) |
+| Pydantic AI tools | One `pydantic_ai.Tool` per endpoint via `get_optionsahoy_tools`, plus a toolset and an `Agent` registration helper. | [`python/optionsahoy-pydantic-ai`](python/optionsahoy-pydantic-ai) |
+| Vercel AI SDK tools | A TypeScript package exposing one AI SDK `tool()` per endpoint via `createOptionsAhoyTools`, for JavaScript and TypeScript agents. | [`js/optionsahoy-ai-sdk`](js/optionsahoy-ai-sdk) |
 | ACI.dev app | The OptionsAhoy app definition for the ACI.dev open-source agent-tool platform. | [`aci`](aci) |
 | OpenBB Workspace agent | A FastAPI application implementing the OpenBB agent protocol, so OptionsAhoy answers planning questions inside OpenBB Workspace. Also serves the Agent2Agent (A2A) Agent Card for discovery. | [`openbb-agent`](openbb-agent) |
 | Agent instruction kits | Editor rules and skills for Cursor, Windsurf, Claude Skills, and Claude Code subagents, so a coding agent calls the OptionsAhoy tools. | [`agent-kits`](agent-kits) |

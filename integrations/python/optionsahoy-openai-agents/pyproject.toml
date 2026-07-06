@@ -1,0 +1,55 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "optionsahoy-openai-agents"
+version = "0.1.0"
+description = "OpenAI Agents SDK tools for the OptionsAhoy equity-compensation calculators."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "AlphaLatitude Inc." }]
+keywords = ["openai-agents", "agents", "tools", "equity-compensation", "iso", "amt", "nso", "rsu", "qsbs"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Financial and Insurance Industry",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Office/Business :: Financial",
+    "Typing :: Typed",
+]
+dependencies = [
+    "optionsahoy>=0.1.0",
+    "openai-agents>=0.1",
+    "pydantic>=2",
+]
+
+[project.urls]
+Homepage = "https://optionsahoy.com"
+Repository = "https://github.com/AlvisoOculus/optionsahoy-mcp"
+Documentation = "https://optionsahoy.com/for-agents"
+"Issue Tracker" = "https://github.com/AlvisoOculus/optionsahoy-mcp/issues"
+Changelog = "https://github.com/AlvisoOculus/optionsahoy-mcp/blob/main/integrations/python/optionsahoy-openai-agents/CHANGELOG.md"
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "ruff>=0.5"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["optionsahoy_openai_agents"]
+
+[tool.ruff]
+line-length = 100
+
+# Published metadata depends on `optionsahoy` by version (see [project] dependencies).
+# For local development, install the sibling package editable first so the version
+# dependency resolves to your working tree instead of PyPI:
+#   pip install -e integrations/python/optionsahoy
+#   pip install -e integrations/python/optionsahoy-openai-agents

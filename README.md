@@ -63,6 +63,7 @@ However your agent is built, there is a drop-in piece. All are public and keyles
 
 | Building block | What it is |
 |---|---|
+| [Vercel AI SDK tools](integrations/js/optionsahoy-ai-sdk) | A TypeScript package (`optionsahoy-ai-sdk`) exposing all seven calculators as Vercel AI SDK `tool()` definitions, ready to spread into `generateText` / `streamText`. |
 | [Instruction kits](integrations/agent-kits) | Editor rules and skills for Cursor, Windsurf, Claude Skills, and Claude Code subagents, so your coding agent calls the OptionsAhoy tools for equity-compensation questions. |
 | [Coding recipes](https://github.com/AlvisoOculus/equity-comp-tax-python) | Copy-paste Python recipes, one self-contained file per question, calling the keyless API with only `requests`. Also in [`integrations/recipes`](integrations/recipes). |
 | [Builder templates](integrations/agent-builder-templates) | An importable n8n workflow plus build recipes for Flowise, Langflow, and Dify. |

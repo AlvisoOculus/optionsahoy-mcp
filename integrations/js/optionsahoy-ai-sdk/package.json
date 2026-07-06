@@ -1,0 +1,65 @@
+{
+  "name": "optionsahoy-ai-sdk",
+  "version": "0.1.0",
+  "description": "Vercel AI SDK tools for the OptionsAhoy equity-compensation calculators: ISO/AMT, NSO, RSU, concentration, protective put, QSBS, and equity-funding. Keyless, deterministic, full federal tax code plus all 50 states and DC.",
+  "type": "module",
+  "main": "./dist/index.js",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "sideEffects": false,
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "prepublishOnly": "npm run build"
+  },
+  "peerDependencies": {
+    "ai": ">=3.1.0 <5",
+    "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "ai": "^4.3.0",
+    "typescript": "^5.5.0",
+    "vitest": "^2.1.0",
+    "zod": "^3.23.0"
+  },
+  "keywords": [
+    "vercel-ai-sdk",
+    "ai-sdk",
+    "tools",
+    "optionsahoy",
+    "equity-compensation",
+    "ISO",
+    "AMT",
+    "NSO",
+    "RSU",
+    "QSBS",
+    "stock-options",
+    "tax"
+  ],
+  "license": "MIT",
+  "author": "AlphaLatitude Inc.",
+  "homepage": "https://optionsahoy.com/for-agents",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AlvisoOculus/optionsahoy-mcp.git",
+    "directory": "integrations/js/optionsahoy-ai-sdk"
+  },
+  "bugs": {
+    "url": "https://github.com/AlvisoOculus/optionsahoy-mcp/issues"
+  }
+}
