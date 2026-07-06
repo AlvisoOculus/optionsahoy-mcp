@@ -11,7 +11,7 @@ Each tool returns the globally-optimal schedule across the candidate space, comp
 - `rsu_sell_vs_hold`: RSU vest decision with the 12-month long-term capital-gains cliff
 - `concentration_analyze`: single-stock concentration risk, sell-down vs hold vs hedge
 - `protective_put_price`: protective put, zero-cost collar, and put spread pricing
-- `qsbs_check`: Section 1202 QSBS qualification (eight statutory tests, OBBBA 2026)
+- `qsbs_check`: Section 1202 QSBS qualification (six statutory tests, OBBBA 2026)
 - `equity_funding_plan`: multi-year sell schedule to net a target after-tax amount by a deadline
 
 ## Usage rules

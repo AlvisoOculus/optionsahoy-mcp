@@ -14,6 +14,7 @@ import { computeRsuResult } from '../../lib/calc/rsu';
 import { calculate as computeConcentration } from '../../lib/calc/concentration';
 import { calculateProtectivePut } from '../../lib/calc/protectivePut';
 import { evaluateQsbs } from '../../lib/calc/qsbs';
+import { STATE_CODES } from '../../lib/tax/state-tax';
 import { computeEquityFundingComparison } from '../../lib/calc/equityFunding';
 
 import { FILING_STATUSES } from './api';
@@ -56,7 +57,11 @@ const CALC_HINTS = {
 
 // Shared inputSchema fragments.
 const FILING_SCHEMA = { type: 'string', enum: [...FILING_STATUSES] };
-const STATE_SCHEMA = { type: 'string', pattern: '^[A-Z]{2}$' };
+// Enumerate the 50 states + DC the tax engine actually models, so an agent
+// that mis-resolves or mistypes a code (e.g. "PR", "UK", or a transposed
+// "AC") is rejected at the schema instead of silently receiving a $0
+// state-tax result. Sourced from the tax tables so it can never drift.
+const STATE_SCHEMA = { type: 'string', enum: STATE_CODES };
 const SECTOR_SCHEMA = {
   type: 'string',
   enum: [
@@ -81,7 +86,7 @@ const ISO_DATE = { type: 'string', format: 'date' };
 const TICKER_SCHEMA = {
   type: 'string',
   description:
-    'Optional public-stock symbol (e.g. "NVDA", "AAPL"). When set, the tool substitutes a cached trailing return for any unsupplied expected-return / sale-price field AND a cached implied vol for any unsupplied volatility, instead of requiring the caller to invent either. Most large-cap public symbols are covered; unknown tickers fall through to "required field" errors so the model knows to ask the user.',
+    'Optional public-stock symbol (e.g. "NVDA", "AAPL"). When set, the tool substitutes a cached trailing return for any unsupplied expected-return / sale-price field, and a cached implied vol for any unsupplied volatility. About 90 large-cap symbols resolve a return; a slightly smaller set (~85) also resolves volatility. A symbol not in a given table falls through to a "required field" error for exactly the field it could not resolve, so pass that field explicitly (or use a fully covered symbol) rather than inventing it.',
 };
 
 // Appended to every tool description so the model picks it up at
@@ -96,7 +101,7 @@ const MULTI_TOOL_BETA_NOTE =
 // invoking model how to handle required fields whose only honest sources are
 // the user message or a recognized ticker — never the model itself.
 const STRICT_INPUT_NOTE =
-  ' IMPORTANT: every field listed in `required` must come from the user\'s message OR be derivable from an optional `ticker`. The model invoking this tool MUST NOT invent a value for any required field. If the user did not supply it and no ticker resolves it, ask the user.' +
+  ' IMPORTANT: the model invoking this tool MUST NOT invent any input value. Beyond the fields listed in `required`, this tool is CONDITIONALLY strict: it also needs the stock\'s expected growth/return AND its volatility, which are not in `required` only because they can be resolved two ways - supply both explicitly, OR set `ticker` to a covered public-stock symbol that resolves both. If a needed value is missing and no ticker resolves it, ask the user; do not guess.' +
   MULTI_TOOL_BETA_NOTE;
 
 // Same idea for tools without ticker-derivable shortcuts (qsbs_check,
@@ -699,7 +704,7 @@ const QSBS_OUTPUT_SCHEMA: JsonSchema = {
     verdict: {
       type: 'string',
       enum: ['qualifies', 'partial', 'too-soon', 'caveats', 'disqualified'],
-      description: 'Overall verdict. "partial"/"caveats" mean some tests came back unsure; "too-soon" means the holding period has not reached an exclusion tier yet.',
+      description: 'Overall verdict. "partial" = qualifies but at a sub-100% exclusion tier (e.g. an OBBBA 3- or 4-year hold gives 50% or 75%). "caveats" = qualifies, but one or more tests returned "unsure" (pass conditional on facts the caller marked unknown). "too-soon" = the holding period has not reached any exclusion tier yet.',
     },
     exclusionPercent: {
       type: 'number',

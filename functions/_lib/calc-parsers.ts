@@ -19,6 +19,7 @@ import type {
 } from '../../lib/calc/equityFunding';
 
 import { asObject, p, FILING_STATUSES, type Obj } from './api';
+import { STATE_CODES } from '../../lib/tax/state-tax';
 import { getTrailingReturn } from '../../lib/data/trailing-returns';
 import { getTrailingVol } from '../../lib/data/trailing-vols';
 import { SECTOR_STATS, type SectorKey } from '../../lib/markets/sector-stats';
@@ -146,7 +147,7 @@ export function parseAmtIsoInput(raw: unknown): AmtIsoInput {
     volatilityDrag: resolveDragFromVolatility(o, 'volatilityDrag', horizon),
     filingStatus: p.enum(o, 'filingStatus', FILING_STATUSES),
     ordinaryIncome: p.num(o, 'ordinaryIncome', { min: 0 }),
-    stateCode: p.str(o, 'stateCode'),
+    stateCode: p.enum(o, 'stateCode', STATE_CODES),
     carryforwardCredit: p.num(o, 'carryforwardCredit', { min: 0 }),
     horizon,
     cashReturnRate: p.num(o, 'cashReturnRate'),
@@ -166,7 +167,7 @@ export function parseNsoInput(raw: unknown): NsoInput {
     currentPrice,
     ordinaryIncome: p.num(o, 'ordinaryIncome', { min: 0 }),
     filingStatus: p.enum(o, 'filingStatus', FILING_STATUSES),
-    stateCode: p.str(o, 'stateCode'),
+    stateCode: p.enum(o, 'stateCode', STATE_CODES),
     stillEmployed: p.bool(o, 'stillEmployed'),
     holdYears,
     expectedSalePrice: resolveExpectedSalePrice(o, currentPrice, holdYears),
@@ -185,7 +186,7 @@ export function parseRsuInput(raw: unknown): RsuInput {
     currentPrice,
     ordinaryIncome: p.num(o, 'ordinaryIncome', { min: 0 }),
     filingStatus: p.enum(o, 'filingStatus', FILING_STATUSES),
-    stateCode: p.str(o, 'stateCode'),
+    stateCode: p.enum(o, 'stateCode', STATE_CODES),
     stillEmployed: p.bool(o, 'stillEmployed'),
     holdYears,
     expectedSalePrice: resolveExpectedSalePrice(o, currentPrice, holdYears),
@@ -201,7 +202,7 @@ export function parseConcentrationInput(raw: unknown): ConcentrationInputs {
     costBasis: p.num(o, 'costBasis', { min: 0 }),
     acquisitionDate: p.date(o, 'acquisitionDate'),
     sector: p.enum(o, 'sector', SECTORS),
-    stateCode: p.str(o, 'stateCode'),
+    stateCode: p.enum(o, 'stateCode', STATE_CODES),
     filingStatus: p.enum(o, 'filingStatus', FILING_STATUSES),
     ordinaryIncome: p.num(o, 'ordinaryIncome', { min: 0 }),
     totalAssets: p.num(o, 'totalAssets', { min: 0 }),
@@ -338,7 +339,7 @@ export function parseEquityFundingInput(raw: unknown, trustedToday?: Date): Equi
     today,
     ordinaryIncome: p.num(o, 'ordinaryIncome', { min: 0 }),
     filingStatus: p.enum(o, 'filingStatus', FILING_STATUSES),
-    stateCode: p.str(o, 'stateCode'),
+    stateCode: p.enum(o, 'stateCode', STATE_CODES),
   };
   if (o.cashInterestRate !== undefined) base.cashInterestRate = p.num(o, 'cashInterestRate');
   if (o.riskToleranceShortfall !== undefined) {
@@ -384,7 +385,7 @@ export function parseQsbsInput(raw: unknown): QsbsInputs {
     activeBusiness: p.enum(o, 'activeBusiness', QSBS_ACTIVE_BUSINESS),
     adjustedBasis: p.num(o, 'adjustedBasis', { min: 0 }),
     expectedGain: p.num(o, 'expectedGain'),
-    stateCode: p.str(o, 'stateCode'),
+    stateCode: p.enum(o, 'stateCode', STATE_CODES),
     ordinaryIncome: p.num(o, 'ordinaryIncome', { min: 0 }),
     filingStatus: p.enum(o, 'filingStatus', FILING_STATUSES),
   };
