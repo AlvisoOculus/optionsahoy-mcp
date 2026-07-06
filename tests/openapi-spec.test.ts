@@ -15,6 +15,9 @@ import path from 'node:path';
 
 const SPEC_PATH = path.resolve(__dirname, '../public/openapi.json');
 const FUNCTIONS_DIR = path.resolve(__dirname, '../functions/api/v1');
+const PKG_VERSION = JSON.parse(
+  fs.readFileSync(path.resolve(__dirname, '../package.json'), 'utf8'),
+).version as string;
 
 type Spec = {
   openapi: string;
@@ -57,7 +60,9 @@ describe('OpenAPI spec at /openapi.json', () => {
   it('has info.title, info.version, and a production server', () => {
     const spec = loadSpec();
     expect(spec.info.title).toMatch(/OptionsAhoy/);
-    expect(spec.info.version).toBeTypeOf('string');
+    // Must track package.json so the spec can't silently drift behind a
+    // version bump (build:mcpb syncs it; this asserts it).
+    expect(spec.info.version).toBe(PKG_VERSION);
     expect(spec.servers.some((s) => s.url === 'https://optionsahoy.com')).toBe(true);
   });
 

@@ -2,11 +2,12 @@
 //
 // POST /mcp — Model Context Protocol server (HTTP transport).
 //
-// Implements the minimum MCP surface that lets a client connect, list our
-// six calculator tools, and call them: `initialize`, `notifications/
-// initialized`, `tools/list`, `tools/call`. Other methods reply with
-// JSON-RPC error -32601 (method not found). No SSE streaming — every
-// request gets a single JSON-RPC response.
+// Implements the MCP surface that lets a client connect, list our seven
+// calculator tools (plus resources and prompts), and call them: `initialize`,
+// `notifications/initialized`, `tools/list`, `tools/call`, `resources/list`,
+// `resources/read`, `prompts/list`, `prompts/get`. Other methods reply with
+// JSON-RPC error -32601 (method not found). No SSE streaming: every request
+// gets a single JSON-RPC response.
 //
 // Add the server to an MCP client by configuring a remote-HTTP MCP
 // connection to https://optionsahoy.com/mcp. No auth.
@@ -44,6 +45,7 @@ const PROMPTS_LIST = PROMPTS.map((p) => ({
 }));
 const GET_DESCRIPTOR = {
   name: 'OptionsAhoy MCP Server',
+  version: SERVER_VERSION,
   protocolVersion: PROTOCOL_VERSION,
   transport: 'http' as const,
   tools: TOOLS.map((t) => t.name),

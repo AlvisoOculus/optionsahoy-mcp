@@ -41,9 +41,10 @@ export const AGENT_URL = 'https://optionsahoy.com/a2a';
 export const PROTOCOL_VERSION = '0.3.0';
 export const AGENT_VERSION = '0.1.0';
 
-// One skill per calculator. `id` is the calculator's tool name (and the
-// `skill` value an A2A caller sends); `rest` is the equivalent REST path so
-// a caller can read the full input schema; `keywords` drive the no-model
+// One skill per calculator. `id` is the A2A skill name the caller sends in a
+// message `skill` field - a short form (e.g. `amt_iso`) that is NOT identical
+// to the MCP tool name (`amt_iso_optimize`); `rest` is the equivalent REST
+// path so a caller can read the full input schema; `keywords` drive the no-model
 // free-text router; `run` parses then computes, reusing the REST pairs.
 export interface Skill {
   id: string;

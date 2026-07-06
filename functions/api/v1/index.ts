@@ -7,6 +7,7 @@
 // fetching the full OpenAPI spec. Cheap, public, no body required.
 
 import type { PagesFunction } from '../../_lib/api';
+import { SERVER_VERSION } from '../../_lib/version';
 
 const CORS_HEADERS: Record<string, string> = {
   'access-control-allow-origin': '*',
@@ -78,6 +79,7 @@ export const onRequest: PagesFunction = ({ request }) => {
       {
         name: 'OptionsAhoy Calculator API',
         version: 'v1',
+        serverVersion: SERVER_VERSION,
         documentation: 'https://optionsahoy.com/for-agents',
         openapi: 'https://optionsahoy.com/openapi.json',
         mcp: 'https://optionsahoy.com/mcp',

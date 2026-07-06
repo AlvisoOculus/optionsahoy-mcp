@@ -569,7 +569,7 @@ const PROTECTIVE_PUT_OUTPUT_SCHEMA: JsonSchema = {
   properties: {
     inputs: {
       type: 'object',
-      description: 'Echo of the resolved inputs actually priced: positionValue, sector, volatility (the sigma used after ticker/sector resolution), protectionLevel, tenorYears, plus expectedReturn and tickerLabel when supplied.',
+      description: 'Echo of the resolved inputs actually priced: positionValue, sector, volatility (the sigma used after ticker/sector resolution), protectionLevel, tenorYears, plus expectedReturn, spreadRiskLevel, and tickerLabel when supplied.',
       properties: {
         positionValue: num('Position value priced, in dollars.'),
         sector: str('Sector tag used for defaults.'),
@@ -577,6 +577,7 @@ const PROTECTIVE_PUT_OUTPUT_SCHEMA: JsonSchema = {
         protectionLevel: num('Protection level as a fraction below spot (0.10 = 10% OTM put).'),
         tenorYears: num('Option tenor in years.'),
         expectedReturn: num('Caller-supplied annual expected return used for probability metrics. Omitted when not supplied.'),
+        spreadRiskLevel: num('Put spread floor breach risk echoed from the request (snapped to a supported preset). Omitted when not supplied.'),
         tickerLabel: str('Display label echoed from the request (ticker or tickerLabel). Omitted when not supplied.'),
       },
       required: ['positionValue', 'sector', 'volatility', 'protectionLevel', 'tenorYears'],
@@ -1185,6 +1186,13 @@ export const TOOLS: McpTool[] = [
           description:
             'Annualized volatility (sigma) of the stock as a decimal (0.72 = 72%). Pass the user-supplied volatility directly; the tool uses it both for hedge pricing (as implied vol) and for the 3y horizon drag, computed internally. The model MUST NOT compute drag itself; the correct formula is horizon-dependent and most models get it wrong. If the user does not supply a volatility number AND no `ticker` resolves it from the cached implied-vol table, ASK them; only as a last fallback does hedge pricing fall back to a sector-typical implied volatility.',
         },
+        volatilityDrag: {
+          type: 'number',
+          minimum: 0,
+          maximum: 0.99,
+          description:
+            'Alternative to `volatility`: the multiplicative price haircut already computed for the horizon. Supply this OR `volatility` (if both are given, volatilityDrag wins). Most callers should pass `volatility` and let the tool compute the drag; only pass this if you already have a horizon drag figure. The model MUST NOT compute it itself.',
+        },
         hedgeChoice: {
           type: 'object',
           required: ['kind', 'protectionLevel', 'tenorYears'],
@@ -1375,7 +1383,7 @@ export const TOOLS: McpTool[] = [
     name: 'equity_funding_plan',
     annotations: { title: 'Equity-Funding Plan Comparison', ...CALC_HINTS },
     description:
-      'Use this when someone asks which shares to sell and when to reach a cash goal by a deadline (down payment, tuition, a tax bill), or how to fund a goal from equity with the least tax. Multi-year, multi-stack equity-funding optimizer. Given a target after-tax amount and a deadline (down payment, tax bill, expansion check), returns four named plans on the risk/wealth frontier: `lockInNow` (sell today, zero price risk), `balanced` (bracket-aware spread across months), `holdForGrowth` (sell at the deadline, max upside), and `recommended` (the wealth-maximal plan whose lognormal shortfall is at or below `riskToleranceShortfall`, default 10%). Also returns `frontier`, the full hybrid sweep between Lock-in-now and Balanced. Each plan carries its `plan` schedule plus `wealthAtTarget`, `totalTax`, and `shortfallProbability`; see `outputSchema` for the full shape. Use this when an equity holder needs cash by a deadline; for the upstream tax math on RSU/NSO/ISO events that PRODUCED the holdings, call `rsu_sell_vs_hold` / `nso_calculate` / `amt_iso_optimize` first. Out of scope: FICA, AMT, QSBS routing (use `qsbs_check`). Pass multi-ticker holdings via `stacks`; single-stack legacy callers can use top-level `lots` + `currentPrice`. Example: {targetAfterTax: 400000, targetDate: "2028-06-01", stacks: [{ticker: "NVDA", currentPrice: 140, expectedAnnualGrowth: 0.15, volatility: 0.45, lots: [{shares: 4000, costBasisPerShare: 60, acquisitionDate: "2023-06-15"}]}], ordinaryIncome: 280000, filingStatus: "married_joint", stateCode: "CA", cashInterestRate: 0.04, riskToleranceShortfall: 0.10}.' + STRICT_INPUT_NOTE_NO_TICKER,
+      'Use this when someone asks which shares to sell and when to reach a cash goal by a deadline (down payment, tuition, a tax bill), or how to fund a goal from equity with the least tax. Multi-year, multi-stack equity-funding optimizer. Given a target after-tax amount and a deadline (down payment, tax bill, expansion check), returns four named plans on the risk/wealth frontier: `lockInNow` (sell today, zero price risk), `balanced` (bracket-aware spread across months), `holdForGrowth` (sell at the deadline, max upside), and `recommended` (the wealth-maximal plan whose lognormal shortfall is at or below `riskToleranceShortfall`, default 10%). Also returns `frontier`, the full hybrid sweep between Lock-in-now and Balanced. Each plan carries its `plan` schedule plus `wealthAtTarget`, `totalTax`, and `shortfallProbability`; see `outputSchema` for the full shape. Use this when an equity holder needs cash by a deadline; for the upstream tax math on RSU/NSO/ISO events that PRODUCED the holdings, call `rsu_sell_vs_hold` / `nso_calculate` / `amt_iso_optimize` first. Out of scope: FICA, AMT, QSBS routing (use `qsbs_check`). Pass multi-ticker holdings via `stacks`; single-stack legacy callers can use top-level `lots` + `currentPrice`. Example: {targetAfterTax: 400000, targetDate: "2028-06-01", stacks: [{ticker: "NVDA", currentPrice: 140, expectedAnnualGrowth: 0.15, volatility: 0.45, lots: [{shares: 4000, costBasisPerShare: 60, acquisitionDate: "2023-06-15"}]}], ordinaryIncome: 280000, filingStatus: "married_joint", stateCode: "CA", cashInterestRate: 0.04, riskToleranceShortfall: 0.10}. Ticker shortcut: within `stacks`, an entry\'s `ticker` resolves its `expectedAnnualGrowth` from the trailing-returns table when that field is omitted (a covered symbol like "NVDA" is enough; volatility still comes from the stack\'s `volatility` or `defaultVolatility`).' + STRICT_INPUT_NOTE_NO_TICKER,
     inputSchema: {
       type: 'object',
       required: ['targetAfterTax', 'targetDate', 'ordinaryIncome', 'filingStatus', 'stateCode'],
