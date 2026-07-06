@@ -24,7 +24,7 @@
   "iconUrl": "https://optionsahoy.com/icon.png",
   "skills": [
     {
-      "id": "amt_iso",
+      "id": "amt_iso_optimize",
       "name": "ISO exercise and AMT optimizer",
       "description": "Optimize a multi-year incentive stock option (ISO) exercise schedule under the alternative minimum tax (AMT).",
       "tags": [
@@ -39,7 +39,7 @@
       ]
     },
     {
-      "id": "nso",
+      "id": "nso_calculate",
       "name": "NSO exercise tax",
       "description": "Compute the tax and after-tax proceeds of exercising non-qualified stock options (NSOs) and holding versus selling.",
       "tags": [
@@ -65,7 +65,7 @@
       ]
     },
     {
-      "id": "concentration",
+      "id": "concentration_analyze",
       "name": "Single-stock concentration analysis",
       "description": "Analyze a concentrated single-stock position and the after-tax cost of diversifying it.",
       "tags": [
@@ -78,7 +78,7 @@
       ]
     },
     {
-      "id": "protective_put",
+      "id": "protective_put_price",
       "name": "Protective put, collar, and put spread pricing",
       "description": "Price a protective put, a zero-cost collar, and a put spread for a stock position at a given downside protection level and tenor.",
       "tags": [
@@ -93,7 +93,7 @@
       ]
     },
     {
-      "id": "qsbs",
+      "id": "qsbs_check",
       "name": "QSBS Section 1202 check",
       "description": "Check qualified small business stock (QSBS) eligibility and the resulting federal and state capital-gains exclusion.",
       "tags": [
@@ -106,7 +106,7 @@
       ]
     },
     {
-      "id": "equity_funding",
+      "id": "equity_funding_plan",
       "name": "Fund a cash goal from equity",
       "description": "Plan which equity lots to sell, and when, to fund a cash goal by a target date with the least after-tax cost.",
       "tags": [

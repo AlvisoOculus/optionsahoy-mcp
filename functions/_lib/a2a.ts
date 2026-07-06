@@ -41,11 +41,12 @@ export const AGENT_URL = 'https://optionsahoy.com/a2a';
 export const PROTOCOL_VERSION = '0.3.0';
 export const AGENT_VERSION = '0.1.0';
 
-// One skill per calculator. `id` is the A2A skill name the caller sends in a
-// message `skill` field - a short form (e.g. `amt_iso`) that is NOT identical
-// to the MCP tool name (`amt_iso_optimize`); `rest` is the equivalent REST
-// path so a caller can read the full input schema; `keywords` drive the no-model
-// free-text router; `run` parses then computes, reusing the REST pairs.
+// One skill per calculator. `id` matches the MCP tool name exactly (and is the
+// `skill` value an A2A caller sends), so a capability discovered via MCP
+// tools/list can be delegated over A2A under the same name; `rest` is the
+// equivalent REST path so a caller can read the full input schema; `keywords`
+// drive the no-model free-text router; `run` parses then computes, reusing the
+// REST pairs.
 export interface Skill {
   id: string;
   name: string;
@@ -59,7 +60,7 @@ export interface Skill {
 
 export const SKILLS: Skill[] = [
   {
-    id: 'amt_iso',
+    id: 'amt_iso_optimize',
     name: 'ISO exercise and AMT optimizer',
     description:
       'Optimize a multi-year incentive stock option (ISO) exercise schedule under the alternative minimum tax (AMT).',
@@ -78,7 +79,7 @@ export const SKILLS: Skill[] = [
     run: (input) => computeAmtIso(parseAmtIsoInput(input)),
   },
   {
-    id: 'nso',
+    id: 'nso_calculate',
     name: 'NSO exercise tax',
     description:
       'Compute the tax and after-tax proceeds of exercising non-qualified stock options (NSOs) and holding versus selling.',
@@ -104,7 +105,7 @@ export const SKILLS: Skill[] = [
     run: (input) => computeRsuResult(parseRsuInput(input)),
   },
   {
-    id: 'concentration',
+    id: 'concentration_analyze',
     name: 'Single-stock concentration analysis',
     description:
       'Analyze a concentrated single-stock position and the after-tax cost of diversifying it.',
@@ -117,7 +118,7 @@ export const SKILLS: Skill[] = [
     run: (input) => calculateConcentration(parseConcentrationInput(input)),
   },
   {
-    id: 'protective_put',
+    id: 'protective_put_price',
     name: 'Protective put, collar, and put spread pricing',
     description:
       'Price a protective put, a zero-cost collar, and a put spread for a stock position at a given downside protection level and tenor.',
@@ -128,7 +129,7 @@ export const SKILLS: Skill[] = [
     run: (input) => calculateProtectivePut(parseProtectivePutInput(input)),
   },
   {
-    id: 'qsbs',
+    id: 'qsbs_check',
     name: 'QSBS Section 1202 check',
     description:
       'Check qualified small business stock (QSBS) eligibility and the resulting federal and state capital-gains exclusion.',
@@ -139,7 +140,7 @@ export const SKILLS: Skill[] = [
     run: (input) => evaluateQsbs(parseQsbsInput(input)),
   },
   {
-    id: 'equity_funding',
+    id: 'equity_funding_plan',
     name: 'Fund a cash goal from equity',
     description:
       'Plan which equity lots to sell, and when, to fund a cash goal by a target date with the least after-tax cost.',

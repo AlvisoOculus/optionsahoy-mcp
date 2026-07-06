@@ -23,7 +23,7 @@ This is a living backlog. Status: `TODO` / `WIP` / `DONE` (PR #). Execute top-do
 | ID | Status | Finding | Evidence |
 |----|--------|---------|----------|
 | D8 | DONE (PR #140) | OpenAPI `version` stuck at 1.9.5 vs 1.9.6; `build-mcpb.mjs` sync array omitted `openapi.json`; test only checked it's a string | Bumped to 1.9.6; build:mcpb now syncs `info.version` textually; test asserts `info.version === package.json version` (drift fails CI) |
-| D9 | PARTIAL (PR #140) | A2A skill IDs != MCP tool names for 6/7 tools; `a2a.ts` comment claimed they match | Fixed the false comment. **Full id-rename deferred for a decision**: aligning skill ids to tool names is a breaking public-protocol change that cascades to the static card + tests + openbb-agent |
+| D9 | DONE (PR #140) | A2A skill IDs != MCP tool names for 6/7 tools; `a2a.ts` comment claimed they match | **Aligned** (Andrew's call): renamed the 6 skill ids to their MCP tool names on the main A2A surface (+ regenerated static cards, updated tests, fixed the comment) and on the openbb-agent mirror (advertising layer only; internal dispatch names unchanged). A capability now carries one name across MCP / REST / A2A. |
 | D10 | DONE (PR #140) | `AGENTS.md`/`README` undercount resources & prompts to "six", omit the equity-funding pair; README resource table (6) vs prompt table (7) | Corrected to seven + added the equity-funding resource row |
 | D11 | DONE (PR #140) | OpenAPI `EquityFunding` tag referenced but undeclared | Tag declared |
 | D12 | DONE (PR #140) | Version reporting inconsistent; MCP `GET /mcp` descriptor has no `version` | Added `version: SERVER_VERSION` to the MCP GET descriptor and `serverVersion` to `/api/v1` |
