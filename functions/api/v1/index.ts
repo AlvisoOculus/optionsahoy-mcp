@@ -42,7 +42,7 @@ const ENDPOINTS = [
   {
     method: 'POST',
     path: '/api/v1/protective-put',
-    description: 'Protective put and zero-cost collar pricing for a single-stock position.',
+    description: 'Protective put, zero-cost collar, and put spread pricing for a single-stock position.',
   },
   {
     method: 'POST',

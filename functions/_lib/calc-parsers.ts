@@ -241,6 +241,12 @@ export function parseProtectivePutInput(raw: unknown): ProtectivePutInputs {
     tenorYears: p.num(o, 'tenorYears', { min: 0.25 }),
   };
   if (o.expectedReturn !== undefined) base.expectedReturn = p.num(o, 'expectedReturn');
+  // Put-spread floor breach risk: target P(stock ends below the short strike).
+  // Off-preset values snap to the nearest of SPREAD_RISK_LEVELS inside the calc,
+  // so accept any probability in range and let the solve normalize it.
+  if (o.spreadRiskLevel !== undefined) {
+    base.spreadRiskLevel = p.num(o, 'spreadRiskLevel', { min: 0.01, max: 0.2 });
+  }
   // tickerLabel is the display surface in the response. Prefer an explicit
   // tickerLabel; fall back to `ticker` (the sigma-resolution field) so
   // callers passing only `ticker` still get it echoed back.
