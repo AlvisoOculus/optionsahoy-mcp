@@ -47,7 +47,7 @@
     },
     {
       "name": "protective_put_price",
-      "description": "Protective put / zero-cost collar pricing via Black-Scholes"
+      "description": "Protective put, zero-cost collar, and put spread pricing via Black-Scholes"
     },
     {
       "name": "qsbs_check",

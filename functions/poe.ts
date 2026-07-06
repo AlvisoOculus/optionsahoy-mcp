@@ -788,7 +788,7 @@ const FRIENDLY: Record<string, string> = {
   nso_calculate: 'analyze a non-qualified stock option (NSO) exercise, sell versus hold',
   rsu_sell_vs_hold: 'compare selling versus holding restricted stock units (RSUs) at vest',
   concentration_analyze: 'measure single-stock concentration risk and your ways out',
-  protective_put_price: 'price a hedge (a protective put or a zero-cost collar)',
+  protective_put_price: 'price a hedge (a protective put, a zero-cost collar, or a put spread)',
   qsbs_check: 'check qualified small business stock (QSBS) eligibility',
   equity_funding_plan: 'plan how to fund a cash goal from your equity by a deadline',
 };
