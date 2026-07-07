@@ -90,7 +90,7 @@ Each tool's `parameters` schema lists the required fields; every tool also accep
 - `concentration_analyze` - required: `positionValue`, `costBasis`, `acquisitionDate`, `sector`, `stateCode`, `filingStatus`, `ordinaryIncome`, `totalAssets`. Optional: `expectedPositionReturn`, `expectedMarketReturn`, `volatility`, `volatilityDrag`, `ticker`, `hedgeChoice`.
 - `protective_put_price` - required: `positionValue`, `sector`, `protectionLevel`, `tenorYears`. Optional: `volatility`, `expectedReturn`, `ticker`, `tickerLabel`, `spreadRiskLevel`.
 - `qsbs_check` - required: `acquisitionDate`, `saleDate`, `entityType`, `acquisitionMethod`, `assetCategory`, `industry`, `activeBusiness`, `adjustedBasis`, `expectedGain`, `stateCode`, `ordinaryIncome`, `filingStatus`.
-- `equity_funding_plan` - required: `targetAfterTax`, `targetDate`, `ordinaryIncome`, `filingStatus`, `stateCode`, plus holdings as either `stacks` or the legacy `lots` + `currentPrice`. Optional: `expectedAnnualGrowth`, `cashInterestRate`, `riskToleranceShortfall`, `defaultVolatility`, `today`.
+- `equity_funding_plan` - required: `targetAfterTax`, `targetDate`, `ordinaryIncome`, `filingStatus`, `stateCode`, plus holdings as either `stacks` or the legacy `lots` + `currentPrice`. Optional: `expectedAnnualGrowth`, `cashInterestRate`, `riskToleranceShortfall`, `defaultVolatility`.
 
 The authoritative request schemas are the OpenAPI spec at <https://optionsahoy.com/openapi.json> and the agent docs at <https://optionsahoy.com/for-agents>. The individual `zod` schemas are also exported (`amtIsoParameters`, `nsoParameters`, and so on) if you want to reuse or extend them.
 
