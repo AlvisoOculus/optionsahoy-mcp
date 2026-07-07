@@ -35,8 +35,8 @@ def _openapi_props_by_slug():
         if not post:
             continue
         schema = post.get("requestBody", {}).get("content", {}).get("application/json", {}).get("schema", {})
-        ref = schema.get("$ref", "").split("/")[-1] if "$ref" in schema else None
-        resolved = comps.get(ref, schema) if ref else schema
+        ref = schema.get("$ref")
+        resolved = comps.get(ref.split("/")[-1], schema) if ref else schema
         out[path.split("/")[-1]] = set(resolved.get("properties", {}).keys())
     return out
 
