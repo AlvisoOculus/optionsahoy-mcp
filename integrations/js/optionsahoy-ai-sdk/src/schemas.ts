@@ -90,6 +90,7 @@ export const nsoParameters = z.object({
   expectedSalePrice: z.number().min(0).optional().describe('Projected $/share at end of holdYears.'),
   volatility: z.number().min(0).optional().describe('Annualized volatility (sigma), decimal.'),
   expectedMarketReturn: z.number().optional().describe('Reinvestment rate for the sell-now path, decimal.'),
+  haircut: z.number().min(0).max(1).optional().describe('Risk haircut on expected upside.'),
   ticker: ticker.optional(),
 });
 
@@ -106,6 +107,7 @@ export const rsuParameters = z.object({
   expectedSalePrice: z.number().min(0).optional().describe('Projected $/share at end of holdYears.'),
   volatility: z.number().min(0).optional().describe('Annualized volatility (sigma), decimal.'),
   expectedMarketReturn: z.number().optional().describe('Reinvestment rate for the sell-now path, decimal.'),
+  haircut: z.number().min(0).max(1).optional().describe('Risk haircut on expected upside.'),
   ticker: ticker.optional(),
 });
 

@@ -39,6 +39,17 @@ export interface OptionsAhoyClientOptions {
 /** Default API origin. The `/api/v1/*` endpoints are keyless and rate-limited. */
 export const DEFAULT_BASE_URL = 'https://optionsahoy.com';
 
+/**
+ * Strip trailing `/` from a base URL in a single linear pass. Avoids the
+ * `/\/+$/` regex, whose greedy `+` backtracks polynomially on inputs like
+ * `"https://x//…//"` (a ReDoS class CodeQL flags as js/polynomial-redos).
+ */
+function trimTrailingSlashes(s: string): string {
+  let end = s.length;
+  while (end > 0 && s.charCodeAt(end - 1) === 47 /* '/' */) end--;
+  return end === s.length ? s : s.slice(0, end);
+}
+
 /** Shape of a successful OptionsAhoy REST response: `{ ok: true, result: {...} }`. */
 interface ApiEnvelope {
   ok?: boolean;
@@ -56,7 +67,7 @@ export async function callEndpoint(
   payload: Record<string, unknown>,
   options: OptionsAhoyClientOptions = {},
 ): Promise<unknown> {
-  const baseURL = (options.baseURL ?? DEFAULT_BASE_URL).replace(/\/+$/, '');
+  const baseURL = trimTrailingSlashes(options.baseURL ?? DEFAULT_BASE_URL);
   const doFetch = options.fetch ?? (globalThis.fetch as unknown as FetchLike);
   if (typeof doFetch !== 'function') {
     throw new Error(

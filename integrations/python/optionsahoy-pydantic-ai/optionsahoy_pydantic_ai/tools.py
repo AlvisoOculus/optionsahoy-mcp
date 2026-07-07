@@ -137,6 +137,7 @@ class ProtectivePutArgs(BaseModel):
     tenorYears: float = Field(..., ge=0.25, description="Hedge tenor in years.")
     volatility: Optional[float] = Field(None, ge=0, description="Annualized volatility of the stock.")
     expectedReturn: Optional[float] = Field(None, description="Expected annual return of the stock.")
+    ticker: Optional[str] = Field(None, description="Public ticker to source implied volatility from.")
     tickerLabel: Optional[str] = Field(None, description="Display label for the ticker.")
     spreadRiskLevel: Optional[float] = Field(
         None,

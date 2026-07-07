@@ -291,6 +291,7 @@ class OptionsAhoyClient:
         volatility: Optional[float] = None,
         expectedReturn: Optional[float] = None,
         spreadRiskLevel: Optional[float] = None,
+        ticker: Optional[str] = None,
         tickerLabel: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Price a protective put hedge for a stock position at a given downside
@@ -308,6 +309,7 @@ class OptionsAhoyClient:
             "tenorYears": tenorYears,
             "volatility": volatility,
             "expectedReturn": expectedReturn,
+            "ticker": ticker,
             "tickerLabel": tickerLabel,
         }
         if spreadRiskLevel is not None:

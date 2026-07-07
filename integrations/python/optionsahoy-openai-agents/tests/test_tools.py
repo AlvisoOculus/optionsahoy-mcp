@@ -88,12 +88,93 @@ def test_schema_mirrors_required_fields():
         assert field in required
 
 
+# One minimal, schema-valid payload per tool. Only required fields are set;
+# model_dump() then forwards required + optional (as None) to the fake client.
+MINIMAL_PAYLOADS = {
+    "optionsahoy_amt_iso_optimize": {
+        "shares": 1000,
+        "strike": 2.0,
+        "fmv": 20.0,
+        "filingStatus": "single",
+        "ordinaryIncome": 200000,
+        "stateCode": "CA",
+        "carryforwardCredit": 0,
+        "horizon": 3,
+        "cashReturnRate": 0.04,
+        "grantDate": "2022-01-01",
+        "hasLeftCompany": False,
+        "terminationDate": None,
+    },
+    "optionsahoy_nso_calculate": {
+        "shares": 1000,
+        "strike": 2.0,
+        "currentPrice": 20.0,
+        "ordinaryIncome": 200000,
+        "filingStatus": "single",
+        "stateCode": "CA",
+        "stillEmployed": True,
+        "holdYears": 2,
+        "holdFunding": "cash",
+    },
+    "optionsahoy_rsu_sell_vs_hold": {
+        "shares": 1000,
+        "currentPrice": 20.0,
+        "ordinaryIncome": 200000,
+        "filingStatus": "single",
+        "stateCode": "CA",
+        "stillEmployed": True,
+        "holdYears": 2,
+    },
+    "optionsahoy_concentration_analyze": {
+        "positionValue": 500000,
+        "costBasis": 50000,
+        "acquisitionDate": "2020-01-01",
+        "sector": "tech_software",
+        "stateCode": "CA",
+        "filingStatus": "single",
+        "ordinaryIncome": 200000,
+        "totalAssets": 800000,
+    },
+    "optionsahoy_protective_put_price": {
+        "positionValue": 500000,
+        "sector": "tech_software",
+        "protectionLevel": 0.1,
+        "tenorYears": 1,
+    },
+    "optionsahoy_qsbs_check": {
+        "acquisitionDate": "2018-01-01",
+        "saleDate": "2026-02-01",
+        "entityType": "us-c-corp",
+        "acquisitionMethod": "original-issuance",
+        "assetCategory": "under-50m",
+        "industry": "tech-software",
+        "activeBusiness": "yes",
+        "adjustedBasis": 10000,
+        "expectedGain": 2000000,
+        "stateCode": "CA",
+        "ordinaryIncome": 250000,
+        "filingStatus": "single",
+    },
+    "optionsahoy_equity_funding_plan": {
+        "targetAfterTax": 100000,
+        "targetDate": "2027-01-01",
+        "ordinaryIncome": 200000,
+        "filingStatus": "single",
+        "stateCode": "CA",
+    },
+}
+
+
 def test_every_tool_forwards_to_its_client_method():
     fake = _FakeClient()
     tools = {t.name: t for t in get_optionsahoy_tools(client=fake)}
     assert set(tools) == EXPECTED_NAMES
+    assert set(MINIMAL_PAYLOADS) == EXPECTED_NAMES, "payload coverage drifted from tool set"
     for name, method in NAME_TO_METHOD.items():
-        assert hasattr(fake, method), f"fake missing {method}"
+        out = _invoke(tools[name], MINIMAL_PAYLOADS[name])
+        assert out == {"ok": True, "method": method}, f"{name} routed to the wrong method"
+        # The validated payload actually reached the client (not an empty dump).
+        assert fake.calls[method], f"{name} forwarded no kwargs"
 
 
 def test_qsbs_routes_through_client_with_kwargs():
