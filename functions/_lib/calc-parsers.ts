@@ -150,7 +150,10 @@ export function parseAmtIsoInput(raw: unknown): AmtIsoInput {
     stateCode: p.enum(o, 'stateCode', STATE_CODES),
     carryforwardCredit: p.num(o, 'carryforwardCredit', { min: 0 }),
     horizon,
-    cashReturnRate: p.num(o, 'cashReturnRate'),
+    // Optional: the after-tax idle-cash yield that time-values the tax stream.
+    // Defaults to 0.04 (4%, ~short-Treasury) when omitted so callers are not
+    // forced to supply a rate; pass an explicit value to override.
+    cashReturnRate: p.optNum(o, 'cashReturnRate') ?? 0.04,
     grantDate: p.date(o, 'grantDate'),
     hasLeftCompany: p.bool(o, 'hasLeftCompany'),
     terminationDate: p.optDate(o, 'terminationDate'),

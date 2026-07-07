@@ -617,7 +617,6 @@
           "stateCode",
           "carryforwardCredit",
           "horizon",
-          "cashReturnRate",
           "grantDate",
           "hasLeftCompany",
           "terminationDate"
@@ -680,7 +679,7 @@
           },
           "cashReturnRate": {
             "type": "number",
-            "description": "Annual after-tax return on idle cash, used to time-value AMT premiums."
+            "description": "Annual after-tax return on idle cash, used to time-value AMT premiums. Optional; defaults to 0.04 when omitted."
           },
           "grantDate": {
             "$ref": "#/components/schemas/IsoDate",
