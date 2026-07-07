@@ -774,7 +774,7 @@ async function poeCost(
 // always override them. Real inputs (amounts, prices, rates, dates) are NOT
 // defaulted, so the bot still asks for those when missing.
 const TOOL_DEFAULTS: Record<string, Record<string, unknown>> = {
-  amt_iso_optimize: { carryforwardCredit: 0, hasLeftCompany: false, terminationDate: null, cashReturnRate: 0.05 },
+  amt_iso_optimize: { carryforwardCredit: 0, hasLeftCompany: false, terminationDate: null, cashReturnRate: 0.04 },
   nso_calculate: { stillEmployed: true, holdFunding: 'cash' },
   rsu_sell_vs_hold: { stillEmployed: true, holdYears: 1 },
   protective_put_price: { protectionLevel: 0.1, tenorYears: 1 },
@@ -824,13 +824,13 @@ const FIELD_LABELS: Record<string, string> = {
   riskToleranceShortfall: 'risk tolerance (max shortfall chance)', defaultVolatility: 'default volatility',
 };
 
-// Schema-required fields the bot safely assumes when unstated (see TOOL_DEFAULTS).
-// Shown under Optional with the assumption so the user knows the default.
-// Schema-required fields the Poe bot safely assumes when unstated (TOOL_DEFAULTS).
-// Shown under Optional with the assumption so the user knows the default. NOTE:
-// the MCP/REST API still requires these; the assumption is a Poe-bot convenience.
+// Fields the Poe bot safely assumes when unstated (see TOOL_DEFAULTS). Shown
+// under Optional with the assumption so the user knows the default. Most of
+// these the MCP/REST API still requires (the assumption is a Poe-bot
+// convenience); a few (e.g. cashReturnRate) the API itself now defaults, and
+// the bot's assumed value matches that API default.
 const ASSUMED_LABEL: Record<string, Record<string, string>> = {
-  amt_iso_optimize: { carryforwardCredit: 'assumes none', hasLeftCompany: 'assumes still employed', terminationDate: '', cashReturnRate: 'assumes 5%' },
+  amt_iso_optimize: { carryforwardCredit: 'assumes none', hasLeftCompany: 'assumes still employed', terminationDate: '', cashReturnRate: 'assumes 4%' },
   nso_calculate: { stillEmployed: 'assumes still employed', holdFunding: 'assumes cash exercise' },
   rsu_sell_vs_hold: { stillEmployed: 'assumes still employed', holdYears: 'assumes a 1-year hold' },
   protective_put_price: { protectionLevel: 'assumes 10%', tenorYears: 'assumes 1 year' },
@@ -874,9 +874,13 @@ function toolParams(tool: string): { required: string[]; optional: string[] } {
   const exclude = EXCLUDE[tool] ?? new Set<string>();
   const label = (f: string) => FIELD_LABELS[f] ?? f;
   const required = req.filter((f) => !(f in assumed) && !exclude.has(f)).map(label).filter(Boolean);
+  // A field shows its "(assumption)" whether it was schema-required-but-defaulted
+  // or is genuinely optional-with-a-default (e.g. cashReturnRate); a plain
+  // optional field just lists its label.
+  const annotate = (f: string) => (assumed[f] ? `${label(f)} (${assumed[f]})` : label(f));
   const optional = [
-    ...req.filter((f) => f in assumed && label(f)).map((f) => `${label(f)} (${assumed[f]})`),
-    ...props.filter((p) => !req.includes(p) && !exclude.has(p)).map(label).filter(Boolean),
+    ...req.filter((f) => f in assumed && label(f)).map(annotate),
+    ...props.filter((p) => !req.includes(p) && !exclude.has(p) && label(p)).map(annotate),
   ];
   return { required, optional };
 }

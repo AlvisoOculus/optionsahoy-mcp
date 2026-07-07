@@ -54,6 +54,23 @@ describe('POST /api/v1/amt-iso', () => {
     expect(JSON.stringify(json.result)).toEqual(JSON.stringify(reference));
   });
 
+  it('defaults cashReturnRate to 0.04 when omitted (was previously required)', async () => {
+    const { cashReturnRate, ...noRate } = VALID_BODY;
+    void cashReturnRate;
+    const res = await onRequest({ request: makeReq(noRate) });
+    expect(res.status).toBe(200); // used to be a 400 "cashReturnRate required"
+    const json = (await res.json()) as { ok: boolean; result: unknown };
+
+    const referenceAt04 = computeAmtIso({
+      ...noRate,
+      cashReturnRate: 0.04,
+      filingStatus: 'single',
+      grantDate: new Date('2024-05-20'),
+      terminationDate: null,
+    } as AmtIsoInput);
+    expect(JSON.stringify(json.result)).toEqual(JSON.stringify(referenceAt04));
+  });
+
   it('returns 400 on missing required field', async () => {
     const bad = { ...VALID_BODY } as Partial<typeof VALID_BODY>;
     delete bad.shares;

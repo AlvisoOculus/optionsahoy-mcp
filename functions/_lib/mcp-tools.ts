@@ -892,7 +892,7 @@ export const TOOLS: McpTool[] = [
       type: 'object',
       required: [
         'shares', 'strike', 'fmv', 'filingStatus',
-        'ordinaryIncome', 'stateCode', 'carryforwardCredit', 'horizon', 'cashReturnRate',
+        'ordinaryIncome', 'stateCode', 'carryforwardCredit', 'horizon',
         'grantDate', 'hasLeftCompany',
       ],
       properties: {
@@ -952,7 +952,7 @@ export const TOOLS: McpTool[] = [
         cashReturnRate: {
           type: 'number',
           description:
-            'Annual after-tax return on idle cash (decimal), used to time-value the cash-tax stream. 0.05 = 5% (~short-Treasury yield). Required. The model MUST NOT invent this value; ask the user (e.g. "what after-tax yield should I use for idle cash, e.g. ~5% for short-term Treasury?"). At 0 the math collapses to a nominal sum.',
+            'Annual after-tax return on idle cash (decimal), used to time-value the cash-tax stream. 0.05 = 5% (~short-Treasury yield). Optional: defaults to 0.04 (4%, a short-Treasury-like after-tax yield) when omitted, so you need not ask the user for it; pass an explicit value if the user states one. At 0 the math collapses to a nominal sum.',
         },
         grantDate: {
           ...ISO_DATE,
