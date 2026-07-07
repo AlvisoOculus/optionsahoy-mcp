@@ -367,7 +367,6 @@ class OptionsAhoyClient:
         cashInterestRate: Optional[float] = None,
         riskToleranceShortfall: Optional[float] = None,
         defaultVolatility: Optional[float] = None,
-        today: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Plan which equity lots to sell, and when, to fund a cash goal by a target date
         with the least after-tax cost. Provide ``stacks`` (preferred) or the legacy
@@ -387,6 +386,5 @@ class OptionsAhoyClient:
                 "cashInterestRate": cashInterestRate,
                 "riskToleranceShortfall": riskToleranceShortfall,
                 "defaultVolatility": defaultVolatility,
-                "today": today,
             },
         )

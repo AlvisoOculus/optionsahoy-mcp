@@ -3,4 +3,4 @@
 from llama_index.tools.optionsahoy.base import OptionsAhoyToolSpec
 
 __all__ = ["OptionsAhoyToolSpec"]
-__version__ = "0.1.7"
+__version__ = "0.1.8"

@@ -2,6 +2,12 @@
 
 All notable changes to `optionsahoy-langchain` are documented here. This project follows semantic versioning.
 
+## 0.1.8
+
+- `protective_put_price` now returns a third hedge structure, the put spread (a long put at the floor plus a short put at a solved lower strike), alongside the protective put and zero-cost collar; `spreadRiskLevel` tunes the short strike. First released here.
+- Added optional `ticker` to `protective_put_price`, so a covered symbol resolves implied volatility (parity with the other tools and with openapi.json).
+- Dropped the `equity_funding` `today` parameter: the endpoint ignores it by design, so it never did anything.
+
 ## 0.1.7
 
 - QSBS results now include a `cappedOverageNote` when the expected gain exceeds the Section 1202 per-issuer exclusion cap: the overage is fully taxable and the note flags multi-taxpayer (non-grantor trust) stacking as an estate-planning option.

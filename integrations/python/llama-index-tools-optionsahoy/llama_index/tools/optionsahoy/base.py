@@ -273,6 +273,7 @@ class OptionsAhoyToolSpec(BaseToolSpec):
         tenorYears: float,
         volatility: Optional[float] = None,
         expectedReturn: Optional[float] = None,
+        ticker: Optional[str] = None,
         tickerLabel: Optional[str] = None,
         spreadRiskLevel: Optional[float] = None,
     ) -> Dict[str, Any]:
@@ -287,6 +288,7 @@ class OptionsAhoyToolSpec(BaseToolSpec):
             tenorYears: Hedge tenor in years.
             volatility: Annualized volatility of the stock.
             expectedReturn: Expected annual return of the stock.
+            ticker: Public ticker to source implied volatility from.
             tickerLabel: Display label for the ticker.
             spreadRiskLevel: Put spread floor breach risk - probability the stock ends
                 below the spread's short strike (presets 0.20 / 0.10 / 0.05 / 0.01, i.e.
@@ -300,6 +302,7 @@ class OptionsAhoyToolSpec(BaseToolSpec):
             tenorYears=tenorYears,
             volatility=volatility,
             expectedReturn=expectedReturn,
+            ticker=ticker,
             tickerLabel=tickerLabel,
             spreadRiskLevel=spreadRiskLevel,
         )
@@ -368,7 +371,6 @@ class OptionsAhoyToolSpec(BaseToolSpec):
         cashInterestRate: Optional[float] = None,
         riskToleranceShortfall: Optional[float] = None,
         defaultVolatility: Optional[float] = None,
-        today: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Plan which equity lots to sell, and when, to fund a cash goal by a target date
         with the least after-tax cost, accounting for holding-period thresholds and
@@ -390,7 +392,6 @@ class OptionsAhoyToolSpec(BaseToolSpec):
             cashInterestRate: Annual interest rate on idle cash.
             riskToleranceShortfall: Acceptable probability of shortfall (0 to 1).
             defaultVolatility: Default annualized volatility.
-            today: Override for today's date (YYYY-MM-DD).
         """
         return self._client.equity_funding(
             targetAfterTax=targetAfterTax,
@@ -405,5 +406,4 @@ class OptionsAhoyToolSpec(BaseToolSpec):
             cashInterestRate=cashInterestRate,
             riskToleranceShortfall=riskToleranceShortfall,
             defaultVolatility=defaultVolatility,
-            today=today,
         )

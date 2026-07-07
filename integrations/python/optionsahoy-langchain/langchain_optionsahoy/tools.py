@@ -130,6 +130,7 @@ class ProtectivePutArgs(BaseModel):
     tenorYears: float = Field(..., ge=0.25, description="Hedge tenor in years.")
     volatility: Optional[float] = Field(None, ge=0, description="Annualized volatility of the stock.")
     expectedReturn: Optional[float] = Field(None, description="Expected annual return of the stock.")
+    ticker: Optional[str] = Field(None, description="Public ticker to source implied volatility from.")
     tickerLabel: Optional[str] = Field(None, description="Display label for the ticker.")
     spreadRiskLevel: Optional[float] = Field(
         None,
@@ -213,7 +214,6 @@ class EquityFundingArgs(BaseModel):
         None, ge=0, le=1, description="Acceptable probability of shortfall (0 to 1)."
     )
     defaultVolatility: Optional[float] = Field(None, ge=0, description="Default annualized volatility.")
-    today: Optional[str] = Field(None, description="Override for today's date (YYYY-MM-DD).")
 
 
 # --- tool factory ----------------------------------------------------------
