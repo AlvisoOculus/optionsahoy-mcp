@@ -36,8 +36,8 @@ Each tool's parameters list the required fields below; every tool also accepts o
 
 ### `AmtIsoOptimize`
 Optimizes a multi-year incentive stock option (ISO) exercise schedule under the alternative minimum tax (AMT): how many shares to exercise each year so the after-tax outcome is best.
-- Inputs (required): `shares`, `strike` (USD), `fmv` (USD), `filing_status` (`single` | `married_joint` | `head_household`), `ordinary_income` (USD), `state_code` (two-letter, or `DC`), `carryforward_credit` (USD), `horizon` (1 to 10), `cash_return_rate` (decimal), `grant_date` (YYYY-MM-DD), `has_left_company` (boolean), `termination_date` (YYYY-MM-DD, or null if still employed).
-- Optional: `expected_growth` (decimal), `volatility` (decimal), `volatility_drag` (0 to 0.99), `ticker` (covered public symbol).
+- Inputs (required): `shares`, `strike` (USD), `fmv` (USD), `filing_status` (`single` | `married_joint` | `head_household`), `ordinary_income` (USD), `state_code` (two-letter, or `DC`), `carryforward_credit` (USD), `horizon` (1 to 10), `grant_date` (YYYY-MM-DD), `has_left_company` (boolean), `termination_date` (YYYY-MM-DD, or null if still employed).
+- Optional: `cash_return_rate` (decimal; defaults to 0.04 when omitted), `expected_growth` (decimal), `volatility` (decimal), `volatility_drag` (0 to 0.99), `ticker` (covered public symbol).
 - Returns: `crossoverShares` and `crossoverBargain` (where AMT starts to bite this year); `alreadyInAmt` and `stateHasAmt` (booleans); `bargainPerShare`; `effectiveHorizon`; `timing` (key dates); and `schedules` with three strategies `lumpSum`, `evenSplit`, and `optimized`, each carrying per-year tax, AMT owed and credit, long-term capital-gains tax at final sale, and `nfv` (net future value).
 
 ### `NsoCalculate`

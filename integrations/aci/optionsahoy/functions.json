@@ -94,7 +94,7 @@
             },
             "cashReturnRate": {
               "type": "number",
-              "description": "Annual after-tax return on idle cash as a decimal, used to time-value AMT premiums."
+              "description": "Annual after-tax return on idle cash as a decimal, used to time-value AMT premiums. Optional; defaults to 0.04 when omitted."
             },
             "grantDate": {
               "type": "string",
@@ -119,7 +119,6 @@
             "stateCode",
             "carryforwardCredit",
             "horizon",
-            "cashReturnRate",
             "grantDate",
             "hasLeftCompany",
             "terminationDate"
