@@ -67,3 +67,14 @@ export function trailingReturnsCoverage(): { total: number; refreshedAt: string 
     refreshedAt: (data as { _refreshedAt?: string })._refreshedAt ?? '',
   };
 }
+
+// The public symbols whose expected growth the `ticker` auto-fill resolves,
+// sorted, for agents/tooling that want to enumerate the set instead of probing
+// it. Includes accepted aliases (e.g. GOOG -> GOOGL) so the list matches what
+// the parser actually accepts. Live from the bundled ETL snapshot, so it tracks
+// the deployed data (no hand-maintained list to drift). Note: volatility comes
+// from a slightly smaller table (trailing-vols); a symbol here always resolves
+// growth, and most also resolve volatility, but a few resolve growth only.
+export function coveredTickers(): string[] {
+  return [...Object.keys(TICKERS), ...Object.keys(TICKER_ALIASES)].sort();
+}
