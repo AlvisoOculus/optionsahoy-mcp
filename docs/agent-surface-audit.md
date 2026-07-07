@@ -48,11 +48,11 @@ This is a living backlog. Status: `TODO` / `WIP` / `DONE` (PR #). Execute top-do
 
 | ID | Status | Finding | Effort / reach |
 |----|--------|---------|------|
-| O6 | TODO | Ship a JS/TS adapter (Vercel AI SDK / Mastra / LangChain.js) — biggest untapped audience, TS is the schema SoT, lists on npm | M / highest |
-| O7 | TODO | OpenAI Agents SDK + Pydantic AI wrappers (~110 lines each) — now-default frameworks, zero coverage | S each / high |
-| O8 | TODO | Close free listings: submit built Zed extension, publish n8n template, finish a2aregistry / awesome-a2a / ACI | S / registry traffic |
-| O9 | TODO | One orchestration prompt (`plan-my-equity`) or a "how to combine tools" block | S-M |
-| O10 | TODO | Codegen or a single `/openapi.json` conformance test to stop 8+ hand-maintained wrapper schemas drifting | M / structural |
+| O6 | DONE (PR #142) | Ship a JS/TS adapter — biggest untapped audience | Built `integrations/js/optionsahoy-ai-sdk` (Vercel AI SDK, TS, zod schemas, keyless REST, 5 tests). Targets AI SDK v4. Not yet published to npm. |
+| O7 | DONE (PR #142) | OpenAI Agents SDK + Pydantic AI wrappers — now-default frameworks | Built `integrations/python/optionsahoy-openai-agents` (8 tests) + `optionsahoy-pydantic-ai` (7 tests), reusing the shared client. Python >=3.10. Not yet published to PyPI or wired into publish-python.yml. |
+| O8 | TODO (staged) | Close free listings: submit built Zed extension, publish n8n template, finish a2aregistry / awesome-a2a / ACI | External submissions - prepare, then post on Andrew's go (per-occasion). |
+| O9 | DONE (PR #142) | One orchestration prompt or a "how to combine tools" block | Added a "Combining tools" block to the MCP server `instructions` (count-neutral - avoids an 8th prompt breaking the seven-count invariant). |
+| O10 | TODO | Codegen or a single `/openapi.json` conformance test to stop 8+ hand-maintained wrapper schemas drifting; also delivers O2 | Next. |
 
 ---
 
