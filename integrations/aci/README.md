@@ -85,14 +85,18 @@ with live POST calls returning HTTP 200 JSON before this submission was prepared
 
 ## Open questions / operator action required
 
-### 1. CLA signing (REQUIRED before merge)
+### 1. CLA signing — DECLINED (2026-07-07)
 
-`aipotheosis-labs/aci` requires every contributor to sign their Contributor License
-Agreement. After the PR is opened, the CLA bot (CLA-assistant style) comments on the
-thread with a sign link. **The signature must be made by the PR author's GitHub
-account — `AlvisoOculus` — by clicking the link and authorizing.** The PR will not be
-merged until the CLA check goes green. This is a human step; it cannot be automated
-from this repo. Confirm the company name on the CLA matches **AlphaLatitude Inc.**
+**Decision: we are NOT pursuing the ACI.dev listing.** `aipotheosis-labs/aci`
+requires signing their Contributor License Agreement, which carries a rights grant
+of the same class we declined for the Zed extensions registry
+(zed-industries/extensions#6587, withdrawn 2026-07-01). AlphaLatitude Inc. does not
+sign copyright/patent-grant CLAs to list a public, keyless integration. This app
+spec (`app.json` / `functions.json`) is kept in-repo and current for reference, but
+the upstream PR is not to be opened. Do not re-attempt without a reversal of that
+policy by Andrew.
+
+The remaining notes below are historical (from when this was staged for submission).
 
 ### 2. Logo: RESOLVED
 
