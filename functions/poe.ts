@@ -20,6 +20,7 @@
 // month) uses the Poe cost API; extraction uses OPENROUTER_API_KEY.
 
 import { TOOLS } from './_lib/mcp-tools';
+import { DEFAULT_CASH_RETURN_RATE } from './_lib/calc-parsers';
 import { PER_TOOL_FREE_TOOL_BARE } from './_lib/sessions';
 import { logCall, logSample } from './_lib/stats';
 import { getCurrentPrice } from '../lib/data/prices';
@@ -774,7 +775,7 @@ async function poeCost(
 // always override them. Real inputs (amounts, prices, rates, dates) are NOT
 // defaulted, so the bot still asks for those when missing.
 const TOOL_DEFAULTS: Record<string, Record<string, unknown>> = {
-  amt_iso_optimize: { carryforwardCredit: 0, hasLeftCompany: false, terminationDate: null, cashReturnRate: 0.04 },
+  amt_iso_optimize: { carryforwardCredit: 0, hasLeftCompany: false, terminationDate: null, cashReturnRate: DEFAULT_CASH_RETURN_RATE },
   nso_calculate: { stillEmployed: true, holdFunding: 'cash' },
   rsu_sell_vs_hold: { stillEmployed: true, holdYears: 1 },
   protective_put_price: { protectionLevel: 0.1, tenorYears: 1 },

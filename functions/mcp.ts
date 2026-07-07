@@ -59,6 +59,11 @@ const GET_DESCRIPTOR = {
   documentation: 'https://optionsahoy.com/for-agents',
 };
 
+// The descriptor never changes at runtime, so serialize it once at module load
+// instead of re-stringifying (now including the ~90-entry coveredTickers array)
+// on every GET /mcp hit - this endpoint is polled heavily by scanners/registries.
+const GET_DESCRIPTOR_JSON = JSON.stringify(GET_DESCRIPTOR);
+
 const CORS: Record<string, string> = {
   'access-control-allow-origin': '*',
   'access-control-allow-methods': 'POST, OPTIONS',
@@ -263,7 +268,9 @@ export const onRequest: PagesFunction = async (ctx) => {
     // a browser.
     logs.push({ endpoint: 'mcp:GET', isError: false });
     logCalls(ctx, logs);
-    return jsonResponse(GET_DESCRIPTOR);
+    return new Response(GET_DESCRIPTOR_JSON, {
+      headers: { 'content-type': 'application/json', ...CORS },
+    });
   }
   if (request.method !== 'POST') {
     logs.push({ endpoint: 'mcp:bad-method', isError: true, errorMsg: request.method });

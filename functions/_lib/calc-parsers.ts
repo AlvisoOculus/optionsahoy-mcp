@@ -26,6 +26,11 @@ import { SECTOR_STATS, type SectorKey } from '../../lib/markets/sector-stats';
 import { HORIZON_YEARS as CONCENTRATION_HORIZON_YEARS, IV_OVER_RV_MULTIPLIER } from '../../lib/calc/concentration';
 import { lognormalHaircut } from '../../lib/calc/volatility-drag';
 
+// The after-tax idle-cash yield amt_iso_optimize assumes when the caller omits
+// cashReturnRate (a short-Treasury-like rate). Single owner of the numeric fact:
+// the Poe bot pre-fills and discloses the same value, so keep both pointed here.
+export const DEFAULT_CASH_RETURN_RATE = 0.04;
+
 const ASK_USER_HINT =
   'The model invoking this tool MUST NOT invent this value — ask the user.';
 
@@ -151,9 +156,9 @@ export function parseAmtIsoInput(raw: unknown): AmtIsoInput {
     carryforwardCredit: p.num(o, 'carryforwardCredit', { min: 0 }),
     horizon,
     // Optional: the after-tax idle-cash yield that time-values the tax stream.
-    // Defaults to 0.04 (4%, ~short-Treasury) when omitted so callers are not
+    // Defaults to DEFAULT_CASH_RETURN_RATE when omitted so callers are not
     // forced to supply a rate; pass an explicit value to override.
-    cashReturnRate: p.optNum(o, 'cashReturnRate') ?? 0.04,
+    cashReturnRate: p.optNum(o, 'cashReturnRate') ?? DEFAULT_CASH_RETURN_RATE,
     grantDate: p.date(o, 'grantDate'),
     hasLeftCompany: p.bool(o, 'hasLeftCompany'),
     terminationDate: p.optDate(o, 'terminationDate'),
