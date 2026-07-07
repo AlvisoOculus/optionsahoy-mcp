@@ -241,5 +241,4 @@ export const equityFundingParameters = z.object({
     .optional()
     .describe('Max acceptable probability of missing the goal, 0 to 1. Default 0.10.'),
   defaultVolatility: z.number().min(0).optional().describe('Annualized sigma for stacks without their own. Default 0.30.'),
-  today: z.string().optional().describe('Override for the current date (YYYY-MM-DD).'),
 });

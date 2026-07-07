@@ -221,7 +221,6 @@ class EquityFundingArgs(BaseModel):
         None, ge=0, le=1, description="Acceptable probability of shortfall (0 to 1)."
     )
     defaultVolatility: Optional[float] = Field(None, ge=0, description="Default annualized volatility.")
-    today: Optional[str] = Field(None, description="Override for today's date (YYYY-MM-DD).")
 
 
 # --- tool factory ----------------------------------------------------------
