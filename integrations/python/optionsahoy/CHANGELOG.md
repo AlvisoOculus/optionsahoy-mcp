@@ -4,6 +4,7 @@ All notable changes to `optionsahoy` are documented here. This project follows s
 
 ## 0.1.8
 
+- `amt_iso_optimize` `cashReturnRate` is now optional: the endpoint defaults it to 0.04 (a short-Treasury-like after-tax yield) when omitted, so callers need not supply it.
 - `protective_put` now returns a third hedge structure, the put spread (a long put at the floor plus a short put at a solved lower strike), alongside the protective put and zero-cost collar; `spreadRiskLevel` tunes the short strike. First released here.
 - Added optional `ticker` to `protective_put`: pass a covered public symbol and the endpoint resolves implied volatility from bundled data, matching the other tools.
 - Removed the `today` override from `equity_funding`: the REST endpoint ignores any client-supplied `today` by design (the server clock is authoritative, a guard against stale model clocks), so advertising it was misleading. No behavior change.

@@ -59,7 +59,10 @@ export const amtIsoParameters = z.object({
   stateCode,
   carryforwardCredit: z.number().min(0).describe('Existing federal AMT credit carryforward, USD.'),
   horizon: z.number().int().min(1).max(10).describe('Planning horizon in years (1 to 10).'),
-  cashReturnRate: z.number().describe('Annual after-tax return on idle cash, decimal (0.05 = 5%).'),
+  cashReturnRate: z
+    .number()
+    .optional()
+    .describe('Annual after-tax return on idle cash, decimal (0.05 = 5%). Defaults to 0.04 server-side when omitted.'),
   grantDate: isoDate('ISO grant date.'),
   hasLeftCompany: z.boolean().describe('True if the holder has separated from the company.'),
   terminationDate: z

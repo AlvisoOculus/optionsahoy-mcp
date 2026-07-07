@@ -6,7 +6,7 @@
 # register once on PyPI. This requires `id-token: write` below and a PUBLIC
 # repo (this one is).
 #
-# ONE-TIME SETUP (repo owner) -- do this for EACH of the five project names
+# ONE-TIME SETUP (repo owner) -- do this for EACH of the seven project names
 # BEFORE the first release, otherwise the publish step fails with a 4xx:
 #
 #   optionsahoy
@@ -14,6 +14,8 @@
 #   llama-index-tools-optionsahoy
 #   crewai-optionsahoy
 #   arcade-optionsahoy
+#   optionsahoy-openai-agents   (new - needs a first-time pending publisher)
+#   optionsahoy-pydantic-ai     (new - needs a first-time pending publisher)
 #
 #   1. Sign in at https://pypi.org. If a project does not exist yet, use a
 #      "pending publisher" so the first run creates it:
@@ -45,7 +47,7 @@ on:
   workflow_dispatch:
     inputs:
       package:
-        description: 'Single package directory to publish (default: all five)'
+        description: 'Single package directory to publish (default: all seven)'
         required: false
         type: choice
         default: all
@@ -56,6 +58,8 @@ on:
           - llama-index-tools-optionsahoy
           - crewai-optionsahoy
           - arcade-optionsahoy
+          - optionsahoy-openai-agents
+          - optionsahoy-pydantic-ai
 
 # Never run two publishes for the same ref at once.
 concurrency:
@@ -91,6 +95,8 @@ jobs:
           - llama-index-tools-optionsahoy
           - crewai-optionsahoy
           - arcade-optionsahoy
+          - optionsahoy-openai-agents
+          - optionsahoy-pydantic-ai
 
     steps:
       - uses: actions/checkout@v7

@@ -39,13 +39,14 @@ def amt_iso_optimize(
         float, "Existing alternative minimum tax (AMT) credit carryforward, in US dollars."
     ],
     horizon: Annotated[int, "Planning horizon in years (1 to 10)."],
-    cash_return_rate: Annotated[
-        float, "Annual return on cash held instead of exercising, as a decimal (for example 0.04)."
-    ],
     grant_date: Annotated[str, "ISO grant date in ISO-8601 format (YYYY-MM-DD)."],
     has_left_company: Annotated[bool, "Whether the holder has left the company."],
     termination_date: Annotated[
         Optional[str], "Termination date (YYYY-MM-DD), or null if still employed."
+    ] = None,
+    cash_return_rate: Annotated[
+        Optional[float],
+        "Annual return on cash held instead of exercising, as a decimal. Defaults to 0.04 server-side when omitted.",
     ] = None,
     expected_growth: Annotated[
         Optional[float], "Expected annual share-price growth, as a decimal."

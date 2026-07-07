@@ -132,7 +132,7 @@ class OptionsAhoyClient:
         stateCode: str,
         carryforwardCredit: float,
         horizon: int,
-        cashReturnRate: float,
+        cashReturnRate: Optional[float] = None,
         grantDate: str,
         hasLeftCompany: bool,
         terminationDate: Optional[str],

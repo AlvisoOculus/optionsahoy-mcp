@@ -50,7 +50,7 @@ class AmtIsoArgs(BaseModel):
     stateCode: str = Field(..., description="Two-letter US state code, or DC.")
     carryforwardCredit: float = Field(..., ge=0, description="Existing AMT credit carryforward.")
     horizon: int = Field(..., ge=1, le=10, description="Planning horizon in years (1 to 10).")
-    cashReturnRate: float = Field(..., description="Annual return on cash held instead of exercising.")
+    cashReturnRate: Optional[float] = Field(None, description="Annual return on cash held instead of exercising. Defaults to 0.04 server-side when omitted.")
     grantDate: str = Field(..., description="ISO grant date, ISO-8601 (YYYY-MM-DD).")
     hasLeftCompany: bool = Field(..., description="Whether the holder has left the company.")
     terminationDate: Optional[str] = Field(
