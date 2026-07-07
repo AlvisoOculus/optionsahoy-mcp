@@ -20,4 +20,4 @@ __all__ = [
     "qsbs_check",
     "rsu_sell_vs_hold",
 ]
-__version__ = "0.1.7"
+__version__ = "0.1.8"

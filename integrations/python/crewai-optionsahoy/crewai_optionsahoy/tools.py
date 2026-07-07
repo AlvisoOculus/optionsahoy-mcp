@@ -140,6 +140,7 @@ class ProtectivePutArgs(BaseModel):
             "off-preset snaps to the nearest). Affects only the putSpread block. Default 0.10."
         ),
     )
+    ticker: Optional[str] = Field(None, description="Public ticker to source implied volatility from.")
     tickerLabel: Optional[str] = Field(None, description="Display label for the ticker.")
 
 
@@ -213,7 +214,6 @@ class EquityFundingArgs(BaseModel):
         None, ge=0, le=1, description="Acceptable probability of shortfall (0 to 1)."
     )
     defaultVolatility: Optional[float] = Field(None, ge=0, description="Default annualized volatility.")
-    today: Optional[str] = Field(None, description="Override for today's date (YYYY-MM-DD).")
 
 
 # --- tool base -------------------------------------------------------------

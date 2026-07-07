@@ -72,7 +72,7 @@ Checks qualified small business stock (QSBS) Section 1202 eligibility and comput
 ### `EquityFundingPlan`
 Plans which equity lots to sell, and when, to fund a cash goal by a target date at the least after-tax cost, accounting for holding-period thresholds and shortfall risk.
 - Inputs (required): `target_after_tax` (USD), `target_date` (YYYY-MM-DD), `ordinary_income` (USD), `filing_status`, `state_code`, plus the holdings as either `stacks` (preferred: a list of stacks, each with `currentPrice` and a `lots` list of `{shares, costBasisPerShare, acquisitionDate, vestDate?}`) or the legacy `lots` plus a single `current_price`.
-- Optional: `expected_annual_growth` (decimal), `cash_interest_rate` (decimal), `risk_tolerance_shortfall` (0 to 1), `default_volatility` (decimal), `today` (YYYY-MM-DD).
+- Optional: `expected_annual_growth` (decimal), `cash_interest_rate` (decimal), `risk_tolerance_shortfall` (0 to 1), `default_volatility` (decimal).
 - Returns: four named plans `recommended`, `lockInNow`, `balanced`, `holdForGrowth`, plus `frontier[]`, and the echoed `targetAfterTax`, `targetDateISO`, `appliedRiskTolerance`. Each plan carries `wealthAtTarget`, `totalTax`, `shortfallProbability`, and a `plan` with `feasible`, `schedule` (per-year sales), `comparison`, and `remainingShares`.
 
 The authoritative request schemas are the OpenAPI spec at <https://optionsahoy.com/openapi.json> and the agent docs at <https://optionsahoy.com/for-agents>.

@@ -254,6 +254,9 @@ def protective_put_price(
     expected_return: Annotated[
         Optional[float], "Expected annual return of the stock, as a decimal."
     ] = None,
+    ticker: Annotated[
+        Optional[str], "Covered public ticker to source implied volatility from (for example 'NVDA')."
+    ] = None,
     ticker_label: Annotated[Optional[str], "Display label for the ticker."] = None,
     spread_risk_level: Annotated[
         Optional[float],
@@ -277,6 +280,7 @@ def protective_put_price(
             tenorYears=tenor_years,
             volatility=volatility,
             expectedReturn=expected_return,
+            ticker=ticker,
             tickerLabel=ticker_label,
             spreadRiskLevel=spread_risk_level,
         )
@@ -369,7 +373,6 @@ def equity_funding_plan(
     default_volatility: Annotated[
         Optional[float], "Default annualized volatility, as a decimal."
     ] = None,
-    today: Annotated[Optional[str], "Override for today's date (YYYY-MM-DD)."] = None,
 ) -> Annotated[Dict[str, Any], "Named funding plans, the risk/return frontier, and per-year sales."]:
     """Plan which equity lots to sell, and when, to fund a cash goal by a target date at the least
     after-tax cost, accounting for holding-period thresholds and shortfall risk. Returns four named
@@ -390,5 +393,4 @@ def equity_funding_plan(
             cashInterestRate=cash_interest_rate,
             riskToleranceShortfall=risk_tolerance_shortfall,
             defaultVolatility=default_volatility,
-            today=today,
         )

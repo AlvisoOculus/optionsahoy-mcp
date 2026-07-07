@@ -662,6 +662,10 @@
               "maximum": 0.2,
               "description": "Put spread floor breach risk: probability the stock ends below the spread's short strike (presets 0.20 / 0.10 / 0.05 / 0.01, i.e. 1 in 5 / 10 / 20 / 100; off-preset snaps to the nearest). Affects only the putSpread block. Default 0.10."
             },
+            "ticker": {
+              "type": "string",
+              "description": "Covered public ticker to source implied volatility from (for example \"NVDA\")."
+            },
             "tickerLabel": {
               "type": "string",
               "description": "Optional ticker for warning copy (e.g. \"AAPL\")."
@@ -681,6 +685,7 @@
             "volatility",
             "expectedReturn",
             "spreadRiskLevel",
+            "ticker",
             "tickerLabel"
           ],
           "additionalProperties": false
@@ -1014,11 +1019,6 @@
               "type": "number",
               "minimum": 0,
               "description": "Annualized sigma used for stacks that omit their own volatility. Default 0.30."
-            },
-            "today": {
-              "type": "string",
-              "format": "date",
-              "description": "Optional override for \"now\" (YYYY-MM-DD). Defaults to the server's current date."
             }
           },
           "required": [
@@ -1040,8 +1040,7 @@
             "stateCode",
             "cashInterestRate",
             "riskToleranceShortfall",
-            "defaultVolatility",
-            "today"
+            "defaultVolatility"
           ],
           "additionalProperties": false
         }
