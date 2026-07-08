@@ -284,7 +284,7 @@ Email andrew@alphalatitude.com with: the exact JSON-RPC request body, the respon
 
 Full policy: [optionsahoy.com/privacy](https://optionsahoy.com/privacy).
 
-In short: no account is required and no personally identifiable information — name, email, IP address, or login — is collected. Tool inputs and outputs are retained briefly (about seven days) for debugging and product improvement. Aggregate usage metadata (tool, timestamp, approximate location, and client and network type) is recorded to understand usage and detect automated abuse. The local stdio server and the Claude Desktop extension compute everything on your machine; the only network request is an option-chain lookup (ticker symbol only) for `protective_put_price`.
+In short: no account is required and no personally identifiable information is stored — no name, email, IP address, or login. Tool inputs and outputs are retained briefly (about seven days) for debugging and product improvement, alongside aggregate usage metadata (tool, timestamp, coarse location, client type) used to understand usage and detect abuse. The local stdio server and the Claude Desktop extension compute everything on your machine; the only network request is an option-chain lookup (ticker symbol only) for `protective_put_price`.
 
 ## License
 
