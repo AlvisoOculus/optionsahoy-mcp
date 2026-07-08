@@ -284,7 +284,7 @@ Email andrew@alphalatitude.com with: the exact JSON-RPC request body, the respon
 
 Full policy: [optionsahoy.com/privacy](https://optionsahoy.com/privacy).
 
-In short: tool inputs are processed to compute the result and are not stored. The hosted endpoint logs aggregate call counts per tool (no inputs, no outputs, no identifiers beyond an opaque session ID used to de-duplicate). The local stdio server and the Claude Desktop extension compute everything on your machine; the only network request is an option-chain lookup (ticker symbol only) for `protective_put_price`. No account is required and no PII is collected.
+In short: no account is required and no personally identifiable information — name, email, IP address, or login — is collected. Tool inputs and outputs are retained briefly (about seven days) for debugging and product improvement. Aggregate usage metadata (tool, timestamp, approximate location, and client and network type) is recorded to understand usage and detect automated abuse. The local stdio server and the Claude Desktop extension compute everything on your machine; the only network request is an option-chain lookup (ticker symbol only) for `protective_put_price`.
 
 ## License
 
@@ -293,54 +293,3 @@ MIT. See [LICENSE](LICENSE). The deployed service at https://optionsahoy.com/mcp
 ## Contact
 
 For partnerships, early API access, MCP integration support: andrew@alphalatitude.com
-
-## Deployment topology
-
-Two pieces serve the live endpoint:
-
-1. **Cloudflare Pages project** (GitHub-connected to this repo) auto-deploys
-   `functions/` + `public/` on every push to main → `optionsahoy-mcp.pages.dev`.
-2. **Cloudflare Worker** in [`worker-proxy/`](worker-proxy/) forwards
-   `optionsahoy.com/mcp*` + `/api/v1/*` to that Pages deployment, so the
-   public URL stays stable. One-time `wrangler deploy` — see
-   [`worker-proxy/README.md`](worker-proxy/README.md).
-
-## Call stats (D1)
-
-Every inbound MCP and REST call writes one row to a D1 table via
-`ctx.waitUntil` (fire-and-forget — never blocks the response). View
-aggregates at `https://optionsahoy-mcp.pages.dev/admin/mcp-stats?token=<ADMIN_TOKEN>`.
-
-**One-time setup (Andrew):**
-
-```bash
-# 1. Create the database. Outputs a database_id.
-cd /Users/andrewk/Projects/optionsahoy-mcp
-npx wrangler d1 create optionsahoy-mcp-stats
-
-# 2. Apply the schema (run each migration in order).
-npx wrangler d1 execute optionsahoy-mcp-stats --remote \
-  --file=db/migrations/0001_init.sql
-npx wrangler d1 execute optionsahoy-mcp-stats --remote \
-  --file=db/migrations/0002_mcp_sessions.sql
-npx wrangler d1 execute optionsahoy-mcp-stats --remote \
-  --file=db/migrations/0003_mcp_samples.sql   # 7-day example capture for /admin/mcp-stats
-
-# 3. Generate a token.
-openssl rand -hex 32
-```
-
-Then in the Cloudflare dashboard for the `optionsahoy-mcp` Pages project:
-
-- **Settings → Functions → D1 database bindings** — add variable name
-  `MCP_STATS`, point at the database created in step 1.
-- **Settings → Environment variables → Production** — add `ADMIN_TOKEN`
-  with the value from step 3 (mark as encrypted).
-
-After the next deploy, `/admin/mcp-stats?token=...&days=30` renders the
-dashboard. Without the bindings, `logCall` silently no-ops and the admin
-page returns 503 (the rest of the server is unaffected).
-
-What's logged: `ts, endpoint, tool, is_error, error_msg (truncated 500),
-client_name, ua (truncated 200), country`. Tool arguments are **never**
-logged (PII + table-size).
