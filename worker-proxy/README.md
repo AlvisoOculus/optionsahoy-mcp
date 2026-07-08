@@ -1,8 +1,7 @@
 # optionsahoy-mcp-proxy
 
 Tiny Cloudflare Worker that forwards `optionsahoy.com/mcp*` and
-`optionsahoy.com/api/v1/*` to the optionsahoy-mcp Pages deployment
-(`optionsahoy-mcp.pages.dev`).
+`optionsahoy.com/api/v1/*` to the optionsahoy-mcp Pages deployment origin.
 
 ## Why
 
@@ -33,4 +32,4 @@ curl https://optionsahoy.com/mcp \
   -d '{"jsonrpc":"2.0","method":"initialize","id":1,"params":{"protocolVersion":"2024-11-05","capabilities":{}}}'
 ```
 
-Should return MCP server info from `optionsahoy-mcp.pages.dev`.
+Should return MCP server info from the Pages deployment origin.
