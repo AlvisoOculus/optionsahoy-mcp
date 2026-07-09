@@ -8,6 +8,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { classifyClient, networkKind, KIND_RANK, type ClientKind } from '../functions/admin/mcp-stats';
+import { isInfraClient } from '../functions/_lib/classify';
 
 const kind = (c: string | null | undefined, surface = 'rest'): ClientKind =>
   classifyClient(c, surface).kind;
@@ -49,6 +50,23 @@ describe('classifyClient — real-vs-bot of captured examples', () => {
     }
   });
 
+  it('MCP directory probes / registry crawlers are crawlers (the dominant prod traffic)', () => {
+    // Real handshake names seen in prod, in descending volume. These constantly
+    // re-introspect any listed server and must not count as real engagement.
+    for (const c of ['glimind-probe', 'mcpregistry', 'smithery-probe', 'aisec-registry-probe',
+      'MCPScoringEngine', 'capability-probe', 'mcpcentral-scanner', 'glama-mcp-inspector',
+      'see-registry-introspector', 'drio-upstream-discovery', 'chariot-verifier', 'sasame-audit']) {
+      expect(kind(c, 'mcp')).toBe('crawler');
+    }
+  });
+
+  it('real agent frameworks are NOT swept up by the probe patterns', () => {
+    // 'index' is deliberately absent from the crawler regex so llama-index
+    // stays an agent; python-httpx stays a tool.
+    expect(kind('llama-index', 'mcp')).toBe('agent');
+    expect(kind('python-httpx/0.28.1', 'mcp')).toBe('tool');
+  });
+
   it('generic HTTP clients and empty UA are scripts/tools', () => {
     for (const c of ['curl/8.4.0', 'python-requests/2.31', 'Go-http-client/2.0', 'node-fetch', 'PostmanRuntime/7.36', '']) {
       expect(kind(c)).toBe('tool');
@@ -65,6 +83,21 @@ describe('classifyClient — real-vs-bot of captured examples', () => {
     expect(kind('zxqv-internal-9000')).toBe('unknown');
     expect(KIND_RANK.unknown).toBeGreaterThan(KIND_RANK.agent);
     expect(KIND_RANK.unknown).toBeLessThan(KIND_RANK.tool);
+  });
+});
+
+describe('isInfraClient — what the sample capture drops', () => {
+  it('smoke suite and crawlers/probes are infrastructure (skipped from capture)', () => {
+    expect(isInfraClient('OptionsAhoy-smoke/1.0 (Mozilla/5.0 compatible)', 'rest')).toBe(true);
+    expect(isInfraClient('glimind-probe', 'mcp')).toBe(true);
+    expect(isInfraClient('Googlebot/2.1', 'rest')).toBe(true);
+  });
+
+  it('real people, agents, and dev scripts are NOT infrastructure (kept)', () => {
+    expect(isInfraClient('poe', 'poe')).toBe(false);
+    expect(isInfraClient('Claude-User', 'mcp')).toBe(false);
+    expect(isInfraClient('llama-index', 'mcp')).toBe(false);
+    expect(isInfraClient('python-httpx/0.28.1', 'mcp')).toBe(false);
   });
 });
 

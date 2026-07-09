@@ -15,6 +15,12 @@
 
 import { type PagesFunction } from '../_lib/api';
 import { type D1Database } from '../_lib/stats';
+import { classifyClient, KIND_RANK, type ClientKind } from '../_lib/classify';
+
+// Client classification lives in ../_lib/classify (shared with the sample
+// capture). Re-exported here so existing consumers/tests that import from this
+// route keep working.
+export { classifyClient, KIND_RANK, type ClientKind };
 
 interface EndpointRow { endpoint: string; n: number }
 interface DayRow { day: string; n: number }
@@ -24,58 +30,6 @@ interface ClientRow { client_name: string; n: number }
 interface CountryRow { country: string | null; n: number }
 interface SampleRow { ts: number; surface: string; tool: string | null; client_name: string | null; query: string | null; answer: string | null; country: string | null; region: string | null; city: string | null; as_org: string | null; asn: number | null }
 interface RestNetRow { as_org: string; city: string; region: string; country: string; n: number }
-
-// --- real-vs-bot classification of a captured example -----------------------
-//
-// Heuristic, NOT proof. The signal we classify on (client_name) is:
-//   - the MCP handshake clientInfo.name for mcp: calls (e.g. 'Claude-User'),
-//   - the literal 'poe' for Poe (a human typed into the consumer bot),
-//   - the raw User-Agent for rest: calls, which is trivially spoofable.
-// Two structural facts make the heuristic usable anyway: (1) only successful,
-// valid-input calls are written to mcp_samples, so the worst fuzzer/probe
-// noise (which fails input validation) never appears here; (2) our own smoke
-// monitor sends a distinctive UA, so synthetic traffic self-identifies.
-export type ClientKind = 'human' | 'agent' | 'smoke' | 'tool' | 'crawler' | 'unknown';
-
-// Display order on the dashboard: most-valuable (a real person, then an
-// automated agent) first.
-export const KIND_RANK: Record<ClientKind, number> = {
-  human: 0, agent: 1, unknown: 2, tool: 3, smoke: 4, crawler: 5,
-};
-
-export function classifyClient(
-  clientName: string | null | undefined,
-  surface: string,
-): { kind: ClientKind; label: string } {
-  const c = (clientName ?? '').trim().toLowerCase();
-  // Our own synthetic monitor (data/agent-campaign smoke + uptime checks).
-  if (c.includes('optionsahoy-smoke')) return { kind: 'smoke', label: 'smoke test' };
-  // A person typed into the Poe consumer bot.
-  if (surface === 'poe' || c === 'poe') return { kind: 'human', label: 'human (Poe)' };
-  // Web crawlers / training bots / security scanners. Checked before the
-  // interactive list so 'claudebot' (Anthropic's crawler) is not confused with
-  // 'Claude-User' (a real person driving Claude).
-  if (/\b(bot|crawler|spider)\b|gptbot|oai-searchbot|claudebot|google-extended|googlebot|bingbot|applebot|slurp|duckduckbot|yandex|baiduspider|semrush|ahrefs|mj12|dotbot|petalbot|nuclei|zgrab|masscan|censys|shodan|nmap|sqlmap/.test(c))
-    return { kind: 'crawler', label: 'crawler/scanner' };
-  // Interactive AI clients: a real person is in the loop (chat UI, IDE,
-  // desktop app). 'Claude-User' is the name Claude.ai sends for a
-  // user-initiated tool call, so it counts as a human, not an automated agent.
-  if (/claude-user|claude\.ai|claude-desktop|claude-code|chatgpt-user|chatgpt|cursor|cline|roo|windsurf|continue|zed|librechat|witsy|cherry|chatwise|5ire|highlight|tome|copilot|vscode|jetbrains/.test(c))
-    return { kind: 'human', label: 'human (AI assistant)' };
-  // Programmatic AI agent frameworks / SDKs: an automated caller that may have
-  // no person watching the loop.
-  if (/langchain|llama-?index|crewai|fast-?agent|anthropic|openai|\bmcp-|autogpt|agno|smolagents|pydantic-ai|vercel-ai/.test(c))
-    return { kind: 'agent', label: 'AI agent' };
-  // Generic programmatic HTTP clients: a dev test or an unknown integration.
-  if (c === '') return { kind: 'tool', label: 'no UA (script)' };
-  if (/curl|wget|python-requests|python-httpx|httpx|aiohttp|node-fetch|undici|axios|okhttp|go-http-client|java\/|apache-httpclient|libwww|postmanruntime|insomnia|restsharp|guzzle|httpie/.test(c))
-    return { kind: 'tool', label: 'script/tool' };
-  // A raw browser UA hitting the JSON API directly: real browsers don't, so
-  // this is a manual test (Postman-as-browser) or a script with a copied UA.
-  if (/mozilla\/|chrome\/|safari\/|firefox\/|webkit/.test(c))
-    return { kind: 'tool', label: 'browser/manual' };
-  return { kind: 'unknown', label: 'unknown' };
-}
 
 // --- originating-network classification (the primary bot signal) ------------
 //

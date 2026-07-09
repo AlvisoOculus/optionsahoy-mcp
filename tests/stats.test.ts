@@ -12,6 +12,7 @@ import {
   logCall,
   logCalls,
   logSample,
+  logSamples,
   type D1Database,
   type D1PreparedStatement,
   type PagesContext,
@@ -247,5 +248,34 @@ describe('logSample (example capture)', () => {
     await Promise.all(c.waited);
     const insert = recorded.find((r) => r.sql.startsWith('INSERT INTO mcp_samples'))!;
     expect(insert.bindings[3]).toBe('poe');
+  });
+
+  it('skips our own smoke suite so it never pollutes the capture', () => {
+    const { db, recorded } = mockDb();
+    const c = ctx({ db, ua: 'OptionsAhoy-smoke/1.0 (Mozilla/5.0 compatible)' });
+    logSample(c, { surface: 'rest', tool: 'qsbs', query: 'q', answer: 'a' });
+    expect(c.waited).toHaveLength(0); // nothing scheduled
+    expect(recorded).toHaveLength(0); // no insert, no prune
+  });
+
+  it('skips registry probes / crawlers', () => {
+    const { db, recorded } = mockDb();
+    const c = ctx({ db });
+    logSample(c, { surface: 'mcp', tool: 'qsbs_check', clientName: 'glimind-probe', query: 'q', answer: 'a' });
+    expect(recorded).toHaveLength(0);
+  });
+
+  it('captures only the real rows from a mixed batch', async () => {
+    const { db, recorded } = mockDb();
+    const c = ctx({ db });
+    logSamples(c, [
+      { surface: 'poe', clientName: 'poe', tool: 'qsbs_check', query: 'real', answer: 'a' },
+      { surface: 'mcp', clientName: 'smithery-probe', tool: 'nso_calculate', query: 'noise', answer: 'a' },
+      { surface: 'rest', clientName: 'OptionsAhoy-smoke/1.0', tool: 'amt-iso', query: 'noise', answer: 'a' },
+    ]);
+    await Promise.all(c.waited);
+    const inserts = recorded.filter((r) => r.sql.startsWith('INSERT INTO mcp_samples'));
+    expect(inserts).toHaveLength(1); // only the real Poe row survives
+    expect(inserts[0].bindings[3]).toBe('poe');
   });
 });
