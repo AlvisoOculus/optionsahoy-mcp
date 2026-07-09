@@ -13,6 +13,8 @@
 // If the MCP_STATS binding is not configured (local dev, tests, or before
 // Andrew wires it in the Pages dashboard), logCall is a silent no-op.
 
+import { isInfraClient } from './classify';
+
 // Minimal D1 surface we use. Full type lives in @cloudflare/workers-types
 // which we deliberately don't pull in (would force one for the whole repo
 // just to keep this file's types narrow). Match D1 by structural typing.
@@ -156,14 +158,18 @@ export function logSamples(ctx: PagesContext, batch: SampleFields[]): void {
   if (batch.length === 0) return;
   const db = ctx.env?.MCP_STATS;
   if (!db) return;
-  const ts = Date.now();
   // REST/MCP calls carry no handshake client name; fall back to the request's
   // User-Agent so each example is attributable (curl/browser = a test, a real
   // integration's UA otherwise). Poe passes clientName 'poe' explicitly.
   const ua = ctx.request.headers.get('user-agent') ?? undefined;
+  // Keep infrastructure noise (our own smoke suite + registry/scanner probes)
+  // out of the 7-day example capture, so RECENT EXAMPLES shows real inputs.
+  const kept = batch.filter((f) => !isInfraClient(f.clientName ?? ua, f.surface));
+  if (kept.length === 0) return;
+  const ts = Date.now();
   const geo = readCf(ctx.request);
   const cut = (s: string | undefined, max: number) => (s ? s.slice(0, max) : null);
-  const stmts = batch.map((f) => {
+  const stmts = kept.map((f) => {
     const client = f.clientName ?? ua;
     return db.prepare(SAMPLE_INSERT_SQL).bind(
       ts,
