@@ -8,7 +8,9 @@
 
 import { describe, it, expect } from 'vitest';
 import { readFileSync, existsSync } from 'node:fs';
+import Ajv2020 from 'ajv/dist/2020.js';
 import { TOOLS } from '../functions/_lib/mcp-tools';
+import { buildOpenApi } from '../scripts/codegen/gen-openapi.mjs';
 
 // tool name -> REST slug + PascalCase component prefix (mirrors gen-openapi.mts).
 const MAP = [
@@ -64,4 +66,45 @@ describe('openapi.json per-tool response schemas track the tool outputSchemas', 
     }
     expect(readFileSync(WEB_PATH, 'utf8')).toEqual(readFileSync(MCP_PATH, 'utf8'));
   });
+});
+
+describe('openapi.json request/response examples are the real engine I/O', () => {
+  const media = (s: any) => s.content['application/json'];
+  // One validator for the whole block: register the spec's components once so
+  // $refs resolve, then compile per tool. Re-adding the same $id on one instance
+  // throws, so this must stay a single addSchema.
+  const ajv = new Ajv2020({ strict: false, allErrors: true });
+  ajv.addSchema({ $id: 'oa', components: spec.components });
+
+  // Master drift guard: regenerating (schemas + examples, calc output frozen to
+  // a fixed clock inside buildOpenApi) must reproduce the committed file exactly.
+  // A changed calc output, a hand-edited example, or a stale schema all fail here
+  // -- run `npm run gen:openapi`. Subsumes the checks below, which stay for
+  // readable per-tool failure messages.
+  it('regenerating reproduces the committed spec byte-for-byte (run gen:openapi if this fails)', () => {
+    // Compare the exact bytes the generator writes (JSON.stringify drops
+    // `undefined`-valued props, matching the on-disk file) -- the same check
+    // as `npm run verify:openapi`.
+    const regenerated = JSON.stringify(buildOpenApi(), null, 2) + '\n';
+    expect(regenerated).toEqual(readFileSync(MCP_PATH, 'utf8'));
+  });
+
+  for (const [, slug, prefix] of MAP) {
+    it(`${slug}: has a request example and a { ok:true, result } response example`, () => {
+      const reqExample = media(spec.paths[`/api/v1/${slug}`].post.requestBody).example;
+      expect(reqExample && typeof reqExample).toBe('object');
+
+      const respExample = media(spec.components.responses[`${prefix}Success`]).example;
+      expect(respExample.ok).toBe(true);
+      expect(respExample.result && typeof respExample.result).toBe('object');
+    });
+
+    it(`${slug}: response example validates against the ${prefix}Result schema`, () => {
+      // The example is literal calc output; if it fails its own schema, the
+      // outputSchema misdescribes what the engine actually returns.
+      const validate = ajv.compile({ $ref: `oa#/components/schemas/${prefix}Result` });
+      const result = media(spec.components.responses[`${prefix}Success`]).example.result;
+      expect(validate(result), JSON.stringify(validate.errors)).toBe(true);
+    });
+  }
 });

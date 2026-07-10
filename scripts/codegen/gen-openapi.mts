@@ -19,24 +19,214 @@
 import { writeFileSync, readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import { TOOLS } from '../../functions/_lib/mcp-tools';
+import {
+  parseAmtIsoInput,
+  parseNsoInput,
+  parseRsuInput,
+  parseConcentrationInput,
+  parseProtectivePutInput,
+  parseQsbsInput,
+  parseEquityFundingInput,
+} from '../../functions/_lib/calc-parsers';
+import { computeAmtIso } from '../../lib/calc/amtIso';
+import { computeNsoResult } from '../../lib/calc/nso';
+import { computeRsuResult } from '../../lib/calc/rsu';
+import { calculate as computeConcentration } from '../../lib/calc/concentration';
+import { calculateProtectivePut } from '../../lib/calc/protectivePut';
+import { evaluateQsbs } from '../../lib/calc/qsbs';
+import { computeEquityFundingComparison } from '../../lib/calc/equityFunding';
 
 // Base is the MCP-repo spec (source of truth); the web copy is a byte mirror.
 export const BASE = 'public/openapi.json';
 const TARGETS = [BASE, '../optionsahoy_web/web/public/openapi.json'];
 
-// tool name -> REST slug + PascalCase component prefix (matches the existing
-// <Prefix>Input request schemas, so the response schema reads <Prefix>Result).
-const TOOL_MAP = [
-  { name: 'amt_iso_optimize', slug: 'amt-iso', prefix: 'AmtIso' },
-  { name: 'nso_calculate', slug: 'nso', prefix: 'Nso' },
-  { name: 'rsu_sell_vs_hold', slug: 'rsu-sell-vs-hold', prefix: 'Rsu' },
-  { name: 'concentration_analyze', slug: 'concentration', prefix: 'Concentration' },
-  { name: 'protective_put_price', slug: 'protective-put', prefix: 'ProtectivePut' },
-  { name: 'qsbs_check', slug: 'qsbs', prefix: 'Qsbs' },
-  { name: 'equity_funding_plan', slug: 'equity-funding', prefix: 'EquityFunding' },
-] as const;
-
 type Json = Record<string, any>;
+
+// The response examples are the ACTUAL calc output for the request example, so
+// they can never claim a shape the engine doesn't produce. Several calcs default
+// to an ambient "today" (amt exercise-window countdown, equity-funding
+// months-to-goal, plus nso / concentration internals), which would make the
+// committed example drift every day. Rather than thread an explicit clock
+// through each seam - which would miss any calc that reads the clock without one
+// - freeze the whole computation to one instant so buildOpenApi() is time-
+// deterministic no matter which calc reads it. The drift guard
+// (tests/openapi-responses-generated.test.ts) regenerates through the same
+// frozen path. Only the zero-arg `new Date()` is pinned - `new Date("2022-01-15")`
+// from the input parsers is untouched.
+const EXAMPLE_CLOCK = '2026-06-24T12:00:00Z';
+
+function withFrozenClock<T>(fn: () => T): T {
+  const RealDate = Date;
+  class Frozen extends RealDate {
+    constructor(...args: any[]) {
+      if (args.length === 0) super(EXAMPLE_CLOCK);
+      else super(...(args as [any]));
+    }
+    static now(): number {
+      return new RealDate(EXAMPLE_CLOCK).getTime();
+    }
+  }
+  (globalThis as any).Date = Frozen;
+  try {
+    return fn();
+  } finally {
+    (globalThis as any).Date = RealDate;
+  }
+}
+
+// tool name -> REST slug + PascalCase component prefix (matches the existing
+// <Prefix>Input request schemas, so the response schema reads <Prefix>Result),
+// plus a canonical request example and how to run it. The examples are
+// ticker-less on purpose: passing explicit volatility / expected-return beliefs
+// makes the parsers skip the cached implied-vol and trailing-return tables, so a
+// daily ETL refresh of that bundled data cannot silently change the committed
+// example. `run` mirrors the REST handler pipeline: parse the public JSON, then
+// compute (see functions/api/v1/<slug>.ts).
+type ToolEntry = {
+  name: string;
+  slug: string;
+  prefix: string;
+  request: Json;
+  run: (raw: Json) => unknown;
+};
+
+export const TOOL_MAP: readonly ToolEntry[] = [
+  {
+    name: 'amt_iso_optimize',
+    slug: 'amt-iso',
+    prefix: 'AmtIso',
+    request: {
+      shares: 10000,
+      strike: 2,
+      fmv: 200,
+      expectedGrowth: 0.15,
+      volatility: 0.5,
+      filingStatus: 'married_joint',
+      ordinaryIncome: 400000,
+      stateCode: 'CA',
+      carryforwardCredit: 0,
+      horizon: 4,
+      cashReturnRate: 0.05,
+      grantDate: '2022-01-15',
+      hasLeftCompany: false,
+      terminationDate: null,
+    },
+    run: (raw) => computeAmtIso(parseAmtIsoInput(raw)),
+  },
+  {
+    name: 'nso_calculate',
+    slug: 'nso',
+    prefix: 'Nso',
+    request: {
+      shares: 5000,
+      strike: 10,
+      currentPrice: 50,
+      expectedSalePrice: 80,
+      expectedMarketReturn: 0.07,
+      ordinaryIncome: 180000,
+      filingStatus: 'single',
+      stateCode: 'CA',
+      stillEmployed: true,
+      holdYears: 2,
+      volatility: 0.3,
+      holdFunding: 'cash',
+    },
+    run: (raw) => computeNsoResult(parseNsoInput(raw)),
+  },
+  {
+    name: 'rsu_sell_vs_hold',
+    slug: 'rsu-sell-vs-hold',
+    prefix: 'Rsu',
+    request: {
+      shares: 1000,
+      currentPrice: 100,
+      expectedSalePrice: 130,
+      expectedMarketReturn: 0.07,
+      ordinaryIncome: 200000,
+      filingStatus: 'single',
+      stateCode: 'CA',
+      stillEmployed: true,
+      holdYears: 2,
+      volatility: 0.3,
+    },
+    run: (raw) => computeRsuResult(parseRsuInput(raw)),
+  },
+  {
+    name: 'concentration_analyze',
+    slug: 'concentration',
+    prefix: 'Concentration',
+    request: {
+      positionValue: 400000,
+      costBasis: 100000,
+      acquisitionDate: '2022-01-01',
+      sector: 'tech_software',
+      stateCode: 'CA',
+      filingStatus: 'single',
+      ordinaryIncome: 200000,
+      totalAssets: 1200000,
+      volatility: 0.45,
+      expectedPositionReturn: 0.1,
+      expectedMarketReturn: 0.07,
+    },
+    run: (raw) => computeConcentration(parseConcentrationInput(raw)),
+  },
+  {
+    name: 'protective_put_price',
+    slug: 'protective-put',
+    prefix: 'ProtectivePut',
+    request: {
+      positionValue: 400000,
+      sector: 'tech_software',
+      protectionLevel: 0.1,
+      tenorYears: 1,
+      spreadRiskLevel: 0.1,
+      volatility: 0.4,
+    },
+    run: (raw) => calculateProtectivePut(parseProtectivePutInput(raw)),
+  },
+  {
+    name: 'qsbs_check',
+    slug: 'qsbs',
+    prefix: 'Qsbs',
+    request: {
+      acquisitionDate: '2020-01-15',
+      saleDate: '2026-06-01',
+      entityType: 'us-c-corp',
+      acquisitionMethod: 'original-issuance',
+      assetCategory: 'under-50m',
+      industry: 'tech-software',
+      activeBusiness: 'yes',
+      adjustedBasis: 100000,
+      expectedGain: 5000000,
+      stateCode: 'CA',
+      ordinaryIncome: 250000,
+      filingStatus: 'single',
+    },
+    run: (raw) => evaluateQsbs(parseQsbsInput(raw)),
+  },
+  {
+    name: 'equity_funding_plan',
+    slug: 'equity-funding',
+    prefix: 'EquityFunding',
+    request: {
+      targetAfterTax: 200000,
+      targetDate: '2028-01-01',
+      ordinaryIncome: 200000,
+      filingStatus: 'single',
+      stateCode: 'CA',
+      cashInterestRate: 0.04,
+      stacks: [
+        {
+          currentPrice: 100,
+          expectedAnnualGrowth: 0.08,
+          volatility: 0.4,
+          lots: [{ shares: 2000, costBasisPerShare: 20, acquisitionDate: '2022-01-01' }],
+        },
+      ],
+    },
+    run: (raw) => computeEquityFundingComparison(parseEquityFundingInput(raw)),
+  },
+] as const;
 
 export function buildOpenApi(): Json {
   const spec = JSON.parse(readFileSync(BASE, 'utf8')) as Json;
@@ -54,7 +244,8 @@ export function buildOpenApi(): Json {
     }
   }
 
-  for (const { name, slug, prefix } of TOOL_MAP) {
+  for (const entry of TOOL_MAP) {
+    const { name, slug, prefix } = entry;
     const tool = byName.get(name);
     if (!tool) throw new Error(`gen-openapi: tool "${name}" not found in TOOLS`);
     const path = spec.paths?.[`/api/v1/${slug}`]?.post;
@@ -64,6 +255,19 @@ export function buildOpenApi(): Json {
     // the returned spec never aliases the live TOOLS descriptors (a caller that
     // mutates the spec must not corrupt the source of truth).
     spec.components.schemas[`${prefix}Result`] = structuredClone(tool.outputSchema);
+
+    // A canonical request example, and the ACTUAL calc output for it as the
+    // response example - so a reader sees a real request paired with the real
+    // answer it produces, and neither can drift from the engine. The request
+    // is cloned into both the spec and the run input so the stored example is
+    // never aliased or mutated by the parser.
+    const request = structuredClone(entry.request);
+    const result = withFrozenClock(() => entry.run(structuredClone(entry.request)));
+    const reqMedia = path.requestBody?.content?.['application/json'];
+    if (!reqMedia) {
+      throw new Error(`gen-openapi: POST /api/v1/${slug} has no application/json request body`);
+    }
+    reqMedia.example = request;
 
     // A typed success envelope: { ok: true, result: <the tool's output> }.
     spec.components.responses[`${prefix}Success`] = {
@@ -78,6 +282,7 @@ export function buildOpenApi(): Json {
               result: { $ref: `#/components/schemas/${prefix}Result` },
             },
           },
+          example: { ok: true, result },
         },
       },
     };

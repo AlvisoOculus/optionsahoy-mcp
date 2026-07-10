@@ -135,6 +135,22 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/AmtIsoInput"
+              },
+              "example": {
+                "shares": 10000,
+                "strike": 2,
+                "fmv": 200,
+                "expectedGrowth": 0.15,
+                "volatility": 0.5,
+                "filingStatus": "married_joint",
+                "ordinaryIncome": 400000,
+                "stateCode": "CA",
+                "carryforwardCredit": 0,
+                "horizon": 4,
+                "cashReturnRate": 0.05,
+                "grantDate": "2022-01-15",
+                "hasLeftCompany": false,
+                "terminationDate": null
               }
             }
           }
@@ -166,6 +182,20 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/NsoInput"
+              },
+              "example": {
+                "shares": 5000,
+                "strike": 10,
+                "currentPrice": 50,
+                "expectedSalePrice": 80,
+                "expectedMarketReturn": 0.07,
+                "ordinaryIncome": 180000,
+                "filingStatus": "single",
+                "stateCode": "CA",
+                "stillEmployed": true,
+                "holdYears": 2,
+                "volatility": 0.3,
+                "holdFunding": "cash"
               }
             }
           }
@@ -197,6 +227,18 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/RsuInput"
+              },
+              "example": {
+                "shares": 1000,
+                "currentPrice": 100,
+                "expectedSalePrice": 130,
+                "expectedMarketReturn": 0.07,
+                "ordinaryIncome": 200000,
+                "filingStatus": "single",
+                "stateCode": "CA",
+                "stillEmployed": true,
+                "holdYears": 2,
+                "volatility": 0.3
               }
             }
           }
@@ -228,6 +270,19 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/ConcentrationInput"
+              },
+              "example": {
+                "positionValue": 400000,
+                "costBasis": 100000,
+                "acquisitionDate": "2022-01-01",
+                "sector": "tech_software",
+                "stateCode": "CA",
+                "filingStatus": "single",
+                "ordinaryIncome": 200000,
+                "totalAssets": 1200000,
+                "volatility": 0.45,
+                "expectedPositionReturn": 0.1,
+                "expectedMarketReturn": 0.07
               }
             }
           }
@@ -259,6 +314,14 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/ProtectivePutInput"
+              },
+              "example": {
+                "positionValue": 400000,
+                "sector": "tech_software",
+                "protectionLevel": 0.1,
+                "tenorYears": 1,
+                "spreadRiskLevel": 0.1,
+                "volatility": 0.4
               }
             }
           }
@@ -290,6 +353,20 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/QsbsInput"
+              },
+              "example": {
+                "acquisitionDate": "2020-01-15",
+                "saleDate": "2026-06-01",
+                "entityType": "us-c-corp",
+                "acquisitionMethod": "original-issuance",
+                "assetCategory": "under-50m",
+                "industry": "tech-software",
+                "activeBusiness": "yes",
+                "adjustedBasis": 100000,
+                "expectedGain": 5000000,
+                "stateCode": "CA",
+                "ordinaryIncome": 250000,
+                "filingStatus": "single"
               }
             }
           }
@@ -321,6 +398,28 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/EquityFundingInput"
+              },
+              "example": {
+                "targetAfterTax": 200000,
+                "targetDate": "2028-01-01",
+                "ordinaryIncome": 200000,
+                "filingStatus": "single",
+                "stateCode": "CA",
+                "cashInterestRate": 0.04,
+                "stacks": [
+                  {
+                    "currentPrice": 100,
+                    "expectedAnnualGrowth": 0.08,
+                    "volatility": 0.4,
+                    "lots": [
+                      {
+                        "shares": 2000,
+                        "costBasisPerShare": 20,
+                        "acquisitionDate": "2022-01-01"
+                      }
+                    ]
+                  }
+                ]
               }
             }
           }
@@ -585,6 +684,232 @@
                   "$ref": "#/components/schemas/AmtIsoResult"
                 }
               }
+            },
+            "example": {
+              "ok": true,
+              "result": {
+                "crossoverShares": 240,
+                "crossoverBargain": 47650,
+                "alreadyInAmt": false,
+                "schedules": {
+                  "lumpSum": {
+                    "label": "lump_sum",
+                    "years": [
+                      {
+                        "year": 1,
+                        "shares": 10000,
+                        "bargain": 1980000,
+                        "regularFederal": 81196,
+                        "regularState": 30077.275999999998,
+                        "tmtFederal": 661510,
+                        "tmtState": 166600.00000000003,
+                        "amtOwedFederal": 580314,
+                        "amtOwedState": 136522.72400000005,
+                        "creditRecovered": 0,
+                        "cashTax": 828110
+                      },
+                      {
+                        "year": 2,
+                        "shares": 0,
+                        "bargain": 0,
+                        "regularFederal": 81196,
+                        "regularState": 30077.275999999998,
+                        "tmtFederal": 67854,
+                        "tmtState": 19343.31,
+                        "amtOwedFederal": 0,
+                        "amtOwedState": 0,
+                        "creditRecovered": 13342,
+                        "cashTax": 97931.276
+                      },
+                      {
+                        "year": 3,
+                        "shares": 0,
+                        "bargain": 0,
+                        "regularFederal": 81196,
+                        "regularState": 30077.275999999998,
+                        "tmtFederal": 67854,
+                        "tmtState": 19343.31,
+                        "amtOwedFederal": 0,
+                        "amtOwedState": 0,
+                        "creditRecovered": 13342,
+                        "cashTax": 97931.276
+                      },
+                      {
+                        "year": 4,
+                        "shares": 0,
+                        "bargain": 0,
+                        "regularFederal": 81196,
+                        "regularState": 30077.275999999998,
+                        "tmtFederal": 67854,
+                        "tmtState": 19343.31,
+                        "amtOwedFederal": 0,
+                        "amtOwedState": 0,
+                        "creditRecovered": 13342,
+                        "cashTax": 97931.276
+                      }
+                    ],
+                    "totalTax": 1121903.828,
+                    "baselineRegularTax": 445093.104,
+                    "exerciseTax": 676810.7239999999,
+                    "creditEarned": 580314,
+                    "creditRecovered": 40026,
+                    "creditRemaining": 540288,
+                    "grossGain": 2187625.781249999,
+                    "federalLTCG": 509969.9359374998,
+                    "stateLTCG": 265750.16890624986,
+                    "amtPremiumFV": 787767.4576205001,
+                    "nfv": 624138.2187857493
+                  },
+                  "evenSplit": {
+                    "label": "even_split",
+                    "years": [
+                      {
+                        "year": 1,
+                        "shares": 2500,
+                        "bargain": 495000,
+                        "regularFederal": 81196,
+                        "regularState": 30077.275999999998,
+                        "tmtFederal": 206454,
+                        "tmtState": 61540.27250000001,
+                        "amtOwedFederal": 125258,
+                        "amtOwedState": 31462.99650000001,
+                        "creditRecovered": 0,
+                        "cashTax": 267994.2725
+                      },
+                      {
+                        "year": 2,
+                        "shares": 2500,
+                        "bargain": 507499.99999999994,
+                        "regularFederal": 81196,
+                        "regularState": 30077.275999999998,
+                        "tmtFederal": 209954,
+                        "tmtState": 62634.02250000001,
+                        "amtOwedFederal": 128758,
+                        "amtOwedState": 32556.74650000001,
+                        "creditRecovered": 0,
+                        "cashTax": 272588.0225
+                      },
+                      {
+                        "year": 3,
+                        "shares": 2500,
+                        "bargain": 520312.49999999994,
+                        "regularFederal": 81196,
+                        "regularState": 30077.275999999998,
+                        "tmtFederal": 213541.5,
+                        "tmtState": 63755.11625000001,
+                        "amtOwedFederal": 132345.5,
+                        "amtOwedState": 33677.84025000001,
+                        "creditRecovered": 0,
+                        "cashTax": 277296.61625
+                      },
+                      {
+                        "year": 4,
+                        "shares": 2500,
+                        "bargain": 533445.3124999998,
+                        "regularFederal": 81196,
+                        "regularState": 30077.275999999998,
+                        "tmtFederal": 217218.68749999994,
+                        "tmtState": 64904.23734374999,
+                        "amtOwedFederal": 136022.68749999994,
+                        "amtOwedState": 34826.961343749994,
+                        "creditRecovered": 0,
+                        "cashTax": 282122.92484374996
+                      }
+                    ],
+                    "totalTax": 1100001.83609375,
+                    "baselineRegularTax": 445093.104,
+                    "exerciseTax": 654908.73209375,
+                    "creditEarned": 522384.18749999994,
+                    "creditRecovered": 0,
+                    "creditRemaining": 522384.18749999994,
+                    "grossGain": 2187625.781249999,
+                    "federalLTCG": 509969.9359374998,
+                    "stateLTCG": 265750.16890624986,
+                    "amtPremiumFV": 704447.8076958125,
+                    "nfv": 707457.8687104369
+                  },
+                  "optimized": {
+                    "label": "optimized",
+                    "years": [
+                      {
+                        "year": 1,
+                        "shares": 1350,
+                        "bargain": 267300,
+                        "regularFederal": 81196,
+                        "regularState": 30077.275999999998,
+                        "tmtFederal": 142698,
+                        "tmtState": 41616.52250000001,
+                        "amtOwedFederal": 61502,
+                        "amtOwedState": 11539.246500000008,
+                        "creditRecovered": 0,
+                        "cashTax": 184314.52250000002
+                      },
+                      {
+                        "year": 2,
+                        "shares": 2955,
+                        "bargain": 599864.9999999999,
+                        "regularFederal": 81196,
+                        "regularState": 30077.275999999998,
+                        "tmtFederal": 235816.19999999998,
+                        "tmtState": 69990.55,
+                        "amtOwedFederal": 154620.19999999998,
+                        "amtOwedState": 39913.274000000005,
+                        "creditRecovered": 0,
+                        "cashTax": 305806.75
+                      },
+                      {
+                        "year": 3,
+                        "shares": 2883,
+                        "bargain": 600024.3749999999,
+                        "regularFederal": 81196,
+                        "regularState": 30077.275999999998,
+                        "tmtFederal": 235864.23749999996,
+                        "tmtState": 70001.70625,
+                        "amtOwedFederal": 154668.23749999996,
+                        "amtOwedState": 39924.430250000005,
+                        "creditRecovered": 0,
+                        "cashTax": 305865.94375
+                      },
+                      {
+                        "year": 4,
+                        "shares": 2812,
+                        "bargain": 600019.2874999997,
+                        "regularFederal": 81196,
+                        "regularState": 30077.275999999998,
+                        "tmtFederal": 235862.10074999993,
+                        "tmtState": 70001.35012499998,
+                        "amtOwedFederal": 154666.10074999993,
+                        "amtOwedState": 39924.074124999985,
+                        "creditRecovered": 0,
+                        "cashTax": 305863.4508749999
+                      }
+                    ],
+                    "totalTax": 1101850.667125,
+                    "baselineRegularTax": 445093.104,
+                    "exerciseTax": 656757.5631249999,
+                    "creditEarned": 525456.5382499999,
+                    "creditRecovered": 0,
+                    "creditRemaining": 525456.5382499999,
+                    "grossGain": 2187625.781249999,
+                    "federalLTCG": 509969.9359374998,
+                    "stateLTCG": 265750.16890624986,
+                    "amtPremiumFV": 697940.0040770625,
+                    "nfv": 713965.6723291869
+                  }
+                },
+                "stateHasAmt": true,
+                "bargainPerShare": 198,
+                "timing": {
+                  "grantExpiration": "2032-01-15T00:00:00.000Z",
+                  "qdEligibleDate": "2024-01-15T00:00:00.000Z",
+                  "exerciseWindowClose": null,
+                  "maxHorizon": 5,
+                  "daysUntilWindowClose": null,
+                  "windowClosed": false,
+                  "qdNotYetEligible": false
+                },
+                "effectiveHorizon": 4
+              }
             }
           }
         }
@@ -607,6 +932,55 @@
                 "result": {
                   "$ref": "#/components/schemas/NsoResult"
                 }
+              }
+            },
+            "example": {
+              "ok": true,
+              "result": {
+                "exercise": {
+                  "bargainElement": 200000,
+                  "federal": 65971.25,
+                  "state": 18685.210000000003,
+                  "socialSecurity": 279,
+                  "medicare": 2900,
+                  "additionalMedicare": 1619.9999999999998,
+                  "total": 89455.46,
+                  "netCashSellAll": 110544.54
+                },
+                "bracketJump": {
+                  "fromRate": 0.24,
+                  "toRate": 0.35,
+                  "thresholdAtJump": 201775
+                },
+                "hold": {
+                  "funding": "cash",
+                  "costBasis": 50,
+                  "strikeCost": 50000,
+                  "cashNeededAtExercise": 139455.46000000002,
+                  "sharesSoldToCover": 0,
+                  "sharesRetained": 5000,
+                  "effectiveSalePrice": 73.11449482169826,
+                  "expectedGain": 115572.4741084913,
+                  "ltcgFederal": 20967.625132396366,
+                  "ltcgState": 10748.240092089694,
+                  "ltcgTotal": 31715.86522448606,
+                  "afterTaxProceedsAtSale": 333856.6088840052,
+                  "y0OutflowGain": 20207.096154000006,
+                  "y0OutflowLtcgFederal": 3038.934076952001,
+                  "y0OutflowLtcgState": 1879.259942322,
+                  "y0OutflowLtcgTotal": 4918.194019274,
+                  "y0OutflowForgoneNet": 15288.902134726006,
+                  "netAtYearN": 179112.2467492792
+                },
+                "sellNowInvest": {
+                  "netCashAtY0": 110544.54,
+                  "marketGain": 16017.903846000003,
+                  "ltcgFederal": 2402.6855769000003,
+                  "ltcgState": 1489.6650576780012,
+                  "ltcgTotal": 3892.3506345780015,
+                  "netAtYearN": 122670.09321142199
+                },
+                "holdMinusCashless": 56442.153537857215
               }
             }
           }
@@ -631,6 +1005,48 @@
                   "$ref": "#/components/schemas/RsuResult"
                 }
               }
+            },
+            "example": {
+              "ok": true,
+              "result": {
+                "vest": {
+                  "vestValue": 100000,
+                  "federal": 33171.25,
+                  "state": 9300.000000000004,
+                  "socialSecurity": 0,
+                  "medicare": 1450,
+                  "additionalMedicare": 899.9999999999999,
+                  "total": 44821.25,
+                  "netCashAtVest": 55178.75,
+                  "federalWithheldAtVest": 22000
+                },
+                "bracketJump": {
+                  "fromRate": 0.24,
+                  "toRate": 0.35,
+                  "thresholdAtJump": 201775
+                },
+                "hold": {
+                  "costBasis": 100,
+                  "effectiveSalePrice": 118.81105408525967,
+                  "sharesRetained": 551.7875,
+                  "expectedGain": 10379.70450607022,
+                  "capGainFederal": 1951.384447141201,
+                  "capGainState": 965.3125190645296,
+                  "capGainTotal": 2916.696966205731,
+                  "isLongTerm": true,
+                  "netAtYearN": 62641.75753986449
+                },
+                "sellNowInvest": {
+                  "netCashAtY0": 55178.75,
+                  "marketGain": 7995.400875000001,
+                  "capGainFederal": 1503.1353644999997,
+                  "capGainState": 743.5722813749999,
+                  "capGainTotal": 2246.707645875,
+                  "isLongTerm": true,
+                  "netAtYearN": 60927.443229125
+                },
+                "holdMinusSell": 1714.3143107394935
+              }
             }
           }
         }
@@ -653,6 +1069,360 @@
                 "result": {
                   "$ref": "#/components/schemas/ConcentrationResult"
                 }
+              }
+            },
+            "example": {
+              "ok": true,
+              "result": {
+                "concentration": 0.3333333333333333,
+                "riskBand": "Concentrated",
+                "isLongTermToday": true,
+                "longTermDate": "2023-01-01T00:00:00.000Z",
+                "daysUntilLongTerm": 0,
+                "lossExposure": [
+                  {
+                    "drop": 0.3,
+                    "dollarLoss": 120000,
+                    "newConcentration": 0.25925925925925924
+                  },
+                  {
+                    "drop": 0.5,
+                    "dollarLoss": 200000,
+                    "newConcentration": 0.2
+                  },
+                  {
+                    "drop": 0.7,
+                    "dollarLoss": 280000,
+                    "newConcentration": 0.13043478260869565
+                  }
+                ],
+                "waitForLtInsight": null,
+                "schedule": [
+                  {
+                    "planKey": "lump_sum",
+                    "planLabel": "Sell over 1 year",
+                    "yearlySales": [
+                      {
+                        "year": 1,
+                        "saleAmount": 399729.11491267144,
+                        "gainAmount": 299729.11491267144,
+                        "isLongTerm": true,
+                        "federalTax": 56349.073603582234,
+                        "stateTax": 29696.88998513187,
+                        "totalTax": 86045.9635887141,
+                        "breakdown": [
+                          {
+                            "label": "Federal LTCG",
+                            "rate": 0.15,
+                            "amount": 299729.11491267144,
+                            "tax": 44959.36723690072
+                          },
+                          {
+                            "label": "NIIT",
+                            "rate": 0.038,
+                            "amount": 299729.11491267144,
+                            "tax": 11389.706366681514
+                          },
+                          {
+                            "label": "CA",
+                            "rate": 0.093,
+                            "amount": 171479,
+                            "tax": 15947.547
+                          },
+                          {
+                            "label": "CA",
+                            "rate": 0.103,
+                            "amount": 74292,
+                            "tax": 7652.076
+                          },
+                          {
+                            "label": "CA",
+                            "rate": 0.113,
+                            "amount": 53958.114912671444,
+                            "tax": 6097.266985131873
+                          }
+                        ]
+                      }
+                    ],
+                    "totalSale": 399729.11491267144,
+                    "totalTax": 86045.9635887141,
+                    "endOfHorizonWealth": 1350554.3624649164,
+                    "savingsVsLumpSum": 81.53641128589516,
+                    "wealthVsLumpSum": -13987.346552583855,
+                    "year1IsShortTerm": false,
+                    "taxBreakdown": [
+                      {
+                        "label": "Federal LTCG",
+                        "rate": 0.15,
+                        "amount": 299729.11491267144,
+                        "tax": 44959.36723690072
+                      },
+                      {
+                        "label": "NIIT",
+                        "rate": 0.038,
+                        "amount": 299729.11491267144,
+                        "tax": 11389.706366681514
+                      },
+                      {
+                        "label": "CA",
+                        "rate": 0.093,
+                        "amount": 171479,
+                        "tax": 15947.547
+                      },
+                      {
+                        "label": "CA",
+                        "rate": 0.103,
+                        "amount": 74292,
+                        "tax": 7652.076
+                      },
+                      {
+                        "label": "CA",
+                        "rate": 0.113,
+                        "amount": 53958.114912671444,
+                        "tax": 6097.266985131873
+                      }
+                    ],
+                    "wealthByYear": [
+                      1200000,
+                      1179626.4848151945,
+                      1262200.338752258,
+                      1350554.3624649164
+                    ]
+                  },
+                  {
+                    "planKey": "two_year",
+                    "planLabel": "Sell over 2 years",
+                    "yearlySales": [
+                      {
+                        "year": 1,
+                        "saleAmount": 199864.55745633572,
+                        "gainAmount": 149864.55745633572,
+                        "isLongTerm": true,
+                        "federalTax": 28174.536801791117,
+                        "stateTax": 13937.403843439228,
+                        "totalTax": 42111.940645230345,
+                        "breakdown": [
+                          {
+                            "label": "Federal LTCG",
+                            "rate": 0.15,
+                            "amount": 149864.55745633572,
+                            "tax": 22479.68361845036
+                          },
+                          {
+                            "label": "NIIT",
+                            "rate": 0.038,
+                            "amount": 149864.55745633572,
+                            "tax": 5694.853183340757
+                          },
+                          {
+                            "label": "CA",
+                            "rate": 0.093,
+                            "amount": 149864.55745633572,
+                            "tax": 13937.403843439222
+                          }
+                        ]
+                      },
+                      {
+                        "year": 2,
+                        "saleAmount": 199614.72675951532,
+                        "gainAmount": 149614.72675951532,
+                        "isLongTerm": true,
+                        "federalTax": 28127.568630788883,
+                        "stateTax": 13914.16958863493,
+                        "totalTax": 42041.738219423816,
+                        "breakdown": [
+                          {
+                            "label": "Federal LTCG",
+                            "rate": 0.15,
+                            "amount": 149614.72675951532,
+                            "tax": 22442.2090139273
+                          },
+                          {
+                            "label": "NIIT",
+                            "rate": 0.038,
+                            "amount": 149614.72675951532,
+                            "tax": 5685.359616861582
+                          },
+                          {
+                            "label": "CA",
+                            "rate": 0.093,
+                            "amount": 149614.72675951532,
+                            "tax": 13914.169588634924
+                          }
+                        ]
+                      }
+                    ],
+                    "totalSale": 399479.28421585105,
+                    "totalTax": 84153.67886465415,
+                    "endOfHorizonWealth": 1340318.0844518472,
+                    "savingsVsLumpSum": 1973.8211353458464,
+                    "wealthVsLumpSum": -24223.624565653037,
+                    "year1IsShortTerm": false,
+                    "taxBreakdown": [
+                      {
+                        "label": "Federal LTCG",
+                        "rate": 0.15,
+                        "amount": 299479.28421585105,
+                        "tax": 44921.892632377654
+                      },
+                      {
+                        "label": "NIIT",
+                        "rate": 0.038,
+                        "amount": 299479.28421585105,
+                        "tax": 11380.212800202338
+                      },
+                      {
+                        "label": "CA",
+                        "rate": 0.093,
+                        "amount": 299479.28421585105,
+                        "tax": 27851.573432074147
+                      }
+                    ],
+                    "wealthByYear": [
+                      1200000,
+                      1218503.1623343432,
+                      1252633.723786773,
+                      1340318.0844518472
+                    ]
+                  },
+                  {
+                    "planKey": "three_year",
+                    "planLabel": "Sell over 3 years",
+                    "yearlySales": [
+                      {
+                        "year": 1,
+                        "saleAmount": 133243.03830422385,
+                        "gainAmount": 99909.70497089053,
+                        "isLongTerm": true,
+                        "federalTax": 18783.02453452742,
+                        "stateTax": 9291.602562292821,
+                        "totalTax": 28074.62709682024,
+                        "breakdown": [
+                          {
+                            "label": "Federal LTCG",
+                            "rate": 0.15,
+                            "amount": 99909.70497089053,
+                            "tax": 14986.455745633579
+                          },
+                          {
+                            "label": "NIIT",
+                            "rate": 0.038,
+                            "amount": 99909.70497089053,
+                            "tax": 3796.56878889384
+                          },
+                          {
+                            "label": "CA",
+                            "rate": 0.093,
+                            "amount": 99909.70497089053,
+                            "tax": 9291.60256229282
+                          }
+                        ]
+                      },
+                      {
+                        "year": 2,
+                        "saleAmount": 133076.48450634358,
+                        "gainAmount": 99743.15117301025,
+                        "isLongTerm": true,
+                        "federalTax": 18751.712420525924,
+                        "stateTax": 9276.113059089956,
+                        "totalTax": 28027.82547961588,
+                        "breakdown": [
+                          {
+                            "label": "Federal LTCG",
+                            "rate": 0.15,
+                            "amount": 99743.15117301025,
+                            "tax": 14961.472675951536
+                          },
+                          {
+                            "label": "NIIT",
+                            "rate": 0.038,
+                            "amount": 99743.15117301024,
+                            "tax": 3790.239744574389
+                          },
+                          {
+                            "label": "CA",
+                            "rate": 0.093,
+                            "amount": 99743.15117301025,
+                            "tax": 9276.113059089954
+                          }
+                        ]
+                      },
+                      {
+                        "year": 3,
+                        "saleAmount": 132910.13890071065,
+                        "gainAmount": 99576.80556737732,
+                        "isLongTerm": true,
+                        "federalTax": 18720.439446666936,
+                        "stateTax": 9260.64291776609,
+                        "totalTax": 27981.082364433027,
+                        "breakdown": [
+                          {
+                            "label": "Federal LTCG",
+                            "rate": 0.15,
+                            "amount": 99576.80556737732,
+                            "tax": 14936.520835106598
+                          },
+                          {
+                            "label": "NIIT",
+                            "rate": 0.038,
+                            "amount": 99576.8055673773,
+                            "tax": 3783.9186115603375
+                          },
+                          {
+                            "label": "CA",
+                            "rate": 0.093,
+                            "amount": 99576.80556737732,
+                            "tax": 9260.64291776609
+                          }
+                        ]
+                      }
+                    ],
+                    "totalSale": 399229.661711278,
+                    "totalTax": 84083.53494086914,
+                    "endOfHorizonWealth": 1328478.6892989082,
+                    "savingsVsLumpSum": 2043.96505913086,
+                    "wealthVsLumpSum": -36063.019718592055,
+                    "year1IsShortTerm": false,
+                    "taxBreakdown": [
+                      {
+                        "label": "Federal LTCG",
+                        "rate": 0.15,
+                        "amount": 299229.6617112781,
+                        "tax": 44884.44925669171
+                      },
+                      {
+                        "label": "NIIT",
+                        "rate": 0.038,
+                        "amount": 299229.6617112781,
+                        "tax": 11370.727145028566
+                      },
+                      {
+                        "label": "CA",
+                        "rate": 0.093,
+                        "amount": 299229.6617112781,
+                        "tax": 27828.358539148863
+                      }
+                    ],
+                    "wealthByYear": [
+                      1200000,
+                      1230835.441556229,
+                      1273396.0241911819,
+                      1328478.6892989082
+                    ]
+                  }
+                ],
+                "hedging": {
+                  "kind": "put",
+                  "protectionLevel": 0.30000000000000004,
+                  "tenorYears": 1,
+                  "strike": 280000,
+                  "putPrice": 14759.629358774771,
+                  "netPremium": 14759.629358774771,
+                  "sigma": 0.45,
+                  "riskFreeRate": 0.045
+                },
+                "sectorContextLine": "Tech / Software single names hit a 50%+ peak-to-trough drawdown in roughly 1 of every 5 rolling 3-year windows over 2014–2024. Even mega-caps aren’t exempt.",
+                "advisorBenchmarkLine": "Most fee-only advisors target ≤10% in any single name. You're at 33%."
               }
             }
           }
@@ -677,6 +1447,156 @@
                   "$ref": "#/components/schemas/ProtectivePutResult"
                 }
               }
+            },
+            "example": {
+              "ok": true,
+              "result": {
+                "inputs": {
+                  "positionValue": 400000,
+                  "sector": "tech_software",
+                  "volatility": 0.4,
+                  "protectionLevel": 0.1,
+                  "tenorYears": 1,
+                  "spreadRiskLevel": 0.1
+                },
+                "riskFreeRate": 0.045,
+                "realWorldDrift": 0.12,
+                "barePut": {
+                  "strike": 360000,
+                  "premium": 35115.97292661169,
+                  "annualCost": 35115.97292661169,
+                  "annualCostPct": 0.08778993231652923,
+                  "maxLoss": 75115.97292661169,
+                  "badYearPrice": 249346.60609481626,
+                  "badYearDropPct": 0.3766334847629593,
+                  "coveredLossAtBadYear": 110653.39390518374,
+                  "premiumToCoveredRatio": 0.3173510697439767,
+                  "expectedProfit": 48000,
+                  "premiumToExpectedProfitRatio": 0.7315827693044102
+                },
+                "collar": {
+                  "putStrike": 360000,
+                  "callStrike": 508923.33984375,
+                  "netPremium": 0,
+                  "annualCost": 0,
+                  "annualCostPct": 0,
+                  "maxLoss": 40000,
+                  "upsideCap": 108923.33984375,
+                  "upsideCapPct": 0.272308349609375,
+                  "isZeroCost": true,
+                  "capProbability": 0.30780487520408406
+                },
+                "putSpread": {
+                  "available": true,
+                  "unavailableReason": null,
+                  "longStrike": 360000,
+                  "longPremium": 35115.97292661169,
+                  "shortStrike": 249346.60609481626,
+                  "shortPremium": 5616.845397865807,
+                  "shortSigma": 0.4,
+                  "netPremium": 29499.127528745885,
+                  "annualCost": 29499.127528745885,
+                  "annualCostPct": 0.07374781882186471,
+                  "maxLossInBand": 69499.12752874588,
+                  "bandWidth": 110653.39390518374,
+                  "shortStrikeDropPct": 0.3766334847629593,
+                  "breachProbability": 0.10000006859614752,
+                  "riskLevel": 0.1,
+                  "savingsPct": 0.15995129651125892,
+                  "coveredLossAtBadYear": 110653.39390518374
+                },
+                "payoffTable": [
+                  {
+                    "drawdownPct": -0.6,
+                    "barePutPnl": -75115.97292661169,
+                    "collarPnl": -40000,
+                    "spreadPnl": -158845.73362356215,
+                    "unhedgedPnl": -240000
+                  },
+                  {
+                    "drawdownPct": -0.5,
+                    "barePutPnl": -75115.97292661169,
+                    "collarPnl": -40000,
+                    "spreadPnl": -118845.73362356215,
+                    "unhedgedPnl": -200000
+                  },
+                  {
+                    "drawdownPct": -0.4,
+                    "barePutPnl": -75115.97292661169,
+                    "collarPnl": -40000,
+                    "spreadPnl": -78845.73362356215,
+                    "unhedgedPnl": -160000
+                  },
+                  {
+                    "drawdownPct": -0.3,
+                    "barePutPnl": -75115.97292661169,
+                    "collarPnl": -40000,
+                    "spreadPnl": -69499.12752874588,
+                    "unhedgedPnl": -120000
+                  },
+                  {
+                    "drawdownPct": -0.2,
+                    "barePutPnl": -75115.97292661169,
+                    "collarPnl": -40000,
+                    "spreadPnl": -69499.12752874588,
+                    "unhedgedPnl": -80000
+                  },
+                  {
+                    "drawdownPct": -0.1,
+                    "barePutPnl": -75115.97292661169,
+                    "collarPnl": -40000,
+                    "spreadPnl": -69499.12752874588,
+                    "unhedgedPnl": -40000
+                  },
+                  {
+                    "drawdownPct": 0,
+                    "barePutPnl": -35115.97292661169,
+                    "collarPnl": 0,
+                    "spreadPnl": -29499.127528745885,
+                    "unhedgedPnl": 0
+                  },
+                  {
+                    "drawdownPct": 0.1,
+                    "barePutPnl": 4884.027073388308,
+                    "collarPnl": 40000,
+                    "spreadPnl": 10500.872471254115,
+                    "unhedgedPnl": 40000
+                  },
+                  {
+                    "drawdownPct": 0.2,
+                    "barePutPnl": 44884.02707338831,
+                    "collarPnl": 80000,
+                    "spreadPnl": 50500.872471254115,
+                    "unhedgedPnl": 80000
+                  },
+                  {
+                    "drawdownPct": 0.3,
+                    "barePutPnl": 84884.02707338831,
+                    "collarPnl": 108923.33984375,
+                    "spreadPnl": 90500.87247125412,
+                    "unhedgedPnl": 120000
+                  },
+                  {
+                    "drawdownPct": 0.4,
+                    "barePutPnl": 124884.02707338831,
+                    "collarPnl": 108923.33984375,
+                    "spreadPnl": 130500.87247125412,
+                    "unhedgedPnl": 160000
+                  },
+                  {
+                    "drawdownPct": 0.5,
+                    "barePutPnl": 164884.0270733883,
+                    "collarPnl": 108923.33984375,
+                    "spreadPnl": 170500.87247125412,
+                    "unhedgedPnl": 200000
+                  }
+                ],
+                "payoffRange": {
+                  "lowerPct": -0.6,
+                  "upperPct": 0.5
+                },
+                "recommended": "none"
+              }
             }
           }
         }
@@ -700,6 +1620,62 @@
                   "$ref": "#/components/schemas/QsbsResult"
                 }
               }
+            },
+            "example": {
+              "ok": true,
+              "result": {
+                "verdict": "qualifies",
+                "exclusionPercent": 1,
+                "perIssuerCap": 10000000,
+                "tenXBasisCap": 1000000,
+                "applicableCap": 10000000,
+                "excludableGain": 5000000,
+                "taxableGain": 0,
+                "federalTaxSaved": 1190000,
+                "stateConforms": "none",
+                "stateNote": "California does not conform to §1202 — your full gain is taxable at the state level.",
+                "holdingYears": 6.375342465753425,
+                "yearsUntilFullExclusion": 0,
+                "era": "pre-obbba",
+                "tests": [
+                  {
+                    "id": "entity",
+                    "label": "US C-corporation",
+                    "status": "pass",
+                    "detail": "C-corps qualify. S-corps, LLCs, partnerships, and foreign entities do not."
+                  },
+                  {
+                    "id": "original-issuance",
+                    "label": "Original-issuance acquisition",
+                    "status": "pass",
+                    "detail": "Stock acquired directly from the company qualifies."
+                  },
+                  {
+                    "id": "asset-cap",
+                    "label": "Gross assets ≤ $50M at issuance",
+                    "status": "pass",
+                    "detail": "Issuer was under the $50M aggregate gross-assets ceiling."
+                  },
+                  {
+                    "id": "industry",
+                    "label": "Qualified trade or business",
+                    "status": "pass",
+                    "detail": "Software, manufacturing, biotech R&D, retail, and similar trades qualify."
+                  },
+                  {
+                    "id": "active-business",
+                    "label": "80% of assets in active business",
+                    "status": "pass",
+                    "detail": "At least 80% of corporate assets used in the qualified active trade."
+                  },
+                  {
+                    "id": "holding",
+                    "label": "Held at least 5 years",
+                    "status": "pass",
+                    "detail": "6.4 years held — 100% exclusion tier."
+                  }
+                ]
+              }
             }
           }
         }
@@ -722,6 +1698,458 @@
                 "result": {
                   "$ref": "#/components/schemas/EquityFundingResult"
                 }
+              }
+            },
+            "example": {
+              "ok": true,
+              "result": {
+                "recommended": {
+                  "planKey": "recommended",
+                  "planLabel": "Recommended",
+                  "plan": {
+                    "feasible": false,
+                    "targetAfterTax": 200000,
+                    "targetDateISO": "2028-01-01",
+                    "totalAfterTaxAchieved": 172762.61,
+                    "totalSharesSold": 2000,
+                    "totalGrossProceeds": 224834.72,
+                    "totalTaxes": {
+                      "federal": 27725.21,
+                      "state": 17323.19,
+                      "niit": 7023.72,
+                      "total": 52072.11
+                    },
+                    "schedule": [
+                      {
+                        "year": 2028,
+                        "saleDateISO": "2028-01-01",
+                        "sales": [
+                          {
+                            "stackIndex": 0,
+                            "lotIndex": 0,
+                            "shares": 2000,
+                            "grossProceeds": 224834.7247426237,
+                            "gainAmount": 184834.7247426237,
+                            "isLongTerm": true,
+                            "federalTax": 27725.208711393556,
+                            "stateTax": 17323.186648490242,
+                            "niit": 7023.7195402197,
+                            "netCash": 172762.60984252018
+                          }
+                        ],
+                        "yearGrossProceeds": 224834.7247426237,
+                        "yearTotalTax": 52072.1149001035,
+                        "yearNetCash": 172762.60984252018,
+                        "runningCumulativeNet": 172762.60984252018
+                      }
+                    ],
+                    "comparison": {
+                      "sellAllInTargetYearTotalTax": 52072.11,
+                      "sellAllInTargetYearAfterTax": 172762.61,
+                      "optimizedSavingsVsTargetYearSale": 0,
+                      "optimizedSavingsPct": 0
+                    },
+                    "remainingShares": 0,
+                    "remainingPositionValue": 0,
+                    "remainingPositionAfterTax": 0,
+                    "remainingNetByStack": [
+                      0
+                    ],
+                    "shortfall": {
+                      "maxAchievableAfterTax": 172762.61,
+                      "gap": 27237.39
+                    }
+                  },
+                  "wealthAtTarget": 172762.61,
+                  "totalTax": 52072.11,
+                  "shortfallProbability": 0.7065737034819962
+                },
+                "lockInNow": {
+                  "planKey": "lock_in_now",
+                  "planLabel": "Lock in now",
+                  "plan": {
+                    "feasible": false,
+                    "targetAfterTax": 200000,
+                    "targetDateISO": "2028-01-01",
+                    "totalAfterTaxAchieved": 161374.58,
+                    "totalSharesSold": 2000,
+                    "totalGrossProceeds": 200000,
+                    "totalTaxes": {
+                      "federal": 24000,
+                      "state": 14880,
+                      "niit": 6080,
+                      "total": 44960
+                    },
+                    "schedule": [
+                      {
+                        "year": 2026,
+                        "saleDateISO": "2026-06-24",
+                        "sales": [
+                          {
+                            "stackIndex": 0,
+                            "lotIndex": 0,
+                            "shares": 2000,
+                            "grossProceeds": 200000,
+                            "gainAmount": 160000,
+                            "isLongTerm": true,
+                            "federalTax": 24000,
+                            "stateTax": 14880.000000000004,
+                            "niit": 6080,
+                            "netCash": 155040
+                          }
+                        ],
+                        "yearGrossProceeds": 200000,
+                        "yearTotalTax": 44960,
+                        "yearNetCash": 155040,
+                        "runningCumulativeNet": 161374.5830146192
+                      }
+                    ],
+                    "comparison": {
+                      "sellAllInTargetYearTotalTax": 52072.11,
+                      "sellAllInTargetYearAfterTax": 172762.61,
+                      "optimizedSavingsVsTargetYearSale": 7112.11,
+                      "optimizedSavingsPct": 0.1366
+                    },
+                    "remainingShares": 0,
+                    "remainingPositionValue": 0,
+                    "remainingPositionAfterTax": 0,
+                    "remainingNetByStack": [
+                      0
+                    ],
+                    "shortfall": {
+                      "maxAchievableAfterTax": 161374.58,
+                      "gap": 38625.42
+                    }
+                  },
+                  "wealthAtTarget": 161374.58,
+                  "totalTax": 44960,
+                  "shortfallProbability": 1
+                },
+                "balanced": {
+                  "planKey": "balanced",
+                  "planLabel": "Balanced",
+                  "plan": {
+                    "feasible": false,
+                    "targetAfterTax": 200000,
+                    "targetDateISO": "2028-01-01",
+                    "totalAfterTaxAchieved": 170526.91,
+                    "totalSharesSold": 2000,
+                    "totalGrossProceeds": 219666.61,
+                    "totalTaxes": {
+                      "federal": 26949.99,
+                      "state": 16708.99,
+                      "niit": 6827.33,
+                      "total": 50486.32
+                    },
+                    "schedule": [
+                      {
+                        "year": 2027,
+                        "saleDateISO": "2027-04-30",
+                        "sales": [
+                          {
+                            "stackIndex": 0,
+                            "lotIndex": 0,
+                            "shares": 200,
+                            "grossProceeds": 21347.750096335527,
+                            "gainAmount": 17347.750096335527,
+                            "isLongTerm": true,
+                            "federalTax": 2602.1625144503305,
+                            "stateTax": 1613.3407589592025,
+                            "niit": 659.2145036607508,
+                            "netCash": 16473.032319265243
+                          }
+                        ],
+                        "yearGrossProceeds": 21347.750096335527,
+                        "yearTotalTax": 4874.717777070284,
+                        "yearNetCash": 16473.032319265243,
+                        "runningCumulativeNet": 16767.766624449803
+                      },
+                      {
+                        "year": 2027,
+                        "saleDateISO": "2027-05-31",
+                        "sales": [
+                          {
+                            "stackIndex": 0,
+                            "lotIndex": 0,
+                            "shares": 200,
+                            "grossProceeds": 21487.64879643726,
+                            "gainAmount": 17487.64879643726,
+                            "isLongTerm": true,
+                            "federalTax": 2623.147319465589,
+                            "stateTax": 1626.3513380686709,
+                            "niit": 664.5306542646167,
+                            "netCash": 16573.619484638384
+                          }
+                        ],
+                        "yearGrossProceeds": 21487.64879643726,
+                        "yearTotalTax": 4914.029311798877,
+                        "yearNetCash": 16573.619484638384,
+                        "runningCumulativeNet": 33600.26178276821
+                      },
+                      {
+                        "year": 2027,
+                        "saleDateISO": "2027-06-30",
+                        "sales": [
+                          {
+                            "stackIndex": 0,
+                            "lotIndex": 0,
+                            "shares": 200,
+                            "grossProceeds": 21623.907490844624,
+                            "gainAmount": 17623.907490844624,
+                            "isLongTerm": true,
+                            "federalTax": 2643.5861236266946,
+                            "stateTax": 1639.0233966485503,
+                            "niit": 669.7084846520947,
+                            "netCash": 16671.589485917284
+                          }
+                        ],
+                        "yearGrossProceeds": 21623.907490844624,
+                        "yearTotalTax": 4952.31800492734,
+                        "yearNetCash": 16671.589485917284,
+                        "runningCumulativeNet": 50495.67875238137
+                      },
+                      {
+                        "year": 2027,
+                        "saleDateISO": "2027-07-31",
+                        "sales": [
+                          {
+                            "stackIndex": 0,
+                            "lotIndex": 0,
+                            "shares": 200,
+                            "grossProceeds": 21765.615939530675,
+                            "gainAmount": 17765.615939530675,
+                            "isLongTerm": true,
+                            "federalTax": 2664.8423909296,
+                            "stateTax": 1652.202282376351,
+                            "niit": 675.0934057021659,
+                            "netCash": 16773.47786052256
+                          }
+                        ],
+                        "yearGrossProceeds": 21765.615939530675,
+                        "yearTotalTax": 4992.138079008117,
+                        "yearNetCash": 16773.47786052256,
+                        "runningCumulativeNet": 67456.40680012487
+                      },
+                      {
+                        "year": 2027,
+                        "saleDateISO": "2027-08-31",
+                        "sales": [
+                          {
+                            "stackIndex": 0,
+                            "lotIndex": 0,
+                            "shares": 200,
+                            "grossProceeds": 21908.25304944216,
+                            "gainAmount": 17908.25304944216,
+                            "isLongTerm": true,
+                            "federalTax": 2686.237957416324,
+                            "stateTax": 1665.4675335981228,
+                            "niit": 680.5136158788027,
+                            "netCash": 16876.033942548907
+                          }
+                        ],
+                        "yearGrossProceeds": 21908.25304944216,
+                        "yearTotalTax": 5032.21910689325,
+                        "yearNetCash": 16876.033942548907,
+                        "runningCumulativeNet": 84482.74381092469
+                      },
+                      {
+                        "year": 2027,
+                        "saleDateISO": "2027-09-30",
+                        "sales": [
+                          {
+                            "stackIndex": 0,
+                            "lotIndex": 0,
+                            "shares": 200,
+                            "grossProceeds": 22047.178903338194,
+                            "gainAmount": 18047.178903338194,
+                            "isLongTerm": true,
+                            "federalTax": 2707.07683550073,
+                            "stateTax": 1678.387638010452,
+                            "niit": 685.7927983268505,
+                            "netCash": 16975.92163150016
+                          }
+                        ],
+                        "yearGrossProceeds": 22047.178903338194,
+                        "yearTotalTax": 5071.2572718380325,
+                        "yearNetCash": 16975.92163150016,
+                        "runningCumulativeNet": 101572.85816603321
+                      },
+                      {
+                        "year": 2027,
+                        "saleDateISO": "2027-10-31",
+                        "sales": [
+                          {
+                            "stackIndex": 0,
+                            "lotIndex": 0,
+                            "shares": 200,
+                            "grossProceeds": 22191.661186275203,
+                            "gainAmount": 18191.661186275203,
+                            "isLongTerm": true,
+                            "federalTax": 2728.7491779412794,
+                            "stateTax": 1691.8244903235936,
+                            "niit": 691.2831250784584,
+                            "netCash": 17079.804392931874
+                          }
+                        ],
+                        "yearGrossProceeds": 22191.661186275203,
+                        "yearTotalTax": 5111.856793343331,
+                        "yearNetCash": 17079.804392931874,
+                        "runningCumulativeNet": 118729.1712873145
+                      },
+                      {
+                        "year": 2027,
+                        "saleDateISO": "2027-11-30",
+                        "sales": [
+                          {
+                            "stackIndex": 0,
+                            "lotIndex": 0,
+                            "shares": 200,
+                            "grossProceeds": 22332.384203884918,
+                            "gainAmount": 18332.384203884918,
+                            "isLongTerm": true,
+                            "federalTax": 2749.8576305827382,
+                            "stateTax": 1704.9117309612957,
+                            "niit": 696.6305997476264,
+                            "netCash": 17180.98424259326
+                          }
+                        ],
+                        "yearGrossProceeds": 22332.384203884918,
+                        "yearTotalTax": 5151.3999612916605,
+                        "yearNetCash": 17180.98424259326,
+                        "runningCumulativeNet": 135949.83487907657
+                      },
+                      {
+                        "year": 2027,
+                        "saleDateISO": "2027-12-31",
+                        "sales": [
+                          {
+                            "stackIndex": 0,
+                            "lotIndex": 0,
+                            "shares": 200,
+                            "grossProceeds": 22478.735529256308,
+                            "gainAmount": 18478.735529256308,
+                            "isLongTerm": true,
+                            "federalTax": 2771.810329388446,
+                            "stateTax": 1718.5224042208392,
+                            "niit": 702.1919501117396,
+                            "netCash": 17286.210845535283
+                          }
+                        ],
+                        "yearGrossProceeds": 22478.735529256308,
+                        "yearTotalTax": 5192.524683721025,
+                        "yearNetCash": 17286.210845535283,
+                        "runningCumulativeNet": 153237.29190514903
+                      },
+                      {
+                        "year": 2028,
+                        "saleDateISO": "2028-01-01",
+                        "sales": [
+                          {
+                            "stackIndex": 0,
+                            "lotIndex": 0,
+                            "shares": 200,
+                            "grossProceeds": 22483.47247426237,
+                            "gainAmount": 18483.47247426237,
+                            "isLongTerm": true,
+                            "federalTax": 2772.520871139355,
+                            "stateTax": 1718.9629401064012,
+                            "niit": 702.37195402197,
+                            "netCash": 17289.616708994643
+                          }
+                        ],
+                        "yearGrossProceeds": 22483.47247426237,
+                        "yearTotalTax": 5193.855765267726,
+                        "yearNetCash": 17289.616708994643,
+                        "runningCumulativeNet": 170526.90861414367
+                      }
+                    ],
+                    "comparison": {
+                      "sellAllInTargetYearTotalTax": 52072.11,
+                      "sellAllInTargetYearAfterTax": 172762.61,
+                      "optimizedSavingsVsTargetYearSale": 1585.8,
+                      "optimizedSavingsPct": 0.0305
+                    },
+                    "remainingShares": 0,
+                    "remainingPositionValue": 0,
+                    "remainingPositionAfterTax": 0,
+                    "remainingNetByStack": [
+                      0
+                    ],
+                    "shortfall": {
+                      "maxAchievableAfterTax": 170526.91,
+                      "gap": 29473.09
+                    }
+                  },
+                  "wealthAtTarget": 170526.91,
+                  "totalTax": 50486.32,
+                  "shortfallProbability": 0.719622773437159,
+                  "lockInFraction": 0
+                },
+                "holdForGrowth": {
+                  "planKey": "hold_for_growth",
+                  "planLabel": "Hold for growth",
+                  "plan": {
+                    "feasible": false,
+                    "targetAfterTax": 200000,
+                    "targetDateISO": "2028-01-01",
+                    "totalAfterTaxAchieved": 172762.61,
+                    "totalSharesSold": 2000,
+                    "totalGrossProceeds": 224834.72,
+                    "totalTaxes": {
+                      "federal": 27725.21,
+                      "state": 17323.19,
+                      "niit": 7023.72,
+                      "total": 52072.11
+                    },
+                    "schedule": [
+                      {
+                        "year": 2028,
+                        "saleDateISO": "2028-01-01",
+                        "sales": [
+                          {
+                            "stackIndex": 0,
+                            "lotIndex": 0,
+                            "shares": 2000,
+                            "grossProceeds": 224834.7247426237,
+                            "gainAmount": 184834.7247426237,
+                            "isLongTerm": true,
+                            "federalTax": 27725.208711393556,
+                            "stateTax": 17323.186648490242,
+                            "niit": 7023.7195402197,
+                            "netCash": 172762.60984252018
+                          }
+                        ],
+                        "yearGrossProceeds": 224834.7247426237,
+                        "yearTotalTax": 52072.1149001035,
+                        "yearNetCash": 172762.60984252018,
+                        "runningCumulativeNet": 172762.60984252018
+                      }
+                    ],
+                    "comparison": {
+                      "sellAllInTargetYearTotalTax": 52072.11,
+                      "sellAllInTargetYearAfterTax": 172762.61,
+                      "optimizedSavingsVsTargetYearSale": 0,
+                      "optimizedSavingsPct": 0
+                    },
+                    "remainingShares": 0,
+                    "remainingPositionValue": 0,
+                    "remainingPositionAfterTax": 0,
+                    "remainingNetByStack": [
+                      0
+                    ],
+                    "shortfall": {
+                      "maxAchievableAfterTax": 172762.61,
+                      "gap": 27237.39
+                    }
+                  },
+                  "wealthAtTarget": 172762.61,
+                  "totalTax": 52072.11,
+                  "shortfallProbability": 0.7065737034819962
+                },
+                "frontier": [],
+                "targetAfterTax": 200000,
+                "targetDateISO": "2028-01-01",
+                "appliedRiskTolerance": 0.1
               }
             }
           }
