@@ -16,7 +16,7 @@
 //
 //   npm run gen:openapi      # write the files
 //   npm run verify:openapi   # --check: exit 1 if any on-disk copy is stale
-import { writeFileSync, readFileSync, existsSync } from 'node:fs';
+import { writeFileSync, readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 import { TOOLS } from '../../functions/_lib/mcp-tools';
 
@@ -94,14 +94,23 @@ function main(): void {
   const json = JSON.stringify(spec, null, 2) + '\n';
   const check = process.argv.includes('--check');
 
+  const isAbsent = (err: unknown) => (err as NodeJS.ErrnoException)?.code === 'ENOENT';
+
   let stale = 0;
   for (const path of TARGETS) {
-    if (!existsSync(path)) {
-      console.log(`skip (absent): ${path}`);
-      continue;
-    }
+    // Read/write directly and treat a missing file as "skip" - checking
+    // existsSync first is a time-of-check/time-of-use race (js/file-system-race).
     if (check) {
-      const current = readFileSync(path, 'utf8');
+      let current: string;
+      try {
+        current = readFileSync(path, 'utf8');
+      } catch (err) {
+        if (isAbsent(err)) {
+          console.log(`skip (absent): ${path}`);
+          continue;
+        }
+        throw err;
+      }
       const same = JSON.stringify(JSON.parse(current)) === JSON.stringify(spec);
       if (!same || current !== json) {
         console.error(`STALE: ${path} (run npm run gen:openapi)`);
@@ -110,7 +119,15 @@ function main(): void {
         console.log(`ok: ${path}`);
       }
     } else {
-      writeFileSync(path, json);
+      try {
+        writeFileSync(path, json);
+      } catch (err) {
+        if (isAbsent(err)) {
+          console.log(`skip (absent): ${path}`);
+          continue;
+        }
+        throw err;
+      }
       console.log(`wrote: ${path}`);
     }
   }
