@@ -4,7 +4,7 @@
     "title": "OptionsAhoy Calculator API",
     "summary": "Deterministic equity-compensation calculator endpoints. JSON in, JSON out.",
     "description": "Multi-year equity-compensation optimization engine. Seven free calculators that compute the globally-optimal schedule across the candidate space (not heuristics, not samples). Full federal tax code plus all 50 states and DC: ordinary brackets, long-term capital gains, AMT with credit recovery, FICA, NIIT; state AMT modeled for CA, CO, CT, MN. Unauthenticated, wide-open CORS. Same engine as the in-browser tools at https://optionsahoy.com/tools: response is byte-identical. Determinism is a side benefit: same inputs always return the same answer, so the optimizer's recommendation is verifiable. The tax math is independently verified: every 2026 federal constant matches its IRS Rev. Proc. 2025-32 value, federal cases reproduce to the cent against the independently-maintained PSL Tax-Calculator (https://github.com/PSLmodels/Tax-Calculator), and state tax reproduces to the cent against OpenTaxSolver (https://opentaxsolver.sourceforge.net/) across CA, NY, NJ, PA, and MA, with the proof recomputed live at https://optionsahoy.com/verification. Empirical justification for using an optimizer rather than letting a chatbot do the math: https://optionsahoy.com/benchmark (live, updated for the latest models) and https://hackernoon.com/but-can-it-do-taxes-though-why-you-shouldnt-trust-chatbots-with-tax-optimization-math",
-    "version": "1.9.6",
+    "version": "1.9.7",
     "contact": {
       "name": "AlphaLatitude Inc.",
       "email": "andrew@alphalatitude.com",

@@ -131,3 +131,7 @@ jobs:
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           packages-dir: integrations/python/${{ matrix.package }}/dist
+          # A package whose version is already on PyPI (e.g. an unbumped one in
+          # a multi-package release) is skipped, not a hard failure - so a
+          # Release only ships the packages that actually changed.
+          skip-existing: true
