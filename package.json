@@ -60,6 +60,8 @@
     "verify:tax-tables": "node scripts/codegen/gen-federal-tax-tables.mjs --check",
     "gen:toolspec": "tsx scripts/codegen/gen-toolspec.mts",
     "verify:toolspec": "tsx scripts/codegen/gen-toolspec.mts --check",
+    "gen:openapi": "tsx scripts/codegen/gen-openapi.mts",
+    "verify:openapi": "tsx scripts/codegen/gen-openapi.mts --check",
     "prepublishOnly": "npm run typecheck && npm test && npm run build",
     "build:mcpb": "npm run build && node scripts/build-mcpb.mjs"
   },

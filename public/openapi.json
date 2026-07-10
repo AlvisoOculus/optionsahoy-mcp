@@ -141,7 +141,7 @@
         },
         "responses": {
           "200": {
-            "$ref": "#/components/responses/CalculatorSuccess"
+            "$ref": "#/components/responses/AmtIsoSuccess"
           },
           "400": {
             "$ref": "#/components/responses/BadRequest"
@@ -172,7 +172,7 @@
         },
         "responses": {
           "200": {
-            "$ref": "#/components/responses/CalculatorSuccess"
+            "$ref": "#/components/responses/NsoSuccess"
           },
           "400": {
             "$ref": "#/components/responses/BadRequest"
@@ -203,7 +203,7 @@
         },
         "responses": {
           "200": {
-            "$ref": "#/components/responses/CalculatorSuccess"
+            "$ref": "#/components/responses/RsuSuccess"
           },
           "400": {
             "$ref": "#/components/responses/BadRequest"
@@ -234,7 +234,7 @@
         },
         "responses": {
           "200": {
-            "$ref": "#/components/responses/CalculatorSuccess"
+            "$ref": "#/components/responses/ConcentrationSuccess"
           },
           "400": {
             "$ref": "#/components/responses/BadRequest"
@@ -265,7 +265,7 @@
         },
         "responses": {
           "200": {
-            "$ref": "#/components/responses/CalculatorSuccess"
+            "$ref": "#/components/responses/ProtectivePutSuccess"
           },
           "400": {
             "$ref": "#/components/responses/BadRequest"
@@ -296,7 +296,7 @@
         },
         "responses": {
           "200": {
-            "$ref": "#/components/responses/CalculatorSuccess"
+            "$ref": "#/components/responses/QsbsSuccess"
           },
           "400": {
             "$ref": "#/components/responses/BadRequest"
@@ -327,7 +327,7 @@
         },
         "responses": {
           "200": {
-            "$ref": "#/components/responses/CalculatorSuccess"
+            "$ref": "#/components/responses/EquityFundingSuccess"
           },
           "400": {
             "$ref": "#/components/responses/BadRequest"
@@ -560,6 +560,167 @@
               "properties": {
                 "error": {
                   "type": "string"
+                }
+              }
+            }
+          }
+        }
+      },
+      "AmtIsoSuccess": {
+        "description": "Successful amt_iso_optimize result.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "ok",
+                "result"
+              ],
+              "properties": {
+                "ok": {
+                  "type": "boolean",
+                  "const": true
+                },
+                "result": {
+                  "$ref": "#/components/schemas/AmtIsoResult"
+                }
+              }
+            }
+          }
+        }
+      },
+      "NsoSuccess": {
+        "description": "Successful nso_calculate result.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "ok",
+                "result"
+              ],
+              "properties": {
+                "ok": {
+                  "type": "boolean",
+                  "const": true
+                },
+                "result": {
+                  "$ref": "#/components/schemas/NsoResult"
+                }
+              }
+            }
+          }
+        }
+      },
+      "RsuSuccess": {
+        "description": "Successful rsu_sell_vs_hold result.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "ok",
+                "result"
+              ],
+              "properties": {
+                "ok": {
+                  "type": "boolean",
+                  "const": true
+                },
+                "result": {
+                  "$ref": "#/components/schemas/RsuResult"
+                }
+              }
+            }
+          }
+        }
+      },
+      "ConcentrationSuccess": {
+        "description": "Successful concentration_analyze result.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "ok",
+                "result"
+              ],
+              "properties": {
+                "ok": {
+                  "type": "boolean",
+                  "const": true
+                },
+                "result": {
+                  "$ref": "#/components/schemas/ConcentrationResult"
+                }
+              }
+            }
+          }
+        }
+      },
+      "ProtectivePutSuccess": {
+        "description": "Successful protective_put_price result.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "ok",
+                "result"
+              ],
+              "properties": {
+                "ok": {
+                  "type": "boolean",
+                  "const": true
+                },
+                "result": {
+                  "$ref": "#/components/schemas/ProtectivePutResult"
+                }
+              }
+            }
+          }
+        }
+      },
+      "QsbsSuccess": {
+        "description": "Successful qsbs_check result.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "ok",
+                "result"
+              ],
+              "properties": {
+                "ok": {
+                  "type": "boolean",
+                  "const": true
+                },
+                "result": {
+                  "$ref": "#/components/schemas/QsbsResult"
+                }
+              }
+            }
+          }
+        }
+      },
+      "EquityFundingSuccess": {
+        "description": "Successful equity_funding_plan result.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "ok",
+                "result"
+              ],
+              "properties": {
+                "ok": {
+                  "type": "boolean",
+                  "const": true
+                },
+                "result": {
+                  "$ref": "#/components/schemas/EquityFundingResult"
                 }
               }
             }
@@ -1238,6 +1399,3012 @@
             "description": "Annualized σ used for stacks that omit their own `volatility`. Default 0.30."
           }
         }
+      },
+      "AmtIsoResult": {
+        "type": "object",
+        "description": "ISO/AMT exercise optimization result. All dollar amounts are USD.",
+        "properties": {
+          "crossoverShares": {
+            "type": "integer",
+            "description": "Maximum whole shares exercisable in year 1 before federal AMT exceeds regular tax (the AMT crossover)."
+          },
+          "crossoverBargain": {
+            "type": "number",
+            "description": "Bargain element in dollars at the crossover share count: crossoverShares x (fmv - strike)."
+          },
+          "alreadyInAmt": {
+            "type": "boolean",
+            "description": "True when the user owes AMT even with zero exercise (regular tax below tentative minimum tax at baseline income)."
+          },
+          "schedules": {
+            "type": "object",
+            "description": "The three candidate exercise schedules, each evaluated at the effective horizon. Compare nfv across them; optimized is the recommended plan.",
+            "properties": {
+              "lumpSum": {
+                "type": "object",
+                "description": "Exercise all shares in year 1.",
+                "properties": {
+                  "label": {
+                    "type": "string",
+                    "enum": [
+                      "lump_sum",
+                      "even_split",
+                      "optimized"
+                    ],
+                    "description": "Which candidate plan this schedule represents."
+                  },
+                  "years": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "description": "Exercise and tax detail for one calendar year of the schedule.",
+                      "properties": {
+                        "year": {
+                          "type": "integer",
+                          "description": "Schedule year, 1-indexed (1 = current year)."
+                        },
+                        "shares": {
+                          "type": "number",
+                          "description": "ISO shares exercised this year."
+                        },
+                        "bargain": {
+                          "type": "number",
+                          "description": "Bargain element recognized this year in dollars: shares x (projected FMV - strike)."
+                        },
+                        "regularFederal": {
+                          "type": "number",
+                          "description": "Regular federal income tax for the year in dollars (ordinary income only, before AMT)."
+                        },
+                        "regularState": {
+                          "type": "number",
+                          "description": "Regular state income tax for the year in dollars."
+                        },
+                        "tmtFederal": {
+                          "type": "number",
+                          "description": "Federal tentative minimum tax for the year in dollars."
+                        },
+                        "tmtState": {
+                          "type": "number",
+                          "description": "State tentative minimum tax for the year in dollars (0 in states without AMT)."
+                        },
+                        "amtOwedFederal": {
+                          "type": "number",
+                          "description": "Federal AMT owed above regular tax this year in dollars."
+                        },
+                        "amtOwedState": {
+                          "type": "number",
+                          "description": "State AMT owed above regular state tax this year in dollars."
+                        },
+                        "creditRecovered": {
+                          "type": "number",
+                          "description": "Federal AMT credit applied (recovered) this year in dollars."
+                        },
+                        "cashTax": {
+                          "type": "number",
+                          "description": "Total cash tax paid this year in dollars: federal + state, net of credit recovery."
+                        }
+                      },
+                      "required": [
+                        "year",
+                        "shares",
+                        "bargain",
+                        "regularFederal",
+                        "regularState",
+                        "tmtFederal",
+                        "tmtState",
+                        "amtOwedFederal",
+                        "amtOwedState",
+                        "creditRecovered",
+                        "cashTax"
+                      ]
+                    },
+                    "description": "Per-year detail, one entry per year of the effective horizon."
+                  },
+                  "totalTax": {
+                    "type": "number",
+                    "description": "Total cash tax paid across the horizon in dollars."
+                  },
+                  "baselineRegularTax": {
+                    "type": "number",
+                    "description": "Tax owed with no exercise at all (regular federal + state on ordinary income, summed across the horizon) in dollars."
+                  },
+                  "exerciseTax": {
+                    "type": "number",
+                    "description": "totalTax minus baselineRegularTax: the marginal tax cost of exercising, in dollars."
+                  },
+                  "creditEarned": {
+                    "type": "number",
+                    "description": "Federal AMT credit generated across the horizon in dollars."
+                  },
+                  "creditRecovered": {
+                    "type": "number",
+                    "description": "Federal AMT credit recovered across the horizon in dollars."
+                  },
+                  "creditRemaining": {
+                    "type": "number",
+                    "description": "Federal AMT credit still unrecovered at the horizon in dollars."
+                  },
+                  "grossGain": {
+                    "type": "number",
+                    "description": "shares x (projected FMV at horizon - strike): the LTCG-eligible gain in dollars."
+                  },
+                  "federalLTCG": {
+                    "type": "number",
+                    "description": "Federal long-term capital gains tax (including NIIT) on grossGain in dollars."
+                  },
+                  "stateLTCG": {
+                    "type": "number",
+                    "description": "State long-term capital gains tax on grossGain in dollars."
+                  },
+                  "amtPremiumFV": {
+                    "type": "number",
+                    "description": "Future-valued AMT premium stream (exercise tax paid above the no-exercise baseline, compounded at cashReturnRate to the horizon) in dollars."
+                  },
+                  "nfv": {
+                    "type": "number",
+                    "description": "After-tax Net Final Value at the horizon in dollars: grossGain - federalLTCG - stateLTCG - amtPremiumFV. The headline number to report."
+                  }
+                },
+                "required": [
+                  "label",
+                  "years",
+                  "totalTax",
+                  "baselineRegularTax",
+                  "exerciseTax",
+                  "creditEarned",
+                  "creditRecovered",
+                  "creditRemaining",
+                  "grossGain",
+                  "federalLTCG",
+                  "stateLTCG",
+                  "amtPremiumFV",
+                  "nfv"
+                ]
+              },
+              "evenSplit": {
+                "type": "object",
+                "description": "Exercise shares/horizon shares each year.",
+                "properties": {
+                  "label": {
+                    "type": "string",
+                    "enum": [
+                      "lump_sum",
+                      "even_split",
+                      "optimized"
+                    ],
+                    "description": "Which candidate plan this schedule represents."
+                  },
+                  "years": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "description": "Exercise and tax detail for one calendar year of the schedule.",
+                      "properties": {
+                        "year": {
+                          "type": "integer",
+                          "description": "Schedule year, 1-indexed (1 = current year)."
+                        },
+                        "shares": {
+                          "type": "number",
+                          "description": "ISO shares exercised this year."
+                        },
+                        "bargain": {
+                          "type": "number",
+                          "description": "Bargain element recognized this year in dollars: shares x (projected FMV - strike)."
+                        },
+                        "regularFederal": {
+                          "type": "number",
+                          "description": "Regular federal income tax for the year in dollars (ordinary income only, before AMT)."
+                        },
+                        "regularState": {
+                          "type": "number",
+                          "description": "Regular state income tax for the year in dollars."
+                        },
+                        "tmtFederal": {
+                          "type": "number",
+                          "description": "Federal tentative minimum tax for the year in dollars."
+                        },
+                        "tmtState": {
+                          "type": "number",
+                          "description": "State tentative minimum tax for the year in dollars (0 in states without AMT)."
+                        },
+                        "amtOwedFederal": {
+                          "type": "number",
+                          "description": "Federal AMT owed above regular tax this year in dollars."
+                        },
+                        "amtOwedState": {
+                          "type": "number",
+                          "description": "State AMT owed above regular state tax this year in dollars."
+                        },
+                        "creditRecovered": {
+                          "type": "number",
+                          "description": "Federal AMT credit applied (recovered) this year in dollars."
+                        },
+                        "cashTax": {
+                          "type": "number",
+                          "description": "Total cash tax paid this year in dollars: federal + state, net of credit recovery."
+                        }
+                      },
+                      "required": [
+                        "year",
+                        "shares",
+                        "bargain",
+                        "regularFederal",
+                        "regularState",
+                        "tmtFederal",
+                        "tmtState",
+                        "amtOwedFederal",
+                        "amtOwedState",
+                        "creditRecovered",
+                        "cashTax"
+                      ]
+                    },
+                    "description": "Per-year detail, one entry per year of the effective horizon."
+                  },
+                  "totalTax": {
+                    "type": "number",
+                    "description": "Total cash tax paid across the horizon in dollars."
+                  },
+                  "baselineRegularTax": {
+                    "type": "number",
+                    "description": "Tax owed with no exercise at all (regular federal + state on ordinary income, summed across the horizon) in dollars."
+                  },
+                  "exerciseTax": {
+                    "type": "number",
+                    "description": "totalTax minus baselineRegularTax: the marginal tax cost of exercising, in dollars."
+                  },
+                  "creditEarned": {
+                    "type": "number",
+                    "description": "Federal AMT credit generated across the horizon in dollars."
+                  },
+                  "creditRecovered": {
+                    "type": "number",
+                    "description": "Federal AMT credit recovered across the horizon in dollars."
+                  },
+                  "creditRemaining": {
+                    "type": "number",
+                    "description": "Federal AMT credit still unrecovered at the horizon in dollars."
+                  },
+                  "grossGain": {
+                    "type": "number",
+                    "description": "shares x (projected FMV at horizon - strike): the LTCG-eligible gain in dollars."
+                  },
+                  "federalLTCG": {
+                    "type": "number",
+                    "description": "Federal long-term capital gains tax (including NIIT) on grossGain in dollars."
+                  },
+                  "stateLTCG": {
+                    "type": "number",
+                    "description": "State long-term capital gains tax on grossGain in dollars."
+                  },
+                  "amtPremiumFV": {
+                    "type": "number",
+                    "description": "Future-valued AMT premium stream (exercise tax paid above the no-exercise baseline, compounded at cashReturnRate to the horizon) in dollars."
+                  },
+                  "nfv": {
+                    "type": "number",
+                    "description": "After-tax Net Final Value at the horizon in dollars: grossGain - federalLTCG - stateLTCG - amtPremiumFV. The headline number to report."
+                  }
+                },
+                "required": [
+                  "label",
+                  "years",
+                  "totalTax",
+                  "baselineRegularTax",
+                  "exerciseTax",
+                  "creditEarned",
+                  "creditRecovered",
+                  "creditRemaining",
+                  "grossGain",
+                  "federalLTCG",
+                  "stateLTCG",
+                  "amtPremiumFV",
+                  "nfv"
+                ]
+              },
+              "optimized": {
+                "type": "object",
+                "description": "The NFV-maximal per-year allocation found by the optimizer. The recommended plan.",
+                "properties": {
+                  "label": {
+                    "type": "string",
+                    "enum": [
+                      "lump_sum",
+                      "even_split",
+                      "optimized"
+                    ],
+                    "description": "Which candidate plan this schedule represents."
+                  },
+                  "years": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "description": "Exercise and tax detail for one calendar year of the schedule.",
+                      "properties": {
+                        "year": {
+                          "type": "integer",
+                          "description": "Schedule year, 1-indexed (1 = current year)."
+                        },
+                        "shares": {
+                          "type": "number",
+                          "description": "ISO shares exercised this year."
+                        },
+                        "bargain": {
+                          "type": "number",
+                          "description": "Bargain element recognized this year in dollars: shares x (projected FMV - strike)."
+                        },
+                        "regularFederal": {
+                          "type": "number",
+                          "description": "Regular federal income tax for the year in dollars (ordinary income only, before AMT)."
+                        },
+                        "regularState": {
+                          "type": "number",
+                          "description": "Regular state income tax for the year in dollars."
+                        },
+                        "tmtFederal": {
+                          "type": "number",
+                          "description": "Federal tentative minimum tax for the year in dollars."
+                        },
+                        "tmtState": {
+                          "type": "number",
+                          "description": "State tentative minimum tax for the year in dollars (0 in states without AMT)."
+                        },
+                        "amtOwedFederal": {
+                          "type": "number",
+                          "description": "Federal AMT owed above regular tax this year in dollars."
+                        },
+                        "amtOwedState": {
+                          "type": "number",
+                          "description": "State AMT owed above regular state tax this year in dollars."
+                        },
+                        "creditRecovered": {
+                          "type": "number",
+                          "description": "Federal AMT credit applied (recovered) this year in dollars."
+                        },
+                        "cashTax": {
+                          "type": "number",
+                          "description": "Total cash tax paid this year in dollars: federal + state, net of credit recovery."
+                        }
+                      },
+                      "required": [
+                        "year",
+                        "shares",
+                        "bargain",
+                        "regularFederal",
+                        "regularState",
+                        "tmtFederal",
+                        "tmtState",
+                        "amtOwedFederal",
+                        "amtOwedState",
+                        "creditRecovered",
+                        "cashTax"
+                      ]
+                    },
+                    "description": "Per-year detail, one entry per year of the effective horizon."
+                  },
+                  "totalTax": {
+                    "type": "number",
+                    "description": "Total cash tax paid across the horizon in dollars."
+                  },
+                  "baselineRegularTax": {
+                    "type": "number",
+                    "description": "Tax owed with no exercise at all (regular federal + state on ordinary income, summed across the horizon) in dollars."
+                  },
+                  "exerciseTax": {
+                    "type": "number",
+                    "description": "totalTax minus baselineRegularTax: the marginal tax cost of exercising, in dollars."
+                  },
+                  "creditEarned": {
+                    "type": "number",
+                    "description": "Federal AMT credit generated across the horizon in dollars."
+                  },
+                  "creditRecovered": {
+                    "type": "number",
+                    "description": "Federal AMT credit recovered across the horizon in dollars."
+                  },
+                  "creditRemaining": {
+                    "type": "number",
+                    "description": "Federal AMT credit still unrecovered at the horizon in dollars."
+                  },
+                  "grossGain": {
+                    "type": "number",
+                    "description": "shares x (projected FMV at horizon - strike): the LTCG-eligible gain in dollars."
+                  },
+                  "federalLTCG": {
+                    "type": "number",
+                    "description": "Federal long-term capital gains tax (including NIIT) on grossGain in dollars."
+                  },
+                  "stateLTCG": {
+                    "type": "number",
+                    "description": "State long-term capital gains tax on grossGain in dollars."
+                  },
+                  "amtPremiumFV": {
+                    "type": "number",
+                    "description": "Future-valued AMT premium stream (exercise tax paid above the no-exercise baseline, compounded at cashReturnRate to the horizon) in dollars."
+                  },
+                  "nfv": {
+                    "type": "number",
+                    "description": "After-tax Net Final Value at the horizon in dollars: grossGain - federalLTCG - stateLTCG - amtPremiumFV. The headline number to report."
+                  }
+                },
+                "required": [
+                  "label",
+                  "years",
+                  "totalTax",
+                  "baselineRegularTax",
+                  "exerciseTax",
+                  "creditEarned",
+                  "creditRecovered",
+                  "creditRemaining",
+                  "grossGain",
+                  "federalLTCG",
+                  "stateLTCG",
+                  "amtPremiumFV",
+                  "nfv"
+                ]
+              }
+            },
+            "required": [
+              "lumpSum",
+              "evenSplit",
+              "optimized"
+            ]
+          },
+          "stateHasAmt": {
+            "type": "boolean",
+            "description": "True when the user state levies its own AMT (CA, CO, CT, MN)."
+          },
+          "bargainPerShare": {
+            "type": "number",
+            "description": "Year-1 bargain element per share in dollars: max(0, fmv - strike)."
+          },
+          "timing": {
+            "type": "object",
+            "description": "Timing constraints derived from grantDate and (when departed) terminationDate.",
+            "properties": {
+              "grantExpiration": {
+                "type": "string",
+                "description": "Grant expiration date: grantDate + 10 years (IRC 422 maximum ISO term). ISO 8601 date-time string."
+              },
+              "qdEligibleDate": {
+                "type": "string",
+                "description": "Earliest qualifying-disposition date measured from grant: grantDate + 2 years. ISO 8601 date-time string."
+              },
+              "exerciseWindowClose": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "description": "Post-termination exercise deadline (terminationDate + 90 days) as an ISO 8601 date-time string; null while still employed."
+              },
+              "maxHorizon": {
+                "type": "integer",
+                "description": "Maximum usable planning horizon in years (1..10), capped by grant expiration or the post-termination window."
+              },
+              "daysUntilWindowClose": {
+                "type": [
+                  "number",
+                  "null"
+                ],
+                "description": "Days until the post-termination exercise window closes (can be negative when already past); null while still employed."
+              },
+              "windowClosed": {
+                "type": "boolean",
+                "description": "True when the user departed and the 90-day exercise deadline has already passed."
+              },
+              "qdNotYetEligible": {
+                "type": "boolean",
+                "description": "True when grantDate + 2 years is still in the future (a sale today could not be a qualifying disposition)."
+              }
+            },
+            "required": [
+              "grantExpiration",
+              "qdEligibleDate",
+              "exerciseWindowClose",
+              "maxHorizon",
+              "daysUntilWindowClose",
+              "windowClosed",
+              "qdNotYetEligible"
+            ]
+          },
+          "effectiveHorizon": {
+            "type": "integer",
+            "description": "Horizon actually used by the schedules: min(requested horizon, timing.maxHorizon)."
+          },
+          "departedRecommendation": {
+            "type": "object",
+            "description": "Present only when hasLeftCompany=true and the 90-day post-termination window is still open: the partial-exercise quantity that maximizes expected after-tax value.",
+            "properties": {
+              "recommendedShares": {
+                "type": "integer",
+                "description": "Optimal share count to exercise within the window."
+              },
+              "recommendedExerciseTax": {
+                "type": "number",
+                "description": "AMT cost in dollars at the recommended share count."
+              },
+              "recommendedNetValue": {
+                "type": "number",
+                "description": "Expected after-tax value in dollars at the hold horizon for the recommended count."
+              },
+              "fullExerciseShares": {
+                "type": "integer",
+                "description": "Total shares available (the exercise-everything alternative)."
+              },
+              "fullExerciseTax": {
+                "type": "number",
+                "description": "AMT cost in dollars of exercising all shares."
+              },
+              "fullExerciseNetValue": {
+                "type": "number",
+                "description": "Expected after-tax value in dollars at the hold horizon if all shares are exercised."
+              },
+              "holdYears": {
+                "type": "number",
+                "description": "Post-exercise hold horizon in years used for the comparison."
+              },
+              "futureFmvPerShare": {
+                "type": "number",
+                "description": "Projected FMV per share in dollars at the hold horizon."
+              },
+              "recommendedSchedule": {
+                "type": "object",
+                "description": "Year-by-year tax schedule for the recommended share count.",
+                "properties": {
+                  "label": {
+                    "type": "string",
+                    "enum": [
+                      "lump_sum",
+                      "even_split",
+                      "optimized"
+                    ],
+                    "description": "Which candidate plan this schedule represents."
+                  },
+                  "years": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "description": "Exercise and tax detail for one calendar year of the schedule.",
+                      "properties": {
+                        "year": {
+                          "type": "integer",
+                          "description": "Schedule year, 1-indexed (1 = current year)."
+                        },
+                        "shares": {
+                          "type": "number",
+                          "description": "ISO shares exercised this year."
+                        },
+                        "bargain": {
+                          "type": "number",
+                          "description": "Bargain element recognized this year in dollars: shares x (projected FMV - strike)."
+                        },
+                        "regularFederal": {
+                          "type": "number",
+                          "description": "Regular federal income tax for the year in dollars (ordinary income only, before AMT)."
+                        },
+                        "regularState": {
+                          "type": "number",
+                          "description": "Regular state income tax for the year in dollars."
+                        },
+                        "tmtFederal": {
+                          "type": "number",
+                          "description": "Federal tentative minimum tax for the year in dollars."
+                        },
+                        "tmtState": {
+                          "type": "number",
+                          "description": "State tentative minimum tax for the year in dollars (0 in states without AMT)."
+                        },
+                        "amtOwedFederal": {
+                          "type": "number",
+                          "description": "Federal AMT owed above regular tax this year in dollars."
+                        },
+                        "amtOwedState": {
+                          "type": "number",
+                          "description": "State AMT owed above regular state tax this year in dollars."
+                        },
+                        "creditRecovered": {
+                          "type": "number",
+                          "description": "Federal AMT credit applied (recovered) this year in dollars."
+                        },
+                        "cashTax": {
+                          "type": "number",
+                          "description": "Total cash tax paid this year in dollars: federal + state, net of credit recovery."
+                        }
+                      },
+                      "required": [
+                        "year",
+                        "shares",
+                        "bargain",
+                        "regularFederal",
+                        "regularState",
+                        "tmtFederal",
+                        "tmtState",
+                        "amtOwedFederal",
+                        "amtOwedState",
+                        "creditRecovered",
+                        "cashTax"
+                      ]
+                    },
+                    "description": "Per-year detail, one entry per year of the effective horizon."
+                  },
+                  "totalTax": {
+                    "type": "number",
+                    "description": "Total cash tax paid across the horizon in dollars."
+                  },
+                  "baselineRegularTax": {
+                    "type": "number",
+                    "description": "Tax owed with no exercise at all (regular federal + state on ordinary income, summed across the horizon) in dollars."
+                  },
+                  "exerciseTax": {
+                    "type": "number",
+                    "description": "totalTax minus baselineRegularTax: the marginal tax cost of exercising, in dollars."
+                  },
+                  "creditEarned": {
+                    "type": "number",
+                    "description": "Federal AMT credit generated across the horizon in dollars."
+                  },
+                  "creditRecovered": {
+                    "type": "number",
+                    "description": "Federal AMT credit recovered across the horizon in dollars."
+                  },
+                  "creditRemaining": {
+                    "type": "number",
+                    "description": "Federal AMT credit still unrecovered at the horizon in dollars."
+                  },
+                  "grossGain": {
+                    "type": "number",
+                    "description": "shares x (projected FMV at horizon - strike): the LTCG-eligible gain in dollars."
+                  },
+                  "federalLTCG": {
+                    "type": "number",
+                    "description": "Federal long-term capital gains tax (including NIIT) on grossGain in dollars."
+                  },
+                  "stateLTCG": {
+                    "type": "number",
+                    "description": "State long-term capital gains tax on grossGain in dollars."
+                  },
+                  "amtPremiumFV": {
+                    "type": "number",
+                    "description": "Future-valued AMT premium stream (exercise tax paid above the no-exercise baseline, compounded at cashReturnRate to the horizon) in dollars."
+                  },
+                  "nfv": {
+                    "type": "number",
+                    "description": "After-tax Net Final Value at the horizon in dollars: grossGain - federalLTCG - stateLTCG - amtPremiumFV. The headline number to report."
+                  }
+                },
+                "required": [
+                  "label",
+                  "years",
+                  "totalTax",
+                  "baselineRegularTax",
+                  "exerciseTax",
+                  "creditEarned",
+                  "creditRecovered",
+                  "creditRemaining",
+                  "grossGain",
+                  "federalLTCG",
+                  "stateLTCG",
+                  "amtPremiumFV",
+                  "nfv"
+                ]
+              },
+              "curve": {
+                "type": "array",
+                "description": "Share-count vs after-tax-value curve sampled uniformly across [0, total shares], for charting.",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "shares": {
+                      "type": "number",
+                      "description": "Exercised share count at this sample point."
+                    },
+                    "netValue": {
+                      "type": "number",
+                      "description": "Expected after-tax value in dollars at this share count."
+                    },
+                    "exerciseTax": {
+                      "type": "number",
+                      "description": "AMT cost in dollars at this share count."
+                    }
+                  },
+                  "required": [
+                    "shares",
+                    "netValue",
+                    "exerciseTax"
+                  ]
+                }
+              }
+            },
+            "required": [
+              "recommendedShares",
+              "recommendedExerciseTax",
+              "recommendedNetValue",
+              "fullExerciseShares",
+              "fullExerciseTax",
+              "fullExerciseNetValue",
+              "holdYears",
+              "futureFmvPerShare",
+              "recommendedSchedule",
+              "curve"
+            ]
+          }
+        },
+        "required": [
+          "crossoverShares",
+          "crossoverBargain",
+          "alreadyInAmt",
+          "schedules",
+          "stateHasAmt",
+          "bargainPerShare",
+          "timing",
+          "effectiveHorizon"
+        ]
+      },
+      "NsoResult": {
+        "type": "object",
+        "description": "NSO exercise sell-vs-hold result. All dollar amounts are USD.",
+        "properties": {
+          "exercise": {
+            "type": "object",
+            "description": "Tax bill at exercise on the bargain element (taxed as ordinary W-2 income).",
+            "properties": {
+              "bargainElement": {
+                "type": "number",
+                "description": "shares x (currentPrice - strike) in dollars, taxed as ordinary income at exercise."
+              },
+              "federal": {
+                "type": "number",
+                "description": "Federal ordinary income tax on the bargain element in dollars."
+              },
+              "state": {
+                "type": "number",
+                "description": "State income tax on the bargain element in dollars."
+              },
+              "socialSecurity": {
+                "type": "number",
+                "description": "Social Security tax in dollars (0 when not employed or already past the wage base)."
+              },
+              "medicare": {
+                "type": "number",
+                "description": "Medicare tax in dollars."
+              },
+              "additionalMedicare": {
+                "type": "number",
+                "description": "Additional Medicare (0.9%) tax in dollars."
+              },
+              "total": {
+                "type": "number",
+                "description": "Total tax at exercise in dollars."
+              },
+              "netCashSellAll": {
+                "type": "number",
+                "description": "bargainElement - total: net cash in dollars if every share is sold at exercise."
+              }
+            },
+            "required": [
+              "bargainElement",
+              "federal",
+              "state",
+              "socialSecurity",
+              "medicare",
+              "additionalMedicare",
+              "total",
+              "netCashSellAll"
+            ]
+          },
+          "bracketJump": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "description": "Marginal federal bracket change caused by the new ordinary income; null when the income stays within one bracket.",
+            "properties": {
+              "fromRate": {
+                "type": "number",
+                "description": "Marginal federal rate before the event, as a decimal (0.24 = 24%)."
+              },
+              "toRate": {
+                "type": "number",
+                "description": "Marginal federal rate after the event, as a decimal."
+              },
+              "thresholdAtJump": {
+                "type": "number",
+                "description": "Taxable-income threshold in dollars where the bracket changes."
+              }
+            },
+            "required": [
+              "fromRate",
+              "toRate",
+              "thresholdAtJump"
+            ]
+          },
+          "hold": {
+            "type": "object",
+            "description": "Exercise now and hold the shares holdYears for long-term capital gains treatment.",
+            "properties": {
+              "funding": {
+                "type": "string",
+                "enum": [
+                  "sell-to-cover",
+                  "cash"
+                ],
+                "description": "How strike cost and exercise tax are funded (echo of holdFunding)."
+              },
+              "costBasis": {
+                "type": "number",
+                "description": "Cost basis per share in dollars (the FMV at exercise)."
+              },
+              "strikeCost": {
+                "type": "number",
+                "description": "Total strike cost in dollars: shares x strike."
+              },
+              "cashNeededAtExercise": {
+                "type": "number",
+                "description": "Outside cash required at exercise in dollars (strike + tax under cash funding; 0 under sell-to-cover)."
+              },
+              "sharesSoldToCover": {
+                "type": "number",
+                "description": "Shares sold at exercise to cover strike + tax (sell-to-cover only; 0 in cash mode)."
+              },
+              "sharesRetained": {
+                "type": "number",
+                "description": "Shares still held after funding the exercise."
+              },
+              "effectiveSalePrice": {
+                "type": "number",
+                "description": "Projected sale price per share in dollars at end of holdYears, after the volatility haircut."
+              },
+              "expectedGain": {
+                "type": "number",
+                "description": "Expected capital gain in dollars on the retained shares at sale."
+              },
+              "ltcgFederal": {
+                "type": "number",
+                "description": "Federal long-term capital gains tax (including NIIT) on the gain in dollars."
+              },
+              "ltcgState": {
+                "type": "number",
+                "description": "State capital gains tax on the gain in dollars."
+              },
+              "ltcgTotal": {
+                "type": "number",
+                "description": "Total capital gains tax at sale in dollars."
+              },
+              "afterTaxProceedsAtSale": {
+                "type": "number",
+                "description": "After-tax sale proceeds in dollars at end of holdYears."
+              },
+              "y0OutflowGain": {
+                "type": "number",
+                "description": "Opportunity-cost gain in dollars the year-0 cash outflow would have earned at the market rate (cash funding only; 0 for sell-to-cover)."
+              },
+              "y0OutflowLtcgFederal": {
+                "type": "number",
+                "description": "Federal capital gains tax in dollars on the forgone market gain (cash funding only)."
+              },
+              "y0OutflowLtcgState": {
+                "type": "number",
+                "description": "State capital gains tax in dollars on the forgone market gain (cash funding only)."
+              },
+              "y0OutflowLtcgTotal": {
+                "type": "number",
+                "description": "Total capital gains tax in dollars on the forgone market gain (cash funding only)."
+              },
+              "y0OutflowForgoneNet": {
+                "type": "number",
+                "description": "After-tax market growth forgone in dollars by spending cash at exercise: y0OutflowGain - y0OutflowLtcgTotal."
+              },
+              "netAtYearN": {
+                "type": "number",
+                "description": "Net after-tax value of the hold strategy in dollars at end of holdYears (after subtracting forgone market growth)."
+              }
+            },
+            "required": [
+              "funding",
+              "costBasis",
+              "strikeCost",
+              "cashNeededAtExercise",
+              "sharesSoldToCover",
+              "sharesRetained",
+              "effectiveSalePrice",
+              "expectedGain",
+              "ltcgFederal",
+              "ltcgState",
+              "ltcgTotal",
+              "afterTaxProceedsAtSale",
+              "y0OutflowGain",
+              "y0OutflowLtcgFederal",
+              "y0OutflowLtcgState",
+              "y0OutflowLtcgTotal",
+              "y0OutflowForgoneNet",
+              "netAtYearN"
+            ]
+          },
+          "sellNowInvest": {
+            "type": "object",
+            "description": "Counterfactual: sell every share at exercise and reinvest the net cash at expectedMarketReturn for holdYears.",
+            "properties": {
+              "netCashAtY0": {
+                "type": "number",
+                "description": "Net cash in dollars after exercise tax, available to reinvest."
+              },
+              "marketGain": {
+                "type": "number",
+                "description": "Market growth in dollars on the reinvested cash over holdYears."
+              },
+              "ltcgFederal": {
+                "type": "number",
+                "description": "Federal capital gains tax (including NIIT) in dollars on the market gain at the horizon."
+              },
+              "ltcgState": {
+                "type": "number",
+                "description": "State capital gains tax in dollars on the market gain."
+              },
+              "ltcgTotal": {
+                "type": "number",
+                "description": "Total capital gains tax in dollars on the market gain."
+              },
+              "netAtYearN": {
+                "type": "number",
+                "description": "Net after-tax value of sell-now-and-invest in dollars at end of holdYears."
+              }
+            },
+            "required": [
+              "netCashAtY0",
+              "marketGain",
+              "ltcgFederal",
+              "ltcgState",
+              "ltcgTotal",
+              "netAtYearN"
+            ]
+          },
+          "holdMinusCashless": {
+            "type": "number",
+            "description": "hold.netAtYearN - sellNowInvest.netAtYearN in dollars. Positive favors holding the shares; negative favors selling at exercise and reinvesting."
+          }
+        },
+        "required": [
+          "exercise",
+          "bracketJump",
+          "hold",
+          "sellNowInvest",
+          "holdMinusCashless"
+        ]
+      },
+      "RsuResult": {
+        "type": "object",
+        "description": "RSU sell-at-vest vs hold result. All dollar amounts are USD.",
+        "properties": {
+          "vest": {
+            "type": "object",
+            "description": "Tax bill at vest on the full vest value (taxed as ordinary W-2 income).",
+            "properties": {
+              "vestValue": {
+                "type": "number",
+                "description": "shares x currentPrice in dollars, taxed as ordinary income at vest."
+              },
+              "federal": {
+                "type": "number",
+                "description": "True federal ordinary income tax on the vest value in dollars (marginal bracket, not the withholding)."
+              },
+              "state": {
+                "type": "number",
+                "description": "State income tax on the vest value in dollars."
+              },
+              "socialSecurity": {
+                "type": "number",
+                "description": "Social Security tax in dollars (0 when not employed or already past the wage base)."
+              },
+              "medicare": {
+                "type": "number",
+                "description": "Medicare tax in dollars."
+              },
+              "additionalMedicare": {
+                "type": "number",
+                "description": "Additional Medicare (0.9%) tax in dollars."
+              },
+              "total": {
+                "type": "number",
+                "description": "Total tax at vest in dollars."
+              },
+              "netCashAtVest": {
+                "type": "number",
+                "description": "vestValue - total: net cash in dollars if every share is sold at vest."
+              },
+              "federalWithheldAtVest": {
+                "type": "number",
+                "description": "Mandatory federal supplemental withholding in dollars (22% on the first $1M of supplemental wages, 37% above). When less than vest.federal, the difference is owed at tax time."
+              }
+            },
+            "required": [
+              "vestValue",
+              "federal",
+              "state",
+              "socialSecurity",
+              "medicare",
+              "additionalMedicare",
+              "total",
+              "netCashAtVest",
+              "federalWithheldAtVest"
+            ]
+          },
+          "bracketJump": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "description": "Marginal federal bracket change caused by the new ordinary income; null when the income stays within one bracket.",
+            "properties": {
+              "fromRate": {
+                "type": "number",
+                "description": "Marginal federal rate before the event, as a decimal (0.24 = 24%)."
+              },
+              "toRate": {
+                "type": "number",
+                "description": "Marginal federal rate after the event, as a decimal."
+              },
+              "thresholdAtJump": {
+                "type": "number",
+                "description": "Taxable-income threshold in dollars where the bracket changes."
+              }
+            },
+            "required": [
+              "fromRate",
+              "toRate",
+              "thresholdAtJump"
+            ]
+          },
+          "hold": {
+            "type": "object",
+            "description": "Keep the after-tax shares for holdYears, then sell.",
+            "properties": {
+              "costBasis": {
+                "type": "number",
+                "description": "Cost basis per share in dollars (FMV at vest)."
+              },
+              "effectiveSalePrice": {
+                "type": "number",
+                "description": "Projected sale price per share in dollars at end of holdYears, after the volatility haircut."
+              },
+              "sharesRetained": {
+                "type": "number",
+                "description": "Shares kept after the sell-to-cover dollar-equivalent of the vest tax."
+              },
+              "expectedGain": {
+                "type": "number",
+                "description": "Expected capital gain in dollars on the retained shares: (effectiveSalePrice - costBasis) x sharesRetained."
+              },
+              "capGainFederal": {
+                "type": "number",
+                "description": "Federal capital gains tax in dollars on the gain: LTCG (including NIIT) when isLongTerm, else the marginal ordinary rate."
+              },
+              "capGainState": {
+                "type": "number",
+                "description": "State capital gains tax in dollars on the gain."
+              },
+              "capGainTotal": {
+                "type": "number",
+                "description": "Total capital gains tax in dollars at sale."
+              },
+              "isLongTerm": {
+                "type": "boolean",
+                "description": "True when holdYears >= 1, so appreciation gets long-term capital gains treatment."
+              },
+              "netAtYearN": {
+                "type": "number",
+                "description": "Net after-tax value of holding in dollars at end of holdYears: sale proceeds - capGainTotal."
+              }
+            },
+            "required": [
+              "costBasis",
+              "effectiveSalePrice",
+              "sharesRetained",
+              "expectedGain",
+              "capGainFederal",
+              "capGainState",
+              "capGainTotal",
+              "isLongTerm",
+              "netAtYearN"
+            ]
+          },
+          "sellNowInvest": {
+            "type": "object",
+            "description": "Counterfactual: sell every share at vest and reinvest the net cash at expectedMarketReturn for holdYears.",
+            "properties": {
+              "netCashAtY0": {
+                "type": "number",
+                "description": "Net cash in dollars at vest available to reinvest (equals vest.netCashAtVest)."
+              },
+              "marketGain": {
+                "type": "number",
+                "description": "Market growth in dollars on the reinvested cash over holdYears."
+              },
+              "capGainFederal": {
+                "type": "number",
+                "description": "Federal capital gains tax in dollars on the market gain: LTCG (including NIIT) when isLongTerm, else the marginal ordinary rate."
+              },
+              "capGainState": {
+                "type": "number",
+                "description": "State capital gains tax in dollars on the market gain."
+              },
+              "capGainTotal": {
+                "type": "number",
+                "description": "Total capital gains tax in dollars on the market gain."
+              },
+              "isLongTerm": {
+                "type": "boolean",
+                "description": "True when holdYears >= 1."
+              },
+              "netAtYearN": {
+                "type": "number",
+                "description": "Net after-tax value of sell-at-vest-and-invest in dollars at end of holdYears."
+              }
+            },
+            "required": [
+              "netCashAtY0",
+              "marketGain",
+              "capGainFederal",
+              "capGainState",
+              "capGainTotal",
+              "isLongTerm",
+              "netAtYearN"
+            ]
+          },
+          "holdMinusSell": {
+            "type": "number",
+            "description": "hold.netAtYearN - sellNowInvest.netAtYearN in dollars. Positive favors holding the vested shares; negative favors selling at vest and reinvesting."
+          }
+        },
+        "required": [
+          "vest",
+          "bracketJump",
+          "hold",
+          "sellNowInvest",
+          "holdMinusSell"
+        ]
+      },
+      "ConcentrationResult": {
+        "type": "object",
+        "description": "Single-stock concentration analysis. All dollar amounts are USD.",
+        "properties": {
+          "concentration": {
+            "type": "number",
+            "description": "Position value / total assets, 0..1."
+          },
+          "riskBand": {
+            "type": "string",
+            "enum": [
+              "Low",
+              "Moderate",
+              "Concentrated",
+              "Highly concentrated",
+              "Extreme"
+            ],
+            "description": "Qualitative concentration band for the position weight."
+          },
+          "isLongTermToday": {
+            "type": "boolean",
+            "description": "True when the position already qualifies for long-term capital gains treatment."
+          },
+          "longTermDate": {
+            "type": "string",
+            "description": "Date the position turns long-term (acquisitionDate + 1 year). ISO 8601 date-time string."
+          },
+          "daysUntilLongTerm": {
+            "type": "number",
+            "description": "Days until long-term treatment; 0 when already long-term."
+          },
+          "lossExposure": {
+            "type": "array",
+            "description": "Dollar damage at 30/50/70% single-stock drawdowns.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "drop": {
+                  "type": "number",
+                  "description": "Modeled drawdown as a fraction of position value (0.30, 0.50, 0.70)."
+                },
+                "dollarLoss": {
+                  "type": "number",
+                  "description": "Dollars lost at this drawdown."
+                },
+                "newConcentration": {
+                  "type": "number",
+                  "description": "Portfolio concentration (0..1) after the drawdown."
+                }
+              },
+              "required": [
+                "drop",
+                "dollarLoss",
+                "newConcentration"
+              ]
+            }
+          },
+          "waitForLtInsight": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "description": "Tax saved by waiting for long-term treatment before selling; null when already long-term or no sale is needed.",
+            "properties": {
+              "longTermDate": {
+                "type": "string",
+                "description": "Date the position turns long-term. ISO 8601 date-time string."
+              },
+              "daysAway": {
+                "type": "number",
+                "description": "Days until that date."
+              },
+              "immediateLumpSumTax": {
+                "type": "number",
+                "description": "Tax in dollars on the full sell-down executed today (short-term rates)."
+              },
+              "delayedLumpSumTax": {
+                "type": "number",
+                "description": "Tax in dollars on the same sale executed after the long-term date."
+              },
+              "savings": {
+                "type": "number",
+                "description": "immediateLumpSumTax - delayedLumpSumTax in dollars (floored at 0)."
+              }
+            },
+            "required": [
+              "longTermDate",
+              "daysAway",
+              "immediateLumpSumTax",
+              "delayedLumpSumTax",
+              "savings"
+            ]
+          },
+          "schedule": {
+            "type": "array",
+            "description": "Sell-down plans over 1, 2, and 3 years; empty when the position is already at or below the target weight.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "planKey": {
+                  "type": "string",
+                  "enum": [
+                    "lump_sum",
+                    "two_year",
+                    "three_year"
+                  ],
+                  "description": "Plan identifier."
+                },
+                "planLabel": {
+                  "type": "string",
+                  "description": "Human-readable plan name, e.g. \"Sell over 2 years\"."
+                },
+                "yearlySales": {
+                  "type": "array",
+                  "description": "One entry per sale year: year (1-indexed), saleAmount, gainAmount, isLongTerm, federalTax, stateTax, totalTax in dollars, plus a per-slice breakdown.",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "year": {
+                        "type": "number",
+                        "description": "Sale year, 1-indexed."
+                      },
+                      "saleAmount": {
+                        "type": "number",
+                        "description": "Dollars sold this year."
+                      },
+                      "gainAmount": {
+                        "type": "number",
+                        "description": "Taxable gain in dollars within the sale."
+                      },
+                      "isLongTerm": {
+                        "type": "boolean",
+                        "description": "True when this sale gets long-term capital gains treatment."
+                      },
+                      "federalTax": {
+                        "type": "number",
+                        "description": "Federal tax in dollars on this sale (including NIIT)."
+                      },
+                      "stateTax": {
+                        "type": "number",
+                        "description": "State tax in dollars on this sale."
+                      },
+                      "totalTax": {
+                        "type": "number",
+                        "description": "Total tax in dollars on this sale."
+                      },
+                      "breakdown": {
+                        "type": "array",
+                        "items": {
+                          "type": "object",
+                          "description": "One tax slice: a dollar amount taxed at one rate.",
+                          "properties": {
+                            "label": {
+                              "type": "string",
+                              "description": "Tax line label, e.g. \"Federal LTCG\", \"NIIT\", \"California\"."
+                            },
+                            "rate": {
+                              "type": "number",
+                              "description": "Rate applied to this slice as a decimal (0.15 = 15%)."
+                            },
+                            "amount": {
+                              "type": "number",
+                              "description": "Dollars of gain in this slice."
+                            },
+                            "tax": {
+                              "type": "number",
+                              "description": "Tax in dollars: amount x rate."
+                            }
+                          },
+                          "required": [
+                            "label",
+                            "rate",
+                            "amount",
+                            "tax"
+                          ]
+                        },
+                        "description": "Per-rate tax slices for this sale."
+                      }
+                    },
+                    "required": [
+                      "year",
+                      "saleAmount",
+                      "gainAmount",
+                      "isLongTerm",
+                      "federalTax",
+                      "stateTax",
+                      "totalTax",
+                      "breakdown"
+                    ]
+                  }
+                },
+                "totalSale": {
+                  "type": "number",
+                  "description": "Total nominal sale dollars across the plan years."
+                },
+                "totalTax": {
+                  "type": "number",
+                  "description": "Total tax in dollars across the plan years."
+                },
+                "endOfHorizonWealth": {
+                  "type": "number",
+                  "description": "Total after-tax wealth in dollars at the end of the 3-year comparison horizon."
+                },
+                "savingsVsLumpSum": {
+                  "type": "number",
+                  "description": "Raw tax saved in dollars vs selling everything today; positive means this plan pays less tax."
+                },
+                "wealthVsLumpSum": {
+                  "type": "number",
+                  "description": "End-of-horizon wealth delta in dollars vs the sell-everything-today baseline; positive means this plan ends wealthier."
+                },
+                "year1IsShortTerm": {
+                  "type": "boolean",
+                  "description": "True when the first sale year would be taxed at short-term rates."
+                },
+                "taxBreakdown": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "description": "One tax slice: a dollar amount taxed at one rate.",
+                    "properties": {
+                      "label": {
+                        "type": "string",
+                        "description": "Tax line label, e.g. \"Federal LTCG\", \"NIIT\", \"California\"."
+                      },
+                      "rate": {
+                        "type": "number",
+                        "description": "Rate applied to this slice as a decimal (0.15 = 15%)."
+                      },
+                      "amount": {
+                        "type": "number",
+                        "description": "Dollars of gain in this slice."
+                      },
+                      "tax": {
+                        "type": "number",
+                        "description": "Tax in dollars: amount x rate."
+                      }
+                    },
+                    "required": [
+                      "label",
+                      "rate",
+                      "amount",
+                      "tax"
+                    ]
+                  },
+                  "description": "Plan-total tax slices, same-rate rows merged."
+                },
+                "wealthByYear": {
+                  "type": "array",
+                  "items": {
+                    "type": "number"
+                  },
+                  "description": "Total wealth in dollars at the end of each year, t = 0..3 (4 points). For charting."
+                }
+              },
+              "required": [
+                "planKey",
+                "planLabel",
+                "yearlySales",
+                "totalSale",
+                "totalTax",
+                "endOfHorizonWealth",
+                "savingsVsLumpSum",
+                "wealthVsLumpSum",
+                "year1IsShortTerm",
+                "taxBreakdown",
+                "wealthByYear"
+              ]
+            }
+          },
+          "hedging": {
+            "type": "object",
+            "description": "Modeled cost of a protective hedge covering the full position. Defaults to a 1-year 30%-OTM put; if a `hedgeChoice` is supplied, this block prices that structure (kind / protectionLevel / tenorYears, plus a short call for a collar).",
+            "properties": {
+              "kind": {
+                "type": "string",
+                "enum": [
+                  "put",
+                  "collar"
+                ],
+                "description": "Structure priced: \"put\" (default) or \"collar\" when a hedgeChoice with kind:\"collar\" and upsideCapPct was supplied."
+              },
+              "protectionLevel": {
+                "type": "number",
+                "description": "Floor as a fraction below spot (0.30 = a 30%-OTM put). Echoes hedgeChoice.protectionLevel, else 0.30."
+              },
+              "tenorYears": {
+                "type": "number",
+                "description": "Hedge tenor in years. Echoes hedgeChoice.tenorYears, else 1."
+              },
+              "strike": {
+                "type": "number",
+                "description": "Long put strike in dollars ((1 - protectionLevel) x position value)."
+              },
+              "putPrice": {
+                "type": "number",
+                "description": "Gross long-put premium in dollars for the tenor."
+              },
+              "callStrike": {
+                "type": "number",
+                "description": "Collar short-call strike in dollars ((1 + upsideCapPct) x position value). Omitted for a put."
+              },
+              "callPrice": {
+                "type": "number",
+                "description": "Collar short-call premium in dollars received. Omitted for a put."
+              },
+              "netPremium": {
+                "type": "number",
+                "description": "Net premium paid in dollars: putPrice for a put, max(0, putPrice - callPrice) for a collar."
+              },
+              "sigma": {
+                "type": "number",
+                "description": "Annualized volatility used in pricing (explicit or ticker-implied vol, else a sector-typical implied volatility)."
+              },
+              "riskFreeRate": {
+                "type": "number",
+                "description": "Annualized risk-free rate used in pricing, as a decimal."
+              }
+            },
+            "required": [
+              "kind",
+              "protectionLevel",
+              "tenorYears",
+              "strike",
+              "putPrice",
+              "netPremium",
+              "sigma",
+              "riskFreeRate"
+            ]
+          },
+          "sectorContextLine": {
+            "type": "string",
+            "description": "One-line volatility/drawdown context for the chosen sector."
+          },
+          "advisorBenchmarkLine": {
+            "type": "string",
+            "description": "One-line comparison of the user weight vs the common advisor 10% single-name guideline."
+          }
+        },
+        "required": [
+          "concentration",
+          "riskBand",
+          "isLongTermToday",
+          "longTermDate",
+          "daysUntilLongTerm",
+          "lossExposure",
+          "waitForLtInsight",
+          "schedule",
+          "hedging",
+          "sectorContextLine",
+          "advisorBenchmarkLine"
+        ]
+      },
+      "ProtectivePutResult": {
+        "type": "object",
+        "description": "Protective put, zero-cost collar, and put-spread pricing on a single-stock position. All dollar amounts are USD.",
+        "properties": {
+          "inputs": {
+            "type": "object",
+            "description": "Echo of the resolved inputs actually priced: positionValue, sector, volatility (the sigma used after ticker/sector resolution), protectionLevel, tenorYears, plus expectedReturn, spreadRiskLevel, and tickerLabel when supplied.",
+            "properties": {
+              "positionValue": {
+                "type": "number",
+                "description": "Position value priced, in dollars."
+              },
+              "sector": {
+                "type": "string",
+                "description": "Sector tag used for defaults."
+              },
+              "volatility": {
+                "type": "number",
+                "description": "Annualized sigma actually used in pricing, as a decimal."
+              },
+              "protectionLevel": {
+                "type": "number",
+                "description": "Protection level as a fraction below spot (0.10 = 10% OTM put)."
+              },
+              "tenorYears": {
+                "type": "number",
+                "description": "Option tenor in years."
+              },
+              "expectedReturn": {
+                "type": "number",
+                "description": "Caller-supplied annual expected return used for probability metrics. Omitted when not supplied."
+              },
+              "spreadRiskLevel": {
+                "type": "number",
+                "description": "Put spread floor breach risk echoed from the request (snapped to a supported preset). Omitted when not supplied."
+              },
+              "tickerLabel": {
+                "type": "string",
+                "description": "Display label echoed from the request (ticker or tickerLabel). Omitted when not supplied."
+              }
+            },
+            "required": [
+              "positionValue",
+              "sector",
+              "volatility",
+              "protectionLevel",
+              "tenorYears"
+            ]
+          },
+          "riskFreeRate": {
+            "type": "number",
+            "description": "Annualized risk-free rate used in option pricing, looked up for the tenor, as a decimal."
+          },
+          "realWorldDrift": {
+            "type": "number",
+            "description": "Annual real-world drift used for the probability metrics: expectedReturn when supplied, else the sector long-run return. Does not affect premium math."
+          },
+          "barePut": {
+            "type": "object",
+            "description": "Bare protective put: pay premium for a hard floor.",
+            "properties": {
+              "strike": {
+                "type": "number",
+                "description": "Put strike in dollars: (1 - protectionLevel) x position value."
+              },
+              "premium": {
+                "type": "number",
+                "description": "Put premium in dollars for the full tenor."
+              },
+              "annualCost": {
+                "type": "number",
+                "description": "Premium annualized, in dollars per year."
+              },
+              "annualCostPct": {
+                "type": "number",
+                "description": "Annualized premium as a fraction of position value."
+              },
+              "maxLoss": {
+                "type": "number",
+                "description": "Worst-case loss in dollars with the put in place: position - strike + premium."
+              },
+              "badYearPrice": {
+                "type": "number",
+                "description": "Position value in dollars at the 10th-percentile (1-in-10 bad year) outcome under real-world drift."
+              },
+              "badYearDropPct": {
+                "type": "number",
+                "description": "Bad-year drawdown as a fraction of position value (always >= 0)."
+              },
+              "coveredLossAtBadYear": {
+                "type": "number",
+                "description": "Dollars the put pays at the bad-year price; 0 when the bad-year drop never reaches the protection floor."
+              },
+              "premiumToCoveredRatio": {
+                "type": [
+                  "number",
+                  "null"
+                ],
+                "description": "Premium per dollar of bad-year coverage. null (serialized from Infinity) when the put covers nothing at the bad-year price; above ~0.40 the floor is set too deep."
+              },
+              "expectedProfit": {
+                "type": "number",
+                "description": "Expected position profit in dollars over the tenor under real-world drift."
+              },
+              "premiumToExpectedProfitRatio": {
+                "type": [
+                  "number",
+                  "null"
+                ],
+                "description": "Fraction of typical-period expected profit consumed by the premium. null (serialized from Infinity) when expected profit is zero or negative; above ~0.50 the hedge eats most of the upside."
+              }
+            },
+            "required": [
+              "strike",
+              "premium",
+              "annualCost",
+              "annualCostPct",
+              "maxLoss",
+              "badYearPrice",
+              "badYearDropPct",
+              "coveredLossAtBadYear",
+              "premiumToCoveredRatio",
+              "expectedProfit",
+              "premiumToExpectedProfitRatio"
+            ]
+          },
+          "collar": {
+            "type": "object",
+            "description": "Put financed by a short call: lower or zero net premium in exchange for capped upside.",
+            "properties": {
+              "putStrike": {
+                "type": "number",
+                "description": "Long put strike in dollars (same floor as the bare put)."
+              },
+              "callStrike": {
+                "type": "number",
+                "description": "Short call strike in dollars (the upside cap level)."
+              },
+              "netPremium": {
+                "type": "number",
+                "description": "Net premium in dollars: put premium - call premium, floored at 0."
+              },
+              "annualCost": {
+                "type": "number",
+                "description": "Net premium annualized, in dollars per year."
+              },
+              "annualCostPct": {
+                "type": "number",
+                "description": "Annualized net premium as a fraction of position value."
+              },
+              "maxLoss": {
+                "type": "number",
+                "description": "Worst-case loss in dollars with the collar in place."
+              },
+              "upsideCap": {
+                "type": "number",
+                "description": "Maximum upside in dollars before the short call caps gains: callStrike - position value."
+              },
+              "upsideCapPct": {
+                "type": "number",
+                "description": "Maximum upside as a fraction of position value."
+              },
+              "isZeroCost": {
+                "type": "boolean",
+                "description": "True when the solved call strike makes the collar effectively zero net premium."
+              },
+              "capProbability": {
+                "type": "number",
+                "description": "Real-world probability (0..1) the stock finishes above the call strike at expiration, i.e. the upside cap binds."
+              }
+            },
+            "required": [
+              "putStrike",
+              "callStrike",
+              "netPremium",
+              "annualCost",
+              "annualCostPct",
+              "maxLoss",
+              "upsideCap",
+              "upsideCapPct",
+              "isZeroCost",
+              "capProbability"
+            ]
+          },
+          "putSpread": {
+            "type": "object",
+            "description": "Put debit spread: long put at the protection floor financed by a short put at a lower strike. Cheaper than the bare put and needs no short call (so it works on unexercised employee options a collar cannot cover), but protection stops at the short strike and losses resume below it. The short strike is solved so the real-world probability the stock ENDS below it equals spreadRiskLevel.",
+            "properties": {
+              "available": {
+                "type": "boolean",
+                "description": "False when no useful spread exists at these inputs: the 1-in-N short strike lands at/above the floor (floor already deep for this risk level) or the short leg does not reduce cost. When false, render unavailableReason instead of the numbers."
+              },
+              "unavailableReason": {
+                "type": [
+                  "string",
+                  "null"
+                ],
+                "enum": [
+                  "floor",
+                  "no-rebate",
+                  null
+                ],
+                "description": "Why the spread is unavailable; null when available. 'floor' = the solved short strike sits at/above the protection floor (or within 1% of position of it). 'no-rebate' = the short leg does not strictly reduce cost."
+              },
+              "longStrike": {
+                "type": "number",
+                "description": "Long put strike in dollars (same floor as the bare put)."
+              },
+              "longPremium": {
+                "type": "number",
+                "description": "Long put premium in dollars for the full tenor (same as barePut.premium)."
+              },
+              "shortStrike": {
+                "type": "number",
+                "description": "Short put strike in dollars, solved so P(end below it) = spreadRiskLevel."
+              },
+              "shortPremium": {
+                "type": "number",
+                "description": "Short put premium in dollars received for the full tenor."
+              },
+              "shortSigma": {
+                "type": "number",
+                "description": "Annualized sigma used to price the short leg, as a decimal (equals volatility in flat-sigma mode)."
+              },
+              "netPremium": {
+                "type": "number",
+                "description": "Net debit in dollars: long premium - short premium, floored at 0."
+              },
+              "annualCost": {
+                "type": "number",
+                "description": "Net premium annualized, in dollars per year."
+              },
+              "annualCostPct": {
+                "type": "number",
+                "description": "Annualized net premium as a fraction of position value."
+              },
+              "maxLossInBand": {
+                "type": "number",
+                "description": "Loss in dollars if the stock ends anywhere inside the protected band (floor holds): position - longStrike + netPremium. Below the short strike, losses resume dollar-for-dollar on top of this."
+              },
+              "bandWidth": {
+                "type": "number",
+                "description": "Width of the protected band in dollars: longStrike - shortStrike (the spread max payout)."
+              },
+              "shortStrikeDropPct": {
+                "type": "number",
+                "description": "Short strike as a drawdown from spot, as a fraction of position value."
+              },
+              "breachProbability": {
+                "type": "number",
+                "description": "Achieved real-world probability (0..1) the stock ends below the short strike; approximately spreadRiskLevel after the solve."
+              },
+              "riskLevel": {
+                "type": "number",
+                "description": "The spreadRiskLevel preset the solve targeted (0.20 / 0.10 / 0.05 / 0.01), after snapping."
+              },
+              "savingsPct": {
+                "type": "number",
+                "description": "Fraction of the bare put premium rebated by the short leg: shortPremium / longPremium."
+              },
+              "coveredLossAtBadYear": {
+                "type": "number",
+                "description": "Dollars the spread pays at the bad-year price, capped at bandWidth; 0 when the bad-year drop never reaches the floor."
+              }
+            },
+            "required": [
+              "available",
+              "unavailableReason",
+              "longStrike",
+              "longPremium",
+              "shortStrike",
+              "shortPremium",
+              "shortSigma",
+              "netPremium",
+              "annualCost",
+              "annualCostPct",
+              "maxLossInBand",
+              "bandWidth",
+              "shortStrikeDropPct",
+              "breachProbability",
+              "riskLevel",
+              "savingsPct",
+              "coveredLossAtBadYear"
+            ]
+          },
+          "payoffTable": {
+            "type": "array",
+            "description": "Terminal P&L in dollars at each 10%-step drawdown across payoffRange, for the bare put, the collar, the put spread, and the unhedged position.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "drawdownPct": {
+                  "type": "number",
+                  "description": "Price move as a fraction of spot (-0.30 = down 30%, 0.2 = up 20%)."
+                },
+                "barePutPnl": {
+                  "type": "number",
+                  "description": "Position + put P&L in dollars at this move."
+                },
+                "collarPnl": {
+                  "type": "number",
+                  "description": "Position + collar P&L in dollars at this move."
+                },
+                "spreadPnl": {
+                  "type": [
+                    "number",
+                    "null"
+                  ],
+                  "description": "Position + put-spread P&L in dollars at this move. null (serialized from NaN) when putSpread.available is false."
+                },
+                "unhedgedPnl": {
+                  "type": "number",
+                  "description": "Unhedged position P&L in dollars at this move."
+                }
+              },
+              "required": [
+                "drawdownPct",
+                "barePutPnl",
+                "collarPnl",
+                "spreadPnl",
+                "unhedgedPnl"
+              ]
+            }
+          },
+          "payoffRange": {
+            "type": "object",
+            "description": "Price-move range covered by payoffTable, extended at least 15% beyond each collar arm and at least +/-50%.",
+            "properties": {
+              "lowerPct": {
+                "type": "number",
+                "description": "Lower bound of the modeled price move, as a fraction of spot (negative)."
+              },
+              "upperPct": {
+                "type": "number",
+                "description": "Upper bound of the modeled price move, as a fraction of spot."
+              }
+            },
+            "required": [
+              "lowerPct",
+              "upperPct"
+            ]
+          },
+          "recommended": {
+            "type": "string",
+            "enum": [
+              "collar",
+              "protective-put",
+              "put-spread",
+              "none"
+            ],
+            "description": "Suggested structure, in triage order: collar unless its cap binds too often (>20% probability); then protective-put unless the put is expensive; then put-spread when one is available and cleanly priced (cheaper by construction); none when nothing is clean. The recommended structure is the one whose card carries no warning."
+          }
+        },
+        "required": [
+          "inputs",
+          "riskFreeRate",
+          "realWorldDrift",
+          "barePut",
+          "collar",
+          "putSpread",
+          "payoffTable",
+          "payoffRange",
+          "recommended"
+        ]
+      },
+      "QsbsResult": {
+        "type": "object",
+        "description": "Section 1202 QSBS qualification result. All dollar amounts are USD.",
+        "properties": {
+          "verdict": {
+            "type": "string",
+            "enum": [
+              "qualifies",
+              "partial",
+              "too-soon",
+              "caveats",
+              "disqualified"
+            ],
+            "description": "Overall verdict. \"partial\" = qualifies but at a sub-100% exclusion tier (e.g. an OBBBA 3- or 4-year hold gives 50% or 75%). \"caveats\" = qualifies, but one or more tests returned \"unsure\" (pass conditional on facts the caller marked unknown). \"too-soon\" = the holding period has not reached any exclusion tier yet."
+          },
+          "exclusionPercent": {
+            "type": "number",
+            "enum": [
+              0,
+              0.5,
+              0.75,
+              1
+            ],
+            "description": "Fraction of the capped gain excludable from federal tax, per the era and holding-period tier."
+          },
+          "perIssuerCap": {
+            "type": "number",
+            "description": "Statutory per-issuer cap in dollars: $10M pre-OBBBA, $15M for stock acquired after July 4, 2025."
+          },
+          "tenXBasisCap": {
+            "type": "number",
+            "description": "10 x adjustedBasis cap in dollars."
+          },
+          "applicableCap": {
+            "type": "number",
+            "description": "max(perIssuerCap, tenXBasisCap): the exclusion cap actually applied, in dollars."
+          },
+          "excludableGain": {
+            "type": "number",
+            "description": "Portion of expectedGain excludable from federal tax in dollars."
+          },
+          "taxableGain": {
+            "type": "number",
+            "description": "Portion of expectedGain still federally taxable in dollars (overage above the cap plus any non-excluded fraction)."
+          },
+          "federalTaxSaved": {
+            "type": "number",
+            "description": "Federal LTCG tax (including NIIT) avoided on the excluded gain, in dollars."
+          },
+          "stateConforms": {
+            "type": "string",
+            "enum": [
+              "full",
+              "partial",
+              "none"
+            ],
+            "description": "Whether the user state conforms to the federal 1202 exclusion."
+          },
+          "stateNote": {
+            "type": "string",
+            "description": "Per-state conformity explanation. May be omitted."
+          },
+          "cappedOverageNote": {
+            "type": "string",
+            "description": "Present only when expectedGain exceeds applicableCap and an exclusion is in play: explains that the overage is fully taxable regardless of holding period and that spreading shares across separate taxpayers (e.g. non-grantor trusts) can multiply the per-issuer exclusion. Omitted otherwise."
+          },
+          "holdingYears": {
+            "type": "number",
+            "description": "Calendar-aware years between acquisitionDate and saleDate."
+          },
+          "yearsUntilFullExclusion": {
+            "type": "number",
+            "description": "Additional years to hold before reaching the 100% exclusion tier; 0 when already reached."
+          },
+          "era": {
+            "type": "string",
+            "enum": [
+              "pre-2009",
+              "pre-2010",
+              "pre-obbba",
+              "obbba"
+            ],
+            "description": "Acquisition-era classification that sets the exclusion schedule (50% pre-2009 era, 75% pre-2010 era, 100% at 5y pre-OBBBA, tiered 50/75/100% at 3/4/5y under OBBBA)."
+          },
+          "tests": {
+            "type": "array",
+            "description": "The six statutory tests with per-test status, so an agent can show exactly which gate failed.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "description": "Stable test identifier."
+                },
+                "label": {
+                  "type": "string",
+                  "description": "Human-readable test name."
+                },
+                "status": {
+                  "type": "string",
+                  "enum": [
+                    "pass",
+                    "fail",
+                    "unsure",
+                    "wait"
+                  ],
+                  "description": "\"wait\" means the test will pass with more holding time."
+                },
+                "detail": {
+                  "type": "string",
+                  "description": "One-line explanation of the test outcome."
+                }
+              },
+              "required": [
+                "id",
+                "label",
+                "status",
+                "detail"
+              ]
+            }
+          }
+        },
+        "required": [
+          "verdict",
+          "exclusionPercent",
+          "perIssuerCap",
+          "tenXBasisCap",
+          "applicableCap",
+          "excludableGain",
+          "taxableGain",
+          "federalTaxSaved",
+          "stateConforms",
+          "holdingYears",
+          "yearsUntilFullExclusion",
+          "era",
+          "tests"
+        ]
+      },
+      "EquityFundingResult": {
+        "type": "object",
+        "description": "Equity-funding plan comparison: four named plans plus the full risk/wealth frontier. All dollar amounts are USD.",
+        "properties": {
+          "recommended": {
+            "type": "object",
+            "description": "The wealth-maximal plan whose shortfall probability is at or below the applied risk tolerance. Present this plan first.",
+            "properties": {
+              "planKey": {
+                "type": "string",
+                "enum": [
+                  "recommended",
+                  "lock_in_now",
+                  "balanced",
+                  "hold_for_growth",
+                  "candidate"
+                ],
+                "description": "Plan identifier. \"candidate\" entries appear only inside frontier."
+              },
+              "planLabel": {
+                "type": "string",
+                "description": "Human-readable plan name."
+              },
+              "plan": {
+                "type": "object",
+                "description": "The full sale schedule for this plan. Nested year/sale entries follow the shapes described here and may carry additional fields.",
+                "properties": {
+                  "feasible": {
+                    "type": "boolean",
+                    "description": "True when the schedule reaches the after-tax target by the target date."
+                  },
+                  "targetAfterTax": {
+                    "type": "number",
+                    "description": "Echo of the requested net cash target in dollars."
+                  },
+                  "targetDateISO": {
+                    "type": "string",
+                    "description": "Echo of the target date as an ISO date string."
+                  },
+                  "totalAfterTaxAchieved": {
+                    "type": "number",
+                    "description": "Net after-tax cash in dollars the schedule produces by the target date (including after-tax cash interest when cashInterestRate is set)."
+                  },
+                  "totalSharesSold": {
+                    "type": "number",
+                    "description": "Total shares sold across the schedule."
+                  },
+                  "totalGrossProceeds": {
+                    "type": "number",
+                    "description": "Total gross sale proceeds in dollars."
+                  },
+                  "totalTaxes": {
+                    "type": "object",
+                    "description": "Tax totals across all scheduled sales, in dollars.",
+                    "properties": {
+                      "federal": {
+                        "type": "number",
+                        "description": "Federal capital gains / ordinary tax in dollars."
+                      },
+                      "state": {
+                        "type": "number",
+                        "description": "State tax in dollars."
+                      },
+                      "niit": {
+                        "type": "number",
+                        "description": "Net Investment Income Tax (3.8%) in dollars."
+                      },
+                      "total": {
+                        "type": "number",
+                        "description": "Total tax in dollars."
+                      }
+                    },
+                    "required": [
+                      "federal",
+                      "state",
+                      "niit",
+                      "total"
+                    ]
+                  },
+                  "schedule": {
+                    "type": "array",
+                    "description": "Per-year sale schedule. Each entry: year, saleDateISO, sales (array of per-lot entries: stackIndex, ticker, lotIndex, shares, grossProceeds, gainAmount, isLongTerm, federalTax, stateTax, niit, netCash), yearGrossProceeds, yearTotalTax, yearNetCash, runningCumulativeNet.",
+                    "items": {
+                      "type": "object",
+                      "additionalProperties": true
+                    }
+                  },
+                  "comparison": {
+                    "type": "object",
+                    "description": "This schedule vs the naive sell-everything-in-the-target-year alternative.",
+                    "properties": {
+                      "sellAllInTargetYearTotalTax": {
+                        "type": "number",
+                        "description": "Tax in dollars if all needed shares were sold in the target year."
+                      },
+                      "sellAllInTargetYearAfterTax": {
+                        "type": "number",
+                        "description": "After-tax cash in dollars under that naive plan."
+                      },
+                      "optimizedSavingsVsTargetYearSale": {
+                        "type": "number",
+                        "description": "Tax saved in dollars by this schedule vs the naive plan."
+                      },
+                      "optimizedSavingsPct": {
+                        "type": "number",
+                        "description": "Tax saved as a fraction of the naive plan tax."
+                      }
+                    },
+                    "required": [
+                      "sellAllInTargetYearTotalTax",
+                      "sellAllInTargetYearAfterTax",
+                      "optimizedSavingsVsTargetYearSale",
+                      "optimizedSavingsPct"
+                    ]
+                  },
+                  "remainingShares": {
+                    "type": "number",
+                    "description": "Shares retained after all scheduled sales."
+                  },
+                  "remainingPositionValue": {
+                    "type": "number",
+                    "description": "Market value in dollars of retained shares at the projected target-date price."
+                  },
+                  "remainingPositionAfterTax": {
+                    "type": "number",
+                    "description": "After-tax value in dollars of liquidating all retained shares at the target date (the cash backstop if scheduled sales come in light)."
+                  },
+                  "remainingNetByStack": {
+                    "type": "array",
+                    "items": {
+                      "type": "number"
+                    },
+                    "description": "Per-stack after-tax retained value in dollars, parallel to the input stacks array."
+                  },
+                  "shortfall": {
+                    "type": "object",
+                    "description": "Present only when the target is not reachable from the available inventory.",
+                    "properties": {
+                      "maxAchievableAfterTax": {
+                        "type": "number",
+                        "description": "Maximum after-tax cash in dollars achievable by the target date."
+                      },
+                      "gap": {
+                        "type": "number",
+                        "description": "Dollars short of the target."
+                      }
+                    },
+                    "required": [
+                      "maxAchievableAfterTax",
+                      "gap"
+                    ]
+                  }
+                },
+                "required": [
+                  "feasible",
+                  "targetAfterTax",
+                  "targetDateISO",
+                  "totalAfterTaxAchieved",
+                  "totalSharesSold",
+                  "totalGrossProceeds",
+                  "totalTaxes",
+                  "schedule",
+                  "comparison",
+                  "remainingShares",
+                  "remainingPositionValue",
+                  "remainingPositionAfterTax",
+                  "remainingNetByStack"
+                ]
+              },
+              "wealthAtTarget": {
+                "type": "number",
+                "description": "Total wealth in dollars at the target date: net cash plus retained shares at the projected price. The metric the recommendation maximizes."
+              },
+              "totalTax": {
+                "type": "number",
+                "description": "Total tax paid across the plan in dollars."
+              },
+              "shortfallProbability": {
+                "type": "number",
+                "description": "Lognormal probability (0..1) that realized cash lands below the target. 0 means a deterministic hit (sell everything today)."
+              },
+              "lockInFraction": {
+                "type": "number",
+                "description": "Fraction (0..1) of the target locked in by an immediate sale, for hybrid candidates. Omitted on pure named plans."
+              }
+            },
+            "required": [
+              "planKey",
+              "planLabel",
+              "plan",
+              "wealthAtTarget",
+              "totalTax",
+              "shortfallProbability"
+            ]
+          },
+          "lockInNow": {
+            "type": "object",
+            "description": "Sell everything needed in the current calendar year: minimum price risk, usually highest tax.",
+            "properties": {
+              "planKey": {
+                "type": "string",
+                "enum": [
+                  "recommended",
+                  "lock_in_now",
+                  "balanced",
+                  "hold_for_growth",
+                  "candidate"
+                ],
+                "description": "Plan identifier. \"candidate\" entries appear only inside frontier."
+              },
+              "planLabel": {
+                "type": "string",
+                "description": "Human-readable plan name."
+              },
+              "plan": {
+                "type": "object",
+                "description": "The full sale schedule for this plan. Nested year/sale entries follow the shapes described here and may carry additional fields.",
+                "properties": {
+                  "feasible": {
+                    "type": "boolean",
+                    "description": "True when the schedule reaches the after-tax target by the target date."
+                  },
+                  "targetAfterTax": {
+                    "type": "number",
+                    "description": "Echo of the requested net cash target in dollars."
+                  },
+                  "targetDateISO": {
+                    "type": "string",
+                    "description": "Echo of the target date as an ISO date string."
+                  },
+                  "totalAfterTaxAchieved": {
+                    "type": "number",
+                    "description": "Net after-tax cash in dollars the schedule produces by the target date (including after-tax cash interest when cashInterestRate is set)."
+                  },
+                  "totalSharesSold": {
+                    "type": "number",
+                    "description": "Total shares sold across the schedule."
+                  },
+                  "totalGrossProceeds": {
+                    "type": "number",
+                    "description": "Total gross sale proceeds in dollars."
+                  },
+                  "totalTaxes": {
+                    "type": "object",
+                    "description": "Tax totals across all scheduled sales, in dollars.",
+                    "properties": {
+                      "federal": {
+                        "type": "number",
+                        "description": "Federal capital gains / ordinary tax in dollars."
+                      },
+                      "state": {
+                        "type": "number",
+                        "description": "State tax in dollars."
+                      },
+                      "niit": {
+                        "type": "number",
+                        "description": "Net Investment Income Tax (3.8%) in dollars."
+                      },
+                      "total": {
+                        "type": "number",
+                        "description": "Total tax in dollars."
+                      }
+                    },
+                    "required": [
+                      "federal",
+                      "state",
+                      "niit",
+                      "total"
+                    ]
+                  },
+                  "schedule": {
+                    "type": "array",
+                    "description": "Per-year sale schedule. Each entry: year, saleDateISO, sales (array of per-lot entries: stackIndex, ticker, lotIndex, shares, grossProceeds, gainAmount, isLongTerm, federalTax, stateTax, niit, netCash), yearGrossProceeds, yearTotalTax, yearNetCash, runningCumulativeNet.",
+                    "items": {
+                      "type": "object",
+                      "additionalProperties": true
+                    }
+                  },
+                  "comparison": {
+                    "type": "object",
+                    "description": "This schedule vs the naive sell-everything-in-the-target-year alternative.",
+                    "properties": {
+                      "sellAllInTargetYearTotalTax": {
+                        "type": "number",
+                        "description": "Tax in dollars if all needed shares were sold in the target year."
+                      },
+                      "sellAllInTargetYearAfterTax": {
+                        "type": "number",
+                        "description": "After-tax cash in dollars under that naive plan."
+                      },
+                      "optimizedSavingsVsTargetYearSale": {
+                        "type": "number",
+                        "description": "Tax saved in dollars by this schedule vs the naive plan."
+                      },
+                      "optimizedSavingsPct": {
+                        "type": "number",
+                        "description": "Tax saved as a fraction of the naive plan tax."
+                      }
+                    },
+                    "required": [
+                      "sellAllInTargetYearTotalTax",
+                      "sellAllInTargetYearAfterTax",
+                      "optimizedSavingsVsTargetYearSale",
+                      "optimizedSavingsPct"
+                    ]
+                  },
+                  "remainingShares": {
+                    "type": "number",
+                    "description": "Shares retained after all scheduled sales."
+                  },
+                  "remainingPositionValue": {
+                    "type": "number",
+                    "description": "Market value in dollars of retained shares at the projected target-date price."
+                  },
+                  "remainingPositionAfterTax": {
+                    "type": "number",
+                    "description": "After-tax value in dollars of liquidating all retained shares at the target date (the cash backstop if scheduled sales come in light)."
+                  },
+                  "remainingNetByStack": {
+                    "type": "array",
+                    "items": {
+                      "type": "number"
+                    },
+                    "description": "Per-stack after-tax retained value in dollars, parallel to the input stacks array."
+                  },
+                  "shortfall": {
+                    "type": "object",
+                    "description": "Present only when the target is not reachable from the available inventory.",
+                    "properties": {
+                      "maxAchievableAfterTax": {
+                        "type": "number",
+                        "description": "Maximum after-tax cash in dollars achievable by the target date."
+                      },
+                      "gap": {
+                        "type": "number",
+                        "description": "Dollars short of the target."
+                      }
+                    },
+                    "required": [
+                      "maxAchievableAfterTax",
+                      "gap"
+                    ]
+                  }
+                },
+                "required": [
+                  "feasible",
+                  "targetAfterTax",
+                  "targetDateISO",
+                  "totalAfterTaxAchieved",
+                  "totalSharesSold",
+                  "totalGrossProceeds",
+                  "totalTaxes",
+                  "schedule",
+                  "comparison",
+                  "remainingShares",
+                  "remainingPositionValue",
+                  "remainingPositionAfterTax",
+                  "remainingNetByStack"
+                ]
+              },
+              "wealthAtTarget": {
+                "type": "number",
+                "description": "Total wealth in dollars at the target date: net cash plus retained shares at the projected price. The metric the recommendation maximizes."
+              },
+              "totalTax": {
+                "type": "number",
+                "description": "Total tax paid across the plan in dollars."
+              },
+              "shortfallProbability": {
+                "type": "number",
+                "description": "Lognormal probability (0..1) that realized cash lands below the target. 0 means a deterministic hit (sell everything today)."
+              },
+              "lockInFraction": {
+                "type": "number",
+                "description": "Fraction (0..1) of the target locked in by an immediate sale, for hybrid candidates. Omitted on pure named plans."
+              }
+            },
+            "required": [
+              "planKey",
+              "planLabel",
+              "plan",
+              "wealthAtTarget",
+              "totalTax",
+              "shortfallProbability"
+            ]
+          },
+          "balanced": {
+            "type": "object",
+            "description": "Bracket-aware spread across all candidate years: minimum tax.",
+            "properties": {
+              "planKey": {
+                "type": "string",
+                "enum": [
+                  "recommended",
+                  "lock_in_now",
+                  "balanced",
+                  "hold_for_growth",
+                  "candidate"
+                ],
+                "description": "Plan identifier. \"candidate\" entries appear only inside frontier."
+              },
+              "planLabel": {
+                "type": "string",
+                "description": "Human-readable plan name."
+              },
+              "plan": {
+                "type": "object",
+                "description": "The full sale schedule for this plan. Nested year/sale entries follow the shapes described here and may carry additional fields.",
+                "properties": {
+                  "feasible": {
+                    "type": "boolean",
+                    "description": "True when the schedule reaches the after-tax target by the target date."
+                  },
+                  "targetAfterTax": {
+                    "type": "number",
+                    "description": "Echo of the requested net cash target in dollars."
+                  },
+                  "targetDateISO": {
+                    "type": "string",
+                    "description": "Echo of the target date as an ISO date string."
+                  },
+                  "totalAfterTaxAchieved": {
+                    "type": "number",
+                    "description": "Net after-tax cash in dollars the schedule produces by the target date (including after-tax cash interest when cashInterestRate is set)."
+                  },
+                  "totalSharesSold": {
+                    "type": "number",
+                    "description": "Total shares sold across the schedule."
+                  },
+                  "totalGrossProceeds": {
+                    "type": "number",
+                    "description": "Total gross sale proceeds in dollars."
+                  },
+                  "totalTaxes": {
+                    "type": "object",
+                    "description": "Tax totals across all scheduled sales, in dollars.",
+                    "properties": {
+                      "federal": {
+                        "type": "number",
+                        "description": "Federal capital gains / ordinary tax in dollars."
+                      },
+                      "state": {
+                        "type": "number",
+                        "description": "State tax in dollars."
+                      },
+                      "niit": {
+                        "type": "number",
+                        "description": "Net Investment Income Tax (3.8%) in dollars."
+                      },
+                      "total": {
+                        "type": "number",
+                        "description": "Total tax in dollars."
+                      }
+                    },
+                    "required": [
+                      "federal",
+                      "state",
+                      "niit",
+                      "total"
+                    ]
+                  },
+                  "schedule": {
+                    "type": "array",
+                    "description": "Per-year sale schedule. Each entry: year, saleDateISO, sales (array of per-lot entries: stackIndex, ticker, lotIndex, shares, grossProceeds, gainAmount, isLongTerm, federalTax, stateTax, niit, netCash), yearGrossProceeds, yearTotalTax, yearNetCash, runningCumulativeNet.",
+                    "items": {
+                      "type": "object",
+                      "additionalProperties": true
+                    }
+                  },
+                  "comparison": {
+                    "type": "object",
+                    "description": "This schedule vs the naive sell-everything-in-the-target-year alternative.",
+                    "properties": {
+                      "sellAllInTargetYearTotalTax": {
+                        "type": "number",
+                        "description": "Tax in dollars if all needed shares were sold in the target year."
+                      },
+                      "sellAllInTargetYearAfterTax": {
+                        "type": "number",
+                        "description": "After-tax cash in dollars under that naive plan."
+                      },
+                      "optimizedSavingsVsTargetYearSale": {
+                        "type": "number",
+                        "description": "Tax saved in dollars by this schedule vs the naive plan."
+                      },
+                      "optimizedSavingsPct": {
+                        "type": "number",
+                        "description": "Tax saved as a fraction of the naive plan tax."
+                      }
+                    },
+                    "required": [
+                      "sellAllInTargetYearTotalTax",
+                      "sellAllInTargetYearAfterTax",
+                      "optimizedSavingsVsTargetYearSale",
+                      "optimizedSavingsPct"
+                    ]
+                  },
+                  "remainingShares": {
+                    "type": "number",
+                    "description": "Shares retained after all scheduled sales."
+                  },
+                  "remainingPositionValue": {
+                    "type": "number",
+                    "description": "Market value in dollars of retained shares at the projected target-date price."
+                  },
+                  "remainingPositionAfterTax": {
+                    "type": "number",
+                    "description": "After-tax value in dollars of liquidating all retained shares at the target date (the cash backstop if scheduled sales come in light)."
+                  },
+                  "remainingNetByStack": {
+                    "type": "array",
+                    "items": {
+                      "type": "number"
+                    },
+                    "description": "Per-stack after-tax retained value in dollars, parallel to the input stacks array."
+                  },
+                  "shortfall": {
+                    "type": "object",
+                    "description": "Present only when the target is not reachable from the available inventory.",
+                    "properties": {
+                      "maxAchievableAfterTax": {
+                        "type": "number",
+                        "description": "Maximum after-tax cash in dollars achievable by the target date."
+                      },
+                      "gap": {
+                        "type": "number",
+                        "description": "Dollars short of the target."
+                      }
+                    },
+                    "required": [
+                      "maxAchievableAfterTax",
+                      "gap"
+                    ]
+                  }
+                },
+                "required": [
+                  "feasible",
+                  "targetAfterTax",
+                  "targetDateISO",
+                  "totalAfterTaxAchieved",
+                  "totalSharesSold",
+                  "totalGrossProceeds",
+                  "totalTaxes",
+                  "schedule",
+                  "comparison",
+                  "remainingShares",
+                  "remainingPositionValue",
+                  "remainingPositionAfterTax",
+                  "remainingNetByStack"
+                ]
+              },
+              "wealthAtTarget": {
+                "type": "number",
+                "description": "Total wealth in dollars at the target date: net cash plus retained shares at the projected price. The metric the recommendation maximizes."
+              },
+              "totalTax": {
+                "type": "number",
+                "description": "Total tax paid across the plan in dollars."
+              },
+              "shortfallProbability": {
+                "type": "number",
+                "description": "Lognormal probability (0..1) that realized cash lands below the target. 0 means a deterministic hit (sell everything today)."
+              },
+              "lockInFraction": {
+                "type": "number",
+                "description": "Fraction (0..1) of the target locked in by an immediate sale, for hybrid candidates. Omitted on pure named plans."
+              }
+            },
+            "required": [
+              "planKey",
+              "planLabel",
+              "plan",
+              "wealthAtTarget",
+              "totalTax",
+              "shortfallProbability"
+            ]
+          },
+          "holdForGrowth": {
+            "type": "object",
+            "description": "Sell only in the target year: maximum expected wealth, maximum price risk.",
+            "properties": {
+              "planKey": {
+                "type": "string",
+                "enum": [
+                  "recommended",
+                  "lock_in_now",
+                  "balanced",
+                  "hold_for_growth",
+                  "candidate"
+                ],
+                "description": "Plan identifier. \"candidate\" entries appear only inside frontier."
+              },
+              "planLabel": {
+                "type": "string",
+                "description": "Human-readable plan name."
+              },
+              "plan": {
+                "type": "object",
+                "description": "The full sale schedule for this plan. Nested year/sale entries follow the shapes described here and may carry additional fields.",
+                "properties": {
+                  "feasible": {
+                    "type": "boolean",
+                    "description": "True when the schedule reaches the after-tax target by the target date."
+                  },
+                  "targetAfterTax": {
+                    "type": "number",
+                    "description": "Echo of the requested net cash target in dollars."
+                  },
+                  "targetDateISO": {
+                    "type": "string",
+                    "description": "Echo of the target date as an ISO date string."
+                  },
+                  "totalAfterTaxAchieved": {
+                    "type": "number",
+                    "description": "Net after-tax cash in dollars the schedule produces by the target date (including after-tax cash interest when cashInterestRate is set)."
+                  },
+                  "totalSharesSold": {
+                    "type": "number",
+                    "description": "Total shares sold across the schedule."
+                  },
+                  "totalGrossProceeds": {
+                    "type": "number",
+                    "description": "Total gross sale proceeds in dollars."
+                  },
+                  "totalTaxes": {
+                    "type": "object",
+                    "description": "Tax totals across all scheduled sales, in dollars.",
+                    "properties": {
+                      "federal": {
+                        "type": "number",
+                        "description": "Federal capital gains / ordinary tax in dollars."
+                      },
+                      "state": {
+                        "type": "number",
+                        "description": "State tax in dollars."
+                      },
+                      "niit": {
+                        "type": "number",
+                        "description": "Net Investment Income Tax (3.8%) in dollars."
+                      },
+                      "total": {
+                        "type": "number",
+                        "description": "Total tax in dollars."
+                      }
+                    },
+                    "required": [
+                      "federal",
+                      "state",
+                      "niit",
+                      "total"
+                    ]
+                  },
+                  "schedule": {
+                    "type": "array",
+                    "description": "Per-year sale schedule. Each entry: year, saleDateISO, sales (array of per-lot entries: stackIndex, ticker, lotIndex, shares, grossProceeds, gainAmount, isLongTerm, federalTax, stateTax, niit, netCash), yearGrossProceeds, yearTotalTax, yearNetCash, runningCumulativeNet.",
+                    "items": {
+                      "type": "object",
+                      "additionalProperties": true
+                    }
+                  },
+                  "comparison": {
+                    "type": "object",
+                    "description": "This schedule vs the naive sell-everything-in-the-target-year alternative.",
+                    "properties": {
+                      "sellAllInTargetYearTotalTax": {
+                        "type": "number",
+                        "description": "Tax in dollars if all needed shares were sold in the target year."
+                      },
+                      "sellAllInTargetYearAfterTax": {
+                        "type": "number",
+                        "description": "After-tax cash in dollars under that naive plan."
+                      },
+                      "optimizedSavingsVsTargetYearSale": {
+                        "type": "number",
+                        "description": "Tax saved in dollars by this schedule vs the naive plan."
+                      },
+                      "optimizedSavingsPct": {
+                        "type": "number",
+                        "description": "Tax saved as a fraction of the naive plan tax."
+                      }
+                    },
+                    "required": [
+                      "sellAllInTargetYearTotalTax",
+                      "sellAllInTargetYearAfterTax",
+                      "optimizedSavingsVsTargetYearSale",
+                      "optimizedSavingsPct"
+                    ]
+                  },
+                  "remainingShares": {
+                    "type": "number",
+                    "description": "Shares retained after all scheduled sales."
+                  },
+                  "remainingPositionValue": {
+                    "type": "number",
+                    "description": "Market value in dollars of retained shares at the projected target-date price."
+                  },
+                  "remainingPositionAfterTax": {
+                    "type": "number",
+                    "description": "After-tax value in dollars of liquidating all retained shares at the target date (the cash backstop if scheduled sales come in light)."
+                  },
+                  "remainingNetByStack": {
+                    "type": "array",
+                    "items": {
+                      "type": "number"
+                    },
+                    "description": "Per-stack after-tax retained value in dollars, parallel to the input stacks array."
+                  },
+                  "shortfall": {
+                    "type": "object",
+                    "description": "Present only when the target is not reachable from the available inventory.",
+                    "properties": {
+                      "maxAchievableAfterTax": {
+                        "type": "number",
+                        "description": "Maximum after-tax cash in dollars achievable by the target date."
+                      },
+                      "gap": {
+                        "type": "number",
+                        "description": "Dollars short of the target."
+                      }
+                    },
+                    "required": [
+                      "maxAchievableAfterTax",
+                      "gap"
+                    ]
+                  }
+                },
+                "required": [
+                  "feasible",
+                  "targetAfterTax",
+                  "targetDateISO",
+                  "totalAfterTaxAchieved",
+                  "totalSharesSold",
+                  "totalGrossProceeds",
+                  "totalTaxes",
+                  "schedule",
+                  "comparison",
+                  "remainingShares",
+                  "remainingPositionValue",
+                  "remainingPositionAfterTax",
+                  "remainingNetByStack"
+                ]
+              },
+              "wealthAtTarget": {
+                "type": "number",
+                "description": "Total wealth in dollars at the target date: net cash plus retained shares at the projected price. The metric the recommendation maximizes."
+              },
+              "totalTax": {
+                "type": "number",
+                "description": "Total tax paid across the plan in dollars."
+              },
+              "shortfallProbability": {
+                "type": "number",
+                "description": "Lognormal probability (0..1) that realized cash lands below the target. 0 means a deterministic hit (sell everything today)."
+              },
+              "lockInFraction": {
+                "type": "number",
+                "description": "Fraction (0..1) of the target locked in by an immediate sale, for hybrid candidates. Omitted on pure named plans."
+              }
+            },
+            "required": [
+              "planKey",
+              "planLabel",
+              "plan",
+              "wealthAtTarget",
+              "totalTax",
+              "shortfallProbability"
+            ]
+          },
+          "frontier": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "description": "One sale plan on the risk/wealth frontier.",
+              "properties": {
+                "planKey": {
+                  "type": "string",
+                  "enum": [
+                    "recommended",
+                    "lock_in_now",
+                    "balanced",
+                    "hold_for_growth",
+                    "candidate"
+                  ],
+                  "description": "Plan identifier. \"candidate\" entries appear only inside frontier."
+                },
+                "planLabel": {
+                  "type": "string",
+                  "description": "Human-readable plan name."
+                },
+                "plan": {
+                  "type": "object",
+                  "description": "The full sale schedule for this plan. Nested year/sale entries follow the shapes described here and may carry additional fields.",
+                  "properties": {
+                    "feasible": {
+                      "type": "boolean",
+                      "description": "True when the schedule reaches the after-tax target by the target date."
+                    },
+                    "targetAfterTax": {
+                      "type": "number",
+                      "description": "Echo of the requested net cash target in dollars."
+                    },
+                    "targetDateISO": {
+                      "type": "string",
+                      "description": "Echo of the target date as an ISO date string."
+                    },
+                    "totalAfterTaxAchieved": {
+                      "type": "number",
+                      "description": "Net after-tax cash in dollars the schedule produces by the target date (including after-tax cash interest when cashInterestRate is set)."
+                    },
+                    "totalSharesSold": {
+                      "type": "number",
+                      "description": "Total shares sold across the schedule."
+                    },
+                    "totalGrossProceeds": {
+                      "type": "number",
+                      "description": "Total gross sale proceeds in dollars."
+                    },
+                    "totalTaxes": {
+                      "type": "object",
+                      "description": "Tax totals across all scheduled sales, in dollars.",
+                      "properties": {
+                        "federal": {
+                          "type": "number",
+                          "description": "Federal capital gains / ordinary tax in dollars."
+                        },
+                        "state": {
+                          "type": "number",
+                          "description": "State tax in dollars."
+                        },
+                        "niit": {
+                          "type": "number",
+                          "description": "Net Investment Income Tax (3.8%) in dollars."
+                        },
+                        "total": {
+                          "type": "number",
+                          "description": "Total tax in dollars."
+                        }
+                      },
+                      "required": [
+                        "federal",
+                        "state",
+                        "niit",
+                        "total"
+                      ]
+                    },
+                    "schedule": {
+                      "type": "array",
+                      "description": "Per-year sale schedule. Each entry: year, saleDateISO, sales (array of per-lot entries: stackIndex, ticker, lotIndex, shares, grossProceeds, gainAmount, isLongTerm, federalTax, stateTax, niit, netCash), yearGrossProceeds, yearTotalTax, yearNetCash, runningCumulativeNet.",
+                      "items": {
+                        "type": "object",
+                        "additionalProperties": true
+                      }
+                    },
+                    "comparison": {
+                      "type": "object",
+                      "description": "This schedule vs the naive sell-everything-in-the-target-year alternative.",
+                      "properties": {
+                        "sellAllInTargetYearTotalTax": {
+                          "type": "number",
+                          "description": "Tax in dollars if all needed shares were sold in the target year."
+                        },
+                        "sellAllInTargetYearAfterTax": {
+                          "type": "number",
+                          "description": "After-tax cash in dollars under that naive plan."
+                        },
+                        "optimizedSavingsVsTargetYearSale": {
+                          "type": "number",
+                          "description": "Tax saved in dollars by this schedule vs the naive plan."
+                        },
+                        "optimizedSavingsPct": {
+                          "type": "number",
+                          "description": "Tax saved as a fraction of the naive plan tax."
+                        }
+                      },
+                      "required": [
+                        "sellAllInTargetYearTotalTax",
+                        "sellAllInTargetYearAfterTax",
+                        "optimizedSavingsVsTargetYearSale",
+                        "optimizedSavingsPct"
+                      ]
+                    },
+                    "remainingShares": {
+                      "type": "number",
+                      "description": "Shares retained after all scheduled sales."
+                    },
+                    "remainingPositionValue": {
+                      "type": "number",
+                      "description": "Market value in dollars of retained shares at the projected target-date price."
+                    },
+                    "remainingPositionAfterTax": {
+                      "type": "number",
+                      "description": "After-tax value in dollars of liquidating all retained shares at the target date (the cash backstop if scheduled sales come in light)."
+                    },
+                    "remainingNetByStack": {
+                      "type": "array",
+                      "items": {
+                        "type": "number"
+                      },
+                      "description": "Per-stack after-tax retained value in dollars, parallel to the input stacks array."
+                    },
+                    "shortfall": {
+                      "type": "object",
+                      "description": "Present only when the target is not reachable from the available inventory.",
+                      "properties": {
+                        "maxAchievableAfterTax": {
+                          "type": "number",
+                          "description": "Maximum after-tax cash in dollars achievable by the target date."
+                        },
+                        "gap": {
+                          "type": "number",
+                          "description": "Dollars short of the target."
+                        }
+                      },
+                      "required": [
+                        "maxAchievableAfterTax",
+                        "gap"
+                      ]
+                    }
+                  },
+                  "required": [
+                    "feasible",
+                    "targetAfterTax",
+                    "targetDateISO",
+                    "totalAfterTaxAchieved",
+                    "totalSharesSold",
+                    "totalGrossProceeds",
+                    "totalTaxes",
+                    "schedule",
+                    "comparison",
+                    "remainingShares",
+                    "remainingPositionValue",
+                    "remainingPositionAfterTax",
+                    "remainingNetByStack"
+                  ]
+                },
+                "wealthAtTarget": {
+                  "type": "number",
+                  "description": "Total wealth in dollars at the target date: net cash plus retained shares at the projected price. The metric the recommendation maximizes."
+                },
+                "totalTax": {
+                  "type": "number",
+                  "description": "Total tax paid across the plan in dollars."
+                },
+                "shortfallProbability": {
+                  "type": "number",
+                  "description": "Lognormal probability (0..1) that realized cash lands below the target. 0 means a deterministic hit (sell everything today)."
+                },
+                "lockInFraction": {
+                  "type": "number",
+                  "description": "Fraction (0..1) of the target locked in by an immediate sale, for hybrid candidates. Omitted on pure named plans."
+                }
+              },
+              "required": [
+                "planKey",
+                "planLabel",
+                "plan",
+                "wealthAtTarget",
+                "totalTax",
+                "shortfallProbability"
+              ]
+            },
+            "description": "All candidate plans from the hybrid lock-in sweep plus the named plans, sorted by shortfall probability."
+          },
+          "targetAfterTax": {
+            "type": "number",
+            "description": "Echo of the requested net cash target in dollars."
+          },
+          "targetDateISO": {
+            "type": "string",
+            "description": "Echo of the target date as an ISO date string."
+          },
+          "appliedRiskTolerance": {
+            "type": "number",
+            "description": "Shortfall-probability tolerance actually applied (default 0.10 when not supplied)."
+          }
+        },
+        "required": [
+          "recommended",
+          "lockInNow",
+          "balanced",
+          "holdForGrowth",
+          "frontier",
+          "targetAfterTax",
+          "targetDateISO",
+          "appliedRiskTolerance"
+        ]
       }
     }
   },
