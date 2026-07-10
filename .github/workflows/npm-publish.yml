@@ -11,10 +11,17 @@
 #      Tokens → Generate → Automation).
 #   2. Add it as the repo secret `NPM_TOKEN`
 #      (Settings → Secrets and variables → Actions → New repository secret).
+#   The same NPM_TOKEN publishes both packages below (both unscoped, same owner).
 #
-# TO PUBLISH: cut a GitHub Release (tag e.g. v1.9.0). Bump package.json version
-# first if the tag is a new version — npm rejects republishing an existing one.
-# `prepublishOnly` runs typecheck + tests + build before the publish.
+# TWO packages ship from here on a Release:
+#   - the root `optionsahoy-mcp` (stdio server) at package.json version, and
+#   - `optionsahoy-ai-sdk` (Vercel AI SDK adapter) at
+#     integrations/js/optionsahoy-ai-sdk/package.json version.
+#
+# TO PUBLISH: cut a GitHub Release (tag e.g. v1.9.0). Bump the version of each
+# package you intend to ship first — npm rejects republishing an existing
+# version, so an unchanged package's job goes red (harmless, but bump to ship).
+# `prepublishOnly` runs a build before each publish.
 
 name: Publish to npm
 
@@ -37,6 +44,26 @@ jobs:
           node-version: '20'
           registry-url: 'https://registry.npmjs.org'
       - run: npm install --no-audit
+      - run: npm publish --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  # The Vercel AI SDK adapter package (integrations/js/optionsahoy-ai-sdk).
+  # Self-contained: its own deps, build (tsc -> dist/), and tests. Provenance
+  # via the same OIDC + NPM_TOKEN as the root package.
+  publish-ai-sdk:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: integrations/js/optionsahoy-ai-sdk
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
+        with:
+          node-version: '20'
+          registry-url: 'https://registry.npmjs.org'
+      - run: npm install --no-audit
+      - run: npm test # conformance + tool-shape tests gate the publish
       - run: npm publish --provenance --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
