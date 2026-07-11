@@ -2207,8 +2207,7 @@
           "carryforwardCredit",
           "horizon",
           "grantDate",
-          "hasLeftCompany",
-          "terminationDate"
+          "hasLeftCompany"
         ],
         "properties": {
           "shares": {
