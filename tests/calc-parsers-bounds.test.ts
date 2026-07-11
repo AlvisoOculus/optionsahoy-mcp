@@ -7,6 +7,7 @@
 // declare, so the REST and MCP paths reject identically. Found by fuzzing.
 
 import { describe, it, expect } from 'vitest';
+import { readFileSync } from 'node:fs';
 import {
   parseAmtIsoInput,
   parseNsoInput,
@@ -134,5 +135,22 @@ describe('parser stateCode validation (rejects codes the tax engine cannot model
       expect(() => parseAmtIsoInput({ ...AMT, stateCode: ok })).not.toThrow();
       expect(() => parseNsoInput({ ...NSO, stateCode: ok })).not.toThrow();
     }
+  });
+
+  // terminationDate is parsed with optDate (optional), but openapi.json's
+  // AmtIsoInput.required used to list it - so the published schema demanded a
+  // field the API happily accepts without (the /for-agents playground's demo
+  // omits it). The schema now matches the parser; both directions guarded here.
+  it('parses AMT input with terminationDate omitted (it is optional)', () => {
+    const { terminationDate, ...withoutTermination } = AMT;
+    void terminationDate;
+    expect(() => parseAmtIsoInput(withoutTermination)).not.toThrow();
+    expect(parseAmtIsoInput(withoutTermination).terminationDate).toBeNull();
+  });
+
+  it('openapi AmtIsoInput does not mark the optional terminationDate as required', () => {
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    const spec = JSON.parse(readFileSync('public/openapi.json', 'utf8'));
+    expect(spec.components.schemas.AmtIsoInput.required).not.toContain('terminationDate');
   });
 });
