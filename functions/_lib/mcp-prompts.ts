@@ -71,6 +71,7 @@ export const PROMPTS: McpPrompt[] = [
       { name: 'fmv', description: 'Current fair market value per share, USD', required: true },
       { name: 'ticker', description: 'Covered public-stock symbol (e.g. NVDA) that auto-resolves volatility and expected growth; an alternative to passing volatility', required: false },
       { name: 'volatility', description: 'Annualized volatility (sigma) as a decimal (e.g. 0.5 for 50%). Optional when you pass a covered ticker', required: false },
+      { name: 'expectedGrowth', description: 'Expected annual stock growth as a decimal (e.g. 0.12 for 12%). Optional when you pass a covered ticker', required: false },
       { name: 'state', description: 'Two-letter state code (e.g. CA, NY, TX)', required: false },
       { name: 'ordinaryIncome', description: 'Annual W-2 ordinary income, USD', required: false },
     ],
@@ -80,12 +81,13 @@ export const PROMPTS: McpPrompt[] = [
         optional: [
           a.ticker && `The stock ticker is ${a.ticker}. `,
           a.volatility && `Annualized volatility on the stock is ${a.volatility}. `,
+          a.expectedGrowth && `Expected annual stock growth is ${a.expectedGrowth}. `,
           a.state && `I live in ${a.state}. `,
           a.ordinaryIncome && `My annual ordinary income is $${a.ordinaryIncome}. `,
         ],
         instruction:
-          `Plan an exercise schedule across the next several years that maximizes my after-tax Net Final Value (NFV) at the planning horizon. Use the amt_iso_optimize tool: if I gave a ticker, pass it so volatility and growth resolve automatically; otherwise pass the volatility I provided and do not compute drag yourself. If neither a covered ticker nor a volatility is available, ask me for volatility first.`,
-        followUpFields: 'filing status, state, ordinary income, grant date, idle-cash after-tax return rate, or post-termination status',
+          `Plan an exercise schedule across the next several years that maximizes my after-tax Net Final Value (NFV) at the planning horizon. Use the amt_iso_optimize tool: if I gave a ticker, pass it so volatility and expected growth resolve automatically; otherwise pass the volatility AND expected growth I provided and do not compute drag or the growth path yourself. If neither a covered ticker nor an explicit volatility-and-growth pair is available, ask me for both the volatility and the expected annual growth first.`,
+        followUpFields: 'expected annual stock growth (unless a covered ticker is given), planning horizon, filing status, state, ordinary income, grant date, idle-cash after-tax return rate, or post-termination status',
         outputs:
           "the optimized schedule's after-tax NFV vs the lump-sum and even-split alternatives, the recommended per-year share count, and the AMT credit carryforward at horizon",
       }),
