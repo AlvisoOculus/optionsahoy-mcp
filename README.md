@@ -109,7 +109,7 @@ Seven markdown resources under `resources/list` give an LLM enough grounding to 
 
 ## MCP prompts (workflow scaffolds)
 
-Seven prompts under `prompts/list` scaffold typical user questions and route to the right tool. In Claude Desktop they appear as named slash-commands; in any MCP client, `prompts/get { name, arguments }` returns a fully-templated user message.
+Eight prompts under `prompts/list` scaffold typical user questions and route to the right tool. In Claude Desktop they appear as named slash-commands; in any MCP client, `prompts/get { name, arguments }` returns a fully-templated user message.
 
 | Prompt name | Routes to |
 |---|---|

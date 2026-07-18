@@ -174,7 +174,7 @@ describe('local stdio MCP server', () => {
     expect(contents[0].text).toContain('AMT');
   });
 
-  it('lists all seven prompts', async () => {
+  it('lists all eight prompts', async () => {
     const res = await session.request('prompts/list');
     const prompts = (res.result as { prompts: Array<{ name: string }> }).prompts;
     expect(prompts.map((p) => p.name).sort()).toEqual([
@@ -184,6 +184,7 @@ describe('local stdio MCP server', () => {
       'check-qsbs-eligibility',
       'optimize-iso-exercise',
       'plan-equity-funding',
+      'plan-equity-portfolio',
       'price-protective-put',
     ]);
   });
