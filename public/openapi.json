@@ -2240,7 +2240,8 @@
           "volatility": {
             "type": "number",
             "minimum": 0,
-            "description": "Annualized volatility (sigma) of the stock. Either this OR `volatilityDrag` is required; if both are supplied, `volatilityDrag` wins. Derived drag = 1 - exp(-(sigma^2 / 2) * horizon)."
+            "description": "Annualized volatility (sigma) of the stock. Either this OR `volatilityDrag` is required; if both are supplied, `volatilityDrag` wins. Derived drag = 1 - exp(-(sigma^2 / 2) * horizon).",
+            "maximum": 5
           },
           "filingStatus": {
             "$ref": "#/components/schemas/FilingStatus"
@@ -2347,7 +2348,8 @@
           "volatility": {
             "type": "number",
             "minimum": 0,
-            "description": "Annualized volatility (sigma). Either this OR `haircut` is required; if both are supplied, `haircut` wins. Derived haircut = 1 - exp(-(sigma^2 / 2) * holdYears)."
+            "description": "Annualized volatility (sigma). Either this OR `haircut` is required; if both are supplied, `haircut` wins. Derived haircut = 1 - exp(-(sigma^2 / 2) * holdYears).",
+            "maximum": 5
           },
           "expectedMarketReturn": {
             "type": "number",
@@ -2418,7 +2420,8 @@
           "volatility": {
             "type": "number",
             "minimum": 0,
-            "description": "Annualized volatility (sigma). Either this OR `haircut` is required; if both are supplied, `haircut` wins. Derived haircut = 1 - exp(-(sigma^2 / 2) * holdYears)."
+            "description": "Annualized volatility (sigma). Either this OR `haircut` is required; if both are supplied, `haircut` wins. Derived haircut = 1 - exp(-(sigma^2 / 2) * holdYears).",
+            "maximum": 5
           },
           "expectedMarketReturn": {
             "type": "number",
@@ -2492,7 +2495,8 @@
           "volatility": {
             "type": "number",
             "minimum": 0,
-            "description": "Annualized volatility (sigma). Used for the closed-form option pricing hedging path AND, when `volatilityDrag` is omitted, derives drag = 1 - exp(-(sigma^2 / 2) * 3). Either this OR `volatilityDrag` is required for drag."
+            "description": "Annualized volatility (sigma). Used for the closed-form option pricing hedging path AND, when `volatilityDrag` is omitted, derives drag = 1 - exp(-(sigma^2 / 2) * 3). Either this OR `volatilityDrag` is required for drag.",
+            "maximum": 5
           },
           "hedgeChoice": {
             "type": "object",
@@ -2544,7 +2548,8 @@
           "volatility": {
             "type": "number",
             "minimum": 0,
-            "description": "Annualized implied volatility (σ). Defaults to a sector-typical implied volatility when omitted."
+            "description": "Annualized implied volatility (σ). Defaults to a sector-typical implied volatility when omitted.",
+            "maximum": 5
           },
           "protectionLevel": {
             "type": "number",
@@ -2730,7 +2735,8 @@
                 "volatility": {
                   "type": "number",
                   "minimum": 0,
-                  "description": "Per-stack annualized σ. Overrides `defaultVolatility` for this stack."
+                  "description": "Per-stack annualized σ. Overrides `defaultVolatility` for this stack.",
+                  "maximum": 5
                 },
                 "lots": {
                   "type": "array",
@@ -2822,7 +2828,8 @@
           "defaultVolatility": {
             "type": "number",
             "minimum": 0,
-            "description": "Annualized σ used for stacks that omit their own `volatility`. Default 0.30."
+            "description": "Annualized σ used for stacks that omit their own `volatility`. Default 0.30.",
+            "maximum": 5
           }
         }
       },

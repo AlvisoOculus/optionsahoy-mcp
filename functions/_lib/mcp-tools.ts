@@ -118,6 +118,7 @@ const STRICT_INPUT_NOTE_NO_TICKER =
 const VOLATILITY_SCHEMA = {
   type: 'number',
   minimum: 0,
+  maximum: 5,
   description:
     'Annualized volatility (sigma) of the stock as a decimal (0.72 = 72%). Pass the user-supplied volatility directly; the tool computes the horizon-cumulative drag internally. The model MUST NOT compute drag itself; the correct formula is horizon-dependent and most models get it wrong. If the user does not supply a volatility number AND no `ticker` resolves it from the cached implied-vol table, ASK them.',
 };
@@ -1183,6 +1184,7 @@ export const TOOLS: McpTool[] = [
         volatility: {
           type: 'number',
           minimum: 0,
+          maximum: 5,
           description:
             'Annualized volatility (sigma) of the stock as a decimal (0.72 = 72%). Pass the user-supplied volatility directly; the tool uses it both for hedge pricing (as implied vol) and for the 3y horizon drag, computed internally. The model MUST NOT compute drag itself; the correct formula is horizon-dependent and most models get it wrong. If the user does not supply a volatility number AND no `ticker` resolves it from the cached implied-vol table, ASK them; only as a last fallback does hedge pricing fall back to a sector-typical implied volatility.',
         },
@@ -1251,6 +1253,7 @@ export const TOOLS: McpTool[] = [
         volatility: {
           type: 'number',
           minimum: 0,
+          maximum: 5,
           description:
             'Annualized implied volatility (sigma) of the stock. Resolution order: (1) explicit `volatility` if passed; (2) cached implied vol if `ticker` is covered; (3) sector-typical IV as last fallback. The model SHOULD NOT invent this. Either pass an explicit value the user gave you, set a covered `ticker`, or omit and let the sector default apply.',
         },
@@ -1412,7 +1415,7 @@ export const TOOLS: McpTool[] = [
               ticker: { type: 'string', description: 'Optional ticker label (e.g. "NVDA"). When set without `expectedAnnualGrowth`, growth is resolved from the trailing-CAGR table (~90 public-stock symbols covered). Echoed back in each SaleEntry for display.' },
               currentPrice: { type: 'number', minimum: 0, description: '$/share today for this stack. Anchors the projected-price compounding for every future candidate sale date in this stack.' },
               expectedAnnualGrowth: { type: 'number', description: 'Per-stack growth decimal (0.08 = 8%/yr). Projected sale price = currentPrice × (1 + expectedAnnualGrowth)^Δyears. Negative values model decline. Defaults to 0 (flat) unless `ticker` resolves it.' },
-              volatility: { type: 'number', minimum: 0, description: 'Per-stack annualized σ used in the shortfall calculation (σ × √Δt per sale). Overrides `defaultVolatility` for THIS stack only. Useful when one stack is a single tech name (σ ≈ 0.40-0.60) and another is an ETF (σ ≈ 0.15-0.20). Omit to inherit `defaultVolatility`.' },
+              volatility: { type: 'number', minimum: 0, maximum: 5, description: 'Per-stack annualized σ used in the shortfall calculation (σ × √Δt per sale). Overrides `defaultVolatility` for THIS stack only. Useful when one stack is a single tech name (σ ≈ 0.40-0.60) and another is an ETF (σ ≈ 0.15-0.20). Omit to inherit `defaultVolatility`.' },
               lots: {
                 type: 'array',
                 minItems: 1,
@@ -1489,6 +1492,7 @@ export const TOOLS: McpTool[] = [
         defaultVolatility: {
           type: 'number',
           minimum: 0,
+          maximum: 5,
           description: 'Annualized σ assumed for any stack that omits its own `volatility`. Drives the per-sale σ × √Δt shortfall calculation. Override per-stack on the stack object when one position is materially more or less volatile than the rest. Default 0.30.',
         },
       },
