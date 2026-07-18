@@ -186,7 +186,9 @@ export const PROMPTS: McpPrompt[] = [
       { name: 'positionValue', description: 'Current market value of the position, USD', required: true },
       { name: 'protectionLevel', description: 'Strike as a percentage below current price (e.g. 0.10 for 10% OTM)', required: false },
       { name: 'tenorYears', description: 'Years to expiration (e.g. 1 for 12-month)', required: false },
-      { name: 'sector', description: 'Sector tag for default volatility', required: false },
+      { name: 'sector', description: 'Sector tag for the default volatility (always needed; it drives the volatility fallback)', required: false },
+      { name: 'ticker', description: 'Covered public-stock symbol (e.g. NVDA) whose cached implied volatility is used instead of the sector default', required: false },
+      { name: 'volatility', description: 'Explicit annualized implied volatility (sigma) as a decimal (e.g. 0.4 for 40%); overrides the ticker and sector default', required: false },
       { name: 'spreadRiskLevel', description: "Put spread's floor breach risk: probability the stock ends below the short strike (e.g. 0.10 for 1 in 10)", required: false },
     ],
     build: (a) =>
@@ -198,13 +200,15 @@ export const PROMPTS: McpPrompt[] = [
             : 'Use a 10% out-of-the-money strike by default. ',
           a.tenorYears ? `Tenor: ${a.tenorYears} year(s). ` : 'Use a 1-year tenor by default. ',
           a.sector && `Sector: ${a.sector}. `,
+          a.ticker && `The stock ticker is ${a.ticker}. `,
+          a.volatility && `Annualized implied volatility is ${a.volatility}. `,
           a.spreadRiskLevel
             ? `Put spread floor breach risk: ${a.spreadRiskLevel}. `
             : 'For the put spread, use a 1-in-10 floor breach risk by default. ',
         ],
         instruction:
-          `Use the protective_put_price tool to price a protective put, a zero-cost collar, and a put spread, then say which one it recommends and why.`,
-        followUpFields: 'the sector or implied volatility for an unusual position',
+          `Use the protective_put_price tool to price a protective put, a zero-cost collar, and a put spread, then say which one it recommends and why. If I gave a ticker, pass it so the stock's own implied volatility is used instead of a sector-typical default; if I gave an explicit volatility, pass that.`,
+        followUpFields: 'the sector (always needed for the volatility fallback), or a covered ticker or explicit implied volatility for a more precise hedge price',
         outputs:
           'annual cost as a percentage of position, dollar cost, max loss with hedge, upside cap (for the collar), the protected band (for the put spread), and bad-year coverage',
       }),
@@ -243,18 +247,22 @@ export const PROMPTS: McpPrompt[] = [
       { name: 'targetDate', description: 'Date the cash is needed by (YYYY-MM-DD)', required: true },
       { name: 'shares', description: 'Total shares held across all lots', required: true },
       { name: 'currentPrice', description: 'Current share price, USD', required: true },
+      { name: 'ticker', description: 'Covered public-stock symbol (e.g. NVDA) that resolves the expected growth rate used for the hold-for-growth and recommended plans', required: false },
+      { name: 'volatility', description: 'Annualized volatility (sigma) of the stock as a decimal (e.g. 0.4 for 40%); drives the shortfall probability and the recommended plan. Defaults to 0.30 if omitted', required: false },
       { name: 'state', description: 'Two-letter state code', required: false },
     ],
     build: (a) =>
       templatePrompt({
         scenario: `I need to net $${arg(a, 'targetAfterTax')} after all taxes by ${arg(a, 'targetDate')}. I have ${arg(a, 'shares')} shares of public stock at a current price of $${arg(a, 'currentPrice')} per share. `,
         optional: [
+          a.ticker && `The stock ticker is ${a.ticker}. `,
+          a.volatility && `Annualized volatility on the stock is ${a.volatility}. `,
           a.state && `I live in ${a.state}. `,
         ],
         instruction:
-          'Plan the cheapest sell schedule using the equity_funding_plan tool. You will need the per-lot cost basis and acquisition date for each tranche (RSU vest dates and prices, ESPP purchases, open-market buys), filing status, and annual W-2 income. If the user only knows the total shares and an average basis, ask whether to treat the position as a single combined lot.',
+          'Plan the cheapest sell schedule using the equity_funding_plan tool. You will need the per-lot cost basis and acquisition date for each tranche (RSU vest dates and prices, ESPP purchases, open-market buys), filing status, and annual W-2 income. If the user only knows the total shares and an average basis, ask whether to treat the position as a single combined lot. The recommended plan and its shortfall probability depend on the expected growth and volatility: if the holding is a covered public ticker, pass it so growth resolves automatically; otherwise ask me for the volatility rather than silently using the 30% default.',
         followUpFields:
-          'per-lot detail (shares, cost basis per share, acquisition date), filing status, and annual W-2 ordinary income',
+          'per-lot detail (shares, cost basis per share, acquisition date), the volatility (unless a covered ticker is given), filing status, and annual W-2 ordinary income',
         outputs:
           'whether the target is feasible, the per-year sell schedule with lot-by-lot detail, total taxes (federal LTCG + NIIT + state), savings vs liquidating everything in the target year, and any leftover shares plus their market value',
       }),
