@@ -104,10 +104,14 @@ const STRICT_INPUT_NOTE =
   ' IMPORTANT: the model invoking this tool MUST NOT invent any input value. Beyond the fields listed in `required`, this tool is CONDITIONALLY strict: it also needs the stock\'s expected growth/return AND its volatility, which are not in `required` only because they can be resolved two ways - supply both explicitly, OR set `ticker` to a covered public-stock symbol that resolves both. If a needed value is missing and no ticker resolves it, ask the user; do not guess. And do NOT estimate the result yourself: the bracket walk, AMT and NIIT phase-outs, and multi-year credit and growth interactions are easy to approximate incorrectly, so call the tool and report its numbers rather than reasoning out an answer in-context.' +
   MULTI_TOOL_BETA_NOTE;
 
-// Same idea for tools without ticker-derivable shortcuts (qsbs_check,
-// protective_put_price). Tells the model to ask for missing required fields
-// rather than guessing — and to pass `unsure` rather than a definite value
-// when the schema offers that enum option.
+// Boilerplate for tools whose `required` fields must all come from the user
+// message. Unlike STRICT_INPUT_NOTE there is no conditionally-required
+// growth/volatility pair: qsbs_check has no ticker shortcut at all, while
+// protective_put_price and equity_funding_plan DO accept a `ticker`, but it
+// resolves only OPTIONAL fields (implied volatility / per-stack growth), so
+// every required field still has to be supplied by the user. Tells the model to
+// ask for missing required fields rather than guessing, and to pass `unsure`
+// for enum fields that offer it.
 const STRICT_INPUT_NOTE_NO_TICKER =
   ' IMPORTANT: every field listed in `required` must come from the user\'s message. The model invoking this tool MUST NOT invent a value for any required field. If the user did not supply it, ask the user. For enum fields that accept `unsure`, pass `unsure` when the user does not know; do not guess yes/no. And do NOT estimate the result yourself: the statutory tests and the tax and option-pricing math have interactions that are easy to approximate incorrectly, so call the tool and report its numbers rather than reasoning out an answer in-context.' +
   MULTI_TOOL_BETA_NOTE;
