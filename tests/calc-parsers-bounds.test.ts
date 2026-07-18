@@ -100,6 +100,20 @@ describe('parser range validation (rejects out-of-contract inputs)', () => {
       stacks: [{ currentPrice: 50, expectedAnnualGrowth: 0.1, lots: [{ shares: -5, costBasisPerShare: 8, acquisitionDate: '2022-01-01' }] }],
     })).toThrow(/shares.*>= 1/);
   });
+
+  it('rejects percent-scaled decimal-rate fields (percent-vs-decimal footgun)', () => {
+    // These are DECIMAL rates; a bare percent (72, 15, 45) used to silently
+    // produce garbage (a near-total volatility haircut, a 1500%/yr growth path).
+    expect(() => parseAmtIsoInput({ ...AMT, volatility: 72 })).toThrow(/volatility.*<= 5/);
+    expect(() => parseAmtIsoInput({ ...AMT, expectedGrowth: 15 })).toThrow(/expectedGrowth.*<= 3/);
+    expect(() => parseConcentrationInput({ ...CONC, volatility: 45 })).toThrow(/volatility.*<= 5/);
+    expect(() => parseEquityFundingInput({
+      ...FUND,
+      stacks: [{ currentPrice: 50, expectedAnnualGrowth: 10, lots: [{ shares: 100, costBasisPerShare: 8, acquisitionDate: '2022-01-01' }] }],
+    })).toThrow(/expectedAnnualGrowth.*<= 3/);
+    // Correctly-scaled decimals in the same range are still accepted.
+    expect(() => parseAmtIsoInput({ ...AMT, volatility: 0.72, expectedGrowth: 0.15 })).not.toThrow();
+  });
 });
 
 describe('parser range validation (accepts in-contract boundary values)', () => {
