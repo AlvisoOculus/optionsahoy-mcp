@@ -144,7 +144,7 @@ const QSBS_ACTIVE_BUSINESS = ['yes', 'no', 'unsure'] as const;
 export function parseAmtIsoInput(raw: unknown): AmtIsoInput {
   const o = asObject(raw);
   const horizon = p.int(o, 'horizon', { min: 1, max: 10 });
-  return {
+  const input: AmtIsoInput = {
     shares: p.int(o, 'shares', { min: 1 }),
     strike: p.num(o, 'strike', { min: 0 }),
     fmv: p.num(o, 'fmv', { min: 0 }),
@@ -163,6 +163,18 @@ export function parseAmtIsoInput(raw: unknown): AmtIsoInput {
     hasLeftCompany: p.bool(o, 'hasLeftCompany'),
     terminationDate: p.optDate(o, 'terminationDate'),
   };
+  // The 90-day post-termination exercise window is only computed when BOTH
+  // hasLeftCompany and terminationDate are present (see computeAmtIso). Without
+  // the date the horizon silently caps to 1 year and the window fields return
+  // null, which reads as a real "departed" answer. Fail loudly with a clear ask
+  // instead of returning a misleading result.
+  if (input.hasLeftCompany && input.terminationDate == null) {
+    throw new Error(
+      'field "terminationDate" required when hasLeftCompany=true: pass the separation date (YYYY-MM-DD); it drives the 90-day post-termination ISO exercise window. ' +
+        ASK_USER_HINT,
+    );
+  }
+  return input;
 }
 
 export function parseNsoInput(raw: unknown): NsoInput {
@@ -354,6 +366,13 @@ export function parseEquityFundingInput(raw: unknown, trustedToday?: Date): Equi
     base.riskToleranceShortfall = p.num(o, 'riskToleranceShortfall', { min: 0, max: 1 });
   }
   if (o.defaultVolatility !== undefined) base.defaultVolatility = p.num(o, 'defaultVolatility', { min: 0 });
+
+  // Guard the two mutually exclusive shapes: passing both `stacks` and legacy
+  // top-level `lots` silently dropped the lots (stacks won), losing part of the
+  // position with no warning. Reject the ambiguous call instead.
+  if (o.stacks !== undefined && o.lots !== undefined) {
+    throw new Error('provide either "stacks" (v1.7+) or legacy "lots" + "currentPrice", not both.');
+  }
 
   if (o.stacks !== undefined) {
     if (!Array.isArray(o.stacks) || o.stacks.length === 0) {

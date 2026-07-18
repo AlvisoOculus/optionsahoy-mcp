@@ -154,3 +154,26 @@ describe('parser stateCode validation (rejects codes the tax engine cannot model
     expect(spec.components.schemas.AmtIsoInput.required).not.toContain('terminationDate');
   });
 });
+
+describe('parser cross-field guards (reject silently-misleading or ambiguous inputs)', () => {
+  it('amt-iso: terminationDate is required when hasLeftCompany=true', () => {
+    // Without the date the 90-day window is skipped and horizon silently caps
+    // to 1 year, returning a misleading "departed" result. Must error instead.
+    expect(() => parseAmtIsoInput({ ...AMT, hasLeftCompany: true, terminationDate: null }))
+      .toThrow(/terminationDate.*required when hasLeftCompany/);
+    // Supplying the date is accepted.
+    expect(() => parseAmtIsoInput({ ...AMT, hasLeftCompany: true, terminationDate: '2026-05-01' }))
+      .not.toThrow();
+    // The common still-employed case (no termination date) stays valid.
+    expect(() => parseAmtIsoInput({ ...AMT, hasLeftCompany: false, terminationDate: null }))
+      .not.toThrow();
+  });
+
+  it('equity-funding: rejects both stacks and legacy lots (silent drop today)', () => {
+    expect(() => parseEquityFundingInput({
+      ...FUND,
+      lots: [{ shares: 1000, costBasisPerShare: 8, acquisitionDate: '2022-01-01' }],
+      currentPrice: 50,
+    })).toThrow(/not both/);
+  });
+});
