@@ -153,7 +153,7 @@ export function parseAmtIsoInput(raw: unknown): AmtIsoInput {
     filingStatus: p.enum(o, 'filingStatus', FILING_STATUSES),
     ordinaryIncome: p.num(o, 'ordinaryIncome', { min: 0 }),
     stateCode: p.enum(o, 'stateCode', STATE_CODES),
-    carryforwardCredit: p.num(o, 'carryforwardCredit', { min: 0 }),
+    carryforwardCredit: p.optNum(o, 'carryforwardCredit', { min: 0 }) ?? 0,
     horizon,
     // Optional: the after-tax idle-cash yield that time-values the tax stream.
     // Defaults to DEFAULT_CASH_RETURN_RATE when omitted so callers are not

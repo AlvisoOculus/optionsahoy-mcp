@@ -892,7 +892,7 @@ export const TOOLS: McpTool[] = [
       type: 'object',
       required: [
         'shares', 'strike', 'fmv', 'filingStatus',
-        'ordinaryIncome', 'stateCode', 'carryforwardCredit', 'horizon',
+        'ordinaryIncome', 'stateCode', 'horizon',
         'grantDate', 'hasLeftCompany',
       ],
       properties: {
@@ -940,7 +940,7 @@ export const TOOLS: McpTool[] = [
           type: 'number',
           minimum: 0,
           description:
-            'Existing federal AMT credit (Minimum Tax Credit, Form 8801) carryforward from prior tax years, USD. Recoverable in future years where regular federal tax exceeds tentative minimum tax.',
+            'Existing federal AMT credit (Minimum Tax Credit, Form 8801) carryforward from prior tax years, USD. Recoverable in future years where regular federal tax exceeds tentative minimum tax. Optional; defaults to 0 (most first-time exercisers have none), so do not ask the user for it unless they mention a prior-year AMT credit.',
         },
         horizon: {
           type: 'integer',

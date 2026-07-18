@@ -2204,7 +2204,6 @@
           "filingStatus",
           "ordinaryIncome",
           "stateCode",
-          "carryforwardCredit",
           "horizon",
           "grantDate",
           "hasLeftCompany"
@@ -2257,7 +2256,7 @@
           "carryforwardCredit": {
             "type": "number",
             "minimum": 0,
-            "description": "Existing federal AMT credit from prior years."
+            "description": "Existing federal AMT credit from prior years. Optional; defaults to 0 (most first-time exercisers have none)."
           },
           "horizon": {
             "type": "integer",

@@ -12,7 +12,6 @@
           "filingStatus",
           "ordinaryIncome",
           "stateCode",
-          "carryforwardCredit",
           "horizon",
           "grantDate",
           "hasLeftCompany"
@@ -120,7 +119,7 @@
           "carryforwardCredit": {
             "type": "number",
             "minimum": 0,
-            "description": "Existing federal AMT credit (Minimum Tax Credit, Form 8801) carryforward from prior tax years, USD. Recoverable in future years where regular federal tax exceeds tentative minimum tax."
+            "description": "Existing federal AMT credit (Minimum Tax Credit, Form 8801) carryforward from prior tax years, USD. Recoverable in future years where regular federal tax exceeds tentative minimum tax. Optional; defaults to 0 (most first-time exercisers have none), so do not ask the user for it unless they mention a prior-year AMT credit."
           },
           "horizon": {
             "type": "integer",

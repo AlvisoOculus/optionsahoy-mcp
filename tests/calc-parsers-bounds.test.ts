@@ -176,4 +176,18 @@ describe('parser cross-field guards (reject silently-misleading or ambiguous inp
       currentPrice: 50,
     })).toThrow(/not both/);
   });
+
+  it('amt-iso: carryforwardCredit is optional and defaults to 0', () => {
+    // First-time exercisers should not be interrogated about a Form 8801 credit
+    // they do not have. Omitting it parses to 0 rather than erroring.
+    const noCredit: Record<string, unknown> = { ...AMT };
+    delete noCredit.carryforwardCredit;
+    expect(parseAmtIsoInput(noCredit).carryforwardCredit).toBe(0);
+    // ...and neither public surface advertises it as required.
+    const openapi = JSON.parse(readFileSync('public/openapi.json', 'utf8'));
+    expect(openapi.components.schemas.AmtIsoInput.required).not.toContain('carryforwardCredit');
+    const toolspec = JSON.parse(readFileSync('public/toolspec.json', 'utf8'));
+    const amt = toolspec.tools.find((t: { name: string }) => t.name === 'amt_iso_optimize');
+    expect(amt.inputSchema.required).not.toContain('carryforwardCredit');
+  });
 });
