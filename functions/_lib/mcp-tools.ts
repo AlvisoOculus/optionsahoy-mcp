@@ -921,6 +921,13 @@ export const TOOLS: McpTool[] = [
         },
         ticker: TICKER_SCHEMA,
         volatility: VOLATILITY_SCHEMA,
+        volatilityDrag: {
+          type: 'number',
+          minimum: 0,
+          maximum: 0.99,
+          description:
+            'Alternative to `volatility`: the multiplicative price haircut already computed for the planning horizon. Supply this OR `volatility` (if both are given, volatilityDrag wins). Most callers should pass `volatility` and let the tool compute the drag; only pass this if you already have a horizon drag figure. The model MUST NOT compute it itself.',
+        },
         filingStatus: {
           ...FILING_SCHEMA,
           description:
@@ -1035,6 +1042,13 @@ export const TOOLS: McpTool[] = [
             'Projected $/share at end of holdYears. Required unless `ticker` resolves it from currentPrice × (1 + trailing CAGR)^holdYears.',
         },
         volatility: VOLATILITY_SCHEMA,
+        haircut: {
+          type: 'number',
+          minimum: 0,
+          maximum: 1,
+          description:
+            'Alternative to `volatility`: the multiplicative volatility-drag haircut on expectedSalePrice already computed for the hold. Supply this OR `volatility` (if both are given, haircut wins). Most callers should pass `volatility` and let the tool compute the haircut; the model MUST NOT compute it itself.',
+        },
         expectedMarketReturn: {
           type: 'number',
           description:
@@ -1107,6 +1121,13 @@ export const TOOLS: McpTool[] = [
             'Projected $/share at end of holdYears. Required unless `ticker` resolves it from currentPrice × (1 + trailing CAGR)^holdYears.',
         },
         volatility: VOLATILITY_SCHEMA,
+        haircut: {
+          type: 'number',
+          minimum: 0,
+          maximum: 1,
+          description:
+            'Alternative to `volatility`: the multiplicative volatility-drag haircut on expectedSalePrice already computed for the hold. Supply this OR `volatility` (if both are given, haircut wins). Most callers should pass `volatility` and let the tool compute the haircut; the model MUST NOT compute it itself.',
+        },
         expectedMarketReturn: {
           type: 'number',
           description:

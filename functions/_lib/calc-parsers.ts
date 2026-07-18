@@ -52,7 +52,9 @@ function resolveSigmaFromTicker(o: Obj): number | null {
 }
 
 function resolveDragFromVolatility(o: Obj, dragField: string, horizonYears: number): number {
-  if (o[dragField] !== undefined) return p.num(o, dragField);
+  // The drag/haircut is a multiplicative fraction in [0,1]; bound it so a
+  // percent (e.g. 50) is rejected rather than treated as a 5000% haircut.
+  if (o[dragField] !== undefined) return p.num(o, dragField, { min: 0, max: 1 });
   if (o.volatility !== undefined) {
     return lognormalHaircut(p.num(o, 'volatility', SIGMA_BOUNDS), horizonYears);
   }

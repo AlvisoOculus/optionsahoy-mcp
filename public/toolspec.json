@@ -46,6 +46,12 @@
             "maximum": 5,
             "description": "Annualized volatility (sigma) of the stock as a decimal (0.72 = 72%). Pass the user-supplied volatility directly; the tool computes the horizon-cumulative drag internally. The model MUST NOT compute drag itself; the correct formula is horizon-dependent and most models get it wrong. If the user does not supply a volatility number AND no `ticker` resolves it from the cached implied-vol table, ASK them."
           },
+          "volatilityDrag": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 0.99,
+            "description": "Alternative to `volatility`: the multiplicative price haircut already computed for the planning horizon. Supply this OR `volatility` (if both are given, volatilityDrag wins). Most callers should pass `volatility` and let the tool compute the drag; only pass this if you already have a horizon drag figure. The model MUST NOT compute it itself."
+          },
           "filingStatus": {
             "type": "string",
             "enum": [
@@ -286,6 +292,12 @@
             "maximum": 5,
             "description": "Annualized volatility (sigma) of the stock as a decimal (0.72 = 72%). Pass the user-supplied volatility directly; the tool computes the horizon-cumulative drag internally. The model MUST NOT compute drag itself; the correct formula is horizon-dependent and most models get it wrong. If the user does not supply a volatility number AND no `ticker` resolves it from the cached implied-vol table, ASK them."
           },
+          "haircut": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1,
+            "description": "Alternative to `volatility`: the multiplicative volatility-drag haircut on expectedSalePrice already computed for the hold. Supply this OR `volatility` (if both are given, haircut wins). Most callers should pass `volatility` and let the tool compute the haircut; the model MUST NOT compute it itself."
+          },
           "expectedMarketReturn": {
             "type": "number",
             "description": "Annual after-tax-proceeds reinvestment rate. Defaults to SPY trailing CAGR for holdYears if omitted."
@@ -428,6 +440,12 @@
             "minimum": 0,
             "maximum": 5,
             "description": "Annualized volatility (sigma) of the stock as a decimal (0.72 = 72%). Pass the user-supplied volatility directly; the tool computes the horizon-cumulative drag internally. The model MUST NOT compute drag itself; the correct formula is horizon-dependent and most models get it wrong. If the user does not supply a volatility number AND no `ticker` resolves it from the cached implied-vol table, ASK them."
+          },
+          "haircut": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1,
+            "description": "Alternative to `volatility`: the multiplicative volatility-drag haircut on expectedSalePrice already computed for the hold. Supply this OR `volatility` (if both are given, haircut wins). Most callers should pass `volatility` and let the tool compute the haircut; the model MUST NOT compute it itself."
           },
           "expectedMarketReturn": {
             "type": "number",
