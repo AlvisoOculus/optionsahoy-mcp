@@ -213,7 +213,7 @@ npm run typecheck
 
 ## Registry listings
 
-- [Official MCP Registry](https://registry.modelcontextprotocol.io/v0/servers?search=optionsahoy) — `io.github.AlvisoOculus/optionsahoy-mcp` v1.0.0, status active
+- [Official MCP Registry](https://registry.modelcontextprotocol.io/v0/servers?search=optionsahoy) — `io.github.AlvisoOculus/optionsahoy-mcp`, status active
 - [Smithery](https://smithery.ai/servers/alphalatitude/optionsahoy) — `alphalatitude/optionsahoy` (plus the [equity-plan skill](https://smithery.ai/skills/alphalatitude/equity-plan))
 - [Gemini CLI extensions gallery](https://geminicli.com/extensions/) — `@AlvisoOculus/optionsahoy-mcp`
 - [add-mcp curated registry](https://github.com/neon-solutions/add-mcp)
