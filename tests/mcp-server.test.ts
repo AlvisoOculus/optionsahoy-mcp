@@ -284,14 +284,14 @@ describe('POST /mcp — tools/call dispatches to the right calc', () => {
 });
 
 describe('POST /mcp — resources', () => {
-  it('resources/list returns 7 article resources with markdown mime type', async () => {
+  it('resources/list returns 8 article resources with markdown mime type', async () => {
     type ResourceListItem = { uri: string; name: string; description: string; mimeType: string };
     const { json } = await call<{ result: { resources: ResourceListItem[] } }>({
       jsonrpc: '2.0',
       id: 10,
       method: 'resources/list',
     });
-    expect(json.result.resources).toHaveLength(7);
+    expect(json.result.resources).toHaveLength(8);
     for (const r of json.result.resources) {
       expect(r.uri).toMatch(/^https:\/\/optionsahoy\.com\/(learn|tools)\//);
       expect(r.name.length).toBeGreaterThan(10);
@@ -444,7 +444,7 @@ describe('POST /mcp — error paths', () => {
     const json = (await res.json()) as { name: string; tools: string[]; resources: string[]; prompts: string[] };
     expect(json.name).toMatch(/OptionsAhoy/);
     expect(json.tools.length).toBe(7);
-    expect(json.resources.length).toBe(7);
+    expect(json.resources.length).toBe(8);
     expect(json.prompts.length).toBe(8);
   });
 });

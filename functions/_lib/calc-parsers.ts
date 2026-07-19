@@ -77,7 +77,7 @@ function resolveGrowthRate(o: Obj, fieldName: string, horizonYears: number): num
     const r = getTrailingReturn(ticker, horizonYears);
     if (r !== null) return r;
     throw new Error(
-      `field "${fieldName}" required: ticker "${ticker}" is not in our trailing-returns table (~90 covered). Pass "${fieldName}" explicitly or use a covered public-stock symbol. ${ASK_USER_HINT}`,
+      `field "${fieldName}" required: ticker "${ticker}" is not in our trailing-returns table. Pass "${fieldName}" explicitly or use a covered public-stock symbol (the covered-tickers resource lists the set). ${ASK_USER_HINT}`,
     );
   }
   throw new Error(
@@ -106,7 +106,7 @@ function resolveExpectedSalePrice(o: Obj, currentPrice: number, holdYears: numbe
     const r = getTrailingReturn(ticker, holdYears);
     if (r !== null) return currentPrice * Math.pow(1 + r, holdYears);
     throw new Error(
-      `field "expectedSalePrice" required: ticker "${ticker}" is not in our trailing-returns table (~90 covered). Pass "expectedSalePrice" explicitly or use a covered public-stock symbol. ${ASK_USER_HINT}`,
+      `field "expectedSalePrice" required: ticker "${ticker}" is not in our trailing-returns table. Pass "expectedSalePrice" explicitly or use a covered public-stock symbol (the covered-tickers resource lists the set). ${ASK_USER_HINT}`,
     );
   }
   throw new Error(
@@ -331,7 +331,7 @@ function parseEquityFundingStack(
     const r = getTrailingReturn(stack.ticker!, horizonYears);
     if (r === null) {
       throw new Error(
-        `field "stacks[${index}].expectedAnnualGrowth" required: ticker "${stack.ticker}" is not in our trailing-returns table (~90 covered). Pass "expectedAnnualGrowth" explicitly or use a covered public-stock symbol. ${ASK_USER_HINT}`,
+        `field "stacks[${index}].expectedAnnualGrowth" required: ticker "${stack.ticker}" is not in our trailing-returns table. Pass "expectedAnnualGrowth" explicitly or use a covered public-stock symbol (the covered-tickers resource lists the set). ${ASK_USER_HINT}`,
       );
     }
     stack.expectedAnnualGrowth = r;

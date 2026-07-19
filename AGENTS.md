@@ -65,8 +65,8 @@ JSON. Every tool response is the globally-optimal schedule across the candidate 
 
 ## Resources and prompts the server exposes
 
-- `resources/list` → seven markdown briefings, one per cornerstone topic (AMT, NSO, RSU, concentration, hedging, QSBS, and funding a cash goal from equity). Use as grounding before tool selection.
-- `prompts/list` → seven named slash-commands scaffolding typical user questions and routing to the right tool.
+- `resources/list` → eight markdown briefings: one per cornerstone topic (AMT, NSO, RSU, concentration, hedging, QSBS, and funding a cash goal from equity) plus the covered-ticker set for the optional `ticker` shortcut. Use as grounding before tool selection.
+- `prompts/list` → eight named slash-commands scaffolding typical user questions and routing to the right tool.
 
 ## Where to make changes (for AI-assisted coding tools)
 

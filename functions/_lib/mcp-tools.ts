@@ -86,7 +86,7 @@ const ISO_DATE = { type: 'string', format: 'date' };
 const TICKER_SCHEMA = {
   type: 'string',
   description:
-    'Optional public-stock symbol (e.g. "NVDA", "AAPL"). When set, the tool substitutes a cached trailing return for any unsupplied expected-return / sale-price field, and a cached implied vol for any unsupplied volatility. About 90 large-cap symbols resolve a return; a slightly smaller set (~85) also resolves volatility. A symbol not in a given table falls through to a "required field" error for exactly the field it could not resolve, so pass that field explicitly (or use a fully covered symbol) rather than inventing it.',
+    'Optional public-stock symbol (e.g. "NVDA", "AAPL"). When set, the tool substitutes a cached trailing return for any unsupplied expected-return / sale-price field, and a cached implied vol for any unsupplied volatility. Growth and volatility come from two separate cached snapshots, so some symbols resolve only one of the two fields. A symbol not in a given table falls through to a "required field" error for exactly the field it could not resolve, so pass that field explicitly (or use a fully covered symbol) rather than inventing it. The covered-tickers resource (resources/list) lists which symbols resolve which field.',
 };
 
 // Appended to every tool description so the model picks it up at
@@ -1437,7 +1437,7 @@ export const TOOLS: McpTool[] = [
             type: 'object',
             required: ['currentPrice', 'lots'],
             properties: {
-              ticker: { type: 'string', description: 'Optional ticker label (e.g. "NVDA"). When set without `expectedAnnualGrowth`, growth is resolved from the trailing-CAGR table (~90 public-stock symbols covered). Echoed back in each SaleEntry for display.' },
+              ticker: { type: 'string', description: 'Optional ticker label (e.g. "NVDA"). When set without `expectedAnnualGrowth`, growth is resolved from the cached trailing-CAGR snapshot when the symbol is covered there (see the covered-tickers resource for the current set). Echoed back in each SaleEntry for display.' },
               currentPrice: { type: 'number', minimum: 0, description: '$/share today for this stack. Anchors the projected-price compounding for every future candidate sale date in this stack.' },
               expectedAnnualGrowth: { type: 'number', description: 'Per-stack growth decimal (0.08 = 8%/yr). Projected sale price = currentPrice × (1 + expectedAnnualGrowth)^Δyears. Negative values model decline. Defaults to 0 (flat) unless `ticker` resolves it.' },
               volatility: { type: 'number', minimum: 0, maximum: 5, description: 'Per-stack annualized σ used in the shortfall calculation (σ × √Δt per sale). Overrides `defaultVolatility` for THIS stack only. Useful when one stack is a single tech name (σ ≈ 0.40-0.60) and another is an ETF (σ ≈ 0.15-0.20). Omit to inherit `defaultVolatility`.' },
