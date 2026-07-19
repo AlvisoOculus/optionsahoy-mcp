@@ -44,7 +44,19 @@ jobs:
           node-version: '20'
           registry-url: 'https://registry.npmjs.org'
       - run: npm install --no-audit
-      - run: npm publish --provenance --access public
+      # Skip-existing: an unchanged package whose version is already on the
+      # registry is a no-op, not a hard failure - so a release (or a re-run)
+      # that did not bump this package does not red-X. Mirrors the PyPI
+      # skip-existing behavior in publish-python.yml.
+      - name: Publish to npm (skip if version already published)
+        run: |
+          name=$(node -p "require('./package.json').name")
+          version=$(node -p "require('./package.json').version")
+          if npm view "$name@$version" version >/dev/null 2>&1; then
+            echo "$name@$version already on npm; skipping publish (no-op)."
+          else
+            npm publish --provenance --access public
+          fi
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
@@ -64,7 +76,18 @@ jobs:
           registry-url: 'https://registry.npmjs.org'
       - run: npm install --no-audit
       - run: npm test # conformance + tool-shape tests gate the publish
-      - run: npm publish --provenance --access public
+      # Skip-existing (see the root publish job): the adapter carries its own
+      # version, independent of the release tag; an unchanged version already
+      # on npm is a no-op, not a 403 that fails the release.
+      - name: Publish adapter to npm (skip if version already published)
+        run: |
+          name=$(node -p "require('./package.json').name")
+          version=$(node -p "require('./package.json').version")
+          if npm view "$name@$version" version >/dev/null 2>&1; then
+            echo "$name@$version already on npm; skipping publish (no-op)."
+          else
+            npm publish --provenance --access public
+          fi
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
