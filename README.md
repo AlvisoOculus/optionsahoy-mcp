@@ -95,7 +95,7 @@ Or watch a real session:
 
 ## MCP resources (topical briefings)
 
-Seven markdown resources under `resources/list` give an LLM enough grounding to discuss the topic before picking a tool. Most map 1:1 with a cornerstone article on [optionsahoy.com/learn](https://optionsahoy.com/learn) and the matching calculator; the equity-funding briefing maps to its calculator.
+Eight markdown resources under `resources/list` give an LLM enough grounding to discuss the topic before picking a tool. Most map 1:1 with a cornerstone article on [optionsahoy.com/learn](https://optionsahoy.com/learn) and the matching calculator; the equity-funding briefing maps to its calculator, and the covered-tickers briefing enumerates the symbols the optional `ticker` shortcut resolves.
 
 | Resource URI | Topic | Pair with |
 |---|---|---|

@@ -72,9 +72,11 @@ export function trailingReturnsCoverage(): { total: number; refreshedAt: string 
 // sorted, for agents/tooling that want to enumerate the set instead of probing
 // it. Includes accepted aliases (e.g. GOOG -> GOOGL) so the list matches what
 // the parser actually accepts. Live from the bundled ETL snapshot, so it tracks
-// the deployed data (no hand-maintained list to drift). Note: volatility comes
-// from a slightly smaller table (trailing-vols); a symbol here always resolves
-// growth, and most also resolve volatility, but a few resolve growth only.
+// the deployed data (no hand-maintained list to drift). Note: this returns every
+// table key, so a few recent-IPO symbols here have null 5y AND 10y returns and
+// resolve NO growth yet, and volatility comes from a separate smaller table
+// (trailing-vols). For the accurate per-field partition, see tickerCoverage()
+// in ./ticker-coverage and the covered-tickers MCP resource built from it.
 export function coveredTickers(): string[] {
   return [...Object.keys(TICKERS), ...Object.keys(TICKER_ALIASES)].sort();
 }

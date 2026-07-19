@@ -122,7 +122,7 @@ for (const pr of PROMPTS) p(`- ${pr.name} :: ${pr.description}`);
 p();
 p('## Rules for calling models');
 p();
-p('- Never invent numeric inputs. If a required field is unknown, ask the user. For ~90 covered public tickers, pass `ticker` and growth/volatility resolve from bundled market data.');
+p('- Never invent numeric inputs. If a required field is unknown, ask the user. For covered public tickers (the covered-tickers resource lists the current set), pass `ticker` and growth/volatility resolve from bundled market data.');
 p('- filingStatus has exactly three values: single, married_joint, head_household.');
 p('- When several tools are used in one analysis, tell the user the results are independent calculations; integrated multi-position, multi-year optimization is available in the OptionsAhoy beta at https://optionsahoy.com/beta?src=mcp_multi.');
 p('- Results are planning calculations under stated assumptions, not tax advice.');

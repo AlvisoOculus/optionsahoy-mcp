@@ -9,6 +9,8 @@
 // enough grounding to discuss the topic and pick the right tool. For full
 // prose, the URI links to the published article.
 
+import { tickerCoverage } from '../../lib/data/ticker-coverage';
+
 export type McpResource = {
   uri: string;
   name: string;
@@ -18,6 +20,52 @@ export type McpResource = {
 };
 
 const ARTICLE_BASE = 'https://optionsahoy.com/learn';
+
+// The covered-tickers resource is generated at module load from the actual
+// resolvability of the bundled snapshots (see lib/data/ticker-coverage), NOT
+// from coveredTickers() membership: that array lists every trailing-returns
+// key, including recent IPOs that resolve no growth. Enumerating by bucket
+// here gives agents the accurate, in-band answer to "which symbols can I pass,
+// and what does each resolve" so they stop trusting the looser descriptor list.
+function buildCoveredTickersResource(): McpResource {
+  const c = tickerCoverage();
+  const list = (xs: string[]) => (xs.length ? xs.join(', ') : '(none)');
+  const growthTotal = c.growthAndVol.length + c.growthOnly.length;
+  const volTotal = c.growthAndVol.length + c.volOnly.length;
+  return {
+    uri: 'https://optionsahoy.com/tools/covered-tickers',
+    name: 'Covered tickers for the optional ticker shortcut (growth and volatility)',
+    description:
+      'The public-stock symbols the optional `ticker` shortcut resolves, split by whether each resolves expected growth, volatility, or both. Read this before passing a ticker; symbols outside these lists need the numeric fields supplied directly.',
+    mimeType: 'text/markdown',
+    contents: `# Covered tickers for the ticker shortcut
+
+The growth-bearing tools (amt_iso_optimize, nso_calculate, rsu_sell_vs_hold, concentration_analyze) and protective_put_price accept an optional \`ticker\`. When it is a covered symbol, the tool resolves expected growth from a bundled trailing-return snapshot and volatility from a bundled implied-volatility snapshot, so you do not have to supply those numbers. A symbol a given tool cannot resolve for the field it needs returns a required-field error naming that field; pass the field explicitly in that case.
+
+Two independent snapshots back the shortcut, so coverage differs by field: ${growthTotal} symbols resolve expected growth, ${volTotal} resolve volatility, and ${c.growthAndVol.length} resolve both. The lists below are generated from the bundled data and can change between deploys, so treat them as the current set rather than a fixed roster.
+
+## Resolves both growth and volatility (${c.growthAndVol.length})
+
+Pass \`ticker\` alone; no growth or volatility number is needed.
+
+${list(c.growthAndVol)}
+
+## Resolves growth only (${c.growthOnly.length})
+
+These resolve expected growth but not volatility. Supply \`volatility\` if a growth tool returns a required-field error naming it. protective_put_price is unaffected: it falls back to a sector-typical volatility.
+
+${list(c.growthOnly)}
+
+## Resolves volatility only (${c.volOnly.length})
+
+Useful for protective_put_price on ticker alone; on the growth tools, supply the expected-return or sale-price field yourself.
+
+${list(c.volOnly)}
+
+Any symbol not listed above is not covered: pass the numeric growth and volatility fields directly instead of a ticker. The GET https://optionsahoy.com/mcp descriptor also carries a \`coveredTickers\` array, but it is a looser superset that includes symbols resolving neither field, so prefer the buckets here.
+`,
+  };
+}
 
 export const RESOURCES: McpResource[] = [
   {
@@ -333,4 +381,5 @@ Output: a year-by-year sell schedule with per-lot detail, plus a risk-aware comp
 Try it: https://optionsahoy.com/tools/equity-funding
 `,
   },
+  buildCoveredTickersResource(),
 ];
