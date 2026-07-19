@@ -63,9 +63,11 @@
     "gen:openapi": "tsx scripts/codegen/gen-openapi.mts",
     "verify:openapi": "tsx scripts/codegen/gen-openapi.mts --check",
     "prepublishOnly": "npm run typecheck && npm test && npm run build",
-    "build:mcpb": "npm run build && node scripts/build-mcpb.mjs"
+    "build:mcpb": "npm run build && node scripts/build-mcpb.mjs",
+    "eval:routing": "tsx scripts/eval-routing.mts"
   },
   "devDependencies": {
+    "@anthropic-ai/sdk": "^0.112.3",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "@types/node": "^26.0.0",
     "esbuild": "^0.28.1",
