@@ -71,6 +71,7 @@ export const PROMPTS: McpPrompt[] = [
       { name: 'fmv', description: 'Current fair market value per share, USD', required: true },
       { name: 'ticker', description: 'Covered public-stock symbol (e.g. NVDA) that auto-resolves volatility and expected growth; an alternative to passing volatility', required: false },
       { name: 'volatility', description: 'Annualized volatility (sigma) as a decimal (e.g. 0.5 for 50%). Optional when you pass a covered ticker', required: false },
+      { name: 'expectedGrowth', description: 'Expected annual stock growth as a decimal (e.g. 0.12 for 12%). Optional when you pass a covered ticker', required: false },
       { name: 'state', description: 'Two-letter state code (e.g. CA, NY, TX)', required: false },
       { name: 'ordinaryIncome', description: 'Annual W-2 ordinary income, USD', required: false },
     ],
@@ -80,12 +81,13 @@ export const PROMPTS: McpPrompt[] = [
         optional: [
           a.ticker && `The stock ticker is ${a.ticker}. `,
           a.volatility && `Annualized volatility on the stock is ${a.volatility}. `,
+          a.expectedGrowth && `Expected annual stock growth is ${a.expectedGrowth}. `,
           a.state && `I live in ${a.state}. `,
           a.ordinaryIncome && `My annual ordinary income is $${a.ordinaryIncome}. `,
         ],
         instruction:
-          `Plan an exercise schedule across the next several years that maximizes my after-tax Net Final Value (NFV) at the planning horizon. Use the amt_iso_optimize tool: if I gave a ticker, pass it so volatility and growth resolve automatically; otherwise pass the volatility I provided and do not compute drag yourself. If neither a covered ticker nor a volatility is available, ask me for volatility first.`,
-        followUpFields: 'filing status, state, ordinary income, grant date, idle-cash after-tax return rate, or post-termination status',
+          `Plan an exercise schedule across the next several years that maximizes my after-tax Net Final Value (NFV) at the planning horizon. Use the amt_iso_optimize tool: if I gave a ticker, pass it so volatility and expected growth resolve automatically; otherwise pass the volatility AND expected growth I provided and do not compute drag or the growth path yourself. If neither a covered ticker nor an explicit volatility-and-growth pair is available, ask me for both the volatility and the expected annual growth first.`,
+        followUpFields: 'expected annual stock growth (unless a covered ticker is given), planning horizon, filing status, state, ordinary income, grant date, idle-cash after-tax return rate, or post-termination status',
         outputs:
           "the optimized schedule's after-tax NFV vs the lump-sum and even-split alternatives, the recommended per-year share count, and the AMT credit carryforward at horizon",
       }),
@@ -184,7 +186,9 @@ export const PROMPTS: McpPrompt[] = [
       { name: 'positionValue', description: 'Current market value of the position, USD', required: true },
       { name: 'protectionLevel', description: 'Strike as a percentage below current price (e.g. 0.10 for 10% OTM)', required: false },
       { name: 'tenorYears', description: 'Years to expiration (e.g. 1 for 12-month)', required: false },
-      { name: 'sector', description: 'Sector tag for default volatility', required: false },
+      { name: 'sector', description: 'Sector tag for the default volatility (always needed; it drives the volatility fallback)', required: false },
+      { name: 'ticker', description: 'Covered public-stock symbol (e.g. NVDA) whose cached implied volatility is used instead of the sector default', required: false },
+      { name: 'volatility', description: 'Explicit annualized implied volatility (sigma) as a decimal (e.g. 0.4 for 40%); overrides the ticker and sector default', required: false },
       { name: 'spreadRiskLevel', description: "Put spread's floor breach risk: probability the stock ends below the short strike (e.g. 0.10 for 1 in 10)", required: false },
     ],
     build: (a) =>
@@ -196,13 +200,15 @@ export const PROMPTS: McpPrompt[] = [
             : 'Use a 10% out-of-the-money strike by default. ',
           a.tenorYears ? `Tenor: ${a.tenorYears} year(s). ` : 'Use a 1-year tenor by default. ',
           a.sector && `Sector: ${a.sector}. `,
+          a.ticker && `The stock ticker is ${a.ticker}. `,
+          a.volatility && `Annualized implied volatility is ${a.volatility}. `,
           a.spreadRiskLevel
             ? `Put spread floor breach risk: ${a.spreadRiskLevel}. `
             : 'For the put spread, use a 1-in-10 floor breach risk by default. ',
         ],
         instruction:
-          `Use the protective_put_price tool to price a protective put, a zero-cost collar, and a put spread, then say which one it recommends and why.`,
-        followUpFields: 'the sector or implied volatility for an unusual position',
+          `Use the protective_put_price tool to price a protective put, a zero-cost collar, and a put spread, then say which one it recommends and why. If I gave a ticker, pass it so the stock's own implied volatility is used instead of a sector-typical default; if I gave an explicit volatility, pass that.`,
+        followUpFields: 'the sector (always needed for the volatility fallback), or a covered ticker or explicit implied volatility for a more precise hedge price',
         outputs:
           'annual cost as a percentage of position, dollar cost, max loss with hedge, upside cap (for the collar), the protected band (for the put spread), and bad-year coverage',
       }),
@@ -241,20 +247,54 @@ export const PROMPTS: McpPrompt[] = [
       { name: 'targetDate', description: 'Date the cash is needed by (YYYY-MM-DD)', required: true },
       { name: 'shares', description: 'Total shares held across all lots', required: true },
       { name: 'currentPrice', description: 'Current share price, USD', required: true },
+      { name: 'ticker', description: 'Covered public-stock symbol (e.g. NVDA) that resolves the expected growth rate used for the hold-for-growth and recommended plans', required: false },
+      { name: 'volatility', description: 'Annualized volatility (sigma) of the stock as a decimal (e.g. 0.4 for 40%); drives the shortfall probability and the recommended plan. Defaults to 0.30 if omitted', required: false },
       { name: 'state', description: 'Two-letter state code', required: false },
     ],
     build: (a) =>
       templatePrompt({
         scenario: `I need to net $${arg(a, 'targetAfterTax')} after all taxes by ${arg(a, 'targetDate')}. I have ${arg(a, 'shares')} shares of public stock at a current price of $${arg(a, 'currentPrice')} per share. `,
         optional: [
+          a.ticker && `The stock ticker is ${a.ticker}. `,
+          a.volatility && `Annualized volatility on the stock is ${a.volatility}. `,
           a.state && `I live in ${a.state}. `,
         ],
         instruction:
-          'Plan the cheapest sell schedule using the equity_funding_plan tool. You will need the per-lot cost basis and acquisition date for each tranche (RSU vest dates and prices, ESPP purchases, open-market buys), filing status, and annual W-2 income. If the user only knows the total shares and an average basis, ask whether to treat the position as a single combined lot.',
+          'Plan the cheapest sell schedule using the equity_funding_plan tool. You will need the per-lot cost basis and acquisition date for each tranche (RSU vest dates and prices, ESPP purchases, open-market buys), filing status, and annual W-2 income. If the user only knows the total shares and an average basis, ask whether to treat the position as a single combined lot. The recommended plan and its shortfall probability depend on the expected growth and volatility: if the holding is a covered public ticker, pass it so growth resolves automatically; otherwise ask me for the volatility rather than silently using the 30% default.',
         followUpFields:
-          'per-lot detail (shares, cost basis per share, acquisition date), filing status, and annual W-2 ordinary income',
+          'per-lot detail (shares, cost basis per share, acquisition date), the volatility (unless a covered ticker is given), filing status, and annual W-2 ordinary income',
         outputs:
           'whether the target is feasible, the per-year sell schedule with lot-by-lot detail, total taxes (federal LTCG + NIIT + state), savings vs liquidating everything in the target year, and any leftover shares plus their market value',
       }),
+  },
+  {
+    name: 'plan-equity-portfolio',
+    description:
+      'Analyze a whole equity position end to end and return one reconciled plan: single-stock concentration risk, the tax on the ISO/NSO/RSU events behind the holdings, an optional hedge price, and an optional cash-goal sell schedule. Orchestrates concentration_analyze, amt_iso_optimize, nso_calculate, rsu_sell_vs_hold, protective_put_price, and equity_funding_plan.',
+    arguments: [
+      { name: 'holdings', description: 'What equity you hold and roughly how much (e.g. "8,000 ISOs at $2 strike, 2,000 vested RSUs, ~$1.2M of NVDA")', required: true },
+      { name: 'ticker', description: 'Covered public-stock symbol (e.g. NVDA) passed to every tool that accepts one so growth and volatility resolve automatically', required: false },
+      { name: 'goal', description: 'Any cash goal and deadline (e.g. "$300k for a house down payment by 2027-06")', required: false },
+    ],
+    build: (a) => [
+      {
+        role: 'user',
+        content: {
+          type: 'text',
+          text:
+            `Analyze my whole equity position and give me one reconciled plan. My holdings: ${arg(a, 'holdings')}. ` +
+            (a.ticker ? `The main stock ticker is ${a.ticker}. ` : '') +
+            (a.goal ? `Cash goal: ${a.goal}. ` : '') +
+            'This is a multi-tool question, so run the OptionsAhoy tools that apply and reconcile them yourself: ' +
+            'concentration_analyze for the single-stock risk of the position; ' +
+            'amt_iso_optimize, nso_calculate, and/or rsu_sell_vs_hold for the tax on the ISO, NSO, and RSU events behind the holdings; ' +
+            'protective_put_price to price a hedge if I want downside protection; ' +
+            'and equity_funding_plan if I named a cash goal and deadline. ' +
+            'Pass the ticker to every tool that accepts one so growth and volatility resolve automatically. ' +
+            'Ask me one short follow-up for any required field a tool still needs (filing status, state, ordinary income, cost basis, dates) before calling it, and do not estimate any tool result yourself. ' +
+            'Then synthesize a single prioritized plan across the positions. Note that these tools are independent calculators, so integrated multi-position optimization is available in the OptionsAhoy beta.',
+        },
+      },
+    ],
   },
 ];

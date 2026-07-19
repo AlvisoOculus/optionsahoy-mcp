@@ -100,6 +100,20 @@ describe('parser range validation (rejects out-of-contract inputs)', () => {
       stacks: [{ currentPrice: 50, expectedAnnualGrowth: 0.1, lots: [{ shares: -5, costBasisPerShare: 8, acquisitionDate: '2022-01-01' }] }],
     })).toThrow(/shares.*>= 1/);
   });
+
+  it('rejects percent-scaled decimal-rate fields (percent-vs-decimal footgun)', () => {
+    // These are DECIMAL rates; a bare percent (72, 15, 45) used to silently
+    // produce garbage (a near-total volatility haircut, a 1500%/yr growth path).
+    expect(() => parseAmtIsoInput({ ...AMT, volatility: 72 })).toThrow(/volatility.*<= 5/);
+    expect(() => parseAmtIsoInput({ ...AMT, expectedGrowth: 15 })).toThrow(/expectedGrowth.*<= 3/);
+    expect(() => parseConcentrationInput({ ...CONC, volatility: 45 })).toThrow(/volatility.*<= 5/);
+    expect(() => parseEquityFundingInput({
+      ...FUND,
+      stacks: [{ currentPrice: 50, expectedAnnualGrowth: 10, lots: [{ shares: 100, costBasisPerShare: 8, acquisitionDate: '2022-01-01' }] }],
+    })).toThrow(/expectedAnnualGrowth.*<= 3/);
+    // Correctly-scaled decimals in the same range are still accepted.
+    expect(() => parseAmtIsoInput({ ...AMT, volatility: 0.72, expectedGrowth: 0.15 })).not.toThrow();
+  });
 });
 
 describe('parser range validation (accepts in-contract boundary values)', () => {
@@ -152,5 +166,42 @@ describe('parser stateCode validation (rejects codes the tax engine cannot model
     // eslint-disable-next-line @typescript-eslint/no-var-requires
     const spec = JSON.parse(readFileSync('public/openapi.json', 'utf8'));
     expect(spec.components.schemas.AmtIsoInput.required).not.toContain('terminationDate');
+  });
+});
+
+describe('parser cross-field guards (reject silently-misleading or ambiguous inputs)', () => {
+  it('amt-iso: terminationDate is required when hasLeftCompany=true', () => {
+    // Without the date the 90-day window is skipped and horizon silently caps
+    // to 1 year, returning a misleading "departed" result. Must error instead.
+    expect(() => parseAmtIsoInput({ ...AMT, hasLeftCompany: true, terminationDate: null }))
+      .toThrow(/terminationDate.*required when hasLeftCompany/);
+    // Supplying the date is accepted.
+    expect(() => parseAmtIsoInput({ ...AMT, hasLeftCompany: true, terminationDate: '2026-05-01' }))
+      .not.toThrow();
+    // The common still-employed case (no termination date) stays valid.
+    expect(() => parseAmtIsoInput({ ...AMT, hasLeftCompany: false, terminationDate: null }))
+      .not.toThrow();
+  });
+
+  it('equity-funding: rejects both stacks and legacy lots (silent drop today)', () => {
+    expect(() => parseEquityFundingInput({
+      ...FUND,
+      lots: [{ shares: 1000, costBasisPerShare: 8, acquisitionDate: '2022-01-01' }],
+      currentPrice: 50,
+    })).toThrow(/not both/);
+  });
+
+  it('amt-iso: carryforwardCredit is optional and defaults to 0', () => {
+    // First-time exercisers should not be interrogated about a Form 8801 credit
+    // they do not have. Omitting it parses to 0 rather than erroring.
+    const noCredit: Record<string, unknown> = { ...AMT };
+    delete noCredit.carryforwardCredit;
+    expect(parseAmtIsoInput(noCredit).carryforwardCredit).toBe(0);
+    // ...and neither public surface advertises it as required.
+    const openapi = JSON.parse(readFileSync('public/openapi.json', 'utf8'));
+    expect(openapi.components.schemas.AmtIsoInput.required).not.toContain('carryforwardCredit');
+    const toolspec = JSON.parse(readFileSync('public/toolspec.json', 'utf8'));
+    const amt = toolspec.tools.find((t: { name: string }) => t.name === 'amt_iso_optimize');
+    expect(amt.inputSchema.required).not.toContain('carryforwardCredit');
   });
 });

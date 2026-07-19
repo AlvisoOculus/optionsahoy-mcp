@@ -328,7 +328,7 @@ describe('POST /mcp — resources', () => {
 });
 
 describe('POST /mcp — prompts', () => {
-  it('prompts/list returns 7 prompts with arguments', async () => {
+  it('prompts/list returns 8 prompts with arguments', async () => {
     type PromptListItem = {
       name: string;
       description: string;
@@ -347,6 +347,7 @@ describe('POST /mcp — prompts', () => {
       'check-qsbs-eligibility',
       'optimize-iso-exercise',
       'plan-equity-funding',
+      'plan-equity-portfolio',
       'price-protective-put',
     ]);
     for (const p of json.result.prompts) {
@@ -444,7 +445,7 @@ describe('POST /mcp — error paths', () => {
     expect(json.name).toMatch(/OptionsAhoy/);
     expect(json.tools.length).toBe(7);
     expect(json.resources.length).toBe(7);
-    expect(json.prompts.length).toBe(7);
+    expect(json.prompts.length).toBe(8);
   });
 });
 

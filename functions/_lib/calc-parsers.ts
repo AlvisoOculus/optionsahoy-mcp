@@ -31,6 +31,15 @@ import { lognormalHaircut } from '../../lib/calc/volatility-drag';
 // the Poe bot pre-fills and discloses the same value, so keep both pointed here.
 export const DEFAULT_CASH_RETURN_RATE = 0.04;
 
+// Percent-vs-decimal guardrails. Every rate field below is a DECIMAL (0.30 =
+// 30%), so a value like 30 or 72 is almost certainly a percent the caller
+// forgot to scale. Bounding them turns a silently-wrong result (a near-total
+// volatility haircut, a 3000%/yr growth path) into a clear "must be <= N"
+// error. Bounds are deliberately generous so no realistic input is refused.
+const SIGMA_BOUNDS = { min: 0, max: 5 } as const; // annualized volatility (sigma)
+const RATE_BOUNDS = { min: -0.9, max: 3 } as const; // annual growth / return
+const CASH_RATE_BOUNDS = { min: 0, max: 1 } as const; // after-tax cash yield
+
 const ASK_USER_HINT =
   'The model invoking this tool MUST NOT invent this value — ask the user.';
 
@@ -43,9 +52,11 @@ function resolveSigmaFromTicker(o: Obj): number | null {
 }
 
 function resolveDragFromVolatility(o: Obj, dragField: string, horizonYears: number): number {
-  if (o[dragField] !== undefined) return p.num(o, dragField);
+  // The drag/haircut is a multiplicative fraction in [0,1]; bound it so a
+  // percent (e.g. 50) is rejected rather than treated as a 5000% haircut.
+  if (o[dragField] !== undefined) return p.num(o, dragField, { min: 0, max: 1 });
   if (o.volatility !== undefined) {
-    return lognormalHaircut(p.num(o, 'volatility', { min: 0 }), horizonYears);
+    return lognormalHaircut(p.num(o, 'volatility', SIGMA_BOUNDS), horizonYears);
   }
   if (o.ticker !== undefined) {
     const sigma = resolveSigmaFromTicker(o);
@@ -60,7 +71,7 @@ function resolveDragFromVolatility(o: Obj, dragField: string, horizonYears: numb
 }
 
 function resolveGrowthRate(o: Obj, fieldName: string, horizonYears: number): number {
-  if (o[fieldName] !== undefined) return p.num(o, fieldName);
+  if (o[fieldName] !== undefined) return p.num(o, fieldName, RATE_BOUNDS);
   if (o.ticker !== undefined) {
     const ticker = p.str(o, 'ticker');
     const r = getTrailingReturn(ticker, horizonYears);
@@ -78,7 +89,7 @@ function resolveGrowthRate(o: Obj, fieldName: string, horizonYears: number): num
 // trailing CAGR. Unlike position return, market return isn't user-belief-
 // dependent, so a documented default is reasonable.
 function resolveMarketReturn(o: Obj, horizonYears: number): number {
-  if (o.expectedMarketReturn !== undefined) return p.num(o, 'expectedMarketReturn');
+  if (o.expectedMarketReturn !== undefined) return p.num(o, 'expectedMarketReturn', RATE_BOUNDS);
   const spy = getTrailingReturn('SPY', horizonYears);
   if (spy === null) {
     throw new Error(
@@ -144,7 +155,7 @@ const QSBS_ACTIVE_BUSINESS = ['yes', 'no', 'unsure'] as const;
 export function parseAmtIsoInput(raw: unknown): AmtIsoInput {
   const o = asObject(raw);
   const horizon = p.int(o, 'horizon', { min: 1, max: 10 });
-  return {
+  const input: AmtIsoInput = {
     shares: p.int(o, 'shares', { min: 1 }),
     strike: p.num(o, 'strike', { min: 0 }),
     fmv: p.num(o, 'fmv', { min: 0 }),
@@ -153,16 +164,28 @@ export function parseAmtIsoInput(raw: unknown): AmtIsoInput {
     filingStatus: p.enum(o, 'filingStatus', FILING_STATUSES),
     ordinaryIncome: p.num(o, 'ordinaryIncome', { min: 0 }),
     stateCode: p.enum(o, 'stateCode', STATE_CODES),
-    carryforwardCredit: p.num(o, 'carryforwardCredit', { min: 0 }),
+    carryforwardCredit: p.optNum(o, 'carryforwardCredit', { min: 0 }) ?? 0,
     horizon,
     // Optional: the after-tax idle-cash yield that time-values the tax stream.
     // Defaults to DEFAULT_CASH_RETURN_RATE when omitted so callers are not
     // forced to supply a rate; pass an explicit value to override.
-    cashReturnRate: p.optNum(o, 'cashReturnRate') ?? DEFAULT_CASH_RETURN_RATE,
+    cashReturnRate: p.optNum(o, 'cashReturnRate', CASH_RATE_BOUNDS) ?? DEFAULT_CASH_RETURN_RATE,
     grantDate: p.date(o, 'grantDate'),
     hasLeftCompany: p.bool(o, 'hasLeftCompany'),
     terminationDate: p.optDate(o, 'terminationDate'),
   };
+  // The 90-day post-termination exercise window is only computed when BOTH
+  // hasLeftCompany and terminationDate are present (see computeAmtIso). Without
+  // the date the horizon silently caps to 1 year and the window fields return
+  // null, which reads as a real "departed" answer. Fail loudly with a clear ask
+  // instead of returning a misleading result.
+  if (input.hasLeftCompany && input.terminationDate == null) {
+    throw new Error(
+      'field "terminationDate" required when hasLeftCompany=true: pass the separation date (YYYY-MM-DD); it drives the 90-day post-termination ISO exercise window. ' +
+        ASK_USER_HINT,
+    );
+  }
+  return input;
 }
 
 export function parseNsoInput(raw: unknown): NsoInput {
@@ -219,7 +242,7 @@ export function parseConcentrationInput(raw: unknown): ConcentrationInputs {
     volatilityDrag: resolveDragFromVolatility(o, 'volatilityDrag', CONCENTRATION_HORIZON_YEARS),
   };
   // Mirror the drag's sigma source so hedge pricing uses the same value.
-  const sigma = o.volatility !== undefined ? p.num(o, 'volatility', { min: 0 }) : resolveSigmaFromTicker(o);
+  const sigma = o.volatility !== undefined ? p.num(o, 'volatility', SIGMA_BOUNDS) : resolveSigmaFromTicker(o);
   if (sigma !== null) base.volatility = sigma;
   if (o.hedgeChoice !== undefined) {
     const hc = asObject(o.hedgeChoice);
@@ -240,7 +263,7 @@ export function parseProtectivePutInput(raw: unknown): ProtectivePutInputs {
   const sectorDefault = SECTOR_STATS[sector].annualVol * IV_OVER_RV_MULTIPLIER;
   const volatility =
     o.volatility !== undefined
-      ? p.num(o, 'volatility', { min: 0 })
+      ? p.num(o, 'volatility', SIGMA_BOUNDS)
       : resolveSigmaFromTicker(o) ?? sectorDefault;
   const base: ProtectivePutInputs = {
     positionValue: p.num(o, 'positionValue', { min: 0 }),
@@ -249,7 +272,7 @@ export function parseProtectivePutInput(raw: unknown): ProtectivePutInputs {
     protectionLevel: p.num(o, 'protectionLevel', { min: 0.05, max: 0.5 }),
     tenorYears: p.num(o, 'tenorYears', { min: 0.25 }),
   };
-  if (o.expectedReturn !== undefined) base.expectedReturn = p.num(o, 'expectedReturn');
+  if (o.expectedReturn !== undefined) base.expectedReturn = p.num(o, 'expectedReturn', RATE_BOUNDS);
   // Put-spread floor breach risk: target P(stock ends below the short strike).
   // Off-preset values snap to the nearest of SPREAD_RISK_LEVELS inside the calc,
   // so accept any probability in range and let the solve normalize it.
@@ -303,7 +326,7 @@ function parseEquityFundingStack(
   // fallback resolves it (the calc defaults to flat-price). Throw only when a
   // ticker is supplied but unknown to the trailing-returns table.
   if (o.expectedAnnualGrowth !== undefined) {
-    stack.expectedAnnualGrowth = p.num(o, 'expectedAnnualGrowth');
+    stack.expectedAnnualGrowth = p.num(o, 'expectedAnnualGrowth', RATE_BOUNDS);
   } else if (o.ticker !== undefined) {
     const r = getTrailingReturn(stack.ticker!, horizonYears);
     if (r === null) {
@@ -316,7 +339,7 @@ function parseEquityFundingStack(
   // Volatility is sidecar (returned next to the stack) because the calc
   // consumes it via the parallel `stackVolatilities` array, not via a
   // per-stack field. Caller assembles the array from this stream.
-  const volatility = o.volatility !== undefined ? p.num(o, 'volatility', { min: 0 }) : null;
+  const volatility = o.volatility !== undefined ? p.num(o, 'volatility', SIGMA_BOUNDS) : null;
   return { stack, volatility };
 }
 
@@ -349,11 +372,18 @@ export function parseEquityFundingInput(raw: unknown, trustedToday?: Date): Equi
     filingStatus: p.enum(o, 'filingStatus', FILING_STATUSES),
     stateCode: p.enum(o, 'stateCode', STATE_CODES),
   };
-  if (o.cashInterestRate !== undefined) base.cashInterestRate = p.num(o, 'cashInterestRate');
+  if (o.cashInterestRate !== undefined) base.cashInterestRate = p.num(o, 'cashInterestRate', CASH_RATE_BOUNDS);
   if (o.riskToleranceShortfall !== undefined) {
     base.riskToleranceShortfall = p.num(o, 'riskToleranceShortfall', { min: 0, max: 1 });
   }
-  if (o.defaultVolatility !== undefined) base.defaultVolatility = p.num(o, 'defaultVolatility', { min: 0 });
+  if (o.defaultVolatility !== undefined) base.defaultVolatility = p.num(o, 'defaultVolatility', SIGMA_BOUNDS);
+
+  // Guard the two mutually exclusive shapes: passing both `stacks` and legacy
+  // top-level `lots` silently dropped the lots (stacks won), losing part of the
+  // position with no warning. Reject the ambiguous call instead.
+  if (o.stacks !== undefined && o.lots !== undefined) {
+    throw new Error('provide either "stacks" (v1.7+) or legacy "lots" + "currentPrice", not both.');
+  }
 
   if (o.stacks !== undefined) {
     if (!Array.isArray(o.stacks) || o.stacks.length === 0) {
@@ -376,7 +406,7 @@ export function parseEquityFundingInput(raw: unknown, trustedToday?: Date): Equi
   base.lots = lotsRaw.map((lot, idx) => parseEquityFundingLot(lot, idx));
   base.currentPrice = p.num(o, 'currentPrice', { min: 0 });
   if (o.expectedAnnualGrowth !== undefined) {
-    base.expectedAnnualGrowth = p.num(o, 'expectedAnnualGrowth');
+    base.expectedAnnualGrowth = p.num(o, 'expectedAnnualGrowth', RATE_BOUNDS);
   }
   return base;
 }
