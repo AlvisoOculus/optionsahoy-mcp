@@ -50,13 +50,17 @@ export function extractRequiredField(
   allow: ReadonlySet<string> = TOOL_INPUT_FIELDS,
 ): string | null {
   if (!errorMsg) return null;
+  // The REST surface wraps parser/calc errors as `parse: <msg>` / `calc: <msg>`
+  // (functions/_lib/api.ts). Strip that prefix so the leading-bareword branch
+  // sees the real message and REST structural errors are attributed like MCP's.
+  const msg = errorMsg.replace(/^(?:parse|calc):\s*/, '');
   const candidates: string[] = [];
   // A leading bareword field token catches the unquoted structural errors:
   // `lots[2] must be an object ...`, `stacks[3].lots must be a non-empty array`.
-  const lead = /^([A-Za-z][A-Za-z0-9]*)(?:\[\d+\])?[.\s]/.exec(errorMsg);
+  const lead = /^([A-Za-z][A-Za-z0-9]*)(?:\[\d+\])?[.\s]/.exec(msg);
   if (lead) candidates.push(lead[1]);
   // Quoted tokens catch `field "shares" ...` and `either "stacks" or "lots" ...`.
-  for (const m of errorMsg.matchAll(/"([^"]+)"/g)) candidates.push(m[1]);
+  for (const m of msg.matchAll(/"([^"]+)"/g)) candidates.push(m[1]);
   for (const c of candidates) {
     const leaf = c.replace(/\[\d+\]/g, '').split('.').pop();
     if (leaf && allow.has(leaf)) return leaf;

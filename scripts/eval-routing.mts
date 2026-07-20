@@ -313,11 +313,15 @@ function rate(vs: Verdict[]): number {
 function bootstrapCI(vs: Verdict[], n = 1000): [number, number] {
   if (vs.length === 0) return [0, 0];
   const rates: number[] = [];
+  // Deterministic mulberry32 so re-runs produce identical CIs for identical
+  // verdicts. Uses Math.imul + |0 to stay in 32-bit; a plain LCG here
+  // (seed * 1103515245) overflows MAX_SAFE_INTEGER and biases the resample.
   let seed = 12345;
   const rand = () => {
-    // Deterministic LCG so re-runs produce identical CIs for identical verdicts.
-    seed = (seed * 1103515245 + 12345) % 2147483648;
-    return seed / 2147483648;
+    seed = (seed + 0x6d2b79f5) | 0;
+    let t = Math.imul(seed ^ (seed >>> 15), 1 | seed);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
   for (let i = 0; i < n; i++) {
     let pass = 0;
