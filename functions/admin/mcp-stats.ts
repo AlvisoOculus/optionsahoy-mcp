@@ -15,7 +15,8 @@
 
 import { type PagesFunction } from '../_lib/api';
 import { type D1Database } from '../_lib/stats';
-import { classifyClient, KIND_RANK, type ClientKind } from '../_lib/classify';
+import { classifyClient, isInfraClient, KIND_RANK, type ClientKind } from '../_lib/classify';
+import { rankErrorFields } from '../_lib/error-fields';
 
 // Client classification lives in ../_lib/classify (shared with the sample
 // capture). Re-exported here so existing consumers/tests that import from this
@@ -28,6 +29,7 @@ interface ToolRow { tool: string; n: number; errors: number }
 interface ErrorRow { endpoint: string; tool: string | null; error_msg: string; n: number }
 interface ClientRow { client_name: string; n: number }
 interface CountryRow { country: string | null; n: number }
+interface ErrFieldRow { error_msg: string; endpoint: string; client: string | null; n: number }
 interface SampleRow { ts: number; surface: string; tool: string | null; client_name: string | null; query: string | null; answer: string | null; country: string | null; region: string | null; city: string | null; as_org: string | null; asn: number | null }
 interface RestNetRow { as_org: string; city: string; region: string; country: string; n: number }
 
@@ -70,6 +72,18 @@ const SQL_DAILY_REST = "SELECT date(ts/1000, 'unixepoch') AS day, COUNT(*) AS n 
 const SQL_DAILY_MCP = "SELECT date(ts/1000, 'unixepoch') AS day, COUNT(*) AS n FROM mcp_calls WHERE endpoint = 'mcp:tools/call' AND is_error = 0 AND ts >= ? GROUP BY day ORDER BY day DESC";
 const SQL_TOOLS = 'SELECT tool, COUNT(*) AS n, SUM(is_error) AS errors FROM mcp_calls WHERE tool IS NOT NULL AND ts >= ? GROUP BY tool ORDER BY n DESC';
 const SQL_ERRORS = 'SELECT endpoint, tool, error_msg, COUNT(*) AS n FROM mcp_calls WHERE is_error = 1 AND ts >= ? GROUP BY endpoint, tool, error_msg ORDER BY n DESC LIMIT 25';
+// Input-friction signal: which required fields callers most often omit or botch,
+// over the agent-facing calculator-call surfaces (mcp:tools/call + REST). Poe is
+// excluded by design: its bot pre-fills inputs, so a Poe error is an extraction
+// failure, not caller input-friction. Carries client + endpoint so infra noise
+// can be dropped in JS. `client` is COALESCE(client_name, ua): tool-call rows
+// carry no handshake client_name (that is only on mcp:initialize), so on the MCP
+// surface exclusion relies on the UA. REST smoke sets a marker UA and IS dropped;
+// the MCP smoke sends no marker on call rows, so its exclusion is best-effort
+// (harmless today: it sends valid inputs, so it generates no field errors).
+// GROUP BY error_msg, endpoint, client keeps this shape distinct from SQL_ERRORS
+// for the test mock's matcher.
+const SQL_ERR_FIELDS = "SELECT error_msg, endpoint, COALESCE(client_name, ua) AS client, COUNT(*) AS n FROM mcp_calls WHERE is_error = 1 AND (endpoint = 'mcp:tools/call' OR endpoint LIKE 'rest:%') AND ts >= ? GROUP BY error_msg, endpoint, client";
 // Clients come from MCP `initialize` handshakes, plus Poe requests (which have
 // no handshake: each poe:* row carries client_name 'poe').
 const SQL_CLIENTS = "SELECT client_name, COUNT(*) AS n FROM mcp_calls WHERE client_name IS NOT NULL AND (endpoint = 'mcp:initialize' OR endpoint LIKE 'poe:%') AND ts >= ? GROUP BY client_name ORDER BY n DESC";
@@ -106,7 +120,7 @@ export const onRequest: PagesFunction = async (ctx) => {
   const days = Number.isFinite(daysParam) && daysParam > 0 && daysParam <= MAX_DAYS ? daysParam : DEFAULT_DAYS;
   const sinceMs = Date.now() - days * 86_400_000;
 
-  const [endpoints, daily, dailyRest, dailyMcp, tools, errors, clients, countries, restNet] = await Promise.all([
+  const [endpoints, daily, dailyRest, dailyMcp, tools, errors, clients, countries, restNet, errFieldRaw] = await Promise.all([
     q<EndpointRow>(db, SQL_ENDPOINTS, sinceMs),
     q<DayRow>(db, SQL_DAILY, sinceMs),
     q<DayRow>(db, SQL_DAILY_REST, sinceMs),
@@ -118,7 +132,18 @@ export const onRequest: PagesFunction = async (ctx) => {
     // Resilient: pre-0004 databases lack as_org/region/city, so this throws
     // until the migration is applied. Degrade to an empty rollup, not a 500.
     q<RestNetRow>(db, SQL_REST_NET, sinceMs).catch(() => [] as RestNetRow[]),
+    q<ErrFieldRow>(db, SQL_ERR_FIELDS, sinceMs),
   ]);
+
+  // Rank the fields callers most often omit or botch, dropping infrastructure
+  // noise (our smoke suite + scanners) where the client is identifiable (see
+  // SQL_ERR_FIELDS). rankErrorFields keeps only real tool-input field names, so
+  // garbage field names never appear.
+  const topErrorFields = rankErrorFields(
+    errFieldRaw
+      .filter((r) => !isInfraClient(r.client, r.endpoint.startsWith('mcp:') ? 'mcp' : 'rest'))
+      .map((r) => ({ errorMsg: r.error_msg, n: r.n })),
+  );
 
   // Optional ?errEndpoint=<exact endpoint>: the error_msg breakdown for one
   // endpoint, uncapped by the global top-25 (so low-volume diagnostics like
@@ -168,7 +193,7 @@ export const onRequest: PagesFunction = async (ctx) => {
   ).slice(0, 50);
 
   if (url.searchParams.get('format') === 'json') {
-    const body = JSON.stringify({ days, endpoints, daily, dailyRest, dailyMcp, tools, errors, clients, countries, restNet, endpointErrors, samples: classified, sampleCounts });
+    const body = JSON.stringify({ days, endpoints, daily, dailyRest, dailyMcp, tools, errors, topErrorFields, clients, countries, restNet, endpointErrors, samples: classified, sampleCounts });
     return new Response(body, {
       status: 200,
       headers: {
@@ -178,7 +203,7 @@ export const onRequest: PagesFunction = async (ctx) => {
     });
   }
 
-  const html = renderHtml({ days, endpoints, daily, dailyRest, dailyMcp, tools, errors, clients, countries, restNet, samples: shownSamples, sampleCounts, kindFilter, token, surface: surfaceParam });
+  const html = renderHtml({ days, endpoints, daily, dailyRest, dailyMcp, tools, errors, topErrorFields, clients, countries, restNet, samples: shownSamples, sampleCounts, kindFilter, token, surface: surfaceParam });
   return new Response(html, {
     status: 200,
     headers: {
@@ -198,6 +223,7 @@ interface RenderInput {
   dailyMcp: DayRow[];
   tools: ToolRow[];
   errors: ErrorRow[];
+  topErrorFields: { field: string; count: number }[];
   clients: ClientRow[];
   countries: CountryRow[];
   restNet: RestNetRow[];
@@ -369,6 +395,12 @@ ${table(
 ${table(
   ['Endpoint', 'Tool', 'Error', 'Count'],
   d.errors.map((r) => [esc(r.endpoint), esc(r.tool) || '<i>-</i>', `<code>${esc(r.error_msg)}</code>`, `<span class="num">${r.n.toLocaleString()}</span>`]),
+)}
+
+<h2>Most-omitted input fields (calc calls, infra excluded)</h2>
+${table(
+  ['Field', 'Errors'],
+  d.topErrorFields.map((r) => [`<code>${esc(r.field)}</code>`, `<span class="num">${r.count.toLocaleString()}</span>`]),
 )}
 
 <h2>Recent examples (7-day capture)</h2>

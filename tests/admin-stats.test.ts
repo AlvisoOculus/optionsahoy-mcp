@@ -32,8 +32,18 @@ function ctx(env: Env, request: Request): PagesContext {
 
 // Patterns must be mutually exclusive — find() picks the first match.
 // `WHERE is_error = 1` is the errors query alone; the endpoints query is
-// identified by its ORDER BY n DESC tail.
+// identified by its ORDER BY n DESC tail. The error-fields query ALSO carries
+// `WHERE is_error = 1`, so its more-specific matcher must come first.
 const SAMPLE_ROWS = [
+  // error-fields (topErrorFields): shares 4+1=5, volatility 3; the smoke row is
+  // dropped as infra, notARealField is dropped as not-an-input-field.
+  { match: /GROUP BY error_msg, endpoint/, rows: [
+    { error_msg: 'field "shares" required', endpoint: 'mcp:tools/call', client: null, n: 4 },
+    { error_msg: 'field "shares" must be a whole number', endpoint: 'rest:amt', client: 'python-httpx/0.27', n: 1 },
+    { error_msg: 'field "volatility" must be <= 5', endpoint: 'rest:concentration', client: 'Cursor', n: 3 },
+    { error_msg: 'field "shares" required', endpoint: 'mcp:tools/call', client: 'optionsahoy-smoke', n: 100 },
+    { error_msg: 'field "notARealField" required', endpoint: 'rest:x', client: null, n: 7 },
+  ] },
   { match: /WHERE is_error = 1/, rows: [{ endpoint: 'mcp:tools/call', tool: 'amt_iso_optimize', error_msg: 'field "shares" required', n: 3 }] },
   { match: /WHERE tool IS NOT NULL/, rows: [{ tool: 'concentration_analyze', n: 18, errors: 2 }] },
   { match: /WHERE client_name IS NOT NULL/, rows: [{ client_name: 'Claude.ai', n: 5 }] },
@@ -82,6 +92,7 @@ describe('admin /mcp-stats', () => {
     expect(html).toMatch(/2026-05-27/);
     expect(html).toMatch(/REST calls, valid input/);
     expect(html).toMatch(/MCP tool calls, valid input/);
+    expect(html).toMatch(/Most-omitted input fields/);
   });
 
   it('returns structured JSON when format=json', async () => {
@@ -105,6 +116,11 @@ describe('admin /mcp-stats', () => {
     expect(body.dailyMcp).toEqual([
       { day: '2026-05-27', n: 3 },
       { day: '2026-05-26', n: 4 },
+    ]);
+    // Infra (smoke) excluded and non-schema field names dropped; shares 4+1.
+    expect(body.topErrorFields).toEqual([
+      { field: 'shares', count: 5 },
+      { field: 'volatility', count: 3 },
     ]);
   });
 

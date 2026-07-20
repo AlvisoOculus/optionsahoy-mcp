@@ -23,8 +23,8 @@ export function classifyClient(
   surface: string,
 ): { kind: ClientKind; label: string } {
   const c = (clientName ?? '').trim().toLowerCase();
-  // Our own synthetic monitor (data/agent-campaign smoke + uptime checks).
-  if (c.includes('optionsahoy-smoke')) return { kind: 'smoke', label: 'smoke test' };
+  // Our own synthetic monitors (REST uptime smoke + the live MCP e2e check).
+  if (c.includes('optionsahoy-smoke') || c.includes('oa-e2e-live')) return { kind: 'smoke', label: 'smoke test' };
   // A person typed into the Poe consumer bot.
   if (surface === 'poe' || c === 'poe') return { kind: 'human', label: 'human (Poe)' };
   // Web crawlers / training bots / security scanners, plus the swarm of MCP
