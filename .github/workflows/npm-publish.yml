@@ -52,10 +52,16 @@ jobs:
         run: |
           name=$(node -p "require('./package.json').name")
           version=$(node -p "require('./package.json').version")
-          if npm view "$name@$version" version >/dev/null 2>&1; then
+          # Fail-safe skip-existing: only publish when npm POSITIVELY reports the
+          # version missing (E404). A transient registry error must not be read
+          # as "not published" and trigger a publish that then 403s on a re-run;
+          # surface it instead so a human decides.
+          if npm view "$name@$version" version >/dev/null 2>view-err.txt; then
             echo "$name@$version already on npm; skipping publish (no-op)."
-          else
+          elif grep -q 'E404' view-err.txt; then
             npm publish --provenance --access public
+          else
+            echo "npm view failed for a non-404 reason; not publishing:"; cat view-err.txt; exit 1
           fi
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
@@ -83,10 +89,16 @@ jobs:
         run: |
           name=$(node -p "require('./package.json').name")
           version=$(node -p "require('./package.json').version")
-          if npm view "$name@$version" version >/dev/null 2>&1; then
+          # Fail-safe skip-existing: only publish when npm POSITIVELY reports the
+          # version missing (E404). A transient registry error must not be read
+          # as "not published" and trigger a publish that then 403s on a re-run;
+          # surface it instead so a human decides.
+          if npm view "$name@$version" version >/dev/null 2>view-err.txt; then
             echo "$name@$version already on npm; skipping publish (no-op)."
-          else
+          elif grep -q 'E404' view-err.txt; then
             npm publish --provenance --access public
+          else
+            echo "npm view failed for a non-404 reason; not publishing:"; cat view-err.txt; exit 1
           fi
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

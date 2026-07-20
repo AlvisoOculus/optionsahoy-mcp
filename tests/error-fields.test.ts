@@ -26,6 +26,14 @@ describe('extractRequiredField', () => {
     expect(extractRequiredField('field "shares" required: pass a number, or ticker "NVDA"')).toBe('shares'); // field before ticker
   });
 
+  it('strips the REST parse:/calc: prefix so REST attributes like MCP', () => {
+    // functions/_lib/api.ts wraps REST errors; the leading-bareword branch must
+    // see the real message, not the prefix.
+    expect(extractRequiredField('parse: lots[0] must be an object with shares')).toBe('lots');
+    expect(extractRequiredField('parse: field "shares" required')).toBe('shares');
+    expect(extractRequiredField('calc: stacks[1].lots must be a non-empty array')).toBe('stacks');
+  });
+
   it('rejects messages with no quoted schema field', () => {
     expect(extractRequiredField('body must be a JSON object')).toBeNull();
     expect(extractRequiredField('field "notARealField" required')).toBeNull(); // allowlist

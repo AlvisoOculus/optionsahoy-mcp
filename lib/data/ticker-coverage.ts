@@ -16,7 +16,8 @@
 // makes the "resource lists a rejected ticker" bug structurally impossible
 // rather than merely test-detectable.
 
-import { coveredTickers, hasTrailingReturn } from './trailing-returns';
+import returns from './trailing-returns.json';
+import { hasTrailingReturn } from './trailing-returns';
 import { hasTrailingVol } from './trailing-vols';
 import vols from './trailing-vols.json';
 
@@ -29,11 +30,14 @@ export type TickerCoverage = {
 
 // Computed on demand from the bundled tables (cheap: a few hundred lookups).
 export function tickerCoverage(): TickerCoverage {
-  // Universe = every symbol either table (or an accepted alias) knows about.
-  // coveredTickers() already returns the trailing-returns keys plus aliases
-  // (e.g. GOOG); union in the vol-table keys so a symbol that resolves only
-  // volatility and is absent from the returns table is still partitioned.
-  const universe = new Set<string>([...coveredTickers(), ...Object.keys(vols.tickers)]);
+  // Universe = the CANONICAL symbols in either table. We deliberately do NOT
+  // pull in coveredTickers()'s alias keys (e.g. GOOG -> GOOGL): counting an
+  // alias as its own symbol double-counts (GOOG and GOOGL) and inflates every
+  // headline, producing impossible numbers like "86 resolve volatility" when
+  // the vols table has 85 rows. The tables are keyed by canonical symbol, so
+  // their key union is exactly the distinct set; aliases still resolve at call
+  // time via the readers, and the resource notes that.
+  const universe = new Set<string>([...Object.keys(returns.tickers), ...Object.keys(vols.tickers)]);
   const growthAndVol: string[] = [];
   const growthOnly: string[] = [];
   const volOnly: string[] = [];
