@@ -425,8 +425,20 @@ function computeRetainedLiquidation(
 
   // Tax the retained-liquidation delta through the shared year-tax primitive
   // (Schedule D netting, IRS worksheet stacking, per-bucket state, NIIT). The
-  // helper nets the full-year position internally, so pass the raw accumulator
+  // helper nets the FULL-YEAR position internally, so pass the raw accumulator
   // totals with and without the retained deltas and difference them.
+  //
+  // This is a deliberate correctness change from the pre-phase-2 backstop,
+  // which cross-offset only the retained-pool deltas among themselves before
+  // adding them to the year accumulators. Netting the whole year together is
+  // the correct Schedule D treatment (the scheduled sales' gains and the
+  // retained pool share one tax return), so a retained loss now offsets the
+  // year's scheduled gains rather than only the retained pool. This differs
+  // only when the target year has scheduled gains AND the retained pool is
+  // mixed-sign — largely unreachable in practice because the phase-2 signed
+  // greedy harvests loss lots into the schedule rather than retaining them
+  // (reachable mainly via future-vest lots that can't be sold at the sale
+  // periods). See revision memo 148, Finding 1.
   const oldLong = targetYearState.longTermGainSoFar;
   const oldShort = targetYearState.shortTermGainSoFar;
   const taxNew = computeYearGainTax(

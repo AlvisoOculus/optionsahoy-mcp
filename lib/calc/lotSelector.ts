@@ -253,6 +253,15 @@ export function marginalTaxForBlock(
 // state / NIIT breakdown for reporting. Each component is the signed delta of
 // the shared year-tax primitive, so a loss block reports the tax it REMOVES
 // (negative) and the three components still sum to the year's true total tax.
+//
+// Because the components are signed, a per-sale row for a loss block committed
+// AFTER same-year gain accumulates can show negative tax. Aggregate totals stay
+// correct (the deltas telescope to the true year tax). In equity-funding this
+// rarely surfaces — the greedy commits loss blocks first, where their marginal
+// is ~0 — but a UI that must show non-negative per-row tax should reallocate the
+// year's netted tax across the period's rows at report time rather than
+// re-clamping here (re-clamping reintroduces the pre-phase-2 fed/NIIT split
+// misreporting). See revision memo 148, Finding 2.
 export function commitBlock(
   state: YearState,
   period: PeriodState,

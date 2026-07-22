@@ -1,7 +1,7 @@
 {
   "_comment": "Drift guard for the co-dependent equityFunding/lotSelector split (RSU-lot-order phase 1, docs/tools/rsu-lot-order-spec.md §2.4). What it enforces: editing equityFunding.ts or lotSelector.ts without regenerating this manifest fails mirror-manifest.test.ts in the SAME repo (file hash != recorded hash), so the manifest is forced to move in lockstep with the pair in every PR that touches them. Sync rule: copy all three (both files + this manifest) into the other repo together. LIMIT: this is a within-repo staleness check, not a cross-repo equality proof — if an edit in one repo is never propagated (both file AND manifest left stale on the other side), each repo stays internally green while drifting. Closing that fully needs a cross-repo assertion (CI fetching the other repo at a pinned ref); until then cross-repo identity rests on the sync PR touching both repos. Regenerate: node scripts/gen-calc-mirror-manifest.mjs. Other lib/calc files are intentionally NOT covered — several already diverge between repos.",
   "files": {
-    "equityFunding.ts": "6e91f631efe7d9e88835c93794d7e8d380f7550439b068ce1fe395beb9a42027",
-    "lotSelector.ts": "189126491f72f94c7228c96b25ae32fd155519f4ef451bd795fd60bff83f0a24"
+    "equityFunding.ts": "37e95eebf6c1c79ecefc23bec471c176dcfbc098d8ac3026ba69c992c9ef0eaf",
+    "lotSelector.ts": "77941b477d2dd2cd959de56f60fc89e5471fc881788ed47b8a35edea92fc91b7"
   }
 }
