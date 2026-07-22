@@ -1,0 +1,7 @@
+{
+  "_comment": "Drift guard for the co-dependent equityFunding/lotSelector split (RSU-lot-order phase 1, docs/tools/rsu-lot-order-spec.md §2.4). These two files MUST stay byte-identical across optionsahoy_web and optionsahoy-mcp: equityFunding.ts imports lotSelector.ts, so a partial sync breaks the mcp build. This manifest is checked into BOTH repos; each repo verifies its local pair against it (mirror-manifest.test.ts). Regenerate with: node scripts/gen-calc-mirror-manifest.mjs. Other lib/calc files are intentionally NOT covered here — several already diverge between repos independent of this work.",
+  "files": {
+    "equityFunding.ts": "420a1042c680b10f134d400dba9d609d215cd8957bba471b0c6eba74e0f8dd72",
+    "lotSelector.ts": "39fdb2166546992a30fc07ff2847d9d65d53f72196b95487567d592e754bbdf3"
+  }
+}
