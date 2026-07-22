@@ -1077,7 +1077,7 @@
                 "concentration": 0.3333333333333333,
                 "riskBand": "Concentrated",
                 "isLongTermToday": true,
-                "longTermDate": "2023-01-01T00:00:00.000Z",
+                "longTermDate": "2023-01-02T00:00:00.000Z",
                 "daysUntilLongTerm": 0,
                 "lossExposure": [
                   {
@@ -1731,7 +1731,7 @@
                             "grossProceeds": 224834.7247426237,
                             "gainAmount": 184834.7247426237,
                             "isLongTerm": true,
-                            "federalTax": 27725.208711393556,
+                            "federalTax": 27725.208711393552,
                             "stateTax": 17323.186648490242,
                             "niit": 7023.7195402197,
                             "netCash": 172762.60984252018
@@ -1875,14 +1875,14 @@
                             "grossProceeds": 21487.64879643726,
                             "gainAmount": 17487.64879643726,
                             "isLongTerm": true,
-                            "federalTax": 2623.147319465589,
+                            "federalTax": 2623.147319465588,
                             "stateTax": 1626.3513380686709,
                             "niit": 664.5306542646167,
                             "netCash": 16573.619484638384
                           }
                         ],
                         "yearGrossProceeds": 21487.64879643726,
-                        "yearTotalTax": 4914.029311798877,
+                        "yearTotalTax": 4914.029311798876,
                         "yearNetCash": 16573.619484638384,
                         "runningCumulativeNet": 33600.26178276821
                       },
@@ -1897,14 +1897,14 @@
                             "grossProceeds": 21623.907490844624,
                             "gainAmount": 17623.907490844624,
                             "isLongTerm": true,
-                            "federalTax": 2643.5861236266946,
+                            "federalTax": 2643.5861236266937,
                             "stateTax": 1639.0233966485503,
                             "niit": 669.7084846520947,
                             "netCash": 16671.589485917284
                           }
                         ],
                         "yearGrossProceeds": 21623.907490844624,
-                        "yearTotalTax": 4952.31800492734,
+                        "yearTotalTax": 4952.318004927339,
                         "yearNetCash": 16671.589485917284,
                         "runningCumulativeNet": 50495.67875238137
                       },
@@ -1919,14 +1919,14 @@
                             "grossProceeds": 21765.615939530675,
                             "gainAmount": 17765.615939530675,
                             "isLongTerm": true,
-                            "federalTax": 2664.8423909296,
+                            "federalTax": 2664.8423909296016,
                             "stateTax": 1652.202282376351,
                             "niit": 675.0934057021659,
                             "netCash": 16773.47786052256
                           }
                         ],
                         "yearGrossProceeds": 21765.615939530675,
-                        "yearTotalTax": 4992.138079008117,
+                        "yearTotalTax": 4992.138079008118,
                         "yearNetCash": 16773.47786052256,
                         "runningCumulativeNet": 67456.40680012487
                       },
@@ -1963,7 +1963,7 @@
                             "grossProceeds": 22047.178903338194,
                             "gainAmount": 18047.178903338194,
                             "isLongTerm": true,
-                            "federalTax": 2707.07683550073,
+                            "federalTax": 2707.0768355007294,
                             "stateTax": 1678.387638010452,
                             "niit": 685.7927983268505,
                             "netCash": 16975.92163150016
@@ -1985,15 +1985,15 @@
                             "grossProceeds": 22191.661186275203,
                             "gainAmount": 18191.661186275203,
                             "isLongTerm": true,
-                            "federalTax": 2728.7491779412794,
+                            "federalTax": 2728.7491779412803,
                             "stateTax": 1691.8244903235936,
                             "niit": 691.2831250784584,
-                            "netCash": 17079.804392931874
+                            "netCash": 17079.80439293187
                           }
                         ],
                         "yearGrossProceeds": 22191.661186275203,
-                        "yearTotalTax": 5111.856793343331,
-                        "yearNetCash": 17079.804392931874,
+                        "yearTotalTax": 5111.856793343332,
+                        "yearNetCash": 17079.80439293187,
                         "runningCumulativeNet": 118729.1712873145
                       },
                       {
@@ -2007,14 +2007,14 @@
                             "grossProceeds": 22332.384203884918,
                             "gainAmount": 18332.384203884918,
                             "isLongTerm": true,
-                            "federalTax": 2749.8576305827382,
+                            "federalTax": 2749.8576305827373,
                             "stateTax": 1704.9117309612957,
                             "niit": 696.6305997476264,
                             "netCash": 17180.98424259326
                           }
                         ],
                         "yearGrossProceeds": 22332.384203884918,
-                        "yearTotalTax": 5151.3999612916605,
+                        "yearTotalTax": 5151.39996129166,
                         "yearNetCash": 17180.98424259326,
                         "runningCumulativeNet": 135949.83487907657
                       },
@@ -2113,7 +2113,7 @@
                             "grossProceeds": 224834.7247426237,
                             "gainAmount": 184834.7247426237,
                             "isLongTerm": true,
-                            "federalTax": 27725.208711393556,
+                            "federalTax": 27725.208711393552,
                             "stateTax": 17323.186648490242,
                             "niit": 7023.7195402197,
                             "netCash": 172762.60984252018

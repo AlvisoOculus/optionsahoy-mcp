@@ -11,6 +11,7 @@ import {
   getStateBrackets,
 } from '@/lib/tax';
 import type { FilingStatus } from '@/lib/tax';
+import { longTermStartDate } from './lotSelector';
 import { LTCG_2026, ORDINARY_2026, NIIT_RATE, NIIT_THRESHOLDS } from '@/lib/tax/federal-2026';
 import { SECTOR_STATS, type SectorKey } from '@/lib/markets/sector-stats';
 import { blackScholesPut, blackScholesCall } from '@/lib/options/black-scholes';
@@ -575,7 +576,7 @@ export function calculate(inputs: ConcentrationInputs, now?: Date): Concentratio
     : 0;
 
   // Holding status
-  const longTermDate = new Date(inputs.acquisitionDate.getTime() + ONE_YEAR_MS);
+  const longTermDate = longTermStartDate(inputs.acquisitionDate);
   const isLongTermToday = today.getTime() >= longTermDate.getTime();
   const daysUntilLongTerm = isLongTermToday
     ? 0
@@ -732,7 +733,7 @@ export function buildCustomPlan(
   // Same precedence as the static hedging line: chain-implied σ if provided,
   // else sector RV × IV adjustment.
   const sigma = inputs.volatility ?? SECTOR_STATS[inputs.sector].annualVol * IV_OVER_RV_MULTIPLIER;
-  const longTermDate = new Date(inputs.acquisitionDate.getTime() + ONE_YEAR_MS);
+  const longTermDate = longTermStartDate(inputs.acquisitionDate);
   const N = actions.sell.length;
 
   const numSellYears = actions.sell.filter(Boolean).length;

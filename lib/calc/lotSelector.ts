@@ -17,14 +17,15 @@
 // changes with before/after deltas — never smuggled into this move.
 
 import {
-  computeFederalGainTax,
   computeNiit,
+  walkOrdinaryBrackets,
+  walkLtcgFederal,
 } from '../tax/bracket-walker';
 import { computeStateGainTax } from '../tax/state-tax';
+import { ORDINARY_2026, LTCG_2026 } from '../tax/federal-2026';
 import type { FilingStatus } from '../tax/types';
 
 export const MS_PER_DAY = 86_400_000;
-export const LT_HOLDING_DAYS = 366;
 
 // Projected $/share at `saleDate`, compounding currentPrice at the annual
 // growth rate. Returns currentPrice unchanged when growth=0 (preserves
@@ -35,9 +36,101 @@ export function projectPrice(currentPrice: number, growthAnnual: number, today: 
   return currentPrice * Math.pow(1 + growthAnnual, yearsForward);
 }
 
+// The earliest sale date that is LONG-TERM for a lot acquired on
+// `acquisitionDate`. The holding period begins the day AFTER acquisition and
+// long-term status requires holding MORE than one year, so a sale is
+// long-term only from the day after the first anniversary. Calendar rule, not
+// a fixed day count: a plain 365- or 366-day count misclassifies sales when a
+// Feb 29 falls inside the one-year window (e.g. a sale exactly one year after
+// a mid-2027 vest, across the 2028 leap day, is 366 days but still only one
+// year — short-term). Last-day-of-month convention (Rev. Rul. 66-7): a Feb 29
+// acquisition's anniversary lands on Feb 28 in a non-leap year, so it turns
+// long-term on Mar 1.
+export function longTermStartDate(acquisitionDate: Date): Date {
+  const y = acquisitionDate.getUTCFullYear() + 1;
+  const m = acquisitionDate.getUTCMonth();
+  const d = acquisitionDate.getUTCDate();
+  let anniv = new Date(Date.UTC(y, m, d));
+  if (anniv.getUTCMonth() !== m) {
+    // The day overflowed the target month (only Feb 29 -> non-leap Feb);
+    // clamp to the last day of the intended month (day 0 of the next month).
+    anniv = new Date(Date.UTC(y, m + 1, 0));
+  }
+  // Long-term begins the day after the anniversary ("more than one year").
+  return new Date(anniv.getTime() + MS_PER_DAY);
+}
+
 export function isLongTermFor(acquisitionDate: Date, saleDate: Date): boolean {
-  const diff = (saleDate.getTime() - acquisitionDate.getTime()) / MS_PER_DAY;
-  return diff >= LT_HOLDING_DAYS;
+  return saleDate.getTime() >= longTermStartDate(acquisitionDate).getTime();
+}
+
+// Total federal + state + NIIT on a full-year gain position (the cumulative
+// long-term and short-term gain accumulators for one tax year), applying the
+// real Schedule D treatment. Both the block-marginal functions below and the
+// retained-liquidation backstop price a year by differencing this at two
+// positions, so the tax law lives in exactly one place.
+//
+//   1. Schedule D cross-offset — a net loss in one character absorbs the net
+//      gain in the other before either meets the bracket walker.
+//   2. IRS Qualified Dividends & Capital Gain worksheet stacking — net
+//      short-term gain is taxed as ordinary income from the ordinary base, and
+//      the LTCG 0/15/20 cursor starts ABOVE ordinary income + short-term gain
+//      (NOT long-term at the ordinary base with short-term stacked on top).
+//   3. NIIT on the post-offset net investment income.
+//   4. Per-bucket state tax on the post-netting remainders (same ST-first
+//      stacking), so long-term-preference states see the right kind of gain.
+//
+// A net capital loss year returns zero here (the $3,000 ordinary offset and
+// loss carryforward are plan-level concerns owned by the RSU lot-divest
+// engine, not this single-year primitive).
+export function computeYearGainTax(
+  ordinaryIncome: number,
+  longAccum: number,
+  shortAccum: number,
+  filingStatus: FilingStatus,
+  stateCode: string,
+): { federal: number; state: number; niit: number } {
+  let nl = longAccum;
+  let ns = shortAccum;
+  if (nl < 0 && ns > 0) {
+    const off = Math.min(-nl, ns);
+    nl += off;
+    ns -= off;
+  } else if (ns < 0 && nl > 0) {
+    const off = Math.min(-ns, nl);
+    ns += off;
+    nl -= off;
+  }
+  const remLong = Math.max(0, nl);
+  const remShort = Math.max(0, ns);
+  if (remLong <= 0 && remShort <= 0) return { federal: 0, state: 0, niit: 0 };
+
+  const ordSchedule = ORDINARY_2026[filingStatus];
+  const fedShort =
+    walkOrdinaryBrackets(ordinaryIncome + remShort, ordSchedule) -
+    walkOrdinaryBrackets(ordinaryIncome, ordSchedule);
+  const fedLong = walkLtcgFederal(ordinaryIncome + remShort, remLong, LTCG_2026[filingStatus]);
+  const federal = fedShort + fedLong;
+
+  const niit = computeNiit(ordinaryIncome, remLong + remShort, filingStatus);
+
+  const stateShort = computeStateGainTax({
+    stateCode,
+    ordinaryIncome,
+    gainAmount: remShort,
+    isLongTerm: false,
+    filingStatus,
+  });
+  const stateLong = computeStateGainTax({
+    stateCode,
+    ordinaryIncome: ordinaryIncome + remShort,
+    gainAmount: remLong,
+    isLongTerm: true,
+    filingStatus,
+  });
+  const state = stateShort + stateLong;
+
+  return { federal, state, niit };
 }
 
 // Per-year tax accumulator, shared across all sale periods within the same
@@ -122,9 +215,13 @@ export function flattenStacks(stacks: FlattenableStack[], today: Date): FlatLot[
   return flatLots;
 }
 
-// Marginal tax for selling `deltaShares` more from `lotIdx` in year Y,
-// given the year's running state. Returns the incremental federal +
-// state + NIIT delta (not the total).
+// Marginal tax for selling `deltaShares` more from `lotIdx` in year Y, given
+// the year's running state: the delta in total (fed + state + NIIT) tax
+// between the year position with and without this block. Signed — a loss
+// block that offsets accumulated gain returns a NEGATIVE marginal tax (it
+// removes tax), so a lowest-marginal-tax greedy can rank loss harvesting.
+// Returns Infinity for a lot not yet acquired or already exhausted so the
+// caller skips it.
 export function marginalTaxForBlock(
   state: YearState,
   period: PeriodState,
@@ -139,67 +236,23 @@ export function marginalTaxForBlock(
   if (!meta.acquired) return Infinity;
   if (inventory[lotIdx].sharesRemaining <= 0) return Infinity;
   const incrementalGain = deltaShares * meta.gainPerShare;
-  if (incrementalGain <= 0) return 0;
 
   const oldLong = state.longTermGainSoFar;
   const oldShort = state.shortTermGainSoFar;
   const newLong = meta.isLongTerm ? oldLong + incrementalGain : oldLong;
   const newShort = meta.isLongTerm ? oldShort : oldShort + incrementalGain;
 
-  // Federal tax (LTCG bracket walk + ordinary-as-short-term + NIIT)
-  // computeFederalGainTax already includes NIIT. We compute it separately
-  // for reporting but the bracket-walker treats them together.
-  const fedNew =
-    computeFederalGainTax({
-      ordinaryIncome,
-      gainAmount: newLong,
-      isLongTerm: true,
-      filingStatus,
-    }) +
-    computeFederalGainTax({
-      ordinaryIncome: ordinaryIncome + newLong,
-      gainAmount: newShort,
-      isLongTerm: false,
-      filingStatus,
-    });
-  const fedOld =
-    computeFederalGainTax({
-      ordinaryIncome,
-      gainAmount: oldLong,
-      isLongTerm: true,
-      filingStatus,
-    }) +
-    computeFederalGainTax({
-      ordinaryIncome: ordinaryIncome + oldLong,
-      gainAmount: oldShort,
-      isLongTerm: false,
-      filingStatus,
-    });
-  const incrementalFed = fedNew - fedOld;
-
-  const stateNew =
-    computeStateGainTax({
-      stateCode,
-      ordinaryIncome,
-      gainAmount: newLong + newShort,
-      isLongTerm: meta.isLongTerm,
-      filingStatus,
-    });
-  const stateOld =
-    computeStateGainTax({
-      stateCode,
-      ordinaryIncome,
-      gainAmount: oldLong + oldShort,
-      isLongTerm: meta.isLongTerm,
-      filingStatus,
-    });
-  const incrementalState = stateNew - stateOld;
-
-  return incrementalFed + incrementalState;
+  const taxNew = computeYearGainTax(ordinaryIncome, newLong, newShort, filingStatus, stateCode);
+  const taxOld = computeYearGainTax(ordinaryIncome, oldLong, oldShort, filingStatus, stateCode);
+  return (
+    taxNew.federal + taxNew.state + taxNew.niit - (taxOld.federal + taxOld.state + taxOld.niit)
+  );
 }
 
-// Commit a block sale into the year state, returning the incremental
-// federal / state / NIIT breakdown for reporting.
+// Commit a block sale into the year state, returning the incremental federal /
+// state / NIIT breakdown for reporting. Each component is the signed delta of
+// the shared year-tax primitive, so a loss block reports the tax it REMOVES
+// (negative) and the three components still sum to the year's true total tax.
 export function commitBlock(
   state: YearState,
   period: PeriodState,
@@ -218,67 +271,17 @@ export function commitBlock(
   const newLong = meta.isLongTerm ? oldLong + incrementalGain : oldLong;
   const newShort = meta.isLongTerm ? oldShort : oldShort + incrementalGain;
 
-  // NIIT is included in computeFederalGainTax. Separate it for reporting
-  // by computing the NIIT delta directly.
-  const niitNew = computeNiit(ordinaryIncome, newLong + newShort, filingStatus);
-  const niitOld = computeNiit(ordinaryIncome, oldLong + oldShort, filingStatus);
-  const incrementalNiit = Math.max(0, niitNew - niitOld);
-
-  const fedTotalNew =
-    computeFederalGainTax({
-      ordinaryIncome,
-      gainAmount: newLong,
-      isLongTerm: true,
-      filingStatus,
-    }) +
-    computeFederalGainTax({
-      ordinaryIncome: ordinaryIncome + newLong,
-      gainAmount: newShort,
-      isLongTerm: false,
-      filingStatus,
-    });
-  const fedTotalOld =
-    computeFederalGainTax({
-      ordinaryIncome,
-      gainAmount: oldLong,
-      isLongTerm: true,
-      filingStatus,
-    }) +
-    computeFederalGainTax({
-      ordinaryIncome: ordinaryIncome + oldLong,
-      gainAmount: oldShort,
-      isLongTerm: false,
-      filingStatus,
-    });
-  // computeFederalGainTax bundles NIIT in — subtract the NIIT portion to
-  // isolate pure federal tax for reporting.
-  const incrementalFedBundle = fedTotalNew - fedTotalOld;
-  const incrementalFedOnly = incrementalFedBundle - incrementalNiit;
-
-  const stateNew = computeStateGainTax({
-    stateCode,
-    ordinaryIncome,
-    gainAmount: newLong + newShort,
-    isLongTerm: meta.isLongTerm,
-    filingStatus,
-  });
-  const stateOld = computeStateGainTax({
-    stateCode,
-    ordinaryIncome,
-    gainAmount: oldLong + oldShort,
-    isLongTerm: meta.isLongTerm,
-    filingStatus,
-  });
-  const incrementalState = stateNew - stateOld;
+  const taxNew = computeYearGainTax(ordinaryIncome, newLong, newShort, filingStatus, stateCode);
+  const taxOld = computeYearGainTax(ordinaryIncome, oldLong, oldShort, filingStatus, stateCode);
 
   state.longTermGainSoFar = newLong;
   state.shortTermGainSoFar = newShort;
   inventory[lotIdx].sharesRemaining -= deltaShares;
 
   return {
-    federal: incrementalFedOnly,
-    stateT: incrementalState,
-    niit: incrementalNiit,
+    federal: taxNew.federal - taxOld.federal,
+    stateT: taxNew.state - taxOld.state,
+    niit: taxNew.niit - taxOld.niit,
     gain: incrementalGain,
   };
 }

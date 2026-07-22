@@ -27,7 +27,7 @@
 // modeled via per-stack `expectedAnnualGrowth` plugged into projectPrice
 // at each scheduled sale date.
 
-import { computeFederalGainTax, walkOrdinaryBrackets } from '../tax/bracket-walker';
+import { walkOrdinaryBrackets } from '../tax/bracket-walker';
 import { computeStateGainTax } from '../tax/state-tax';
 import { ORDINARY_2026 } from '../tax/federal-2026';
 import type { FilingStatus } from '../tax/types';
@@ -36,6 +36,7 @@ import {
   isLongTermFor,
   marginalTaxForBlock,
   commitBlock,
+  computeYearGainTax,
   projectPrice,
 } from './lotSelector';
 import type { FlatLot, YearState, PeriodState, LotInventory } from './lotSelector';
@@ -422,91 +423,22 @@ function computeRetainedLiquidation(
 
   if (grossByStack.every((g) => g <= 0)) return grossByStack;
 
-  // Capital-loss cross-offset within the same tax return: a net long-term
-  // LOSS in the retained pool absorbs short-term GAINS dollar-for-dollar
-  // (and vice versa) before either bucket meets the bracket walker.
-  let netLong = aggregateLongDelta;
-  let netShort = aggregateShortDelta;
-  if (netLong < 0 && netShort > 0) {
-    const offset = Math.min(-netLong, netShort);
-    netLong += offset;
-    netShort -= offset;
-  } else if (netShort < 0 && netLong > 0) {
-    const offset = Math.min(-netShort, netLong);
-    netShort += offset;
-    netLong -= offset;
-  }
-
+  // Tax the retained-liquidation delta through the shared year-tax primitive
+  // (Schedule D netting, IRS worksheet stacking, per-bucket state, NIIT). The
+  // helper nets the full-year position internally, so pass the raw accumulator
+  // totals with and without the retained deltas and difference them.
   const oldLong = targetYearState.longTermGainSoFar;
   const oldShort = targetYearState.shortTermGainSoFar;
-  // Net taxable gains for the year, clamped at 0 in each bucket — losses
-  // that drive a bucket negative either offset the other bucket (above) or
-  // become a net capital loss that carries forward beyond our horizon (so
-  // it produces zero benefit in this plan).
-  const newLong = Math.max(0, oldLong + netLong);
-  const newShort = Math.max(0, oldShort + netShort);
-
-  const fedTotalNew =
-    computeFederalGainTax({
-      ordinaryIncome,
-      gainAmount: newLong,
-      isLongTerm: true,
-      filingStatus,
-    }) +
-    computeFederalGainTax({
-      ordinaryIncome: ordinaryIncome + newLong,
-      gainAmount: newShort,
-      isLongTerm: false,
-      filingStatus,
-    });
-  const fedTotalOld =
-    computeFederalGainTax({
-      ordinaryIncome,
-      gainAmount: oldLong,
-      isLongTerm: true,
-      filingStatus,
-    }) +
-    computeFederalGainTax({
-      ordinaryIncome: ordinaryIncome + oldLong,
-      gainAmount: oldShort,
-      isLongTerm: false,
-      filingStatus,
-    });
-  const fedDelta = fedTotalNew - fedTotalOld;
-
-  // State: mirror the federal LT/ST split so states that give an LT
-  // preference (HI, etc.) see the right kind of gain in each bucket.
-  const stateNewLong = computeStateGainTax({
-    stateCode,
+  const taxNew = computeYearGainTax(
     ordinaryIncome,
-    gainAmount: newLong,
-    isLongTerm: true,
+    oldLong + aggregateLongDelta,
+    oldShort + aggregateShortDelta,
     filingStatus,
-  });
-  const stateNewShort = computeStateGainTax({
     stateCode,
-    ordinaryIncome: ordinaryIncome + newLong,
-    gainAmount: newShort,
-    isLongTerm: false,
-    filingStatus,
-  });
-  const stateOldLong = computeStateGainTax({
-    stateCode,
-    ordinaryIncome,
-    gainAmount: oldLong,
-    isLongTerm: true,
-    filingStatus,
-  });
-  const stateOldShort = computeStateGainTax({
-    stateCode,
-    ordinaryIncome: ordinaryIncome + oldLong,
-    gainAmount: oldShort,
-    isLongTerm: false,
-    filingStatus,
-  });
-  const stateDelta = stateNewLong + stateNewShort - stateOldLong - stateOldShort;
-
-  const totalTaxDelta = fedDelta + stateDelta;
+  );
+  const taxOld = computeYearGainTax(ordinaryIncome, oldLong, oldShort, filingStatus, stateCode);
+  const totalTaxDelta =
+    taxNew.federal + taxNew.state + taxNew.niit - (taxOld.federal + taxOld.state + taxOld.niit);
 
   // Allocate the (possibly negative) tax delta across stacks by each
   // stack's contribution to the absolute-gain pool. For pure-gain cases
