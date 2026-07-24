@@ -101,6 +101,13 @@ function numbersIn(o: any): (number | string)[] {
 // Default content states every number in the args, so the guard treats them as
 // user-given. Tests of the strip/ask paths pass explicit content that omits the
 // number being tested.
+// Deterministic free-period env. Tests that assert FREE-branch behavior (the
+// free-tool link, "free" wording, the free rate card) must pin this instead of
+// relying on the code's DEFAULT_FREE_UNTIL — that default is a real calendar
+// date, and when it passed (2026-07-22) every unpinned free-branch assertion
+// time-bombed red with zero code change. Paid-branch tests pin '2020-01-01'.
+const FREE_ENV = { POE_FREE_UNTIL: '2099-01-01' } as const;
+
 async function ask(tool: string, args: any, env: Record<string, unknown> = {}, req: any = {}, content?: string): Promise<string> {
   const c = content ?? `my details: ${numbersIn(args).join(' ')}`;
   const res = await handleQuery(ctx(env), { type: 'query', query: [{ role: 'user', content: c }], ...req }, async () => ({ tool, args }));
@@ -140,7 +147,7 @@ describe('poe HTTP surface', () => {
 
 describe('poe settings payload', () => {
   it('declares NO Poe dependencies (extraction runs on our model), with intro + free rate card', async () => {
-    const body = (await (await onRequest({ request: poeRequest({ type: 'settings' }), env: {} } as any)).json()) as any;
+    const body = (await (await onRequest({ request: poeRequest({ type: 'settings' }), env: FREE_ENV } as any)).json()) as any;
     expect(Object.keys(body.server_bot_dependencies).length).toBe(0);
     expect(typeof body.introduction_message).toBe('string');
     expect(body.content_type).toBe('text/markdown');
@@ -158,7 +165,7 @@ describe('poe settings payload', () => {
 describe('poe answers (all 7 tools)', () => {
   for (const tool of ALL_TOOLS) {
     it(`${tool}: returns a headline, a comparison, and the free-tool link`, async () => {
-      const text = await ask(tool, VALID_ARGS[tool]);
+      const text = await ask(tool, VALID_ARGS[tool], FREE_ENV);
       expect(text).toContain('**'); // bold headline
       expect(text).toMatch(COMPARISON_MARKER[tool]);
       expect(text).toContain(`?src=poe_`);
@@ -697,7 +704,7 @@ describe('poe pricing', () => {
     expect(pricingActive({ POE_FREE_UNTIL: '2020-01-01', POE_PRICE_MILLI_CENTS: '0' })).toBe(false);
   });
   it('free period: answer links the free tool', async () => {
-    const text = await ask('amt_iso_optimize', VALID_ARGS.amt_iso_optimize); // default env = free
+    const text = await ask('amt_iso_optimize', VALID_ARGS.amt_iso_optimize, FREE_ENV);
     expect(text).toContain('/tools/amt-iso?src=poe_amt_iso');
     expect(text).toContain('free');
   });

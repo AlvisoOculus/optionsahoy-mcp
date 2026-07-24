@@ -37,7 +37,7 @@ const DEFAULT_OR_MODEL = 'openai/gpt-4o-mini';
 // message. 30000 milli-cents = $0.30 (1 USD = 100,000 milli-cents). Both are
 // overridable by env so pricing can change without a code edit.
 const DEFAULT_PRICE_MILLI_CENTS = 30000;
-const DEFAULT_FREE_UNTIL = '2026-07-22'; // UTC date; free strictly before this.
+const DEFAULT_FREE_UNTIL = '2026-08-22'; // UTC date; free strictly before this.
 
 type PoeEnv = {
   POE_ACCESS_KEY?: string;
