@@ -28,6 +28,7 @@ const PREFIX: Record<string, string> = {
   protective_put_price: 'ProtectivePut',
   qsbs_check: 'Qsbs',
   equity_funding_plan: 'EquityFunding',
+  rsu_lot_optimize: 'RsuLotOptimize',
 };
 
 describe('MCP toolspec <-> REST openapi input-field parity', () => {

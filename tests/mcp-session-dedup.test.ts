@@ -26,6 +26,7 @@ const ALL_TOOLS = [
   'protective_put_price',
   'qsbs_check',
   'equity_funding_plan',
+  'rsu_lot_optimize',
 ];
 import type { D1Database, D1PreparedStatement } from '../functions/_lib/stats';
 
@@ -145,7 +146,7 @@ describe('nextStepsFor', () => {
     expect(nextStepsFor('not_a_real_tool', 2)).toBeUndefined();
   });
 
-  it('all 7 tools have a free-tool, bare URL, related nudge, and beta pitch', () => {
+  it('all 8 tools have a free-tool, bare URL, related nudge, and beta pitch', () => {
     for (const name of ALL_TOOLS) {
       expect(PER_TOOL_FREE_TOOL[name], `missing free tool for ${name}`).toBeTruthy();
       expect(PER_TOOL_FREE_TOOL_BARE[name], `missing bare URL for ${name}`).toBeTruthy();
@@ -257,7 +258,7 @@ describe('multi-tool meta-instruction in tool descriptions', () => {
     const body = (await res.json()) as {
       result: { tools: { name: string; description: string }[] };
     };
-    expect(body.result.tools).toHaveLength(7);
+    expect(body.result.tools).toHaveLength(8);
     for (const tool of body.result.tools) {
       expect(
         tool.description,

@@ -1,6 +1,6 @@
 """Minimal CrewAI crew that answers an equity-compensation question with OptionsAhoy.
 
-This builds a single CrewAI Agent equipped with the seven OptionsAhoy tools, gives it
+This builds a single CrewAI Agent equipped with the eight OptionsAhoy tools, gives it
 one Task, wraps them in a Crew, and runs the crew. The agent uses the tools to compute
 exact, tax-aware answers rather than estimating the math itself.
 

@@ -8,6 +8,7 @@ from arcade_optionsahoy.tools import (
     nso_calculate,
     protective_put_price,
     qsbs_check,
+    rsu_lot_optimize,
     rsu_sell_vs_hold,
 )
 
@@ -18,6 +19,7 @@ __all__ = [
     "nso_calculate",
     "protective_put_price",
     "qsbs_check",
+    "rsu_lot_optimize",
     "rsu_sell_vs_hold",
 ]
 __version__ = "0.1.8"

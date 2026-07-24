@@ -17,7 +17,7 @@ from optionsahoy import OptionsAhoyClient
 
 
 class OptionsAhoyToolSpec(BaseToolSpec):
-    """LlamaIndex tool spec exposing the seven OptionsAhoy calculator endpoints.
+    """LlamaIndex tool spec exposing the eight OptionsAhoy calculator endpoints.
 
     Use ``to_tool_list()`` to get one LlamaIndex ``FunctionTool`` per endpoint, ready to
     hand to an agent. No application programming interface (API) key is required.
@@ -36,6 +36,7 @@ class OptionsAhoyToolSpec(BaseToolSpec):
         "protective_put_price",
         "qsbs_check",
         "equity_funding_plan",
+        "rsu_lot_optimize",
     ]
 
     def __init__(self, client: Optional[OptionsAhoyClient] = None) -> None:
@@ -406,4 +407,39 @@ class OptionsAhoyToolSpec(BaseToolSpec):
             cashInterestRate=cashInterestRate,
             riskToleranceShortfall=riskToleranceShortfall,
             defaultVolatility=defaultVolatility,
+        )
+
+    def rsu_lot_optimize(
+        self,
+        lots: List[Dict[str, Any]],
+        currentPrice: float,
+        divestFraction: float,
+        horizonYears: int,
+        ordinaryIncome: float,
+        filingStatus: str,
+        stateCode: str,
+    ) -> Dict[str, Any]:
+        """Which vested restricted stock unit (RSU) lots to sell, and when, to divest a
+        target share fraction at the lowest tax: specific-lot identification, long-term
+        deferral, and multi-year bracket spreading versus a first-in-first-out (FIFO) sell
+        order.
+
+        Args:
+            lots: Vested RSU lots to draw from. Each lot is a dict with vestDate (ISO date,
+                YYYY-MM-DD), shares, and costBasisPerShare.
+            currentPrice: Current share price.
+            divestFraction: Target share fraction to divest, as a decimal (0.1 to 1.0).
+            horizonYears: Planning horizon in years (1 to 3).
+            ordinaryIncome: Annual ordinary income.
+            filingStatus: Tax filing status (single, married_joint, head_household).
+            stateCode: Two-letter US state code, or DC.
+        """
+        return self._client.rsu_lot_order(
+            lots=lots,
+            currentPrice=currentPrice,
+            divestFraction=divestFraction,
+            horizonYears=horizonYears,
+            ordinaryIncome=ordinaryIncome,
+            filingStatus=filingStatus,
+            stateCode=stateCode,
         )

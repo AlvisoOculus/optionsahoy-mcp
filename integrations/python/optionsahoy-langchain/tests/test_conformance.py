@@ -20,6 +20,7 @@ NAME_TO_SLUG = {
     "optionsahoy_protective_put_price": "protective-put",
     "optionsahoy_qsbs_check": "qsbs",
     "optionsahoy_equity_funding_plan": "equity-funding",
+    "optionsahoy_rsu_lot_optimize": "rsu-lot-order",
 }
 
 

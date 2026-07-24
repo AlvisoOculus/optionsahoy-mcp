@@ -16,6 +16,7 @@ plus all 50 states and DC:
 - Qualified small business stock (QSBS) eligibility
 - Single-stock concentration analysis
 - Protective-put hedging
+- Vested restricted stock unit (RSU) lot sell order, lowest tax versus first-in-first-out (FIFO)
 
 ## How it works
 

@@ -78,7 +78,7 @@ const init = await rpc('initialize', {
 check('initialize', init.serverInfo?.name === 'OptionsAhoy', `serverInfo=${JSON.stringify(init.serverInfo)}`);
 
 const tools = (await rpc('tools/list', {})).tools;
-check('tools/list has 7 tools', tools.length === 7, tools.map((t) => t.name).join(','));
+check('tools/list has 8 tools', tools.length === 8, tools.map((t) => t.name).join(','));
 check(
   'tools/list: every tool has an outputSchema (type object)',
   tools.every((t) => t.outputSchema?.type === 'object'),

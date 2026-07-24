@@ -216,6 +216,26 @@ class EquityFundingArgs(BaseModel):
     defaultVolatility: Optional[float] = Field(None, ge=0, description="Default annualized volatility.")
 
 
+class RsuLotArgs(BaseModel):
+    """Inputs for the vested restricted stock unit (RSU) lot sell-order optimizer."""
+
+    lots: List[Dict[str, Any]] = Field(
+        ...,
+        description=(
+            "Vested RSU lots to draw from. Each lot is a dict with vestDate (ISO date, "
+            "YYYY-MM-DD), shares, and costBasisPerShare."
+        ),
+    )
+    currentPrice: float = Field(..., ge=0, description="Current share price.")
+    divestFraction: float = Field(
+        ..., ge=0.1, le=1.0, description="Target share fraction to divest, as a decimal (0.1 to 1.0)."
+    )
+    horizonYears: int = Field(..., ge=1, le=3, description="Planning horizon in years (1 to 3).")
+    ordinaryIncome: float = Field(..., ge=0, description="Annual ordinary income.")
+    filingStatus: FilingStatus = Field(..., description="Tax filing status.")
+    stateCode: str = Field(..., description="Two-letter US state code, or DC.")
+
+
 # --- tool base -------------------------------------------------------------
 
 
@@ -316,6 +336,17 @@ class EquityFundingTool(_OptionsAhoyTool):
     client_method: str = "equity_funding"
 
 
+class RsuLotTool(_OptionsAhoyTool):
+    name: str = "optionsahoy_rsu_lot_optimize"
+    description: str = (
+        "Which vested RSU lots to sell, and when, to divest a target share fraction at the "
+        "lowest tax: specific-lot identification, long-term deferral, and multi-year bracket "
+        "spreading versus a first-in-first-out (FIFO) sell order."
+    )
+    args_schema: Type[BaseModel] = RsuLotArgs
+    client_method: str = "rsu_lot_order"
+
+
 _TOOL_CLASSES = [
     AmtIsoTool,
     NsoTool,
@@ -324,6 +355,7 @@ _TOOL_CLASSES = [
     ProtectivePutTool,
     QsbsTool,
     EquityFundingTool,
+    RsuLotTool,
 ]
 
 

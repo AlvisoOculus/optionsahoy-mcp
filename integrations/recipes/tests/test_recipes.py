@@ -28,6 +28,7 @@ RECIPES = [
     ("price_protective_put_or_collar", "price_protective_put", "/api/v1/protective-put", "barePut"),
     ("check_qsbs_section_1202_eligibility", "check_qsbs_eligibility", "/api/v1/qsbs", "verdict"),
     ("plan_stock_sales_for_cash_goal", "plan_equity_sales_for_cash_goal", "/api/v1/equity-funding", "recommended"),
+    ("optimize_rsu_lot_order", "optimize_rsu_lot_order", "/api/v1/rsu-lot-order", "schedule"),
 ]
 
 IDS = [r[0] for r in RECIPES]

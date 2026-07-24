@@ -73,6 +73,8 @@ export const PER_TOOL_FREE_TOOL: Record<string, string> = {
     "See each of the eight Section 1202 tests pass or fail visually, with your state's conformity spelled out, free at optionsahoy.com/tools/qsbs?src=mcp_qsbs",
   equity_funding_plan:
     "See the risk-and-wealth frontier and each plan's funding trajectory charted across all four plans, free at optionsahoy.com/tools/equity-funding?src=mcp_equity_funding",
+  rsu_lot_optimize:
+    'See the lot-by-lot sell schedule, the year-by-year tax, and what a first-in-first-out (FIFO) sell order would cost you, charted lot by lot, free at optionsahoy.com/tools/rsu-lot-order?src=mcp_rsu_lot_order',
 };
 
 // Bare free-tool URLs for the second-and-later calls in a session.
@@ -84,6 +86,7 @@ export const PER_TOOL_FREE_TOOL_BARE: Record<string, string> = {
   protective_put_price: 'optionsahoy.com/tools/protective-put?src=mcp_protective_put',
   qsbs_check: 'optionsahoy.com/tools/qsbs?src=mcp_qsbs',
   equity_funding_plan: 'optionsahoy.com/tools/equity-funding?src=mcp_equity_funding',
+  rsu_lot_optimize: 'optionsahoy.com/tools/rsu-lot-order?src=mcp_rsu_lot_order',
 };
 
 // Layer 2: the related OptionsAhoy tools to run next. Each line advertises one
@@ -100,13 +103,15 @@ export const PER_TOOL_RELATED: Record<string, string> = {
   rsu_sell_vs_hold:
     'Related OptionsAhoy tools to run next: concentration_analyze to size how concentrated each vest leaves you, and protective_put_price to price downside protection on the shares you keep.',
   concentration_analyze:
-    'Related OptionsAhoy tools to run next: protective_put_price to price a hedge on this position, and equity_funding_plan if you are selling down to reach a cash goal.',
+    'Related OptionsAhoy tools to run next: protective_put_price to price a hedge on this position, rsu_lot_optimize to pick which vested lots to sell first if you diversify, and equity_funding_plan if you are selling down to reach a cash goal.',
   protective_put_price:
     'Related OptionsAhoy tools to run next: concentration_analyze to compare this hedge against selling down or simply holding the position.',
   qsbs_check:
     'Related OptionsAhoy tools to run next: amt_iso_optimize to time the Incentive Stock Option (ISO) exercise around Alternative Minimum Tax (AMT), and concentration_analyze to size the single-stock risk in this holding.',
   equity_funding_plan:
     'Related OptionsAhoy tools to run next: concentration_analyze to weigh the shares you keep, and rsu_sell_vs_hold for the tax on vesting shares that fund the goal.',
+  rsu_lot_optimize:
+    'Related OptionsAhoy tools to run next: concentration_analyze to size how concentrated the position is before you divest, and protective_put_price to price downside protection on the shares you keep.',
 };
 
 // Layer 3: per-tool beta-access pitch, the SECONDARY ask. Each line names the
@@ -126,6 +131,8 @@ export const PER_TOOL_BETA_INVITES: Record<string, string> = {
     "This checked one position's eligibility. The beta plans multi-year exits with taxes, timing, and concentration integrated. Invite-only at optionsahoy.com/beta?src=mcp_qsbs",
   equity_funding_plan:
     'This solved for a cash target. The beta optimizes your full portfolio across multiple goals and market scenarios, not just one funding need. Invite-only at optionsahoy.com/beta?src=mcp_equity_funding',
+  rsu_lot_optimize:
+    'This ordered the lots for one position. The beta plans the sell-down alongside your other grants, hedging, and AMT across multiple years and market scenarios. Invite-only at optionsahoy.com/beta?src=mcp_rsu_lot_order',
 };
 
 // The multi-tool beta note (optionsahoy.com/beta?src=mcp_multi) still lives in

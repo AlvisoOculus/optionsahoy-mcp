@@ -57,6 +57,12 @@ const ENDPOINTS = [
       'Plan the minimum-tax sell schedule to net a target after-tax amount by a deadline from equity holdings.',
   },
   {
+    method: 'POST',
+    path: '/api/v1/rsu-lot-order',
+    description:
+      'Choose which vested RSU lots to sell, on which dates, to divest a target share fraction at the lowest tax (specific-lot ID, long-term deferral, multi-year bracket spreading) versus a FIFO sell order.',
+  },
+  {
     method: 'GET',
     path: '/api/v1/stats',
     description:

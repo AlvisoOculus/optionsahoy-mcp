@@ -6,7 +6,7 @@ Drop-in ways to reach the OptionsAhoy equity-compensation calculators from whate
 
 | Integration | What it is | Path |
 |---|---|---|
-| Python REST client | A thin, dependency-light Python client wrapping the seven calculators behind one synchronous client. | [`python/optionsahoy`](python/optionsahoy) |
+| Python REST client | A thin, dependency-light Python client wrapping the eight calculators behind one synchronous client. | [`python/optionsahoy`](python/optionsahoy) |
 | CrewAI tools | One `crewai.tools.BaseTool` per endpoint, built on the keyless `optionsahoy` client. | [`python/crewai-optionsahoy`](python/crewai-optionsahoy) |
 | Arcade toolkit | An Arcade toolkit exposing one `@tool` function per endpoint via the Arcade Tool Development Kit. | [`python/arcade-optionsahoy`](python/arcade-optionsahoy) |
 | LlamaIndex tools | An `OptionsAhoyToolSpec` exposing one tool per endpoint for LlamaIndex agents. | [`python/llama-index-tools-optionsahoy`](python/llama-index-tools-optionsahoy) |

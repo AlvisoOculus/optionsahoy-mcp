@@ -37,6 +37,7 @@ const EXPECTED_SKILL_IDS = [
   'protective_put_price',
   'qsbs_check',
   'equity_funding_plan',
+  'rsu_lot_optimize',
 ];
 
 const QSBS_INPUT = {
@@ -69,7 +70,7 @@ const CONCENTRATION_INPUT = {
 };
 
 describe('A2A Agent Card', () => {
-  it('has the expected protocol version, transport, and seven skills', () => {
+  it('has the expected protocol version, transport, and eight skills', () => {
     const card = buildAgentCard();
     expect(card.protocolVersion).toBe('0.3.0');
     expect(card.preferredTransport).toBe('JSONRPC');

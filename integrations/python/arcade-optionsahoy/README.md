@@ -18,7 +18,7 @@ Beyond determinism, the tax math is independently verified, every release: every
 
 ## What it provides
 
-The toolkit exposes seven Arcade tools, each a `@tool`-decorated function with `typing.Annotated` parameters mirroring its endpoint:
+The toolkit exposes eight Arcade tools, each a `@tool`-decorated function with `typing.Annotated` parameters mirroring its endpoint:
 
 - `AmtIsoOptimize` - multi-year ISO exercise optimizer under the alternative minimum tax (AMT)
 - `NsoCalculate` - non-qualified stock option (NSO) exercise tax, sell-at-exercise versus hold
@@ -27,6 +27,7 @@ The toolkit exposes seven Arcade tools, each a `@tool`-decorated function with `
 - `ProtectivePutPrice` - protective put, zero-cost collar, and put spread pricing
 - `QsbsCheck` - qualified small business stock (QSBS) Section 1202 eligibility and exclusion
 - `EquityFundingPlan` - multi-year plan to fund a cash goal from equity by a target date
+- `RsuLotOptimize` - which vested RSU lots to sell, and when, to divest a target fraction at the lowest tax
 
 Coverage spans the full federal tax code plus all 50 states and DC. The toolkit pulls in the keyless `optionsahoy` client automatically. No API key is read, stored, or sent anywhere. Set `OPTIONSAHOY_BASE_URL` to point the tools at a different host.
 
@@ -75,6 +76,11 @@ Plans which equity lots to sell, and when, to fund a cash goal by a target date 
 - Optional: `expected_annual_growth` (decimal), `cash_interest_rate` (decimal), `risk_tolerance_shortfall` (0 to 1), `default_volatility` (decimal).
 - Returns: four named plans `recommended`, `lockInNow`, `balanced`, `holdForGrowth`, plus `frontier[]`, and the echoed `targetAfterTax`, `targetDateISO`, `appliedRiskTolerance`. Each plan carries `wealthAtTarget`, `totalTax`, `shortfallProbability`, and a `plan` with `feasible`, `schedule` (per-year sales), `comparison`, and `remainingShares`.
 
+### `RsuLotOptimize`
+Chooses which vested restricted stock unit (RSU) lots to sell, and when, to divest a target share fraction at the lowest tax, using specific-lot identification, long-term deferral, and multi-year bracket spreading, versus a first-in-first-out (FIFO) sell order.
+- Inputs (required): `lots` (vested RSU lots to draw from, each `{vestDate: YYYY-MM-DD, shares, costBasisPerShare}`), `current_price` (USD), `divest_fraction` (target share fraction to divest, 0.1 to 1.0), `horizon_years` (1 to 3), `ordinary_income` (USD), `filing_status`, `state_code`.
+- Returns: the optimized lot-selling schedule and its total tax, compared against the naive FIFO order, with the per-year and per-lot sales that reach the target divest fraction.
+
 The authoritative request schemas are the OpenAPI spec at <https://optionsahoy.com/openapi.json> and the agent docs at <https://optionsahoy.com/for-agents>.
 
 ## Install
@@ -94,7 +100,7 @@ import arcade_optionsahoy
 catalog = ToolCatalog()
 catalog.add_module(arcade_optionsahoy)
 
-print(len(catalog))                 # 7
+print(len(catalog))                 # 8
 print([t.definition.name for t in catalog])
 ```
 
@@ -120,7 +126,7 @@ result = qsbs_check(
 print(result["result"]["verdict"])
 ```
 
-The seven endpoints accept forward-looking fields (such as `expected_sale_price` or `volatility`) that the schema marks optional but the API requires at call time; set a covered `ticker` (for example `"NVDA"`) to let the API derive them, or pass explicit values. Omitting both returns a clear 400 explaining which field is needed.
+Most endpoints accept forward-looking fields (such as `expected_sale_price` or `volatility`) that the schema marks optional but the API requires at call time; set a covered `ticker` (for example `"NVDA"`) to let the API derive them, or pass explicit values. Omitting both returns a clear 400 explaining which field is needed.
 
 ## Runnable example and source
 

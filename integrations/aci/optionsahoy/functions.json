@@ -1048,5 +1048,126 @@
       "visible": ["body"],
       "additionalProperties": false
     }
+  },
+  {
+    "name": "OPTIONSAHOY__RSU_LOT_OPTIMIZE",
+    "description": "Which vested RSU lots to sell, and when, to divest a target share fraction at the lowest tax: specific-lot identification, long-term deferral, and multi-year bracket spreading versus a first-in-first-out (FIFO) sell order. Returns the year-by-year sell schedule, total tax (federal LTCG plus NIIT plus state), and the saving versus a FIFO sell order on the same schedule. Full federal tax code plus all 50 states and DC. Every required field must come from the user; never invent a value.",
+    "tags": ["finance", "rsu", "tax", "planning"],
+    "visibility": "public",
+    "active": true,
+    "protocol": "rest",
+    "protocol_data": {
+      "method": "POST",
+      "path": "/api/v1/rsu-lot-order",
+      "server_url": "https://optionsahoy.com"
+    },
+    "parameters": {
+      "type": "object",
+      "properties": {
+        "header": {
+          "type": "object",
+          "description": "HTTP headers for the request.",
+          "properties": {
+            "Content-Type": {
+              "type": "string",
+              "description": "Request content type.",
+              "default": "application/json"
+            }
+          },
+          "required": ["Content-Type"],
+          "visible": [],
+          "additionalProperties": false
+        },
+        "body": {
+          "type": "object",
+          "description": "RSU lot-order divest plan request body. Vested RSU lots plus a divest fraction; the server chooses which lots to sell on which dates to divest the target share count at the lowest tax.",
+          "properties": {
+            "lots": {
+              "type": "array",
+              "minItems": 1,
+              "description": "Vested RSU lots you still hold, one per vest tranche.",
+              "items": {
+                "type": "object",
+                "description": "One vested RSU lot.",
+                "properties": {
+                  "vestDate": {
+                    "type": "string",
+                    "format": "date",
+                    "description": "ISO 8601 vest date (YYYY-MM-DD)."
+                  },
+                  "shares": {
+                    "type": "number",
+                    "exclusiveMinimum": 0,
+                    "description": "Shares still held from this vest. Fractional allowed."
+                  },
+                  "costBasisPerShare": {
+                    "type": "number",
+                    "minimum": 0,
+                    "description": "Per-share cost basis, USD (the share price on vest day)."
+                  }
+                },
+                "required": ["vestDate", "shares", "costBasisPerShare"],
+                "visible": ["vestDate", "shares", "costBasisPerShare"],
+                "additionalProperties": false
+              }
+            },
+            "currentPrice": {
+              "type": "number",
+              "minimum": 0,
+              "description": "Current share price, USD. Every sale is priced at this value (flat-price assumption)."
+            },
+            "divestFraction": {
+              "type": "number",
+              "minimum": 0.1,
+              "maximum": 1,
+              "description": "Fraction of total shares to divest, as a decimal (0.5 = sell half). Range 0.10 to 1.0."
+            },
+            "horizonYears": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 3,
+              "description": "Tax years the plan may span: 1 (sell all now), 2, or 3."
+            },
+            "ordinaryIncome": {
+              "type": "number",
+              "minimum": 0,
+              "description": "Total household ordinary income for the year, USD. Sets the LTCG bracket floor, short-term rate, and NIIT threshold."
+            },
+            "filingStatus": {
+              "type": "string",
+              "enum": ["single", "married_joint", "head_household"],
+              "description": "United States federal filing status."
+            },
+            "stateCode": {
+              "type": "string",
+              "pattern": "^[A-Z]{2}$",
+              "description": "Two-letter United States state code (e.g. CA, NY, TX)."
+            }
+          },
+          "required": [
+            "lots",
+            "currentPrice",
+            "divestFraction",
+            "horizonYears",
+            "ordinaryIncome",
+            "filingStatus",
+            "stateCode"
+          ],
+          "visible": [
+            "lots",
+            "currentPrice",
+            "divestFraction",
+            "horizonYears",
+            "ordinaryIncome",
+            "filingStatus",
+            "stateCode"
+          ],
+          "additionalProperties": false
+        }
+      },
+      "required": ["body"],
+      "visible": ["body"],
+      "additionalProperties": false
+    }
   }
 ]

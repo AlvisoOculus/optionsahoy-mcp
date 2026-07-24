@@ -222,6 +222,26 @@ class EquityFundingArgs(BaseModel):
     defaultVolatility: Optional[float] = Field(None, ge=0, description="Default annualized volatility.")
 
 
+class RsuLotArgs(BaseModel):
+    """Inputs for the restricted stock unit (RSU) lot sell-order optimizer."""
+
+    lots: List[Dict[str, Any]] = Field(
+        ...,
+        description=(
+            "Vested RSU lots to consider selling. Each lot has vestDate (YYYY-MM-DD), shares, "
+            "and costBasisPerShare."
+        ),
+    )
+    currentPrice: float = Field(..., ge=0, description="Current share price.")
+    divestFraction: float = Field(
+        ..., ge=0.1, le=1.0, description="Target fraction of shares to divest (0.1 to 1.0)."
+    )
+    horizonYears: int = Field(..., ge=1, le=3, description="Planning horizon in years (1 to 3).")
+    ordinaryIncome: float = Field(..., ge=0, description="Annual ordinary income.")
+    filingStatus: FilingStatus = Field(..., description="Tax filing status.")
+    stateCode: str = Field(..., description="Two-letter US state code, or DC.")
+
+
 # --- tool factory ----------------------------------------------------------
 
 _SPECS = [
@@ -278,6 +298,14 @@ _SPECS = [
         EquityFundingArgs,
         "Plan which equity lots to sell, and when, to fund a cash goal by a target date with "
         "the least after-tax cost, accounting for holding-period thresholds and shortfall risk.",
+    ),
+    (
+        "optionsahoy_rsu_lot_optimize",
+        "rsu_lot_order",
+        RsuLotArgs,
+        "Which vested RSU lots to sell, and when, to divest a target share fraction at the "
+        "lowest tax: specific-lot identification, long-term deferral, and multi-year bracket "
+        "spreading versus a first-in-first-out (FIFO) sell order.",
     ),
 ]
 

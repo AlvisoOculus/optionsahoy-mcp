@@ -437,6 +437,62 @@
         }
       }
     },
+    "/api/v1/rsu-lot-order": {
+      "post": {
+        "summary": "RSU lot-order divest plan: which lots to sell, on which dates, at the lowest tax",
+        "description": "Given vested RSU lots (vest date, shares, cost basis), a current price, and a divest fraction, chooses which lots and which sale dates minimize total tax to divest the target share count. Three levers: specific-lot identification, long-term deferral, and multi-year bracket spreading with in-plan capital-loss carryforward. Flat-price assumption (no growth model). Returns the year-by-year sell schedule, total tax (federal LTCG + NIIT + state), the saving versus a first-in-first-out (FIFO) sell order on the same schedule, a 1/2/3-year horizon trade-off, and per-lot deferral callouts.",
+        "operationId": "optimizeRsuLotOrder",
+        "tags": [
+          "RsuLotOptimize"
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RsuLotOptimizeInput"
+              },
+              "example": {
+                "lots": [
+                  {
+                    "vestDate": "2022-08-15",
+                    "shares": 120,
+                    "costBasisPerShare": 95
+                  },
+                  {
+                    "vestDate": "2024-02-15",
+                    "shares": 100,
+                    "costBasisPerShare": 130
+                  },
+                  {
+                    "vestDate": "2026-05-15",
+                    "shares": 80,
+                    "costBasisPerShare": 210
+                  }
+                ],
+                "currentPrice": 180,
+                "divestFraction": 0.5,
+                "horizonYears": 2,
+                "ordinaryIncome": 200000,
+                "filingStatus": "single",
+                "stateCode": "CA"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "$ref": "#/components/responses/RsuLotOptimizeSuccess"
+          },
+          "400": {
+            "$ref": "#/components/responses/BadRequest"
+          },
+          "405": {
+            "$ref": "#/components/responses/MethodNotAllowed"
+          }
+        }
+      }
+    },
     "/api/v1/stats": {
       "get": {
         "summary": "Public MCP usage summary",
@@ -2154,6 +2210,110 @@
             }
           }
         }
+      },
+      "RsuLotOptimizeSuccess": {
+        "description": "Successful rsu_lot_optimize result.",
+        "content": {
+          "application/json": {
+            "schema": {
+              "type": "object",
+              "required": [
+                "ok",
+                "result"
+              ],
+              "properties": {
+                "ok": {
+                  "type": "boolean",
+                  "const": true
+                },
+                "result": {
+                  "$ref": "#/components/schemas/RsuLotOptimizeResult"
+                }
+              }
+            },
+            "example": {
+              "ok": true,
+              "result": {
+                "sharesToSell": 150,
+                "totalShares": 300,
+                "totalGross": 27000,
+                "totalTax": 184.3000000000011,
+                "totalAfterTax": 26815.699999999997,
+                "schedule": [
+                  {
+                    "year": 2026,
+                    "sales": [
+                      {
+                        "lotIndex": 2,
+                        "vestDate": "2026-05-15T00:00:00.000Z",
+                        "saleDate": "2026-06-24T12:00:00.000Z",
+                        "year": 2026,
+                        "shares": 80,
+                        "grossProceeds": 14400,
+                        "gainAmount": -2400,
+                        "isLongTerm": false,
+                        "taxAttributed": -799.1999999999989
+                      }
+                    ],
+                    "netLong": 0,
+                    "netShort": -2400,
+                    "tax": -799.1999999999989,
+                    "effectiveRate": -0.055499999999999924,
+                    "carryforwardGenerated": 0
+                  },
+                  {
+                    "year": 2027,
+                    "sales": [
+                      {
+                        "lotIndex": 1,
+                        "vestDate": "2024-02-15T00:00:00.000Z",
+                        "saleDate": "2027-01-02T00:00:00.000Z",
+                        "year": 2027,
+                        "shares": 70,
+                        "grossProceeds": 12600,
+                        "gainAmount": 3500,
+                        "isLongTerm": true,
+                        "taxAttributed": 983.5
+                      }
+                    ],
+                    "netLong": 3500,
+                    "netShort": 0,
+                    "tax": 983.5,
+                    "effectiveRate": 0.07805555555555556,
+                    "carryforwardGenerated": 0
+                  }
+                ],
+                "keptUnrealizedGain": 11700,
+                "carryforwardRemaining": 0,
+                "headlineAfterTaxKept": 26815.699999999997,
+                "headlineDeltaVsFifo": 3103.3999999999996,
+                "attribution": {
+                  "lotSelection": 3103.3999999999996,
+                  "spreadingDeferral": -4.547473508864641e-13,
+                  "total": 3103.399999999999
+                },
+                "horizonCards": [
+                  {
+                    "horizonYears": 1,
+                    "totalTax": 309.1000000000011,
+                    "afterTaxKept": 26690.899999999998
+                  },
+                  {
+                    "horizonYears": 2,
+                    "totalTax": 184.3000000000011,
+                    "afterTaxKept": 26815.699999999997
+                  },
+                  {
+                    "horizonYears": 3,
+                    "totalTax": 184.3000000000011,
+                    "afterTaxKept": 26815.699999999997
+                  }
+                ],
+                "deferralCallouts": []
+              }
+            }
+          }
+        }
       }
     },
     "schemas": {
@@ -2830,6 +2990,77 @@
             "minimum": 0,
             "description": "Annualized σ used for stacks that omit their own `volatility`. Default 0.30.",
             "maximum": 5
+          }
+        }
+      },
+      "RsuLotOptimizeInput": {
+        "type": "object",
+        "description": "Vested RSU lots + a divest fraction. Chooses which lots to sell on which dates to divest the target share count at the lowest tax.",
+        "required": [
+          "lots",
+          "currentPrice",
+          "divestFraction",
+          "horizonYears",
+          "ordinaryIncome",
+          "filingStatus",
+          "stateCode"
+        ],
+        "properties": {
+          "lots": {
+            "type": "array",
+            "minItems": 1,
+            "description": "Vested RSU lots you still hold, one per vest tranche.",
+            "items": {
+              "type": "object",
+              "required": [
+                "vestDate",
+                "shares",
+                "costBasisPerShare"
+              ],
+              "properties": {
+                "vestDate": {
+                  "$ref": "#/components/schemas/IsoDate"
+                },
+                "shares": {
+                  "type": "number",
+                  "exclusiveMinimum": 0,
+                  "description": "Shares still held from this vest. Fractional allowed."
+                },
+                "costBasisPerShare": {
+                  "type": "number",
+                  "minimum": 0,
+                  "description": "Per-share cost basis, USD (the share price on vest day)."
+                }
+              }
+            }
+          },
+          "currentPrice": {
+            "type": "number",
+            "minimum": 0,
+            "description": "Current share price, USD. Every sale is priced at this value (flat-price assumption)."
+          },
+          "divestFraction": {
+            "type": "number",
+            "minimum": 0.1,
+            "maximum": 1,
+            "description": "Fraction of total shares to divest, as a decimal (0.5 = sell half). Range 0.10 to 1.0."
+          },
+          "horizonYears": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 3,
+            "description": "Tax years the plan may span: 1 (sell all now), 2, or 3."
+          },
+          "ordinaryIncome": {
+            "type": "number",
+            "minimum": 0,
+            "description": "Total household ordinary income for the year, USD. Sets the LTCG bracket floor, short-term rate, and NIIT threshold."
+          },
+          "filingStatus": {
+            "$ref": "#/components/schemas/FilingStatus"
+          },
+          "stateCode": {
+            "$ref": "#/components/schemas/StateCode"
           }
         }
       },
@@ -5837,6 +6068,250 @@
           "targetAfterTax",
           "targetDateISO",
           "appliedRiskTolerance"
+        ]
+      },
+      "RsuLotOptimizeResult": {
+        "type": "object",
+        "description": "RSU lot-order divest plan: which lots to sell on which dates to divest the target share count at the lowest total tax, versus a first-in-first-out (FIFO) sell order. All dollar amounts are USD.",
+        "properties": {
+          "sharesToSell": {
+            "type": "number",
+            "description": "Shares the plan divests (round(divestFraction x totalShares), floored at 1)."
+          },
+          "totalShares": {
+            "type": "number",
+            "description": "Total shares across all input lots."
+          },
+          "totalGross": {
+            "type": "number",
+            "description": "Gross proceeds from the divested shares, in dollars."
+          },
+          "totalTax": {
+            "type": "number",
+            "description": "Total plan tax across all years (federal LTCG + NIIT + state, net of in-plan loss carryforward), in dollars."
+          },
+          "totalAfterTax": {
+            "type": "number",
+            "description": "After-tax proceeds from the divested shares, in dollars."
+          },
+          "schedule": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "description": "All sales in one tax year, after Schedule D netting.",
+              "properties": {
+                "year": {
+                  "type": "number",
+                  "description": "Calendar tax year."
+                },
+                "sales": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "description": "One vested lot sold, in whole or part, on one date.",
+                    "properties": {
+                      "lotIndex": {
+                        "type": "number",
+                        "description": "0-based index into the input lots array this row draws from."
+                      },
+                      "vestDate": {
+                        "type": "string",
+                        "description": "Vest (acquisition) date of the lot, ISO date-time string."
+                      },
+                      "saleDate": {
+                        "type": "string",
+                        "description": "Date this block is sold, ISO date-time string: today, a long-term-crossing date, or Jan 2 of a later plan year."
+                      },
+                      "year": {
+                        "type": "number",
+                        "description": "Calendar tax year of the sale."
+                      },
+                      "shares": {
+                        "type": "number",
+                        "description": "Shares sold in this row (may be fractional)."
+                      },
+                      "grossProceeds": {
+                        "type": "number",
+                        "description": "Gross sale proceeds in dollars (shares x current price; flat-price assumption)."
+                      },
+                      "gainAmount": {
+                        "type": "number",
+                        "description": "Realized capital gain, negative for a loss, in dollars."
+                      },
+                      "isLongTerm": {
+                        "type": "boolean",
+                        "description": "True when the lot was held more than one year at the sale date (long-term capital gain)."
+                      },
+                      "taxAttributed": {
+                        "type": "number",
+                        "description": "Signed tax attributed to this row in dollars; a loss row is negative (the tax it removes)."
+                      }
+                    },
+                    "required": [
+                      "lotIndex",
+                      "vestDate",
+                      "saleDate",
+                      "year",
+                      "shares",
+                      "grossProceeds",
+                      "gainAmount",
+                      "isLongTerm",
+                      "taxAttributed"
+                    ]
+                  },
+                  "description": "Per-lot sale rows in this year."
+                },
+                "netLong": {
+                  "type": "number",
+                  "description": "Net long-term gain or loss after netting, in dollars."
+                },
+                "netShort": {
+                  "type": "number",
+                  "description": "Net short-term gain or loss after netting, in dollars."
+                },
+                "tax": {
+                  "type": "number",
+                  "description": "Total tax for this year (federal + state + NIIT), in dollars."
+                },
+                "effectiveRate": {
+                  "type": "number",
+                  "description": "Year tax divided by year net gain, 0..1."
+                },
+                "carryforwardGenerated": {
+                  "type": "number",
+                  "description": "Capital loss carried into the next plan year from this year, in dollars (0 when the year nets positive)."
+                }
+              },
+              "required": [
+                "year",
+                "sales",
+                "netLong",
+                "netShort",
+                "tax",
+                "effectiveRate",
+                "carryforwardGenerated"
+              ]
+            },
+            "description": "The sell plan, grouped by tax year."
+          },
+          "keptUnrealizedGain": {
+            "type": "number",
+            "description": "Unrealized gain still carried by the shares NOT sold, in dollars (deferred, not eliminated)."
+          },
+          "carryforwardRemaining": {
+            "type": "number",
+            "description": "Capital loss remaining at the end of the plan horizon, in dollars (reported, not modeled into future years)."
+          },
+          "headlineAfterTaxKept": {
+            "type": "number",
+            "description": "After-tax proceeds under the plan, in dollars: the headline \"you keep $X\" figure."
+          },
+          "headlineDeltaVsFifo": {
+            "type": "number",
+            "description": "Dollars saved versus selling oldest-first (FIFO) on the SAME schedule. Pure lot-selection benefit; >= 0 by construction."
+          },
+          "attribution": {
+            "type": "object",
+            "description": "Telescoping attribution of the total saving vs a FIFO-all-today sale. lotSelection + spreadingDeferral = total.",
+            "properties": {
+              "lotSelection": {
+                "type": "number",
+                "description": "Saving from choosing which lots to sell (equals headlineDeltaVsFifo), in dollars."
+              },
+              "spreadingDeferral": {
+                "type": "number",
+                "description": "Saving from spreading sales across years and deferring for long-term status, in dollars. Can be <= 0 in loss-mix cases."
+              },
+              "total": {
+                "type": "number",
+                "description": "Total saving vs selling oldest-first, all today, in dollars."
+              }
+            },
+            "required": [
+              "lotSelection",
+              "spreadingDeferral",
+              "total"
+            ]
+          },
+          "horizonCards": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "description": "Total tax and after-tax proceeds for the same divest target under a given horizon.",
+              "properties": {
+                "horizonYears": {
+                  "type": "number",
+                  "description": "Plan length in tax years (1 = sell all now, 2, or 3)."
+                },
+                "totalTax": {
+                  "type": "number",
+                  "description": "Total plan tax under this horizon, in dollars."
+                },
+                "afterTaxKept": {
+                  "type": "number",
+                  "description": "After-tax proceeds from the divested shares under this horizon, in dollars."
+                }
+              },
+              "required": [
+                "horizonYears",
+                "totalTax",
+                "afterTaxKept"
+              ]
+            },
+            "description": "The same divest target under a 1-year (\"all now\"), 2-year, and 3-year plan, for the trade-off strip."
+          },
+          "deferralCallouts": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "description": "A short-term lot that becomes long-term if its sale waits past longTermDate.",
+              "properties": {
+                "lotIndex": {
+                  "type": "number",
+                  "description": "0-based index into the input lots array."
+                },
+                "longTermDate": {
+                  "type": "string",
+                  "description": "Date the lot becomes long-term, ISO date-time string (a sale strictly after the first vest anniversary)."
+                },
+                "daysToWait": {
+                  "type": "number",
+                  "description": "Days from the planned sale date to longTermDate."
+                },
+                "taxSaved": {
+                  "type": "number",
+                  "description": "Tax saved by waiting for long-term treatment, in dollars."
+                },
+                "amountAtRisk": {
+                  "type": "number",
+                  "description": "Position value kept exposed to the stock while waiting, in dollars."
+                }
+              },
+              "required": [
+                "lotIndex",
+                "longTermDate",
+                "daysToWait",
+                "taxSaved",
+                "amountAtRisk"
+              ]
+            },
+            "description": "Per-lot short-term-to-long-term deferral opportunities."
+          }
+        },
+        "required": [
+          "sharesToSell",
+          "totalShares",
+          "totalGross",
+          "totalTax",
+          "totalAfterTax",
+          "schedule",
+          "keptUnrealizedGain",
+          "carryforwardRemaining",
+          "headlineAfterTaxKept",
+          "headlineDeltaVsFifo",
+          "attribution",
+          "horizonCards",
+          "deferralCallouts"
         ]
       }
     }

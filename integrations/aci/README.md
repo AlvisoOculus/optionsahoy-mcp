@@ -5,7 +5,7 @@
 This directory is the **staging copy** of the OptionsAhoy app for the open-source
 [ACI.dev](https://github.com/aipotheosis-labs/aci) tool-calling platform. ACI exposes
 third-party apps as LLM-callable functions; this submission registers OptionsAhoy's
-seven free equity-comp calculators (the same REST endpoints behind
+eight free equity-comp calculators (the same REST endpoints behind
 `https://optionsahoy.com/tools` and the MCP server) as ACI functions.
 
 The PR copies these two files into a fork of `aipotheosis-labs/aci` at
@@ -17,7 +17,7 @@ The PR copies these two files into a fork of `aipotheosis-labs/aci` at
   `provider` AlphaLatitude Inc., `security_schemes: {"no_auth": {}}` (the API is
   unauthenticated, wide-open CORS), category `Finance`, `visibility: public`,
   `active: true`.
-- `optionsahoy/functions.json` — the seven functions. Each is `protocol: "rest"`,
+- `optionsahoy/functions.json` — the eight functions. Each is `protocol: "rest"`,
   `method: POST`, `server_url: https://optionsahoy.com`. Parameters follow the ACI
   convention: every object level carries `type` / `properties` / `required` /
   `visible` / `additionalProperties:false`, and POST-body params are nested under a
@@ -33,10 +33,11 @@ The PR copies these two files into a fork of `aipotheosis-labs/aci` at
 | `OPTIONSAHOY__PROTECTIVE_PUT_PRICE` | `POST /api/v1/protective-put` |
 | `OPTIONSAHOY__QSBS_CHECK`           | `POST /api/v1/qsbs` |
 | `OPTIONSAHOY__EQUITY_FUNDING_PLAN`  | `POST /api/v1/equity-funding` |
+| `OPTIONSAHOY__RSU_LOT_OPTIMIZE`     | `POST /api/v1/rsu-lot-order` |
 
 Parameter schemas and field descriptions are translated from the source-of-truth
 OpenAPI spec at `optionsahoy-mcp/public/openapi.json` (cross-referenced against
-`optionsahoy-mcp/functions/_lib/mcp-tools.ts`). All seven endpoints were validated
+`optionsahoy-mcp/functions/_lib/mcp-tools.ts`). All eight endpoints were validated
 with live POST calls returning HTTP 200 JSON before this submission was prepared.
 
 ## PR steps (do NOT run until the open questions below are resolved)
@@ -80,7 +81,7 @@ with live POST calls returning HTTP 200 JSON before this submission was prepared
    ```bash
    gh pr create --repo aipotheosis-labs/aci \
      --title "Add OptionsAhoy app: equity-comp tax/trade optimizer (7 functions)" \
-     --body "Adds the OptionsAhoy app under backend/apps/optionsahoy/ with seven REST functions covering ISO/AMT exercise optimization, NSO exercise, RSU sell-vs-hold, single-stock concentration, hedge pricing (protective put, zero-cost collar, and put spread), Section 1202 QSBS qualification, and equity-funding planning. Unauthenticated public API (no_auth); server https://optionsahoy.com. Full federal tax code plus all 50 states and DC. All seven endpoints validated with live HTTP 200 calls. Parameter schemas mirror the published OpenAPI spec at https://optionsahoy.com/openapi.json."
+     --body "Adds the OptionsAhoy app under backend/apps/optionsahoy/ with eight REST functions covering ISO/AMT exercise optimization, NSO exercise, RSU sell-vs-hold, single-stock concentration, hedge pricing (protective put, zero-cost collar, and put spread), Section 1202 QSBS qualification, equity-funding planning, and RSU lot-order divest planning. Unauthenticated public API (no_auth); server https://optionsahoy.com. Full federal tax code plus all 50 states and DC. All eight endpoints validated with live HTTP 200 calls. Parameter schemas mirror the published OpenAPI spec at https://optionsahoy.com/openapi.json."
    ```
 
 ## Open questions / operator action required

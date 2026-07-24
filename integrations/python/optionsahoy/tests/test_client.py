@@ -121,6 +121,22 @@ CASES = {
             ],
         ),
     ),
+    "rsu_lot_order": (
+        "/api/v1/rsu-lot-order",
+        dict(
+            lots=[
+                {"vestDate": "2022-08-15", "shares": 120, "costBasisPerShare": 95.0},
+                {"vestDate": "2024-02-15", "shares": 100, "costBasisPerShare": 130.0},
+                {"vestDate": "2026-05-15", "shares": 80, "costBasisPerShare": 210.0},
+            ],
+            currentPrice=180.0,
+            divestFraction=0.5,
+            horizonYears=2,
+            ordinaryIncome=200000,
+            filingStatus="single",
+            stateCode="CA",
+        ),
+    ),
 }
 
 

@@ -20,12 +20,13 @@ EXPECTED_NAMES = {
     "protective_put_price",
     "qsbs_check",
     "equity_funding_plan",
+    "rsu_lot_optimize",
 }
 
 
 def test_returns_all_tools():
     tools = OptionsAhoyToolSpec(client=MagicMock()).to_tool_list()
-    assert len(tools) == 7
+    assert len(tools) == 8
     assert {t.metadata.name for t in tools} == EXPECTED_NAMES
 
 

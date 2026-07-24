@@ -128,7 +128,7 @@ describe('local stdio MCP server', () => {
     session.stop();
   });
 
-  it('lists all seven tools', async () => {
+  it('lists all eight tools', async () => {
     const res = await session.request('tools/list');
     const tools = (res.result as {
       tools: Array<{
@@ -144,6 +144,7 @@ describe('local stdio MCP server', () => {
       'nso_calculate',
       'protective_put_price',
       'qsbs_check',
+      'rsu_lot_optimize',
       'rsu_sell_vs_hold',
     ]);
     // Every tool has the input-discipline note appended and an outputSchema

@@ -36,11 +36,12 @@ OR_MODEL="google/gemini-2.5-flash"     python optionsahoy_openrouter_bridge.py "
 ```
 
 The OptionsAhoy MCP server (`https://optionsahoy.com/mcp`) needs no key and no
-auth. It exposes seven read-only calculators: incentive stock option (ISO) and
+auth. It exposes eight read-only calculators: incentive stock option (ISO) and
 alternative minimum tax (AMT) schedule optimization, non-qualified stock option
 (NSO) exercise tax, restricted stock unit (RSU) sell-vs-hold, single-stock
 concentration, protective puts, collars, and put spreads, Section 1202 qualified small business
-stock (QSBS) qualification, and funding a cash goal from stock.
+stock (QSBS) qualification, funding a cash goal from stock, and the lowest-tax sell
+order for vested RSU lots.
 
 ## What the contrast looks like
 
@@ -61,7 +62,7 @@ final value around **$1.25M to $1.88M** across runs.
 deterministic optimum:
 
 ```
-[connected: 7 tools on https://optionsahoy.com/mcp]
+[connected: 8 tools on https://optionsahoy.com/mcp]
 
 [tool call -> amt_iso_optimize]
 { "shares": 20000, "strike": 2, "fmv": 200, "expectedGrowth": 0.17,

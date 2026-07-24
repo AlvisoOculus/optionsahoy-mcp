@@ -1,11 +1,11 @@
 """End-to-end use of the keyless OptionsAhoy client, with no language model.
 
-This constructs an OptionsAhoyClient and calls every one of the seven calculator
+This constructs an OptionsAhoyClient and calls every one of the eight calculator
 endpoints directly, printing a short summary of each result. There is no agent and no
 large language model (LLM) involved, and no application programming interface (API) key
 is required.
 
-The seven calculators:
+The eight calculators:
 
 1. amt_iso          - incentive stock option (ISO) exercise schedule under the
                       alternative minimum tax (AMT)
@@ -15,6 +15,7 @@ The seven calculators:
 5. protective_put   - protective put, zero-cost collar, and put spread pricing
 6. qsbs             - qualified small business stock (QSBS) Section 1202 eligibility
 7. equity_funding   - plan which lots to sell, and when, to fund a cash goal
+8. rsu_lot_order    - lowest-tax sell order for vested RSU lots, versus FIFO
 
 Several calculators need a forward-looking input (expected growth, sale price, or
 volatility). You can pass those values explicitly, or pass a covered ``ticker`` and let
@@ -189,6 +190,26 @@ def main() -> None:
         print("7. Equity funding plan")
         print(f"   sell {plan['totalSharesSold']:,} shares to raise "
               f"{usd(plan['totalAfterTaxAchieved'])} after tax by the target date")
+        print()
+
+        # 8) RSU lot order: which vested RSU lots to sell, and when, to divest a
+        # target fraction at the lowest tax, versus a first-in-first-out sell order.
+        lot_order = client.rsu_lot_order(
+            lots=[
+                {"vestDate": "2022-08-15", "shares": 120, "costBasisPerShare": 95},
+                {"vestDate": "2024-02-15", "shares": 100, "costBasisPerShare": 130},
+                {"vestDate": "2026-05-15", "shares": 80, "costBasisPerShare": 210},
+            ],
+            currentPrice=180,
+            divestFraction=0.5,
+            horizonYears=2,
+            ordinaryIncome=200000,
+            filingStatus="single",
+            stateCode="CA",
+        )["result"]
+        print("8. RSU lot sell order")
+        print(f"   optimized order saves {usd(lot_order['headlineDeltaVsFifo'])} "
+              f"in tax versus selling first-in-first-out")
     except OptionsAhoyError as err:
         print(f"OptionsAhoy API error: {err}")
         print(f"  status_code={err.status_code} payload={err.payload}")

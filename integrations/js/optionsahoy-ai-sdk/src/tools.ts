@@ -19,6 +19,7 @@ import {
   nsoParameters,
   protectivePutParameters,
   qsbsParameters,
+  rsuLotParameters,
   rsuParameters,
 } from './schemas.js';
 
@@ -32,7 +33,7 @@ function makeExecute<S extends z.ZodTypeAny>(slug: EndpointSlug, options: Option
 }
 
 /**
- * Return the seven OptionsAhoy calculators as Vercel AI SDK tools, keyed by
+ * Return the eight OptionsAhoy calculators as Vercel AI SDK tools, keyed by
  * their canonical tool name. Spread the result into `generateText`/`streamText`
  * `tools`, or pick individual tools.
  *
@@ -88,6 +89,13 @@ export function createOptionsAhoyTools(options: OptionsAhoyClientOptions = {}) {
         'Plan which equity lots to sell, and when, to fund a cash goal by a target date at the least after-tax cost, accounting for holding-period thresholds and shortfall risk. Returns four named plans on the risk/wealth frontier (lock in now, balanced, hold for growth, recommended).',
       parameters: equityFundingParameters,
       execute: makeExecute<typeof equityFundingParameters>('equity-funding', options),
+    }),
+
+    rsu_lot_optimize: tool({
+      description:
+        'Which vested RSU lots to sell, and when, to divest a target share fraction at the lowest tax: specific-lot identification, long-term deferral, and multi-year bracket spreading versus a first-in-first-out (FIFO) sell order.',
+      parameters: rsuLotParameters,
+      execute: makeExecute<typeof rsuLotParameters>('rsu-lot-order', options),
     }),
   } as const;
 }

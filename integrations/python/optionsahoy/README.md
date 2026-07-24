@@ -4,7 +4,7 @@
 [![Python versions](https://img.shields.io/pypi/pyversions/optionsahoy.svg)](https://pypi.org/project/optionsahoy/)
 [![License: MIT](https://img.shields.io/pypi/l/optionsahoy.svg)](https://github.com/AlvisoOculus/optionsahoy-mcp/blob/main/LICENSE)
 
-A thin, dependency-light Python client for the OptionsAhoy keyless public REST application programming interface (API). It wraps seven deterministic equity-compensation tax calculators behind one synchronous client. No OptionsAhoy account, no API key, full federal tax code plus all 50 states and the District of Columbia (DC).
+A thin, dependency-light Python client for the OptionsAhoy keyless public REST application programming interface (API). It wraps eight deterministic equity-compensation tax calculators behind one synchronous client. No OptionsAhoy account, no API key, full federal tax code plus all 50 states and the District of Columbia (DC).
 
 ## Why not just ask the model?
 
@@ -18,7 +18,7 @@ Beyond determinism, the tax math is independently verified, every release: every
 
 ## What it provides
 
-Seven calculators, each a method on `OptionsAhoyClient`:
+Eight calculators, each a method on `OptionsAhoyClient`:
 
 - `amt_iso(...)` - multi-year ISO exercise optimizer under the alternative minimum tax (AMT)
 - `nso(...)` - non-qualified stock option (NSO) exercise tax and after-tax proceeds, sell-at-exercise versus hold
@@ -27,6 +27,7 @@ Seven calculators, each a method on `OptionsAhoyClient`:
 - `protective_put(...)` - protective put, zero-cost collar, and put spread pricing
 - `qsbs(...)` - qualified small business stock (QSBS) Section 1202 eligibility and exclusion
 - `equity_funding(...)` - multi-year plan to fund a cash goal from equity by a target date
+- `rsu_lot_order(...)` - lowest-tax sell order for vested RSU lots to divest a target fraction, versus first-in-first-out (FIFO)
 
 Coverage spans the full federal tax code (ordinary brackets, long-term capital gains, AMT with credit recovery, FICA, the net investment income tax) plus all 50 states and DC. The only runtime dependency is [httpx](https://www.python-httpx.org/). No API key is read, stored, or sent anywhere.
 
@@ -74,6 +75,11 @@ Plans which equity lots to sell, and when, to fund a cash goal by a target date 
 - Inputs (required): `targetAfterTax` (after-tax cash goal to raise, USD), `targetDate` (when the cash is needed, YYYY-MM-DD), `ordinaryIncome` (USD), `filingStatus` (`single` | `married_joint` | `head_household`), `stateCode` (two-letter, or `DC`), plus the holdings as either `stacks` (preferred: a list of stacks, each with `currentPrice` and a `lots` list of `{shares, costBasisPerShare, acquisitionDate, vestDate?}`, optional per-stack `ticker`, `expectedAnnualGrowth`, `volatility`) or the legacy `lots` plus a single `currentPrice`.
 - Optional: `expectedAnnualGrowth` (decimal), `cashInterestRate` (decimal), `riskToleranceShortfall` (acceptable probability of shortfall, 0 to 1), `defaultVolatility` (decimal).
 - Returns: four named plans `recommended`, `lockInNow`, `balanced`, `holdForGrowth`, plus `frontier[]` (the full risk/return frontier), and the echoed `targetAfterTax`, `targetDateISO`, `appliedRiskTolerance`. Each plan carries `planKey`/`planLabel`, `wealthAtTarget` (projected net wealth at the target date), `totalTax`, `shortfallProbability` (chance of missing the goal), and a `plan` with `feasible` (boolean), `totalAfterTaxAchieved`, `totalSharesSold`, `totalGrossProceeds`, `totalTaxes` (`federal`, `state`, `niit`, `total`), `schedule` (per-year sales with per-lot `shares`, `grossProceeds`, `gainAmount`, `isLongTerm`, `federalTax`, `stateTax`, `niit`, `netCash`), `comparison` (savings versus selling everything in the target year), and `remainingShares`/`remainingPositionValue` (what is left unsold).
+
+### `rsu_lot_order(...)`
+Chooses which vested restricted stock unit (RSU) lots to sell, and in which year, to divest a target share fraction at the lowest tax cost (specific-lot identification, long-term deferral, and multi-year bracket spreading), and compares that against a plain first-in-first-out (FIFO) sell order.
+- Inputs (required): `lots` (a list of vested lots, each `{vestDate (YYYY-MM-DD), shares, costBasisPerShare}`), `currentPrice` (current share price, USD), `divestFraction` (fraction of shares to divest, 0.1 to 1.0), `horizonYears` (planning horizon in years, 1 to 3), `ordinaryIncome` (annual ordinary income, USD), `filingStatus` (`single` | `married_joint` | `head_household`), `stateCode` (two-letter US state code, or `DC`).
+- Returns: `headlineDeltaVsFifo` (after-tax dollars saved by the optimized lot order versus selling FIFO); `totalTax` (total tax of the recommended order); `schedule` (the recommended per-year, per-lot sell order, with the shares sold from each lot and the resulting gain and tax); and the FIFO baseline it is measured against.
 
 To see the full typed signature for any method, read the client source: [`optionsahoy/client.py`](https://github.com/AlvisoOculus/optionsahoy-mcp/blob/main/integrations/python/optionsahoy/optionsahoy/client.py). The authoritative request schemas are the OpenAPI spec at <https://optionsahoy.com/openapi.json> and the agent docs at <https://optionsahoy.com/for-agents>.
 

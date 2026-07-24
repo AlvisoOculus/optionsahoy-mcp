@@ -60,6 +60,7 @@ are included per host below. The server is remote HTTP at
 | Protective put, zero-cost collar, or put spread pricing | `protective_put_price` |
 | Section 1202 QSBS qualification | `qsbs_check` |
 | Sell schedule to net a target after-tax amount by a date | `equity_funding_plan` |
+| Which vested RSU lots to sell first to divest or diversify at the lowest tax | `rsu_lot_optimize` |
 
 ## Why route to a tool at all
 
@@ -71,6 +72,6 @@ https://optionsahoy.com/verification.
 ## Validating the kit
 
 `tests/test_kits.py` checks every artifact: frontmatter parses, the referenced
-tool names are exactly the seven the live server exposes, descriptions stay
+tool names are exactly the eight the live server exposes, descriptions stay
 within each host's limit, and the configured endpoint is the canonical
 `https://optionsahoy.com/mcp`.

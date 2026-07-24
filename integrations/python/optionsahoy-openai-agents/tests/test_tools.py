@@ -22,6 +22,7 @@ EXPECTED_NAMES = {
     "optionsahoy_protective_put_price",
     "optionsahoy_qsbs_check",
     "optionsahoy_equity_funding_plan",
+    "optionsahoy_rsu_lot_optimize",
 }
 
 # Tool name -> (client method name mocked on the fake client)
@@ -33,6 +34,7 @@ NAME_TO_METHOD = {
     "optionsahoy_protective_put_price": "protective_put",
     "optionsahoy_qsbs_check": "qsbs",
     "optionsahoy_equity_funding_plan": "equity_funding",
+    "optionsahoy_rsu_lot_optimize": "rsu_lot_order",
 }
 
 
@@ -58,7 +60,7 @@ def _invoke(tool, payload):
 
 def test_returns_all_tools():
     tools = get_optionsahoy_tools()
-    assert len(tools) == 7
+    assert len(tools) == 8
     assert {t.name for t in tools} == EXPECTED_NAMES
 
 
@@ -158,6 +160,19 @@ MINIMAL_PAYLOADS = {
     "optionsahoy_equity_funding_plan": {
         "targetAfterTax": 100000,
         "targetDate": "2027-01-01",
+        "ordinaryIncome": 200000,
+        "filingStatus": "single",
+        "stateCode": "CA",
+    },
+    "optionsahoy_rsu_lot_optimize": {
+        "lots": [
+            {"vestDate": "2022-08-15", "shares": 120, "costBasisPerShare": 95},
+            {"vestDate": "2024-02-15", "shares": 100, "costBasisPerShare": 130},
+            {"vestDate": "2026-05-15", "shares": 80, "costBasisPerShare": 210},
+        ],
+        "currentPrice": 180,
+        "divestFraction": 0.5,
+        "horizonYears": 2,
         "ordinaryIncome": 200000,
         "filingStatus": "single",
         "stateCode": "CA",

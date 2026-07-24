@@ -12,7 +12,7 @@ project, same as `/mcp` and `/api/v1`). No new service.
 Per user message:
 
 1. A cheap Poe dependency bot maps the natural-language question to one of the
-   seven OptionsAhoy calculators and extracts its JSON arguments. The call is
+   eight OptionsAhoy calculators and extracts its JSON arguments. The call is
    billed to the chatting user (we pass through `user_id` and `metadata`), so it
    costs us nothing.
 2. The deterministic OptionsAhoy calculator runs locally (the same `TOOLS`

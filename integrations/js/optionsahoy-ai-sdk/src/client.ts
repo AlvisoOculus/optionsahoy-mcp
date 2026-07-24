@@ -4,7 +4,7 @@
 // payload to https://optionsahoy.com/api/v1/<slug> and returns the parsed
 // `result`. No OptionsAhoy account and no API key are read, stored, or sent.
 
-/** The seven public calculator endpoints, keyed by their REST slug. */
+/** The eight public calculator endpoints, keyed by their REST slug. */
 export type EndpointSlug =
   | 'amt-iso'
   | 'nso'
@@ -12,7 +12,8 @@ export type EndpointSlug =
   | 'concentration'
   | 'protective-put'
   | 'qsbs'
-  | 'equity-funding';
+  | 'equity-funding'
+  | 'rsu-lot-order';
 
 /** A `fetch`-compatible function. Defaults to the runtime global `fetch`. */
 export type FetchLike = (

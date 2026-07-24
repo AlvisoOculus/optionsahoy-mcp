@@ -5,7 +5,7 @@
 // Implements the Poe protocol (version 1.2) directly in a Cloudflare Pages
 // Function, no fastapi-poe. Flow per user message:
 //   1. Our own cheap model (OpenRouter) maps the natural-language conversation
-//      to one of the seven OptionsAhoy calculators and extracts its JSON
+//      to one of the eight OptionsAhoy calculators and extracts its JSON
 //      arguments. Running it on our key (not a Poe dependency bot) costs a
 //      fraction of a cent, consumes ZERO user Poe points, returns reliable
 //      JSON, and lets us test the live bot without a real Poe session.
@@ -109,6 +109,10 @@ function ratePct(n: unknown): string {
   if (typeof n !== 'number' || !isFinite(n)) return '';
   return `${Math.round(n * 100)}%`;
 }
+
+// Coerce an unknown to a finite number, or 0. Used by the schedule formatters
+// to sum/round result fields defensively.
+const num = (v: unknown): number => (typeof v === 'number' && isFinite(v) ? v : 0);
 
 // "2026-06-24" -> "Jun 2026" for readable sell-schedule dates.
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
@@ -475,7 +479,6 @@ function headline(tool: string, r: Result): string {
         // The actual sell schedule: how many shares to sell on each date.
         // Show every sale, not a summary -- this is the whole point of the answer.
         const sched: any[] = Array.isArray(plan.schedule) ? plan.schedule : [];
-        const num = (v: unknown) => (typeof v === 'number' && isFinite(v) ? v : 0);
         const steps = sched
           .map((row: any) => {
             const iso = String(row?.saleDateISO ?? '');
@@ -556,6 +559,49 @@ function headline(tool: string, r: Result): string {
         if (opt.length) lines.push(`The trade-off, safe to aggressive: ${opt.join('; ')}. Holding longer can grow the pot but raises the odds of missing the goal.`);
         return lines.join('\n\n');
       }
+      case 'rsu_lot_optimize': {
+        if (typeof r.headlineAfterTaxKept !== 'number') break;
+        const lines: string[] = [];
+        const shares = Math.round(num(r.sharesToSell)).toLocaleString('en-US');
+        lines.push(`**Sell ${shares} shares; you keep about ${usd(r.headlineAfterTaxKept)} after tax.**`);
+        // The per-year sell schedule is the answer: which lots (long vs short) each year.
+        const sched: any[] = Array.isArray(r.schedule) ? r.schedule : [];
+        const yearLines = sched
+          .filter((g: any) => Array.isArray(g?.sales) && g.sales.length)
+          .map((g: any) => {
+            const sold = g.sales.reduce((a: number, s: any) => a + num(s?.shares), 0);
+            const lt = g.sales.filter((s: any) => s?.isLongTerm).reduce((a: number, s: any) => a + num(s?.shares), 0);
+            const st = sold - lt;
+            const mix =
+              st > 0 && lt > 0
+                ? ` (${Math.round(lt).toLocaleString('en-US')} long-term, ${Math.round(st).toLocaleString('en-US')} short-term)`
+                : lt > 0 ? ' (long-term)' : st > 0 ? ' (short-term)' : '';
+            const cf = num(g?.carryforwardGenerated) > 0 ? `, carries a ${usd(num(g.carryforwardGenerated))} loss forward` : '';
+            return `- ${g.year}: sell ${Math.round(sold).toLocaleString('en-US')} shares${mix}, about ${usd(num(g?.tax))} tax${cf}`;
+          });
+        if (yearLines.length) lines.push('Your sell schedule:', yearLines.join('\n'));
+        // The pure lot-selection win vs selling oldest lots first.
+        if (num(r.headlineDeltaVsFifo) > 0) {
+          lines.push(`That is about ${usd(r.headlineDeltaVsFifo)} less tax than selling your oldest lots first (FIFO) on the same schedule.`);
+        } else {
+          lines.push('Your lots are close enough in basis that the sell order barely changes the tax.');
+        }
+        // The strongest short-term-to-long-term deferral opportunity, if any.
+        const defs: any[] = Array.isArray(r.deferralCallouts) ? r.deferralCallouts : [];
+        if (defs.length) {
+          const d = defs[0];
+          const ltDate = new Date(d?.longTermDate);
+          const when = isFinite(ltDate.getTime()) ? ltDate.toISOString().slice(0, 10) : 'its one-year mark';
+          lines.push(
+            `Waiting until ${when} on one lot turns a short-term sale long-term and saves about ${usd(num(d?.taxSaved))}, at the cost of ${usd(num(d?.amountAtRisk))} staying exposed for ${Math.round(num(d?.daysToWait))} more days.`,
+          );
+        }
+        // The gain still deferred on the shares kept.
+        if (num(r.keptUnrealizedGain) > 0) {
+          lines.push(`Your kept shares still carry about ${usd(num(r.keptUnrealizedGain))} of unrealized gain. That tax is deferred, not eliminated.`);
+        }
+        return lines.join('\n\n');
+      }
     }
   } catch {
     // fall through to generic
@@ -603,6 +649,12 @@ function assumptionsLine(tool: string, a: Record<string, any>): string {
       if (!tks.length && !anyFlat) parts.push("each holding's growth and volatility from your numbers");
       break;
     }
+    case 'rsu_lot_optimize': {
+      // No growth model: every sale is priced flat at today's price.
+      parts.push("today's share price for every sale (no growth assumed)");
+      parts.push('2026 tax brackets held constant across the plan years');
+      break;
+    }
     // qsbs_check has no forward-looking assumptions (dates + amounts only).
   }
   return parts.length ? `Assumptions: ${parts.join(', ')}. Give me a ticker or different numbers to change these.` : '';
@@ -610,7 +662,7 @@ function assumptionsLine(tool: string, a: Record<string, any>): string {
 
 // --- parameter extraction (dependency bot) ---------------------------------
 
-// Compact spec of the seven tools for the extractor model: name, first
+// Compact spec of the eight tools for the extractor model: name, first
 // sentence of the description, and the required input fields (from the same
 // inputSchema the REST + MCP surfaces use).
 function toolSpec(): string {
@@ -792,6 +844,7 @@ const FRIENDLY: Record<string, string> = {
   protective_put_price: 'price a hedge (a protective put, a zero-cost collar, or a put spread)',
   qsbs_check: 'check qualified small business stock (QSBS) eligibility',
   equity_funding_plan: 'plan how to fund a cash goal from your equity by a deadline',
+  rsu_lot_optimize: 'pick which vested RSU lots to sell first, and when, to divest at the lowest tax',
 };
 const HELP_EXAMPLE: Record<string, string> = {
   amt_iso_optimize: '"10,000 ISOs, $2 strike, $40 value, married filing jointly, $300k income, CA, 4-year horizon, granted 2022-01-01, 5% cash, 12% growth. Best schedule?"',
@@ -801,6 +854,7 @@ const HELP_EXAMPLE: Record<string, string> = {
   protective_put_price: '"Hedge a $400k tech-software position at 10% protection for 1 year?"',
   qsbs_check: '"C-corp founder stock bought 2020-01-15 for $100k, selling for $5M, original issuance, under $50M, tech, active, single, $250k income, CA. Do I qualify for QSBS?"',
   equity_funding_plan: '"Need $400k after tax by 2028-06-01 from 4,000 NVDA bought at $60 in 2023, now $140, 15% growth, married filing jointly, $280k income, CA. Plan?"',
+  rsu_lot_optimize: '"Sell half my company stock over 2 years, price $180. Lots: 120 sh from 2022-08-15 at $95, 100 sh from 2024-02-15 at $130, 80 sh from 2026-05-15 at $210. Single, $200k income, CA. Which lots and when?"',
 };
 
 // User-facing labels for each input field. Built per tool FROM the inputSchema so
@@ -823,6 +877,7 @@ const FIELD_LABELS: Record<string, string> = {
   adjustedBasis: 'adjusted basis', expectedGain: 'expected gain', targetAfterTax: 'after-tax cash goal',
   targetDate: 'deadline', stacks: '', lots: '', expectedAnnualGrowth: '', cashInterestRate: 'cash interest rate',
   riskToleranceShortfall: 'risk tolerance (max shortfall chance)', defaultVolatility: 'default volatility',
+  divestFraction: 'fraction of shares to sell', horizonYears: 'years to spread the sale over',
 };
 
 // Fields the Poe bot safely assumes when unstated (see TOOL_DEFAULTS). Shown
@@ -847,6 +902,7 @@ const REQUIRED_NOTE: Record<string, string> = {
   rsu_sell_vs_hold: 'and a ticker, or the current price and an expected sale price',
   concentration_analyze: 'and a ticker, or an expected annual return',
   equity_funding_plan: 'and your holdings: for each lot the shares, cost basis, and purchase date, with a ticker or current price',
+  rsu_lot_optimize: 'and your vested lots: for each, the vest date, shares, and cost basis per share',
 };
 // Fields folded into REQUIRED_NOTE (the ticker-or alternative) -- excluded from
 // BOTH the Required and Optional lists. Includes price fields the schema marks
@@ -858,6 +914,7 @@ const EXCLUDE: Record<string, Set<string>> = {
   concentration_analyze: new Set(['expectedPositionReturn', 'ticker']),
   protective_put_price: new Set(['ticker', 'tickerLabel']),
   equity_funding_plan: new Set(['stacks', 'lots', 'currentPrice', 'expectedAnnualGrowth']),
+  rsu_lot_optimize: new Set(['lots']),
 };
 
 function cap(s: string): string {
@@ -916,7 +973,7 @@ function helpText(topic: string): string {
 
 const INTRO =
   'I turn an equity-compensation tax question into a deterministic, after-tax-optimal answer. ' +
-  'Here are the seven calculators and the inputs each one needs (give a ticker and I derive growth, volatility, and price):\n\n' +
+  'Here are the eight calculators and the inputs each one needs (give a ticker and I derive growth, volatility, and price):\n\n' +
   capabilitiesMenu() +
   `\n\nExample: ${HELP_EXAMPLE.amt_iso_optimize}\n\nAsk in plain English. The first answer is on the house during launch.`;
 

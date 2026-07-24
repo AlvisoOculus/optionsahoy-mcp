@@ -18,7 +18,7 @@ Beyond determinism, the tax math is independently verified, every release: every
 
 ## What it provides
 
-`get_optionsahoy_tools()` returns seven `StructuredTool`s, each with a pydantic `args_schema` mirroring its endpoint:
+`get_optionsahoy_tools()` returns eight `StructuredTool`s, each with a pydantic `args_schema` mirroring its endpoint:
 
 - `optionsahoy_amt_iso_optimize` - multi-year ISO exercise optimizer under the alternative minimum tax (AMT)
 - `optionsahoy_nso_calculate` - non-qualified stock option (NSO) exercise tax, sell-at-exercise versus hold
@@ -27,6 +27,7 @@ Beyond determinism, the tax math is independently verified, every release: every
 - `optionsahoy_protective_put_price` - protective put, zero-cost collar, and put spread pricing
 - `optionsahoy_qsbs_check` - qualified small business stock (QSBS) Section 1202 eligibility and exclusion
 - `optionsahoy_equity_funding_plan` - multi-year plan to fund a cash goal from equity by a target date
+- `optionsahoy_rsu_lot_optimize` - which vested RSU lots to sell, and when, to divest a target share fraction at the lowest tax
 
 Coverage spans the full federal tax code plus all 50 states and DC. The adapter pulls in the keyless `optionsahoy` client automatically. No API key is read, stored, or sent anywhere.
 
@@ -74,6 +75,11 @@ Plans which equity lots to sell, and when, to fund a cash goal by a target date 
 - Inputs (required): `targetAfterTax` (after-tax cash goal to raise, USD), `targetDate` (when the cash is needed, YYYY-MM-DD), `ordinaryIncome` (USD), `filingStatus` (`single` | `married_joint` | `head_household`), `stateCode` (two-letter, or `DC`), plus the holdings as either `stacks` (preferred: a list of stacks, each with `currentPrice` and a `lots` list of `{shares, costBasisPerShare, acquisitionDate, vestDate?}`, optional per-stack `ticker`, `expectedAnnualGrowth`, `volatility`) or the legacy `lots` plus a single `currentPrice`.
 - Optional: `expectedAnnualGrowth` (decimal), `cashInterestRate` (decimal), `riskToleranceShortfall` (acceptable probability of shortfall, 0 to 1), `defaultVolatility` (decimal).
 - Returns: four named plans `recommended`, `lockInNow`, `balanced`, `holdForGrowth`, plus `frontier[]` (the full risk/return frontier), and the echoed `targetAfterTax`, `targetDateISO`, `appliedRiskTolerance`. Each plan carries `planKey`/`planLabel`, `wealthAtTarget` (projected net wealth at the target date), `totalTax`, `shortfallProbability` (chance of missing the goal), and a `plan` with `feasible` (boolean), `totalAfterTaxAchieved`, `totalSharesSold`, `totalGrossProceeds`, `totalTaxes` (`federal`, `state`, `niit`, `total`), `schedule` (per-year sales with per-lot `shares`, `grossProceeds`, `gainAmount`, `isLongTerm`, `federalTax`, `stateTax`, `niit`, `netCash`), `comparison` (savings versus selling everything in the target year), and `remainingShares`/`remainingPositionValue` (what is left unsold).
+
+### `optionsahoy_rsu_lot_optimize`
+Chooses which vested restricted stock unit (RSU) lots to sell, and when, to divest a target share fraction at the lowest tax: specific-lot identification, long-term deferral, and multi-year bracket spreading, versus a first-in-first-out (FIFO) sell order.
+- Inputs (required): `lots` (a list of vested lots, each `{vestDate (YYYY-MM-DD), shares, costBasisPerShare}`), `currentPrice` (current share price, USD), `divestFraction` (fraction of shares to divest, 0.1 to 1.0), `horizonYears` (planning horizon in years, 1 to 3), `ordinaryIncome` (annual ordinary income, USD), `filingStatus` (`single` | `married_joint` | `head_household`), `stateCode` (two-letter US state code, or `DC`).
+- Returns: `headlineDeltaVsFifo` (after-tax dollars saved by the optimized lot order versus selling FIFO); `totalTax` (total tax of the recommended order); `schedule` (the recommended per-year, per-lot sell order, with the shares sold from each lot and the resulting gain and tax); and the FIFO baseline it is measured against.
 
 To see the full typed input schema for any tool, call `tools[0].args_schema.model_json_schema()` (substitute the tool you want). The authoritative request schemas are the OpenAPI spec at <https://optionsahoy.com/openapi.json> and the agent docs at <https://optionsahoy.com/for-agents>.
 
@@ -130,7 +136,7 @@ for _ in range(5):
 
 Pass your own configured client with `get_optionsahoy_tools(client=OptionsAhoyClient(...))`.
 
-The seven endpoints accept forward-looking fields (such as `expectedSalePrice` or `volatility`) that the schema marks optional but the API requires at call time; set a covered `ticker` (for example `"NVDA"`) to let the API derive them, or pass explicit values. Omitting both returns a clear 400 explaining which field is needed.
+Most of the endpoints accept forward-looking fields (such as `expectedSalePrice` or `volatility`) that the schema marks optional but the API requires at call time; set a covered `ticker` (for example `"NVDA"`) to let the API derive them, or pass explicit values. Omitting both returns a clear 400 explaining which field is needed.
 
 ## Runnable example and source
 

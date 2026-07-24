@@ -18,6 +18,7 @@ import {
   nsoParameters,
   protectivePutParameters,
   qsbsParameters,
+  rsuLotParameters,
   rsuParameters,
 } from '../src/schemas';
 
@@ -30,6 +31,7 @@ const SCHEMA_BY_SLUG: Record<string, z.ZodObject<z.ZodRawShape>> = {
   'protective-put': protectivePutParameters,
   qsbs: qsbsParameters,
   'equity-funding': equityFundingParameters,
+  'rsu-lot-order': rsuLotParameters,
 };
 
 interface OpenApiSchema {
