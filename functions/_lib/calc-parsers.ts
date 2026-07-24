@@ -41,6 +41,11 @@ const SIGMA_BOUNDS = { min: 0, max: 5 } as const; // annualized volatility (sigm
 const RATE_BOUNDS = { min: -0.9, max: 3 } as const; // annual growth / return
 const CASH_RATE_BOUNDS = { min: 0, max: 1 } as const; // after-tax cash yield
 
+// Truncate a Date to its UTC calendar day (ms at 00:00 UTC), so a date bound
+// compares by day and ignores the time component. Shared by the parsers that
+// bound a date to "today".
+const dayUTC = (d: Date) => Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+
 const ASK_USER_HINT =
   'The model invoking this tool MUST NOT invent this value — ask the user.';
 
@@ -356,7 +361,6 @@ export function parseEquityFundingInput(raw: unknown, trustedToday?: Date): Equi
   // Reject a deadline in the past at parse time with a clear message (RT2),
   // rather than letting it fall through to a confusing "infeasible, $0
   // achievable" result. Compare by calendar day so "fund by today" is allowed.
-  const dayUTC = (d: Date) => Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
   if (dayUTC(targetDate) < dayUTC(today)) {
     throw new Error('field "targetDate" must be today or later: the deadline is in the past.');
   }
@@ -427,7 +431,6 @@ function parseRsuLotOrderLot(raw: unknown, index: number, today: Date): LotDives
   // divest total and sold as not-yet-owned shares. Compare by calendar day so a
   // lot vesting today is allowed. (Equity-funding accepts a future vestDate on
   // purpose, for unvested tranches; this tool deliberately does not.)
-  const dayUTC = (d: Date) => Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
   if (dayUTC(vestDate) > dayUTC(today)) {
     throw new Error(
       `lots[${index}] field "vestDate" must be on or before today: this tool covers vested lots only, and unvested grants are out of scope.`,

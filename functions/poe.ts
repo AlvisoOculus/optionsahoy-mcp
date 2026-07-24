@@ -110,6 +110,10 @@ function ratePct(n: unknown): string {
   return `${Math.round(n * 100)}%`;
 }
 
+// Coerce an unknown to a finite number, or 0. Used by the schedule formatters
+// to sum/round result fields defensively.
+const num = (v: unknown): number => (typeof v === 'number' && isFinite(v) ? v : 0);
+
 // "2026-06-24" -> "Jun 2026" for readable sell-schedule dates.
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 function monthLabel(iso: unknown): string {
@@ -475,7 +479,6 @@ function headline(tool: string, r: Result): string {
         // The actual sell schedule: how many shares to sell on each date.
         // Show every sale, not a summary -- this is the whole point of the answer.
         const sched: any[] = Array.isArray(plan.schedule) ? plan.schedule : [];
-        const num = (v: unknown) => (typeof v === 'number' && isFinite(v) ? v : 0);
         const steps = sched
           .map((row: any) => {
             const iso = String(row?.saleDateISO ?? '');
@@ -558,7 +561,6 @@ function headline(tool: string, r: Result): string {
       }
       case 'rsu_lot_optimize': {
         if (typeof r.headlineAfterTaxKept !== 'number') break;
-        const num = (v: unknown) => (typeof v === 'number' && isFinite(v) ? v : 0);
         const lines: string[] = [];
         const shares = Math.round(num(r.sharesToSell)).toLocaleString('en-US');
         lines.push(`**Sell ${shares} shares; you keep about ${usd(r.headlineAfterTaxKept)} after tax.**`);
