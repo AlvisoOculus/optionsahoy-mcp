@@ -7,13 +7,13 @@
 // to it over the A2A JSON-RPC transport (POST /a2a, method message/send).
 //
 // DETERMINISTIC BY DESIGN: every inbound message is routed to one of the
-// seven keyless calculators by an explicit `skill` id carried in a data
+// eight keyless calculators by an explicit `skill` id carried in a data
 // part. No language model is invoked, so the hosted endpoint has no
 // per-call inference cost. Free-text messages get a keyword-routed pointer
 // to the matching skill and its input schema, again with no model in the
 // loop.
 //
-// The seven calculators are the exact same parser + compute pairs the
+// The eight calculators are the exact same parser + compute pairs the
 // /api/v1/* REST endpoints use, so an A2A answer is byte-identical to the
 // REST answer for the same input.
 
@@ -25,6 +25,7 @@ import {
   parseProtectivePutInput,
   parseQsbsInput,
   parseEquityFundingInput,
+  parseRsuLotOptimizeInput,
 } from './calc-parsers';
 import { computeAmtIso } from '../../lib/calc/amtIso';
 import { computeNsoResult } from '../../lib/calc/nso';
@@ -33,6 +34,7 @@ import { calculate as calculateConcentration } from '../../lib/calc/concentratio
 import { calculateProtectivePut } from '../../lib/calc/protectivePut';
 import { evaluateQsbs } from '../../lib/calc/qsbs';
 import { computeEquityFundingComparison } from '../../lib/calc/equityFunding';
+import { computeLotDivestPlan } from '../../lib/calc/lotDivest';
 
 // The public endpoint advertised in the Agent Card. The card is served at
 // optionsahoy.com/.well-known/agent-card.json and the JSON-RPC endpoint at
@@ -152,6 +154,19 @@ export const SKILLS: Skill[] = [
     keywords: ['down payment', 'cash goal', 'fund a', 'raise cash', 'liquidity'],
     run: (input) => computeEquityFundingComparison(parseEquityFundingInput(input)),
   },
+  {
+    id: 'rsu_lot_optimize',
+    name: 'Pick which RSU lots to sell first',
+    description:
+      'Choose which vested RSU lots to sell, and in which years, to divest a target share fraction at the lowest tax, versus a first-in-first-out sell order.',
+    tags: ['rsu-lot-order', 'diversification', 'planning'],
+    examples: [
+      'I want to sell down half my company stock over 2 years. Which of my vested lots should I sell, and when?',
+    ],
+    rest: '/api/v1/rsu-lot-order',
+    keywords: ['which lots', 'sell first', 'lot order', 'specific lot', 'diversify', 'divest'],
+    run: (input) => computeLotDivestPlan(parseRsuLotOptimizeInput(input)),
+  },
 ];
 
 const SKILL_BY_ID: Record<string, Skill> = Object.fromEntries(SKILLS.map((s) => [s.id, s]));
@@ -167,8 +182,9 @@ export function buildAgentCard(url: string = AGENT_URL): Record<string, unknown>
       'Answers equity-compensation planning questions by calling the OptionsAhoy calculators: ' +
       'incentive stock option and alternative minimum tax (AMT) exercise timing, non-qualified ' +
       'stock options, restricted stock unit sell-versus-hold, qualified small business stock ' +
-      '(QSBS), single-stock concentration, protective-put hedging, and funding a cash goal from ' +
-      'equity. The financial math is deterministic and verifiable ' +
+      '(QSBS), single-stock concentration, protective-put hedging, funding a cash goal from ' +
+      'equity, and choosing which vested RSU lots to sell first. The financial math is ' +
+      'deterministic and verifiable ' +
       "(https://optionsahoy.com/verification); OptionsAhoy's API is keyless. Send a message " +
       'with a data part {"skill":"<id>","input":{...}} to run a calculator.',
     url,

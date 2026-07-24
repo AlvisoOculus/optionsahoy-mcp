@@ -17,6 +17,7 @@ import type {
   EquityFundingLot,
   EquityFundingStack,
 } from '../../lib/calc/equityFunding';
+import type { LotDivestInput, LotDivestLot } from '../../lib/calc/lotDivest';
 
 import { asObject, p, FILING_STATUSES, type Obj } from './api';
 import { STATE_CODES } from '../../lib/tax/state-tax';
@@ -409,6 +410,63 @@ export function parseEquityFundingInput(raw: unknown, trustedToday?: Date): Equi
     base.expectedAnnualGrowth = p.num(o, 'expectedAnnualGrowth', RATE_BOUNDS);
   }
   return base;
+}
+
+function parseRsuLotOrderLot(raw: unknown, index: number, today: Date): LotDivestLot {
+  if (raw === null || typeof raw !== 'object') {
+    throw new Error(`lots[${index}] must be an object with vestDate, shares, costBasisPerShare`);
+  }
+  const o = raw as Obj;
+  // Fractional shares are real (dividend-reinvest and net-settlement lots), so
+  // this is p.num, not p.int — but a zero- or negative-share lot is meaningless.
+  const shares = p.num(o, 'shares', { min: 0 });
+  if (shares <= 0) throw new Error(`lots[${index}] field "shares" must be greater than 0`);
+  const vestDate = p.date(o, 'vestDate');
+  // This tool plans the sell-down of VESTED lots only (unvested grants are an
+  // explicit non-goal). A future vestDate would otherwise be counted into the
+  // divest total and sold as not-yet-owned shares. Compare by calendar day so a
+  // lot vesting today is allowed. (Equity-funding accepts a future vestDate on
+  // purpose, for unvested tranches; this tool deliberately does not.)
+  const dayUTC = (d: Date) => Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+  if (dayUTC(vestDate) > dayUTC(today)) {
+    throw new Error(
+      `lots[${index}] field "vestDate" must be on or before today: this tool covers vested lots only, and unvested grants are out of scope.`,
+    );
+  }
+  return {
+    vestDate,
+    shares,
+    costBasisPerShare: p.num(o, 'costBasisPerShare', { min: 0 }),
+  };
+}
+
+export function parseRsuLotOptimizeInput(raw: unknown, trustedToday?: Date): LotDivestInput {
+  const o = asObject(raw);
+  // `today` is NEVER taken from input: an LLM extractor with a stale training
+  // cutoff could otherwise anchor every long-term-crossing date and sale year
+  // in the past (the equity_funding_plan defect P13/RT1). Tests pass an
+  // explicit trusted override; in production the server clock is authoritative.
+  const today = trustedToday ?? new Date();
+  const lotsRaw = o.lots;
+  if (!Array.isArray(lotsRaw) || lotsRaw.length === 0) {
+    throw new Error('field "lots" must be a non-empty array of {vestDate, shares, costBasisPerShare}');
+  }
+  // horizonYears is the number of tax years the plan may span: 1 ("sell all
+  // now"), 2, or 3. The engine's type is the literal union 1 | 2 | 3.
+  const horizonYears = p.int(o, 'horizonYears', { min: 1, max: 3 }) as 1 | 2 | 3;
+  return {
+    lots: lotsRaw.map((lot, idx) => parseRsuLotOrderLot(lot, idx, today)),
+    currentPrice: p.num(o, 'currentPrice', { min: 0 }),
+    // Named `divestFraction` (a decimal, 0.10-1.0) rather than "percent" so an
+    // agent that passes 50 meaning 50% is rejected by the max:1 bound instead
+    // of silently divesting 5000%. Maps to the engine's `divestPercent` field.
+    divestPercent: p.num(o, 'divestFraction', { min: 0.1, max: 1 }),
+    horizonYears,
+    ordinaryIncome: p.num(o, 'ordinaryIncome', { min: 0 }),
+    filingStatus: p.enum(o, 'filingStatus', FILING_STATUSES),
+    stateCode: p.enum(o, 'stateCode', STATE_CODES),
+    today,
+  };
 }
 
 export function parseQsbsInput(raw: unknown): QsbsInputs {

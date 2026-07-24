@@ -16,6 +16,7 @@ import {
   parseProtectivePutInput,
   parseQsbsInput,
   parseEquityFundingInput,
+  parseRsuLotOptimizeInput,
 } from '../functions/_lib/calc-parsers';
 
 const AMT = {
@@ -203,5 +204,54 @@ describe('parser cross-field guards (reject silently-misleading or ambiguous inp
     const toolspec = JSON.parse(readFileSync('public/toolspec.json', 'utf8'));
     const amt = toolspec.tools.find((t: { name: string }) => t.name === 'amt_iso_optimize');
     expect(amt.inputSchema.required).not.toContain('carryforwardCredit');
+  });
+});
+
+const RSU_LOT = {
+  lots: [
+    { vestDate: '2022-08-15', shares: 120, costBasisPerShare: 95 },
+    { vestDate: '2024-02-15', shares: 100, costBasisPerShare: 130 },
+  ],
+  currentPrice: 180,
+  divestFraction: 0.5,
+  horizonYears: 2,
+  ordinaryIncome: 200000,
+  filingStatus: 'single',
+  stateCode: 'CA',
+};
+// A trusted "today" so vestDate bounds are deterministic regardless of the wall clock.
+const RSU_TODAY = new Date('2026-07-24T00:00:00Z');
+
+describe('rsu_lot_optimize parser range validation', () => {
+  it('accepts a valid input', () => {
+    expect(() => parseRsuLotOptimizeInput(RSU_LOT, RSU_TODAY)).not.toThrow();
+  });
+  it('rejects divestFraction outside 0.1-1 (an agent passing 50 for "50%")', () => {
+    expect(() => parseRsuLotOptimizeInput({ ...RSU_LOT, divestFraction: 50 }, RSU_TODAY)).toThrow(/divestFraction.*<= 1/);
+    expect(() => parseRsuLotOptimizeInput({ ...RSU_LOT, divestFraction: 0.01 }, RSU_TODAY)).toThrow(/divestFraction.*>= 0.1/);
+  });
+  it('rejects horizonYears outside 1-3 and non-integers', () => {
+    expect(() => parseRsuLotOptimizeInput({ ...RSU_LOT, horizonYears: 5 }, RSU_TODAY)).toThrow(/horizonYears.*<= 3/);
+    expect(() => parseRsuLotOptimizeInput({ ...RSU_LOT, horizonYears: 2.5 }, RSU_TODAY)).toThrow(/horizonYears.*whole number/);
+  });
+  it('rejects a zero- or negative-share lot', () => {
+    expect(() =>
+      parseRsuLotOptimizeInput({ ...RSU_LOT, lots: [{ vestDate: '2022-08-15', shares: 0, costBasisPerShare: 95 }] }, RSU_TODAY),
+    ).toThrow(/shares.*greater than 0/);
+  });
+  it('rejects a future vestDate (vested lots only; unvested grants are out of scope)', () => {
+    expect(() =>
+      parseRsuLotOptimizeInput({ ...RSU_LOT, lots: [{ vestDate: '2027-01-01', shares: 100, costBasisPerShare: 95 }] }, RSU_TODAY),
+    ).toThrow(/vestDate.*on or before today/);
+  });
+  it('ignores a client-supplied today (server clock is authoritative)', () => {
+    // Even with a far-future `today` in the body, the trusted clock governs, so
+    // a 2027 vestDate is still rejected.
+    expect(() =>
+      parseRsuLotOptimizeInput(
+        { ...RSU_LOT, today: '2030-01-01', lots: [{ vestDate: '2027-01-01', shares: 100, costBasisPerShare: 95 }] },
+        RSU_TODAY,
+      ),
+    ).toThrow(/vestDate.*on or before today/);
   });
 });

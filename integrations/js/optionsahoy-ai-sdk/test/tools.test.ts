@@ -21,6 +21,7 @@ const TOOL_SLUGS: Record<OptionsAhoyToolName, string> = {
   protective_put_price: 'protective-put',
   qsbs_check: 'qsbs',
   equity_funding_plan: 'equity-funding',
+  rsu_lot_optimize: 'rsu-lot-order',
 };
 
 const TOOL_NAMES = Object.keys(TOOL_SLUGS) as OptionsAhoyToolName[];
@@ -50,10 +51,23 @@ const SAMPLE_ARGS: Record<OptionsAhoyToolName, Record<string, unknown>> = {
   protective_put_price: { positionValue: 400000, protectionLevel: 0.1, tenorYears: 1 },
   qsbs_check: { acquisitionDate: '2020-01-15', saleDate: '2026-06-01' },
   equity_funding_plan: { targetAfterTax: 400000, targetDate: '2028-06-01' },
+  rsu_lot_optimize: {
+    lots: [
+      { vestDate: '2022-08-15', shares: 120, costBasisPerShare: 95 },
+      { vestDate: '2024-02-15', shares: 100, costBasisPerShare: 130 },
+      { vestDate: '2026-05-15', shares: 80, costBasisPerShare: 210 },
+    ],
+    currentPrice: 180,
+    divestFraction: 0.5,
+    horizonYears: 2,
+    ordinaryIncome: 200000,
+    filingStatus: 'single',
+    stateCode: 'CA',
+  },
 };
 
 describe('createOptionsAhoyTools', () => {
-  it('exports exactly the seven calculators', () => {
+  it('exports exactly the eight calculators', () => {
     const tools = createOptionsAhoyTools();
     expect(Object.keys(tools).sort()).toEqual([...TOOL_NAMES].sort());
     expect(Object.keys(optionsAhoyTools).sort()).toEqual([...TOOL_NAMES].sort());

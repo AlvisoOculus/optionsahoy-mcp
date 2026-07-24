@@ -23,6 +23,7 @@ Route the question to the right tool:
 - Protective put, zero-cost collar, or put spread pricing: `protective_put_price`
 - Section 1202 QSBS qualification: `qsbs_check`
 - Sell schedule to net a target after-tax amount by a date: `equity_funding_plan`
+- Which vested RSU lots to sell first to divest or diversify at the lowest tax: `rsu_lot_optimize`
 
 Never invent a required input; if the user did not give it and no `ticker`
 shortcut resolves it, ask. Lead the answer with after-tax net final value (NFV),

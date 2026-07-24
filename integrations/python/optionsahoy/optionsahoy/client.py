@@ -388,3 +388,32 @@ class OptionsAhoyClient:
                 "defaultVolatility": defaultVolatility,
             },
         )
+
+    def rsu_lot_order(
+        self,
+        *,
+        lots: List[Dict[str, Any]],
+        currentPrice: float,
+        divestFraction: float,
+        horizonYears: int,
+        ordinaryIncome: float,
+        filingStatus: str,
+        stateCode: str,
+    ) -> Dict[str, Any]:
+        """Choose which vested RSU lots to sell, and when, to divest a target share
+        fraction at the lowest tax (specific-lot identification, long-term deferral,
+        and multi-year bracket spreading), versus a first-in-first-out sell order.
+        Each lot in ``lots`` is a dict with ``vestDate`` (ISO date), ``shares``, and
+        ``costBasisPerShare``. ``divestFraction`` is a decimal 0.10-1.0."""
+        return self._post(
+            "/api/v1/rsu-lot-order",
+            {
+                "lots": lots,
+                "currentPrice": currentPrice,
+                "divestFraction": divestFraction,
+                "horizonYears": horizonYears,
+                "ordinaryIncome": ordinaryIncome,
+                "filingStatus": filingStatus,
+                "stateCode": stateCode,
+            },
+        )

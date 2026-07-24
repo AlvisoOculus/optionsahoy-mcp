@@ -2,7 +2,7 @@
 """Tests for the Arcade OptionsAhoy toolkit.
 
 The OptionsAhoy client is monkeypatched so no network call is made; tests assert that the
-toolkit registers all seven tools in an Arcade ToolCatalog with the expected names, that the
+toolkit registers all eight tools in an Arcade ToolCatalog with the expected names, that the
 tool definitions are well formed, and that invoking a tool routes through the client and
 returns the parsed dict.
 """
@@ -19,6 +19,7 @@ EXPECTED_NAMES = {
     "ProtectivePutPrice",
     "QsbsCheck",
     "EquityFundingPlan",
+    "RsuLotOptimize",
 }
 
 
@@ -28,9 +29,9 @@ def _catalog() -> ToolCatalog:
     return catalog
 
 
-def test_catalog_registers_all_seven_tools():
+def test_catalog_registers_all_eight_tools():
     catalog = _catalog()
-    assert len(catalog) == 7
+    assert len(catalog) == 8
     names = {tool.definition.name for tool in catalog}
     assert names == EXPECTED_NAMES
 

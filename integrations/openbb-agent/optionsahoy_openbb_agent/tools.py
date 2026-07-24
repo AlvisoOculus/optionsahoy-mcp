@@ -24,6 +24,9 @@ What each tool computes (not how):
   federal and state capital-gains exclusion.
 - equity_funding: which equity lots to sell, and when, to fund a cash goal by a
   target date at the least after-tax cost.
+- rsu_lot_order: which vested restricted stock unit (RSU) lots to sell, and when,
+  to divest a target share fraction at the lowest tax, versus a first-in-first-out
+  (FIFO) sell order.
 """
 
 from __future__ import annotations
@@ -316,6 +319,64 @@ TOOLS: List[Dict[str, Any]] = [
             "required": [
                 "targetAfterTax",
                 "targetDate",
+                "ordinaryIncome",
+                "filingStatus",
+                "stateCode",
+            ],
+        },
+    },
+    {
+        "name": "rsu_lot_order",
+        "description": (
+            "Choose which vested restricted stock unit (RSU) lots to sell, and when, "
+            "to divest a target share fraction at the lowest tax (specific-lot "
+            "identification, long-term deferral, and multi-year bracket spreading), "
+            "versus a first-in-first-out (FIFO) sell order."
+        ),
+        "parameters": {
+            "type": "object",
+            "properties": {
+                "lots": {
+                    "type": "array",
+                    "description": "Vested RSU lots still held, one per vest tranche.",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "vestDate": {"type": "string", "description": "Vest date, YYYY-MM-DD."},
+                            "shares": {
+                                "type": "number",
+                                "description": "Shares still held from this vest.",
+                            },
+                            "costBasisPerShare": {
+                                "type": "number",
+                                "description": "Per-share cost basis, the share price on vest day.",
+                            },
+                        },
+                        "required": ["vestDate", "shares", "costBasisPerShare"],
+                    },
+                },
+                "currentPrice": {"type": "number", "description": "Current share price."},
+                "divestFraction": {
+                    "type": "number",
+                    "minimum": 0.1,
+                    "maximum": 1,
+                    "description": "Fraction of total shares to divest, as a decimal (0.5 sells half).",
+                },
+                "horizonYears": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 3,
+                    "description": "Tax years the plan may span: 1 (sell all now), 2, or 3.",
+                },
+                "ordinaryIncome": {"type": "number", "description": "Annual ordinary income."},
+                "filingStatus": _FILING_STATUS,
+                "stateCode": _STATE_CODE,
+            },
+            "required": [
+                "lots",
+                "currentPrice",
+                "divestFraction",
+                "horizonYears",
                 "ordinaryIncome",
                 "filingStatus",
                 "stateCode",

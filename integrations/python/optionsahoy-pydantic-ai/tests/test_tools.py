@@ -23,6 +23,7 @@ EXPECTED_NAMES = {
     "optionsahoy_protective_put_price",
     "optionsahoy_qsbs_check",
     "optionsahoy_equity_funding_plan",
+    "optionsahoy_rsu_lot_optimize",
 }
 
 NAME_TO_METHOD = {
@@ -33,6 +34,7 @@ NAME_TO_METHOD = {
     "optionsahoy_protective_put_price": "protective_put",
     "optionsahoy_qsbs_check": "qsbs",
     "optionsahoy_equity_funding_plan": "equity_funding",
+    "optionsahoy_rsu_lot_optimize": "rsu_lot_order",
 }
 
 
@@ -54,7 +56,7 @@ class _FakeClient:
 
 def test_returns_all_tools():
     tools = get_optionsahoy_tools()
-    assert len(tools) == 7
+    assert len(tools) == 8
     assert {t.name for t in tools} == EXPECTED_NAMES
 
 

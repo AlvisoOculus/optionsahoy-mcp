@@ -21,6 +21,7 @@ const MAP = [
   ['protective_put_price', 'protective-put', 'ProtectivePut'],
   ['qsbs_check', 'qsbs', 'Qsbs'],
   ['equity_funding_plan', 'equity-funding', 'EquityFunding'],
+  ['rsu_lot_optimize', 'rsu-lot-order', 'RsuLotOptimize'],
 ] as const;
 
 const MCP_PATH = 'public/openapi.json';

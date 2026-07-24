@@ -26,6 +26,7 @@ export {
   protectivePutParameters,
   qsbsParameters,
   equityFundingParameters,
+  rsuLotParameters,
   filingStatus,
   stateCode,
   sector,

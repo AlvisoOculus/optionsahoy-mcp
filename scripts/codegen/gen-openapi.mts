@@ -27,6 +27,7 @@ import {
   parseProtectivePutInput,
   parseQsbsInput,
   parseEquityFundingInput,
+  parseRsuLotOptimizeInput,
 } from '../../functions/_lib/calc-parsers';
 import { computeAmtIso } from '../../lib/calc/amtIso';
 import { computeNsoResult } from '../../lib/calc/nso';
@@ -35,6 +36,7 @@ import { calculate as computeConcentration } from '../../lib/calc/concentration'
 import { calculateProtectivePut } from '../../lib/calc/protectivePut';
 import { evaluateQsbs } from '../../lib/calc/qsbs';
 import { computeEquityFundingComparison } from '../../lib/calc/equityFunding';
+import { computeLotDivestPlan } from '../../lib/calc/lotDivest';
 
 // Base is the MCP-repo spec (source of truth); the web copy is a byte mirror.
 export const BASE = 'public/openapi.json';
@@ -225,6 +227,25 @@ export const TOOL_MAP: readonly ToolEntry[] = [
       ],
     },
     run: (raw) => computeEquityFundingComparison(parseEquityFundingInput(raw)),
+  },
+  {
+    name: 'rsu_lot_optimize',
+    slug: 'rsu-lot-order',
+    prefix: 'RsuLotOptimize',
+    request: {
+      lots: [
+        { vestDate: '2022-08-15', shares: 120, costBasisPerShare: 95 },
+        { vestDate: '2024-02-15', shares: 100, costBasisPerShare: 130 },
+        { vestDate: '2026-05-15', shares: 80, costBasisPerShare: 210 },
+      ],
+      currentPrice: 180,
+      divestFraction: 0.5,
+      horizonYears: 2,
+      ordinaryIncome: 200000,
+      filingStatus: 'single',
+      stateCode: 'CA',
+    },
+    run: (raw) => computeLotDivestPlan(parseRsuLotOptimizeInput(raw)),
   },
 ] as const;
 

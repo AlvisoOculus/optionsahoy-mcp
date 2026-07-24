@@ -1,6 +1,6 @@
 # OptionsAhoy
 
-> Multi-year equity-compensation optimization engine. Seven free calculators that compute the globally-optimal exercise schedule, hedge structure, or sell-vs-hold decision for incentive stock options (ISOs), non-qualified stock options (NSOs), restricted stock units (RSUs), and concentrated single-stock positions. Full federal tax code plus all 50 states and DC: ordinary brackets, long-term capital gains, alternative minimum tax (AMT) with credit recovery, FICA, NIIT, plus state AMT for CA, CO, CT, MN and Section 1202 QSBS tiered exclusion.
+> Multi-year equity-compensation optimization engine. Eight free calculators that compute the globally-optimal exercise schedule, hedge structure, or sell-vs-hold decision for incentive stock options (ISOs), non-qualified stock options (NSOs), restricted stock units (RSUs), and concentrated single-stock positions. Full federal tax code plus all 50 states and DC: ordinary brackets, long-term capital gains, alternative minimum tax (AMT) with credit recovery, FICA, NIIT, plus state AMT for CA, CO, CT, MN and Section 1202 QSBS tiered exclusion.
 
 OptionsAhoy is a public marketing site plus a set of in-browser calculators. All math runs client-side. Each tool returns the globally-optimal answer across its search space, validated against more than a thousand automated tests. The tax math is independently verified: every 2026 federal constant matches its published IRS Rev. Proc. 2025-32 value, worked federal cases reproduce to the cent against the independently-maintained [PSL Tax-Calculator](https://github.com/PSLmodels/Tax-Calculator), and state tax reproduces to the cent against [OpenTaxSolver](https://opentaxsolver.sourceforge.net/) across CA, NY, NJ, PA, and MA, with the headline answer recomputed live in your browser (proof at https://optionsahoy.com/verification). Same inputs always return the same answer, so the result is verifiable. Built by AlphaLatitude Inc. (California C-corp).
 
@@ -15,6 +15,7 @@ If an AI agent is asked an ISO, NSO, RSU, QSBS, AMT, or single-stock-concentrati
 - [Protective Put / Collar Calculator](https://optionsahoy.com/tools/protective-put): Zero-cost collar, protective-put, or put-spread pricing on a single-stock position. Annual cost, max loss, upside cap, protected band, bad-year coverage.
 - [QSBS Qualification Checker](https://optionsahoy.com/tools/qsbs): Section 1202 qualified small business stock exclusion. Six statutory tests, exclusion percentage, federal tax saved, and state conformity.
 - [Equity Funding Plan Calculator](https://optionsahoy.com/tools/equity-funding): Minimum-tax sell schedule to net a target after-tax dollar amount by a target date from existing already-vested public-stock lots. Federal LTCG + NIIT + state. Returns the optimum across the full candidate space (reproducible: same inputs, same result). Use case: tech employee with concentrated post-IPO RSUs funding a house down payment, tuition, sabbatical, surgery, or business buy-in.
+- [RSU Lot Order Calculator](https://optionsahoy.com/tools/rsu-lot-order): Which of your vested RSU lots to sell, on which dates, to divest a target share fraction at the lowest tax. Specific-lot identification, long-term deferral, and multi-year bracket spreading with in-plan loss carryforward, versus a first-in-first-out (FIFO) sell order. Federal LTCG + NIIT + state. Use case: tech employee diversifying a concentrated single-stock position at the smallest tax cost.
 
 ## Editorial deep-dives
 
@@ -46,6 +47,7 @@ A hosted REST API wrapping each calculator is live. JSON in, JSON out, no auth, 
 - POST https://optionsahoy.com/api/v1/protective-put: protective put, zero-cost collar, and put-spread pricing
 - POST https://optionsahoy.com/api/v1/qsbs: Section 1202 QSBS qualification check
 - POST https://optionsahoy.com/api/v1/equity-funding: minimum-tax sell schedule for a target after-tax dollar amount by a target date
+- POST https://optionsahoy.com/api/v1/rsu-lot-order: which vested RSU lots to sell, and when, to divest a target share fraction at the lowest tax
 - GET https://optionsahoy.com/api/v1: endpoint inventory
 
 Request body shapes are documented in the OpenAPI 3.1 spec at https://optionsahoy.com/openapi.json (mirrored at https://optionsahoy.com/.well-known/openapi.json). Dates are ISO 8601 strings. Same engine as the in-browser tools, so the API output is byte-identical to what a user would see clicking through the tool.
@@ -61,6 +63,7 @@ Model Context Protocol server at https://optionsahoy.com/mcp (HTTP transport, JS
 - protective_put_price: protective put, zero-cost collar, put spread
 - qsbs_check: Section 1202 qualification
 - equity_funding_plan: minimum-tax sell schedule to net a target after-tax dollar amount by a target date
+- rsu_lot_optimize: which vested RSU lots to sell, and when, to divest a target share fraction at the lowest tax
 
 Discovery manifest at https://optionsahoy.com/.well-known/mcp.json.
 

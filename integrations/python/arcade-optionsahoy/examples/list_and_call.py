@@ -2,7 +2,7 @@
 """Load the OptionsAhoy Arcade toolkit, list its tools, and call one against the live API.
 
 This builds an Arcade ToolCatalog from the installed `arcade_optionsahoy` package, prints the
-seven registered tool names, then calls the QSBS check directly as a plain Python function and
+eight registered tool names, then calls the QSBS check directly as a plain Python function and
 prints the verdict and excludable gain. No OptionsAhoy API key is required; the call hits the
 public https://optionsahoy.com API.
 

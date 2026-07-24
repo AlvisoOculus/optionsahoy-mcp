@@ -1,7 +1,7 @@
 {
   "protocolVersion": "0.3.0",
   "name": "OptionsAhoy Equity Planner",
-  "description": "Answers equity-compensation planning questions by calling the OptionsAhoy calculators: incentive stock option and alternative minimum tax (AMT) exercise timing, non-qualified stock options, restricted stock unit sell-versus-hold, qualified small business stock (QSBS), single-stock concentration, protective-put hedging, and funding a cash goal from equity. The financial math is deterministic and verifiable (https://optionsahoy.com/verification); OptionsAhoy's API is keyless. Send a message with a data part {\"skill\":\"<id>\",\"input\":{...}} to run a calculator.",
+  "description": "Answers equity-compensation planning questions by calling the OptionsAhoy calculators: incentive stock option and alternative minimum tax (AMT) exercise timing, non-qualified stock options, restricted stock unit sell-versus-hold, qualified small business stock (QSBS), single-stock concentration, protective-put hedging, funding a cash goal from equity, and choosing which vested RSU lots to sell first. The financial math is deterministic and verifiable (https://optionsahoy.com/verification); OptionsAhoy's API is keyless. Send a message with a data part {\"skill\":\"<id>\",\"input\":{...}} to run a calculator.",
   "url": "https://optionsahoy.com/a2a",
   "preferredTransport": "JSONRPC",
   "version": "0.1.0",
@@ -116,6 +116,19 @@
       ],
       "examples": [
         "I need 200,000 dollars after tax for a down payment in 2 years. What should I sell and when?"
+      ]
+    },
+    {
+      "id": "rsu_lot_optimize",
+      "name": "Pick which RSU lots to sell first",
+      "description": "Choose which vested RSU lots to sell, and in which years, to divest a target share fraction at the lowest tax, versus a first-in-first-out sell order.",
+      "tags": [
+        "rsu-lot-order",
+        "diversification",
+        "planning"
+      ],
+      "examples": [
+        "I want to sell down half my company stock over 2 years. Which of my vested lots should I sell, and when?"
       ]
     }
   ]

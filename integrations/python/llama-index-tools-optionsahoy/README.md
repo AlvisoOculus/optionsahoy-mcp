@@ -18,7 +18,7 @@ Beyond determinism, the tax math is independently verified, every release: every
 
 ## What it provides
 
-`OptionsAhoyToolSpec().to_tool_list()` returns seven LlamaIndex `FunctionTool`s, one per endpoint:
+`OptionsAhoyToolSpec().to_tool_list()` returns eight LlamaIndex `FunctionTool`s, one per endpoint:
 
 - `amt_iso_optimize` - multi-year ISO exercise optimizer under the alternative minimum tax (AMT)
 - `nso_calculate` - non-qualified stock option (NSO) exercise tax, sell-at-exercise versus hold
@@ -27,6 +27,7 @@ Beyond determinism, the tax math is independently verified, every release: every
 - `protective_put_price` - protective put, zero-cost collar, and put spread pricing
 - `qsbs_check` - qualified small business stock (QSBS) Section 1202 eligibility and exclusion
 - `equity_funding_plan` - multi-year plan to fund a cash goal from equity by a target date
+- `rsu_lot_optimize` - which vested RSU lots to sell, and when, to divest a target fraction at the lowest tax
 
 Coverage spans the full federal tax code plus all 50 states and DC. The adapter pulls in the keyless `optionsahoy` client automatically. No API key is read, stored, or sent anywhere.
 
@@ -75,6 +76,11 @@ Plans which equity lots to sell, and when, to fund a cash goal by a target date 
 - Optional: `expectedAnnualGrowth` (decimal), `cashInterestRate` (decimal), `riskToleranceShortfall` (acceptable probability of shortfall, 0 to 1), `defaultVolatility` (decimal).
 - Returns: four named plans `recommended`, `lockInNow`, `balanced`, `holdForGrowth`, plus `frontier[]` (the full risk/return frontier), and the echoed `targetAfterTax`, `targetDateISO`, `appliedRiskTolerance`. Each plan carries `planKey`/`planLabel`, `wealthAtTarget` (projected net wealth at the target date), `totalTax`, `shortfallProbability` (chance of missing the goal), and a `plan` with `feasible` (boolean), `totalAfterTaxAchieved`, `totalSharesSold`, `totalGrossProceeds`, `totalTaxes` (`federal`, `state`, `niit`, `total`), `schedule` (per-year sales with per-lot `shares`, `grossProceeds`, `gainAmount`, `isLongTerm`, `federalTax`, `stateTax`, `niit`, `netCash`), `comparison` (savings versus selling everything in the target year), and `remainingShares`/`remainingPositionValue` (what is left unsold).
 
+### `rsu_lot_optimize`
+Chooses which vested restricted stock unit (RSU) lots to sell, and when, to divest a target share fraction at the lowest tax, using specific-lot identification, long-term deferral, and multi-year bracket spreading, versus a first-in-first-out (FIFO) sell order.
+- Inputs (required): `lots` (vested RSU lots to draw from, each `{vestDate: YYYY-MM-DD, shares, costBasisPerShare}`), `currentPrice` (current share price, USD), `divestFraction` (target share fraction to divest, decimal 0.1 to 1.0), `horizonYears` (planning horizon in years, 1 to 3), `ordinaryIncome` (annual ordinary income, USD), `filingStatus` (`single` | `married_joint` | `head_household`), `stateCode` (two-letter US state code, or `DC`).
+- Returns: the optimized lot-selling schedule and its total tax, compared against the naive FIFO order, with the per-year and per-lot sales that reach the target divest fraction.
+
 To see the full typed input schema for any tool, call `tools[0].metadata.fn_schema.model_json_schema()` (substitute the tool you want). The authoritative request schemas are the OpenAPI spec at <https://optionsahoy.com/openapi.json> and the agent docs at <https://optionsahoy.com/for-agents>.
 
 ## Install
@@ -122,7 +128,7 @@ asyncio.run(main())
 
 Pass your own configured client with `OptionsAhoyToolSpec(client=OptionsAhoyClient(...))`.
 
-The seven endpoints accept forward-looking fields (such as `expectedSalePrice` or `volatility`) that the schema marks optional but the API requires at call time; set a covered `ticker` (for example `"NVDA"`) to let the API derive them, or pass explicit values. Omitting both returns a clear 400 explaining which field is needed.
+Most endpoints accept forward-looking fields (such as `expectedSalePrice` or `volatility`) that the schema marks optional but the API requires at call time; set a covered `ticker` (for example `"NVDA"`) to let the API derive them, or pass explicit values. Omitting both returns a clear 400 explaining which field is needed.
 
 ## Runnable example and source
 

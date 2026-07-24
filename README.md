@@ -30,7 +30,7 @@ The hosted endpoint is `https://optionsahoy.com/mcp` (HTTP, no auth, no account)
 
 Full install matrix (Gemini CLI extension, config-file JSON, REST API, Google Cloud Agent Registry): [optionsahoy.com/for-agents](https://optionsahoy.com/for-agents).
 
-## The seven tools
+## The eight tools
 
 | Tool name | What it computes |
 |---|---|
@@ -41,6 +41,7 @@ Full install matrix (Gemini CLI extension, config-file JSON, REST API, Google Cl
 | `protective_put_price` | Protective put, zero-cost collar, and put spread pricing via Black-Scholes: annualized hedge cost, maximum loss, upside cap, protected band, floor-hit probability, and which structure it recommends |
 | `qsbs_check` | Section 1202 QSBS qualification across the six statutory tests, with the OBBBA 2026 tiered exclusion and per-state conformity |
 | `equity_funding_plan` | Multi-year, multi-stack sell schedule to hit a target after-tax amount by a deadline; returns four named plans plus the full risk/wealth frontier |
+| `rsu_lot_optimize` | Which vested RSU lots to sell, and on which dates, to divest a target share fraction at the lowest tax: specific-lot identification, long-term deferral, and multi-year bracket spreading with in-plan loss carryforward, versus a FIFO sell order |
 
 The optimizers return the best schedule across the candidate space; the calculators return exact deterministic results. Deterministic computation, not a language-model guess, validated against brute-force ground truth on tractable cases ([see the proof](https://optionsahoy.com/verification)). Coverage spans the full federal tax code (ordinary brackets, long-term capital gains, AMT with credit recovery, FICA, NIIT) plus all 50 states and DC (state ordinary brackets, LTCG treatment, state AMT for CA, CO, CT, MN). Same engine as the in-browser calculators at [optionsahoy.com/tools](https://optionsahoy.com/tools); the API response is byte-identical to clicking through the tool.
 
@@ -63,7 +64,7 @@ However your agent is built, there is a drop-in piece. All are public and keyles
 
 | Building block | What it is |
 |---|---|
-| [Vercel AI SDK tools](integrations/js/optionsahoy-ai-sdk) | A TypeScript package (`optionsahoy-ai-sdk`) exposing all seven calculators as Vercel AI SDK `tool()` definitions, ready to spread into `generateText` / `streamText`. |
+| [Vercel AI SDK tools](integrations/js/optionsahoy-ai-sdk) | A TypeScript package (`optionsahoy-ai-sdk`) exposing all eight calculators as Vercel AI SDK `tool()` definitions, ready to spread into `generateText` / `streamText`. |
 | [Instruction kits](integrations/agent-kits) | Editor rules and skills for Cursor, Windsurf, Claude Skills, and Claude Code subagents, so your coding agent calls the OptionsAhoy tools for equity-compensation questions. |
 | [Coding recipes](https://github.com/AlvisoOculus/equity-comp-tax-python) | Copy-paste Python recipes, one self-contained file per question, calling the keyless API with only `requests`. Also in [`integrations/recipes`](integrations/recipes). |
 | [Builder templates](integrations/agent-builder-templates) | An importable n8n workflow plus build recipes for Flowise, Langflow, and Dify. |
@@ -191,7 +192,7 @@ Request body shapes are documented in [`public/openapi.json`](public/openapi.jso
 ```
 functions/         Cloudflare Pages Functions (MCP server + REST API endpoints)
   mcp.ts           HTTP MCP server
-  api/v1/*.ts      Seven tool endpoints + stats + GET /api/v1 discovery
+  api/v1/*.ts      Eight tool endpoints + stats + GET /api/v1 discovery
   _lib/*.ts        Shared helpers, calc-input parsers, MCP tool descriptors
 lib/               Optimizer + tax-code logic
   calc/            Per-tool optimizer functions (computeAmtIso, etc.)
@@ -240,7 +241,7 @@ gcloud alpha agent-registry mcp-servers register \
   --tool-spec=<(curl -sSL https://optionsahoy.com/toolspec.json)
 ```
 
-The toolspec.json mirrors the MCP `tools/list` response with `readOnlyHint` and `idempotentHint` annotations on all seven tools (all are pure deterministic calculators with no side effects). To regenerate after a tool-shape change:
+The toolspec.json mirrors the MCP `tools/list` response with `readOnlyHint` and `idempotentHint` annotations on all eight tools (all are pure deterministic calculators with no side effects). To regenerate after a tool-shape change:
 
 ```bash
 curl -sS -X POST https://optionsahoy.com/mcp \
@@ -266,7 +267,7 @@ The MCP server returns `isError: true` with a human-readable message when input 
 - Confirm the connector URL is exactly `https://optionsahoy.com/mcp` (no trailing slash, no `/v1`).
 - In Claude Desktop, restart the app after editing `claude_desktop_config.json`.
 - In Claude.ai, the connector toggle is per-chat: enable it in the attachments menu.
-- Check the live `tools/list` response (seven tools expected): `curl -X POST https://optionsahoy.com/mcp -H 'content-type: application/json' -d '{"jsonrpc":"2.0","method":"tools/list","id":1}'`
+- Check the live `tools/list` response (eight tools expected): `curl -X POST https://optionsahoy.com/mcp -H 'content-type: application/json' -d '{"jsonrpc":"2.0","method":"tools/list","id":1}'`
 
 **CORS errors from a browser-based client**
 The server returns `access-control-allow-origin: *` on all responses including preflight, and accepts the standard MCP headers (`content-type`, `mcp-session-id`, `mcp-protocol-version`). If a browser still blocks, the client is likely sending a non-allowed header — verify the request headers against the `access-control-allow-headers` response.

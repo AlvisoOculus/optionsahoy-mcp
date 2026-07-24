@@ -1,7 +1,7 @@
 """Validate the agent instruction kits.
 
 These are markdown/JSON instruction artifacts, not executable code, so "testing"
-means: frontmatter parses, the tool names referenced are exactly the seven the
+means: frontmatter parses, the tool names referenced are exactly the eight the
 live OptionsAhoy server exposes (no typos, no stale names), descriptions stay
 within each host's documented limit, and every MCP endpoint is the canonical URL.
 
@@ -17,8 +17,8 @@ import yaml
 KIT = Path(__file__).resolve().parent.parent
 ENDPOINT = "https://optionsahoy.com/mcp"
 
-# The seven tools the live server exposes (tools/list). Any tool token in an
-# artifact must be in this set; the routing tables must reference all seven.
+# The eight tools the live server exposes (tools/list). Any tool token in an
+# artifact must be in this set; the routing tables must reference all eight.
 TOOLS = {
     "amt_iso_optimize",
     "nso_calculate",
@@ -27,6 +27,7 @@ TOOLS = {
     "protective_put_price",
     "qsbs_check",
     "equity_funding_plan",
+    "rsu_lot_optimize",
 }
 
 CURSOR_RULE = KIT / "cursor/.cursor/rules/equity-comp-tax.mdc"
@@ -105,7 +106,7 @@ def test_every_artifact_references_only_real_tools():
             assert name in TOOLS, f"{p.name}: references unknown tool `{name}`"
 
 
-def test_routing_tables_cover_all_seven_tools():
+def test_routing_tables_cover_all_eight_tools():
     # The three rich artifacts route the full tool set; the subagent lists them too.
     for p in (CURSOR_RULE, WINDSURF_RULE, SKILL, SUBAGENT):
         found = referenced_tools(p.read_text())

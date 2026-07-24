@@ -3,8 +3,8 @@
 Copy-paste Python recipes for common equity-compensation tax questions: incentive
 stock options (ISOs) and the alternative minimum tax (AMT), non-qualified stock
 options (NSOs), restricted stock units (RSUs), qualified small business stock (QSBS),
-single-stock concentration, protective puts, collars, and put spreads, and funding a cash
-goal from stock.
+single-stock concentration, protective puts, collars, and put spreads, funding a cash
+goal from stock, and choosing which vested RSU lots to sell first.
 
 Each recipe is one self-contained file that calls the **keyless** OptionsAhoy REST API
 (no API key) with nothing but `requests`. The financial math is deterministic and
@@ -104,6 +104,17 @@ from plan_stock_sales_for_cash_goal import plan_equity_sales_for_cash_goal
 
 result = plan_equity_sales_for_cash_goal(target_after_tax=200000, target_date="2027-06-01",
                                          ordinary_income=250000, state_code="CA")
+```
+
+### Which vested RSU lots should I sell first, and when, to divest at the lowest tax?
+
+[`optimize_rsu_lot_order.py`](optimize_rsu_lot_order.py)
+
+```python
+from optimize_rsu_lot_order import optimize_rsu_lot_order
+
+result = optimize_rsu_lot_order(current_price=180, divest_fraction=0.5, horizon_years=2,
+                                ordinary_income=200000, filing_status="single", state_code="CA")
 ```
 
 ## Why call the API instead of computing it inline

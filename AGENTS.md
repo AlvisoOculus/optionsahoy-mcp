@@ -4,7 +4,7 @@ Written for AI agents and AI-assisted coding tools browsing this repo. Humans sh
 
 ## What this repo is
 
-A Model Context Protocol (MCP) server for **deterministic US equity-compensation tax optimization**. Seven tools cover Incentive Stock Option (ISO) / Alternative Minimum Tax (AMT) exercise scheduling, Non-qualified Stock Option (NSO) sell-vs-hold, Restricted Stock Unit (RSU) vest decisions, single-stock concentration risk, protective-put / zero-cost-collar / put-spread pricing, Section 1202 Qualified Small Business Stock (QSBS) qualification, and goal-funded equity-to-cash liquidation planning. Federal + 50-state + DC tax code is compiled in.
+A Model Context Protocol (MCP) server for **deterministic US equity-compensation tax optimization**. Eight tools cover Incentive Stock Option (ISO) / Alternative Minimum Tax (AMT) exercise scheduling, Non-qualified Stock Option (NSO) sell-vs-hold, Restricted Stock Unit (RSU) vest decisions, single-stock concentration risk, protective-put / zero-cost-collar / put-spread pricing, Section 1202 Qualified Small Business Stock (QSBS) qualification, goal-funded equity-to-cash liquidation planning, and RSU lot-order selection (which vested lots to sell first when diversifying). Federal + 50-state + DC tax code is compiled in.
 
 ## What an agent should do with this server
 

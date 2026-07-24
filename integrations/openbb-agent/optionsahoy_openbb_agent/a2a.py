@@ -7,7 +7,7 @@ Card and delegate equity-compensation questions to it. Targets a2a-sdk 0.3.x
 (Agent Card protocol version "0.3.0", served at /.well-known/agent-card.json).
 
 The Agent Card is the discovery primitive: a calling agent fetches it, reads the
-seven skills, and routes a question here. Each skill id is the OptionsAhoy tool
+eight skills, and routes a question here. Each skill id is the OptionsAhoy tool
 name that MCP ``tools/list`` publishes, so a capability found over MCP can be
 delegated over A2A under the same name. The executor reuses the OpenBB agent's
 tool layer (the same OptionsAhoy client and ``call_tool``), and its language-model
@@ -55,6 +55,7 @@ _SKILL_ID_BY_TOOL: Dict[str, str] = {
     "protective_put": "protective_put_price",
     "qsbs": "qsbs_check",
     "equity_funding": "equity_funding_plan",
+    "rsu_lot_order": "rsu_lot_optimize",
 }
 
 # Human-readable skill name + discovery tags + one example per calculator, keyed
@@ -120,6 +121,14 @@ _SKILL_META: Dict[str, Dict[str, Any]] = {
         "examples": [
             "I need 200,000 dollars after tax for a down payment in 2 years. What "
             "should I sell and when?"
+        ],
+    },
+    "rsu_lot_optimize": {
+        "name": "RSU lot-order divest plan",
+        "tags": ["rsu", "lot-selection", "capital-gains", "tax"],
+        "examples": [
+            "I want to sell half my vested restricted stock units. Which lots should "
+            "I sell, and when, to pay the least tax?"
         ],
     },
 }

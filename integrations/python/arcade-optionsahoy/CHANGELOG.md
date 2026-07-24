@@ -2,6 +2,10 @@
 
 All notable changes to `arcade-optionsahoy` are documented here. This project follows semantic versioning.
 
+## Unreleased
+
+- Added `RsuLotOptimize`, an eighth Arcade tool: RSU lot-order divest planning (which vested lots to sell, and when, to divest a target share fraction at the lowest tax), built on the base client's `rsu_lot_order` method.
+
 ## 0.1.8
 
 - `amt_iso_optimize` `cashReturnRate` is now optional: the endpoint defaults it to 0.04 (a short-Treasury-like after-tax yield) when omitted, so callers need not supply it.

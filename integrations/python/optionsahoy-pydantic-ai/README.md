@@ -18,7 +18,7 @@ Beyond determinism, the tax math is independently verified, every release: every
 
 ## What it provides
 
-`get_optionsahoy_tools()` returns seven `pydantic_ai.Tool`s, each with a JSON schema mirroring its endpoint:
+`get_optionsahoy_tools()` returns eight `pydantic_ai.Tool`s, each with a JSON schema mirroring its endpoint:
 
 - `optionsahoy_amt_iso_optimize` - multi-year ISO exercise optimizer under the alternative minimum tax (AMT)
 - `optionsahoy_nso_calculate` - non-qualified stock option (NSO) exercise tax, sell-at-exercise versus hold
@@ -27,6 +27,7 @@ Beyond determinism, the tax math is independently verified, every release: every
 - `optionsahoy_protective_put_price` - protective put, zero-cost collar, and put spread pricing
 - `optionsahoy_qsbs_check` - qualified small business stock (QSBS) Section 1202 eligibility and exclusion
 - `optionsahoy_equity_funding_plan` - multi-year plan to fund a cash goal from equity by a target date
+- `optionsahoy_rsu_lot_optimize` - which vested RSU lots to sell, and when, to divest a target share fraction at the lowest tax
 
 Each tool returns an independent calculation for one decision. They are not a single joint optimization across your whole equity portfolio; the integrated, cross-asset optimizer is the OptionsAhoy product, currently in invite-only beta.
 
@@ -72,11 +73,11 @@ Three ways to attach the tools, pick one:
 
 - `Agent(..., tools=get_optionsahoy_tools())` - pass the tool list at construction.
 - `Agent(..., toolsets=[optionsahoy_toolset()])` - pass a ready-made `FunctionToolset`.
-- `register_optionsahoy_tools(agent)` - add all seven onto an already-constructed `Agent`.
+- `register_optionsahoy_tools(agent)` - add all eight onto an already-constructed `Agent`.
 
 Pass your own configured client to any of them with `client=OptionsAhoyClient(...)`.
 
-The seven endpoints accept forward-looking fields (such as `expectedSalePrice` or `volatility`) that the schema marks optional but the API requires at call time; set a covered `ticker` (for example `"NVDA"`) to let the API derive them, or pass explicit values. Omitting both returns a clear 400 explaining which field is needed.
+Most of the endpoints accept forward-looking fields (such as `expectedSalePrice` or `volatility`) that the schema marks optional but the API requires at call time; set a covered `ticker` (for example `"NVDA"`) to let the API derive them, or pass explicit values. Omitting both returns a clear 400 explaining which field is needed.
 
 To read the full input schema for any tool, inspect `tools[0].function_schema.json_schema` (substitute the tool you want). The authoritative request schemas are the OpenAPI spec at <https://optionsahoy.com/openapi.json> and the agent docs at <https://optionsahoy.com/for-agents>.
 

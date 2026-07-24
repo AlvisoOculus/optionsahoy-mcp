@@ -2,7 +2,7 @@
 //
 // POST /a2a: Agent2Agent (A2A) JSON-RPC endpoint for the OptionsAhoy
 // Equity Planner. Handles the `message/send` method by routing the message
-// to one of the seven keyless calculators (see functions/_lib/a2a.ts). No
+// to one of the eight keyless calculators (see functions/_lib/a2a.ts). No
 // language model is invoked, so there is no per-call inference cost.
 //
 // GET /a2a returns the Agent Card (a convenience; the canonical discovery

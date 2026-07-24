@@ -16,6 +16,7 @@ import { calculateProtectivePut } from '../../lib/calc/protectivePut';
 import { evaluateQsbs } from '../../lib/calc/qsbs';
 import { STATE_CODES } from '../../lib/tax/state-tax';
 import { computeEquityFundingComparison } from '../../lib/calc/equityFunding';
+import { computeLotDivestPlan } from '../../lib/calc/lotDivest';
 
 import { FILING_STATUSES } from './api';
 import {
@@ -26,6 +27,7 @@ import {
   parseProtectivePutInput,
   parseQsbsInput,
   parseEquityFundingInput,
+  parseRsuLotOptimizeInput,
 } from './calc-parsers';
 
 export type McpToolAnnotations = {
@@ -887,6 +889,98 @@ const EQUITY_FUNDING_OUTPUT_SCHEMA: JsonSchema = {
   ],
 };
 
+// One (lot, sale-date) row in the RSU-lot-order schedule (lotDivest.ts LotDivestSale).
+// Date fields serialize to ISO strings via JSON.stringify at the transport layer.
+const LOT_DIVEST_SALE_SCHEMA: JsonSchema = {
+  type: 'object',
+  description: 'One vested lot sold, in whole or part, on one date.',
+  properties: {
+    lotIndex: num('0-based index into the input lots array this row draws from.'),
+    vestDate: str('Vest (acquisition) date of the lot, ISO date-time string.'),
+    saleDate: str('Date this block is sold, ISO date-time string: today, a long-term-crossing date, or Jan 2 of a later plan year.'),
+    year: num('Calendar tax year of the sale.'),
+    shares: num('Shares sold in this row (may be fractional).'),
+    grossProceeds: num('Gross sale proceeds in dollars (shares x current price; flat-price assumption).'),
+    gainAmount: num('Realized capital gain, negative for a loss, in dollars.'),
+    isLongTerm: bool('True when the lot was held more than one year at the sale date (long-term capital gain).'),
+    taxAttributed: num('Signed tax attributed to this row in dollars; a loss row is negative (the tax it removes).'),
+  },
+  required: ['lotIndex', 'vestDate', 'saleDate', 'year', 'shares', 'grossProceeds', 'gainAmount', 'isLongTerm', 'taxAttributed'],
+};
+
+const LOT_DIVEST_YEAR_GROUP_SCHEMA: JsonSchema = {
+  type: 'object',
+  description: 'All sales in one tax year, after Schedule D netting.',
+  properties: {
+    year: num('Calendar tax year.'),
+    sales: { type: 'array', items: LOT_DIVEST_SALE_SCHEMA, description: 'Per-lot sale rows in this year.' },
+    netLong: num('Net long-term gain or loss after netting, in dollars.'),
+    netShort: num('Net short-term gain or loss after netting, in dollars.'),
+    tax: num('Total tax for this year (federal + state + NIIT), in dollars.'),
+    effectiveRate: num('Year tax divided by year net gain, 0..1.'),
+    carryforwardGenerated: num('Capital loss carried into the next plan year from this year, in dollars (0 when the year nets positive).'),
+  },
+  required: ['year', 'sales', 'netLong', 'netShort', 'tax', 'effectiveRate', 'carryforwardGenerated'],
+};
+
+const HORIZON_CARD_SCHEMA: JsonSchema = {
+  type: 'object',
+  description: 'Total tax and after-tax proceeds for the same divest target under a given horizon.',
+  properties: {
+    horizonYears: num('Plan length in tax years (1 = sell all now, 2, or 3).'),
+    totalTax: num('Total plan tax under this horizon, in dollars.'),
+    afterTaxKept: num('After-tax proceeds from the divested shares under this horizon, in dollars.'),
+  },
+  required: ['horizonYears', 'totalTax', 'afterTaxKept'],
+};
+
+const DEFERRAL_CALLOUT_SCHEMA: JsonSchema = {
+  type: 'object',
+  description: 'A short-term lot that becomes long-term if its sale waits past longTermDate.',
+  properties: {
+    lotIndex: num('0-based index into the input lots array.'),
+    longTermDate: str('Date the lot becomes long-term, ISO date-time string (a sale strictly after the first vest anniversary).'),
+    daysToWait: num('Days from the planned sale date to longTermDate.'),
+    taxSaved: num('Tax saved by waiting for long-term treatment, in dollars.'),
+    amountAtRisk: num('Position value kept exposed to the stock while waiting, in dollars.'),
+  },
+  required: ['lotIndex', 'longTermDate', 'daysToWait', 'taxSaved', 'amountAtRisk'],
+};
+
+const RSU_LOT_OPTIMIZE_OUTPUT_SCHEMA: JsonSchema = {
+  type: 'object',
+  description: 'RSU lot-order divest plan: which lots to sell on which dates to divest the target share count at the lowest total tax, versus a first-in-first-out (FIFO) sell order. All dollar amounts are USD.',
+  properties: {
+    sharesToSell: num('Shares the plan divests (round(divestFraction x totalShares), floored at 1).'),
+    totalShares: num('Total shares across all input lots.'),
+    totalGross: num('Gross proceeds from the divested shares, in dollars.'),
+    totalTax: num('Total plan tax across all years (federal LTCG + NIIT + state, net of in-plan loss carryforward), in dollars.'),
+    totalAfterTax: num('After-tax proceeds from the divested shares, in dollars.'),
+    schedule: { type: 'array', items: LOT_DIVEST_YEAR_GROUP_SCHEMA, description: 'The sell plan, grouped by tax year.' },
+    keptUnrealizedGain: num('Unrealized gain still carried by the shares NOT sold, in dollars (deferred, not eliminated).'),
+    carryforwardRemaining: num('Capital loss remaining at the end of the plan horizon, in dollars (reported, not modeled into future years).'),
+    headlineAfterTaxKept: num('After-tax proceeds under the plan, in dollars: the headline "you keep $X" figure.'),
+    headlineDeltaVsFifo: num('Dollars saved versus selling oldest-first (FIFO) on the SAME schedule. Pure lot-selection benefit; >= 0 by construction.'),
+    attribution: {
+      type: 'object',
+      description: 'Telescoping attribution of the total saving vs a FIFO-all-today sale. lotSelection + spreadingDeferral = total.',
+      properties: {
+        lotSelection: num('Saving from choosing which lots to sell (equals headlineDeltaVsFifo), in dollars.'),
+        spreadingDeferral: num('Saving from spreading sales across years and deferring for long-term status, in dollars. Can be <= 0 in loss-mix cases.'),
+        total: num('Total saving vs selling oldest-first, all today, in dollars.'),
+      },
+      required: ['lotSelection', 'spreadingDeferral', 'total'],
+    },
+    horizonCards: { type: 'array', items: HORIZON_CARD_SCHEMA, description: 'The same divest target under a 1-year ("all now"), 2-year, and 3-year plan, for the trade-off strip.' },
+    deferralCallouts: { type: 'array', items: DEFERRAL_CALLOUT_SCHEMA, description: 'Per-lot short-term-to-long-term deferral opportunities.' },
+  },
+  required: [
+    'sharesToSell', 'totalShares', 'totalGross', 'totalTax', 'totalAfterTax', 'schedule',
+    'keptUnrealizedGain', 'carryforwardRemaining', 'headlineAfterTaxKept', 'headlineDeltaVsFifo',
+    'attribution', 'horizonCards', 'deferralCallouts',
+  ],
+};
+
 export const TOOLS: McpTool[] = [
   {
     name: 'amt_iso_optimize',
@@ -1524,6 +1618,64 @@ export const TOOLS: McpTool[] = [
     },
     outputSchema: EQUITY_FUNDING_OUTPUT_SCHEMA,
     handler: (args) => computeEquityFundingComparison(parseEquityFundingInput(args)),
+  },
+  {
+    name: 'rsu_lot_optimize',
+    annotations: { title: 'RSU Lot-Order Divest Plan', ...CALC_HINTS },
+    description:
+      'Use this when someone asks which vested RSU lots to sell first, in which years, to divest a concentrated company-stock position at the lowest tax: "I want to sell down half my Amazon stock with the smallest tax bill, which lots and when?". Given the vested lots (vest date, shares, cost basis), a current price, and a divest fraction, it chooses WHICH lots and WHICH sale dates minimize total tax to divest that many shares, using three levers: specific-lot identification (sell higher-basis lots to realize less gain, or underwater lots to harvest losses that net against gains), long-term deferral (wait past the one-year mark to convert short-term ordinary rates to long-term capital gains), and multi-year bracket spreading (split gains across 1 to 3 tax years, with in-plan capital-loss carryforward). Every sale is priced at today\'s price (flat-price assumption; there is no growth model). Returns the year-by-year sell schedule grouped by tax year, the total tax (federal LTCG + NIIT + state), what a first-in-first-out (FIFO) oldest-first sell order on the same schedule would have cost (`headlineDeltaVsFifo`), a 1/2/3-year horizon trade-off, and per-lot deferral callouts. This tool owns WHICH LOTS and WHICH DATES; for WHETHER and HOW MUCH to sell down a position use `concentration_analyze`, for a single new vest use `rsu_sell_vs_hold`, and to raise a specific cash amount by a deadline use `equity_funding_plan`. Out of scope: growth/return modeling, wash-sale basis migration, AMT, unvested grants. Example: {lots: [{vestDate: "2022-08-15", shares: 120, costBasisPerShare: 95}, {vestDate: "2024-02-15", shares: 100, costBasisPerShare: 130}, {vestDate: "2026-05-15", shares: 80, costBasisPerShare: 210}], currentPrice: 180, divestFraction: 0.5, horizonYears: 2, ordinaryIncome: 200000, filingStatus: "single", stateCode: "CA"}.' + STRICT_INPUT_NOTE_NO_TICKER,
+    inputSchema: {
+      type: 'object',
+      required: ['lots', 'currentPrice', 'divestFraction', 'horizonYears', 'ordinaryIncome', 'filingStatus', 'stateCode'],
+      properties: {
+        lots: {
+          type: 'array',
+          minItems: 1,
+          description: 'Vested RSU lots you still hold (after any sell-to-cover), one entry per vest tranche. The tool decides which of these to sell and when. Unvested grants are out of scope.',
+          items: {
+            type: 'object',
+            required: ['vestDate', 'shares', 'costBasisPerShare'],
+            properties: {
+              vestDate: { ...ISO_DATE, description: 'Date this lot vested (YYYY-MM-DD), on or before today. Drives long-term-vs-short-term status and the long-term-crossing sale date.' },
+              shares: { type: 'number', exclusiveMinimum: 0, description: 'Shares still held from this vest. Fractional allowed (dividend-reinvest / net-settlement lots).' },
+              costBasisPerShare: { type: 'number', minimum: 0, description: 'Per-share cost basis, USD: the share price on vest day, which your broker\'s lot-detail page lists.' },
+            },
+          },
+        },
+        currentPrice: {
+          type: 'number',
+          minimum: 0,
+          description: 'Current share price, USD. Every sale, on every date, is priced at this value (flat-price assumption). Pass the user\'s price; the model must not invent it.',
+        },
+        divestFraction: {
+          type: 'number',
+          minimum: 0.1,
+          maximum: 1,
+          description: 'Fraction of TOTAL shares to divest, as a decimal (0.5 = sell half). Range 0.10 to 1.0. NOTE: a decimal fraction, NOT a percent, so pass 0.5 not 50. The tool sells round(divestFraction x totalShares) shares, floored at 1.',
+        },
+        horizonYears: {
+          type: 'integer',
+          minimum: 1,
+          maximum: 3,
+          description: 'Tax years the plan may span: 1 = sell everything now, 2, or 3. More years let the plan spread gains across brackets and defer short-term lots to long-term, at the cost of staying exposed to the stock longer.',
+        },
+        ordinaryIncome: {
+          type: 'number',
+          minimum: 0,
+          description: 'Total household ordinary income for the year, USD (W-2 + interest + other). Sets the federal LTCG bracket floor, the short-term ordinary rate, and the net investment income tax (NIIT) threshold test. Assumed constant across plan years.',
+        },
+        filingStatus: {
+          ...FILING_SCHEMA,
+          description: 'Federal filing status. Drives LTCG brackets, the NIIT threshold, and state bracket lookups.',
+        },
+        stateCode: {
+          ...STATE_SCHEMA,
+          description: 'Two-letter US state code (e.g. CA, NY, TX). Drives state capital-gains treatment (CA taxes gains as ordinary; WA/TX/FL have no tax on most capital gains).',
+        },
+      },
+    },
+    outputSchema: RSU_LOT_OPTIMIZE_OUTPUT_SCHEMA,
+    handler: (args) => computeLotDivestPlan(parseRsuLotOptimizeInput(args)),
   },
 ];
 

@@ -52,6 +52,15 @@ const EXAMPLES: Record<string, unknown> = {
     ] }],
     ordinaryIncome: 350000, filingStatus: 'single', stateCode: 'CA',
   },
+  rsu_lot_optimize: {
+    lots: [
+      { vestDate: '2022-08-15', shares: 120, costBasisPerShare: 95 },
+      { vestDate: '2024-02-15', shares: 100, costBasisPerShare: 130 },
+      { vestDate: '2026-05-15', shares: 80, costBasisPerShare: 210 },
+    ],
+    currentPrice: 180, divestFraction: 0.5, horizonYears: 2,
+    ordinaryIncome: 200000, filingStatus: 'single', stateCode: 'CA',
+  },
 };
 
 const REST_SLUG: Record<string, string> = {
@@ -62,6 +71,7 @@ const REST_SLUG: Record<string, string> = {
   protective_put_price: 'protective-put',
   qsbs_check: 'qsbs',
   equity_funding_plan: 'equity-funding',
+  rsu_lot_optimize: 'rsu-lot-order',
 };
 
 const out: string[] = [];
@@ -69,7 +79,7 @@ const p = (s = '') => out.push(s);
 
 p('# OptionsAhoy: full API reference for AI agents');
 p();
-p(`> Generated from the live tool descriptors of optionsahoy-mcp v${pkg.version}. Seven deterministic equity-compensation tax tools covering the full US federal tax code plus all 50 states and DC. Independently verified: every 2026 federal constant matches IRS Rev. Proc. 2025-32, worked federal cases reproduce to the cent against the independently-maintained [PSL Tax-Calculator](https://github.com/PSLmodels/Tax-Calculator), and state tax reproduces to the cent against [OpenTaxSolver](https://opentaxsolver.sourceforge.net/) across CA, NY, NJ, PA, and MA, with the proof recomputed live at https://optionsahoy.com/verification. Free, no auth, no account. Shorter index: https://optionsahoy.com/llms.txt`);
+p(`> Generated from the live tool descriptors of optionsahoy-mcp v${pkg.version}. Eight deterministic equity-compensation tax tools covering the full US federal tax code plus all 50 states and DC. Independently verified: every 2026 federal constant matches IRS Rev. Proc. 2025-32, worked federal cases reproduce to the cent against the independently-maintained [PSL Tax-Calculator](https://github.com/PSLmodels/Tax-Calculator), and state tax reproduces to the cent against [OpenTaxSolver](https://opentaxsolver.sourceforge.net/) across CA, NY, NJ, PA, and MA, with the proof recomputed live at https://optionsahoy.com/verification. Free, no auth, no account. Shorter index: https://optionsahoy.com/llms.txt`);
 p();
 p('## Endpoints');
 p();

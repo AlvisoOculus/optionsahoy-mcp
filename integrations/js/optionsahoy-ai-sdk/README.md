@@ -17,7 +17,7 @@ Beyond determinism, the tax math is independently verified, every release: every
 
 ## What it provides
 
-`createOptionsAhoyTools()` returns an object keyed by the seven tool names, each a Vercel AI SDK tool with a `zod` `parameters` schema mirroring its endpoint:
+`createOptionsAhoyTools()` returns an object keyed by the eight tool names, each a Vercel AI SDK tool with a `zod` `parameters` schema mirroring its endpoint:
 
 - `amt_iso_optimize` - multi-year ISO exercise optimizer under the alternative minimum tax (AMT)
 - `nso_calculate` - non-qualified stock option (NSO) exercise tax, sell-at-exercise versus hold
@@ -26,6 +26,7 @@ Beyond determinism, the tax math is independently verified, every release: every
 - `protective_put_price` - protective put, zero-cost collar, and put spread pricing
 - `qsbs_check` - qualified small business stock (QSBS) Section 1202 eligibility and exclusion
 - `equity_funding_plan` - multi-year plan to fund a cash goal from equity by a target date
+- `rsu_lot_optimize` - which vested RSU lots to sell, and when, to divest a target share fraction at the lowest tax
 
 Each `execute` POSTs to `https://optionsahoy.com/api/v1/<slug>` and returns the parsed `result`. No API key is read, stored, or sent anywhere. Results are independent calculations; integrated multi-year, multi-position optimization is available in the OptionsAhoy beta at https://optionsahoy.com/beta.
 
@@ -91,6 +92,7 @@ Each tool's `parameters` schema lists the required fields; every tool also accep
 - `protective_put_price` - required: `positionValue`, `sector`, `protectionLevel`, `tenorYears`. Optional: `volatility`, `expectedReturn`, `ticker`, `tickerLabel`, `spreadRiskLevel`.
 - `qsbs_check` - required: `acquisitionDate`, `saleDate`, `entityType`, `acquisitionMethod`, `assetCategory`, `industry`, `activeBusiness`, `adjustedBasis`, `expectedGain`, `stateCode`, `ordinaryIncome`, `filingStatus`.
 - `equity_funding_plan` - required: `targetAfterTax`, `targetDate`, `ordinaryIncome`, `filingStatus`, `stateCode`, plus holdings as either `stacks` or the legacy `lots` + `currentPrice`. Optional: `expectedAnnualGrowth`, `cashInterestRate`, `riskToleranceShortfall`, `defaultVolatility`.
+- `rsu_lot_optimize` - required: `lots` (each with `vestDate`, `shares`, `costBasisPerShare`), `currentPrice`, `divestFraction`, `horizonYears`, `ordinaryIncome`, `filingStatus`, `stateCode`.
 
 The authoritative request schemas are the OpenAPI spec at <https://optionsahoy.com/openapi.json> and the agent docs at <https://optionsahoy.com/for-agents>. The individual `zod` schemas are also exported (`amtIsoParameters`, `nsoParameters`, and so on) if you want to reuse or extend them.
 

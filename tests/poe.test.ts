@@ -24,7 +24,7 @@ import {
 const KEY = 'i2xRD3eNjktfohwlGLWBh1UGwB69Ky5w';
 const ALL_TOOLS = [
   'amt_iso_optimize', 'nso_calculate', 'rsu_sell_vs_hold', 'concentration_analyze',
-  'protective_put_price', 'qsbs_check', 'equity_funding_plan',
+  'protective_put_price', 'qsbs_check', 'equity_funding_plan', 'rsu_lot_optimize',
 ];
 
 // Valid inputs for each tool that compute cleanly (rate/ticker supplied where
@@ -59,6 +59,16 @@ const VALID_ARGS: Record<string, any> = {
     stacks: [{ ticker: 'NVDA', currentPrice: 140, expectedAnnualGrowth: 0.15, volatility: 0.45, lots: [{ shares: 4000, costBasisPerShare: 60, acquisitionDate: '2023-06-15' }] }],
     ordinaryIncome: 280000, filingStatus: 'married_joint', stateCode: 'CA', cashInterestRate: 0.04, riskToleranceShortfall: 0.1,
   },
+  rsu_lot_optimize: {
+    lots: [
+      { vestDate: '2022-08-15', shares: 120, costBasisPerShare: 95 },
+      { vestDate: '2024-02-15', shares: 100, costBasisPerShare: 130 },
+      { vestDate: '2025-11-15', shares: 90, costBasisPerShare: 165 },
+      { vestDate: '2026-05-15', shares: 80, costBasisPerShare: 210 },
+    ],
+    currentPrice: 180, divestFraction: 0.5, horizonYears: 2,
+    ordinaryIncome: 200000, filingStatus: 'single', stateCode: 'CA',
+  },
 };
 
 // A phrase unique to each tool's comparison, to prove the answer is substantive.
@@ -70,6 +80,7 @@ const COMPARISON_MARKER: Record<string, RegExp> = {
   protective_put_price: /collar/,
   qsbs_check: /exclusion/,
   equity_funding_plan: /safe to aggressive/,
+  rsu_lot_optimize: /oldest lots first|barely changes the tax/,
 };
 
 function poeRequest(body: unknown, auth?: string): Request {
@@ -162,7 +173,7 @@ describe('poe settings payload', () => {
 
 // --- routing + compute for every tool --------------------------------------
 
-describe('poe answers (all 7 tools)', () => {
+describe('poe answers (all 8 tools)', () => {
   for (const tool of ALL_TOOLS) {
     it(`${tool}: returns a headline, a comparison, and the free-tool link`, async () => {
       const text = await ask(tool, VALID_ARGS[tool], FREE_ENV);

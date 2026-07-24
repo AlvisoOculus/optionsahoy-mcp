@@ -115,6 +115,20 @@
         "liquidity",
         "planning"
       ]
+    },
+    {
+      "description": "Choose which vested restricted stock unit (RSU) lots to sell, and when, to divest a target share fraction at the lowest tax (specific-lot identification, long-term deferral, and multi-year bracket spreading), versus a first-in-first-out (FIFO) sell order.",
+      "examples": [
+        "I want to sell half my vested restricted stock units. Which lots should I sell, and when, to pay the least tax?"
+      ],
+      "id": "rsu_lot_optimize",
+      "name": "RSU lot-order divest plan",
+      "tags": [
+        "rsu",
+        "lot-selection",
+        "capital-gains",
+        "tax"
+      ]
     }
   ],
   "url": "https://optionsahoy.com/a2a",

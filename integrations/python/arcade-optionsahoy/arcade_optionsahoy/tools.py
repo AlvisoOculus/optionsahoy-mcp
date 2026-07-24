@@ -395,3 +395,38 @@ def equity_funding_plan(
             riskToleranceShortfall=risk_tolerance_shortfall,
             defaultVolatility=default_volatility,
         )
+
+
+@tool
+def rsu_lot_optimize(
+    lots: Annotated[
+        List[Dict[str, Any]],
+        "Vested restricted stock unit (RSU) lots to draw from. Each lot is a dict with "
+        "'vestDate' (ISO date, YYYY-MM-DD), 'shares', and 'costBasisPerShare'.",
+    ],
+    current_price: Annotated[float, "Current share price, in US dollars."],
+    divest_fraction: Annotated[
+        float, "Target share fraction to divest, as a decimal (0.1 to 1.0)."
+    ],
+    horizon_years: Annotated[int, "Planning horizon in years (1 to 3)."],
+    ordinary_income: Annotated[float, "Annual ordinary income, in US dollars."],
+    filing_status: Annotated[
+        str, "Tax filing status: 'single', 'married_joint', or 'head_household'."
+    ],
+    state_code: Annotated[str, "Two-letter US state code, or 'DC'."],
+) -> Annotated[Dict[str, Any], "The optimized RSU lot sell order and its tax versus a FIFO order."]:
+    """Choose which vested restricted stock unit (RSU) lots to sell, and when, to divest a target
+    share fraction at the lowest tax: specific-lot identification, long-term deferral, and multi-year
+    bracket spreading versus a first-in-first-out (FIFO) sell order. Returns the optimized lot-selling
+    schedule and its total tax, compared against the naive FIFO order, with the per-year and per-lot
+    sales that reach the target divest fraction."""
+    with _client() as client:
+        return client.rsu_lot_order(
+            lots=lots,
+            currentPrice=current_price,
+            divestFraction=divest_fraction,
+            horizonYears=horizon_years,
+            ordinaryIncome=ordinary_income,
+            filingStatus=filing_status,
+            stateCode=state_code,
+        )

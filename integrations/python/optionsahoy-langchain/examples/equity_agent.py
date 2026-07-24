@@ -1,6 +1,6 @@
 """Minimal LangChain tool-calling agent over the OptionsAhoy calculators.
 
-This binds the seven OptionsAhoy tools to a chat model and runs a manual tool-calling
+This binds the eight OptionsAhoy tools to a chat model and runs a manual tool-calling
 loop (no prebuilt agent runtime, no langgraph) to answer an equity-compensation
 question. The loop is: invoke the model, run any requested tools via tool.invoke,
 append the results as ToolMessages, then invoke the model again until it produces a

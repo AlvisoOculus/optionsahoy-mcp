@@ -1,7 +1,7 @@
 # AlphaLatitude Inc. © 2026
 """Minimal Pydantic AI agent over the OptionsAhoy calculators.
 
-This attaches the seven OptionsAhoy tools to an ``Agent`` and runs it against an
+This attaches the eight OptionsAhoy tools to an ``Agent`` and runs it against an
 equity-compensation question. Pydantic AI drives the tool-calling loop; the tools
 return exact, tax-aware answers so the model does not estimate the math.
 

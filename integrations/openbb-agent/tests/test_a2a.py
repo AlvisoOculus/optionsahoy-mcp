@@ -65,7 +65,7 @@ def test_card_required_fields_and_version():
     assert data["preferredTransport"] == "JSONRPC"
 
 
-def test_skills_cover_all_seven_tools():
+def test_skills_cover_all_eight_tools():
     skill_ids = {s["id"] for s in card_json()["skills"]}
     assert skill_ids == SKILL_IDS
     assert len(skill_ids) == len(TOOL_NAMES)

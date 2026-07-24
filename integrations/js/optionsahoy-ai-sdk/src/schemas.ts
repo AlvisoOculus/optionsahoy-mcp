@@ -245,3 +245,21 @@ export const equityFundingParameters = z.object({
     .describe('Max acceptable probability of missing the goal, 0 to 1. Default 0.10.'),
   defaultVolatility: z.number().min(0).optional().describe('Annualized sigma for stacks without their own. Default 0.30.'),
 });
+
+// --- rsu_lot_optimize ------------------------------------------------------
+
+const rsuLot = z.object({
+  vestDate: isoDate('Vest date for this lot; sets the long-term-vs-short-term threshold.'),
+  shares: z.number().describe('Vested shares in this lot.'),
+  costBasisPerShare: z.number().min(0).describe('Per-share cost basis (fair market value at vest), USD.'),
+});
+
+export const rsuLotParameters = z.object({
+  lots: z.array(rsuLot).min(1).describe('Vested RSU lots to consider selling.'),
+  currentPrice: z.number().min(0).describe('Current share price, USD.'),
+  divestFraction: z.number().min(0.1).max(1.0).describe('Target fraction of shares to divest, 0.1 to 1.0.'),
+  horizonYears: z.number().int().min(1).max(3).describe('Planning horizon in years (1 to 3).'),
+  ordinaryIncome: z.number().min(0).describe('Annual ordinary income before any sales, USD.'),
+  filingStatus,
+  stateCode,
+});
