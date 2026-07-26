@@ -416,6 +416,10 @@ export function parseEquityFundingInput(raw: unknown, trustedToday?: Date): Equi
   return base;
 }
 
+/** Largest `lots` array rsu_lot_optimize accepts. See the bound check in
+ *  parseRsuLotOptimizeInput for why this is a CPU budget rather than tax law. */
+export const MAX_RSU_LOT_ORDER_LOTS = 10;
+
 function parseRsuLotOrderLot(raw: unknown, index: number, today: Date): LotDivestLot {
   if (raw === null || typeof raw !== 'object') {
     throw new Error(`lots[${index}] must be an object with vestDate, shares, costBasisPerShare`);
@@ -453,6 +457,19 @@ export function parseRsuLotOptimizeInput(raw: unknown, trustedToday?: Date): Lot
   const lotsRaw = o.lots;
   if (!Array.isArray(lotsRaw) || lotsRaw.length === 0) {
     throw new Error('field "lots" must be a non-empty array of {vestDate, shares, costBasisPerShare}');
+  }
+  // Upper bound is a CPU budget, not a tax rule. The engine prices every
+  // (lot x candidate date) pair on each of ~1,200 commit steps, for each of the
+  // three horizon cards — so cost grows with the SQUARE of the lot count. Past
+  // ~11 lots a single call exceeds the Worker's CPU limit and the platform
+  // returns an HTML 503, which breaks the JSON error contract every other
+  // failure here honours. Reject over-limit input with a normal 400 instead,
+  // and say what to do about it.
+  if (lotsRaw.length > MAX_RSU_LOT_ORDER_LOTS) {
+    throw new Error(
+      `field "lots" must contain at most ${MAX_RSU_LOT_ORDER_LOTS} lots (got ${lotsRaw.length}); ` +
+        'combine lots that share a vest date and cost basis, or split the request',
+    );
   }
   // horizonYears is the number of tax years the plan may span: 1 ("sell all
   // now"), 2, or 3. The engine's type is the literal union 1 | 2 | 3.

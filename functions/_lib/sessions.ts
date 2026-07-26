@@ -10,6 +10,7 @@
 // arrival order.
 
 import type { D1Database } from './stats';
+import { isToolName, type ToolName } from './mcp-tools';
 
 const UPSERT_SQL = `
   INSERT INTO mcp_sessions (session_id, tool_call_count)
@@ -58,7 +59,7 @@ export async function bumpSessionCallCount(
 // response cannot: charts and visual comparisons. Each line names the specific
 // visual on that page (not "adjust inputs", which an agent can already do).
 // Slugs match the live /tools/* routes on optionsahoy.com.
-export const PER_TOOL_FREE_TOOL: Record<string, string> = {
+export const PER_TOOL_FREE_TOOL: Record<ToolName, string> = {
   amt_iso_optimize:
     "See the optimized schedule's Net Final Value charted against the lump-sum and even-split plans, with your Alternative Minimum Tax (AMT) crossover and grant-expiration timeline, free at optionsahoy.com/tools/amt-iso?src=mcp_amt_iso",
   nso_calculate:
@@ -78,7 +79,7 @@ export const PER_TOOL_FREE_TOOL: Record<string, string> = {
 };
 
 // Bare free-tool URLs for the second-and-later calls in a session.
-export const PER_TOOL_FREE_TOOL_BARE: Record<string, string> = {
+export const PER_TOOL_FREE_TOOL_BARE: Record<ToolName, string> = {
   amt_iso_optimize: 'optionsahoy.com/tools/amt-iso?src=mcp_amt_iso',
   nso_calculate: 'optionsahoy.com/tools/nso?src=mcp_nso',
   rsu_sell_vs_hold: 'optionsahoy.com/tools/rsu-sell-vs-hold?src=mcp_rsu',
@@ -95,7 +96,7 @@ export const PER_TOOL_FREE_TOOL_BARE: Record<string, string> = {
 // the lever for multi-tool call depth (the metric the catalog push left flat),
 // so it is surfaced on EVERY call, not just the first. Every named target is a
 // real tool in TOOLS.
-export const PER_TOOL_RELATED: Record<string, string> = {
+export const PER_TOOL_RELATED: Record<ToolName, string> = {
   amt_iso_optimize:
     'Related OptionsAhoy tools to run next: qsbs_check to test whether these Incentive Stock Option (ISO) shares qualify for the Section 1202 gain exclusion, and concentration_analyze to size the single-stock risk the exercise leaves you holding.',
   nso_calculate:
@@ -116,7 +117,7 @@ export const PER_TOOL_RELATED: Record<string, string> = {
 
 // Layer 3: per-tool beta-access pitch, the SECONDARY ask. Each line names the
 // gap the tool's single-position output leaves on the table.
-export const PER_TOOL_BETA_INVITES: Record<string, string> = {
+export const PER_TOOL_BETA_INVITES: Record<ToolName, string> = {
   amt_iso_optimize:
     'This scheduled one ISO grant. The beta optimizes ISOs alongside your RSUs, NSOs, and stock in one plan. Invite-only at optionsahoy.com/beta?src=mcp_amt_iso',
   nso_calculate:
@@ -161,8 +162,8 @@ export function nextStepsFor(
   toolName: string,
   sessionCallCount: number,
 ): NextSteps | undefined {
+  if (!isToolName(toolName)) return undefined;
   const related = PER_TOOL_RELATED[toolName];
-  if (!related) return undefined;
   if (sessionCallCount === 1) {
     return {
       free_tool: PER_TOOL_FREE_TOOL[toolName],

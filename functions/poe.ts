@@ -19,7 +19,7 @@
 // key Poe issues when the bot is created). Charging (after the launch free
 // month) uses the Poe cost API; extraction uses OPENROUTER_API_KEY.
 
-import { TOOLS } from './_lib/mcp-tools';
+import { TOOLS, isToolName, type ToolName } from './_lib/mcp-tools';
 import { DEFAULT_CASH_RETURN_RATE } from './_lib/calc-parsers';
 import { PER_TOOL_FREE_TOOL_BARE } from './_lib/sessions';
 import { logCall, logSample } from './_lib/stats';
@@ -174,7 +174,7 @@ function stated(v: unknown, nums: number[]): boolean {
 
 // The free interactive tool for each calculator, value-first, re-tagged to
 // the Poe attribution bucket. Reuses the canonical /tools slugs from sessions.
-function freeToolLink(toolName: string): string {
+function freeToolLink(toolName: ToolName): string {
   const bare = PER_TOOL_FREE_TOOL_BARE[toolName];
   if (!bare) return 'optionsahoy.com/tools';
   return bare.replace('src=mcp_', 'src=poe_');
@@ -826,7 +826,7 @@ async function poeCost(
 // are conventional "none / still here / standard" values; the extracted args
 // always override them. Real inputs (amounts, prices, rates, dates) are NOT
 // defaulted, so the bot still asks for those when missing.
-const TOOL_DEFAULTS: Record<string, Record<string, unknown>> = {
+const TOOL_DEFAULTS: Partial<Record<ToolName, Record<string, unknown>>> = {
   amt_iso_optimize: { carryforwardCredit: 0, hasLeftCompany: false, terminationDate: null, cashReturnRate: DEFAULT_CASH_RETURN_RATE },
   nso_calculate: { stillEmployed: true, holdFunding: 'cash' },
   rsu_sell_vs_hold: { stillEmployed: true, holdYears: 1 },
@@ -836,7 +836,7 @@ const TOOL_DEFAULTS: Record<string, Record<string, unknown>> = {
 // --- query handling --------------------------------------------------------
 
 // Plain-language guidance for help / capability questions.
-const FRIENDLY: Record<string, string> = {
+const FRIENDLY: Record<ToolName, string> = {
   amt_iso_optimize: 'plan an incentive stock option (ISO) exercise schedule around the alternative minimum tax (AMT)',
   nso_calculate: 'analyze a non-qualified stock option (NSO) exercise, sell versus hold',
   rsu_sell_vs_hold: 'compare selling versus holding restricted stock units (RSUs) at vest',
@@ -846,7 +846,7 @@ const FRIENDLY: Record<string, string> = {
   equity_funding_plan: 'plan how to fund a cash goal from your equity by a deadline',
   rsu_lot_optimize: 'pick which vested RSU lots to sell first, and when, to divest at the lowest tax',
 };
-const HELP_EXAMPLE: Record<string, string> = {
+const HELP_EXAMPLE: Record<ToolName, string> = {
   amt_iso_optimize: '"10,000 ISOs, $2 strike, $40 value, married filing jointly, $300k income, CA, 4-year horizon, granted 2022-01-01, 5% cash, 12% growth. Best schedule?"',
   nso_calculate: '"Exercise and hold or sell 5,000 NSOs at $10 strike, $50 price, single, $180k income, CA, hold 2 years, ticker AAPL?"',
   rsu_sell_vs_hold: '"1,000 RSUs vesting at $100, single, $200k income, CA, hold 2 years, ticker MSFT. Sell at vest or hold?"',
@@ -885,7 +885,7 @@ const FIELD_LABELS: Record<string, string> = {
 // these the MCP/REST API still requires (the assumption is a Poe-bot
 // convenience); a few (e.g. cashReturnRate) the API itself now defaults, and
 // the bot's assumed value matches that API default.
-const ASSUMED_LABEL: Record<string, Record<string, string>> = {
+const ASSUMED_LABEL: Partial<Record<ToolName, Record<string, string>>> = {
   amt_iso_optimize: { carryforwardCredit: 'assumes none', hasLeftCompany: 'assumes still employed', terminationDate: '', cashReturnRate: 'assumes 4%' },
   nso_calculate: { stillEmployed: 'assumes still employed', holdFunding: 'assumes cash exercise' },
   rsu_sell_vs_hold: { stillEmployed: 'assumes still employed', holdYears: 'assumes a 1-year hold' },
@@ -896,7 +896,7 @@ const ASSUMED_LABEL: Record<string, Record<string, string>> = {
 // price and the forward estimate (and volatility) from a ticker snapshot, so
 // those fields are not hard-required even though the raw API schema lists some of
 // them as required. Appended to Required as one clause.
-const REQUIRED_NOTE: Record<string, string> = {
+const REQUIRED_NOTE: Partial<Record<ToolName, string>> = {
   amt_iso_optimize: 'and a ticker, or the current share value and an expected growth rate',
   nso_calculate: 'and a ticker, or the current price and an expected sale price',
   rsu_sell_vs_hold: 'and a ticker, or the current price and an expected sale price',
@@ -907,7 +907,7 @@ const REQUIRED_NOTE: Record<string, string> = {
 // Fields folded into REQUIRED_NOTE (the ticker-or alternative) -- excluded from
 // BOTH the Required and Optional lists. Includes price fields the schema marks
 // required but the Poe bot derives from a ticker (fmv, currentPrice).
-const EXCLUDE: Record<string, Set<string>> = {
+const EXCLUDE: Partial<Record<ToolName, Set<string>>> = {
   amt_iso_optimize: new Set(['fmv', 'expectedGrowth', 'ticker']),
   nso_calculate: new Set(['currentPrice', 'expectedSalePrice', 'ticker']),
   rsu_sell_vs_hold: new Set(['currentPrice', 'expectedSalePrice', 'ticker']),
@@ -923,7 +923,7 @@ function cap(s: string): string {
 
 // Split a tool's inputSchema into the user-facing required vs optional parameter
 // lists (defaulted-required fields move to optional with their assumption).
-function toolParams(tool: string): { required: string[]; optional: string[] } {
+function toolParams(tool: ToolName): { required: string[]; optional: string[] } {
   const t = TOOLS.find((x) => x.name === tool);
   const s = (t?.inputSchema ?? {}) as { required?: string[]; properties?: Record<string, unknown> };
   const req = Array.isArray(s.required) ? s.required : [];
@@ -944,7 +944,7 @@ function toolParams(tool: string): { required: string[]; optional: string[] } {
 }
 
 // One menu entry per tool: purpose + Required + Optional.
-function toolMenuLine(tool: string): string {
+function toolMenuLine(tool: ToolName): string {
   const p = toolParams(tool);
   const req = p.required.join(', ') + (REQUIRED_NOTE[tool] ? `, ${REQUIRED_NOTE[tool]}` : '');
   const opt = p.optional.length ? p.optional.join(', ') : 'none';
@@ -952,13 +952,13 @@ function toolMenuLine(tool: string): string {
 }
 
 function capabilitiesMenu(): string {
-  return Object.keys(FRIENDLY).map(toolMenuLine).join('\n');
+  return (Object.keys(FRIENDLY) as ToolName[]).map(toolMenuLine).join('\n');
 }
 
 // Help / capability answer. A specific tool name gives that tool's required +
 // optional inputs and an example; anything else gives the full menu.
 function helpText(topic: string): string {
-  if (FRIENDLY[topic]) {
+  if (isToolName(topic)) {
     const p = toolParams(topic);
     const req = p.required.join(', ') + (REQUIRED_NOTE[topic] ? `, ${REQUIRED_NOTE[topic]}` : '');
     const opt = p.optional.length ? p.optional.join(', ') : 'none';

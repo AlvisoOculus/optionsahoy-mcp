@@ -35,6 +35,7 @@ import { calculateProtectivePut } from '../../lib/calc/protectivePut';
 import { evaluateQsbs } from '../../lib/calc/qsbs';
 import { computeEquityFundingComparison } from '../../lib/calc/equityFunding';
 import { computeLotDivestPlan } from '../../lib/calc/lotDivest';
+import type { ToolName } from './mcp-tools';
 
 // The public endpoint advertised in the Agent Card. The card is served at
 // optionsahoy.com/.well-known/agent-card.json and the JSON-RPC endpoint at
@@ -50,7 +51,8 @@ export const AGENT_VERSION = '0.1.0';
 // drive the no-model free-text router; `run` parses then computes, reusing the
 // REST pairs.
 export interface Skill {
-  id: string;
+  /** One skill per agent-callable tool, so the id IS the MCP tool name. */
+  id: ToolName;
   name: string;
   description: string;
   tags: string[];
