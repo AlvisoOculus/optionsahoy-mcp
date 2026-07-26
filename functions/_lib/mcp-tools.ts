@@ -1660,7 +1660,7 @@ export const TOOLS: McpTool[] = [
           type: 'array',
           minItems: 1,
           maxItems: MAX_RSU_LOT_ORDER_LOTS,
-          description: `Vested RSU lots you still hold (after any sell-to-cover), one entry per vest tranche. The tool decides which of these to sell and when. Unvested grants are out of scope. At most ${MAX_RSU_LOT_ORDER_LOTS} lots per call: pricing every lot against every candidate sale date costs CPU that grows with the square of the lot count. With more tranches than that, combine the ones sharing a vest date and cost basis.`,
+          description: `Vested RSU lots you still hold (after any sell-to-cover), one entry per vest tranche. The tool decides which of these to sell and when. Unvested grants are out of scope. At most ${MAX_RSU_LOT_ORDER_LOTS} lots per call, the same cap the web calculator uses. With more tranches than that, combine the ones sharing a vest date and cost basis.`,
           items: {
             type: 'object',
             required: ['vestDate', 'shares', 'costBasisPerShare'],

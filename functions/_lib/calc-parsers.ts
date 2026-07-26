@@ -416,9 +416,11 @@ export function parseEquityFundingInput(raw: unknown, trustedToday?: Date): Equi
   return base;
 }
 
-/** Largest `lots` array rsu_lot_optimize accepts. See the bound check in
- *  parseRsuLotOptimizeInput for why this is a CPU budget rather than tax law. */
-export const MAX_RSU_LOT_ORDER_LOTS = 10;
+/** Largest `lots` array rsu_lot_optimize accepts. Matches the web calculator's
+ *  own cap, so a plan built in the browser can always be reproduced through the
+ *  API. See the bound check in parseRsuLotOptimizeInput: this is a CPU budget,
+ *  not tax law. */
+export const MAX_RSU_LOT_ORDER_LOTS = 20;
 
 function parseRsuLotOrderLot(raw: unknown, index: number, today: Date): LotDivestLot {
   if (raw === null || typeof raw !== 'object') {
@@ -458,13 +460,14 @@ export function parseRsuLotOptimizeInput(raw: unknown, trustedToday?: Date): Lot
   if (!Array.isArray(lotsRaw) || lotsRaw.length === 0) {
     throw new Error('field "lots" must be a non-empty array of {vestDate, shares, costBasisPerShare}');
   }
-  // Upper bound is a CPU budget, not a tax rule. The engine prices every
-  // (lot x candidate date) pair on each of ~1,200 commit steps, for each of the
-  // three horizon cards — so cost grows with the SQUARE of the lot count. Past
-  // ~11 lots a single call exceeds the Worker's CPU limit and the platform
-  // returns an HTML 503, which breaks the JSON error contract every other
-  // failure here honours. Reject over-limit input with a normal 400 instead,
-  // and say what to do about it.
+  // Upper bound is a CPU budget, not a tax rule, and it matches the web
+  // calculator's cap so both surfaces accept the same inputs. The engine prices
+  // lots against candidate sale dates on each of ~1,200 commit steps, for each
+  // of the three horizon cards. Before the greedy's dominance pruning that cost
+  // grew with the SQUARE of the lot count and a single call blew the Worker's
+  // CPU limit past ~11 lots, returning an HTML 503 that broke the JSON error
+  // contract every other failure here honours. Reject over-limit input with a
+  // normal 400 instead, and say what to do about it.
   if (lotsRaw.length > MAX_RSU_LOT_ORDER_LOTS) {
     throw new Error(
       `field "lots" must contain at most ${MAX_RSU_LOT_ORDER_LOTS} lots (got ${lotsRaw.length}); ` +

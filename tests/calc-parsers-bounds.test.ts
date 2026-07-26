@@ -248,7 +248,7 @@ describe('rsu_lot_optimize parser range validation', () => {
     const lot = { vestDate: '2022-08-15', shares: 100, costBasisPerShare: 95 };
     const tooMany = Array.from({ length: MAX_RSU_LOT_ORDER_LOTS + 1 }, () => lot);
     expect(() => parseRsuLotOptimizeInput({ ...RSU_LOT, lots: tooMany }, RSU_TODAY)).toThrow(
-      /at most 10 lots \(got 11\)/,
+      new RegExp(`at most ${MAX_RSU_LOT_ORDER_LOTS} lots \\(got ${MAX_RSU_LOT_ORDER_LOTS + 1}\\)`),
     );
   });
   it('accepts exactly the maximum lot count', () => {

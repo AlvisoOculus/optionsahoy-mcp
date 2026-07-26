@@ -3009,8 +3009,8 @@
           "lots": {
             "type": "array",
             "minItems": 1,
-            "maxItems": 10,
-            "description": "Vested RSU lots you still hold, one per vest tranche. At most 10 per call: pricing every lot against every candidate sale date costs CPU that grows with the square of the lot count. Combine tranches sharing a vest date and cost basis.",
+            "maxItems": 20,
+            "description": "Vested RSU lots you still hold, one per vest tranche. At most 20 per call, the same cap the web calculator uses. Combine tranches sharing a vest date and cost basis.",
             "items": {
               "type": "object",
               "required": [
