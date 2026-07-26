@@ -844,7 +844,7 @@ const FRIENDLY: Record<ToolName, string> = {
   protective_put_price: 'price a hedge (a protective put, a zero-cost collar, or a put spread)',
   qsbs_check: 'check qualified small business stock (QSBS) eligibility',
   equity_funding_plan: 'plan how to fund a cash goal from your equity by a deadline',
-  rsu_lot_optimize: 'pick which vested RSU lots to sell first, and when, to divest at the lowest tax',
+  rsu_lot_optimize: 'pick which vested RSU lots to sell first, and when, to divest at the lowest computed tax',
 };
 const HELP_EXAMPLE: Record<ToolName, string> = {
   amt_iso_optimize: '"10,000 ISOs, $2 strike, $40 value, married filing jointly, $300k income, CA, 4-year horizon, granted 2022-01-01, 5% cash, 12% growth. Best schedule?"',

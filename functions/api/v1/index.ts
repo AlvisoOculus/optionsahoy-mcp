@@ -60,7 +60,7 @@ const ENDPOINTS = [
     method: 'POST',
     path: '/api/v1/rsu-lot-order',
     description:
-      'Choose which vested RSU lots to sell, on which dates, to divest a target share fraction at the lowest tax (specific-lot ID, long-term deferral, multi-year bracket spreading) versus a FIFO sell order.',
+      'Choose which vested RSU lots to sell, on which dates, to divest a target share fraction at the lowest computed tax (specific-lot ID, long-term deferral, multi-year bracket spreading) versus a FIFO sell order.',
   },
   {
     method: 'GET',

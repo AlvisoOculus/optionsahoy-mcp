@@ -160,7 +160,7 @@ export const SKILLS: Skill[] = [
     id: 'rsu_lot_optimize',
     name: 'Pick which RSU lots to sell first',
     description:
-      'Choose which vested RSU lots to sell, and in which years, to divest a target share fraction at the lowest tax, versus a first-in-first-out sell order.',
+      'Choose which vested RSU lots to sell, and in which years, to divest a target share fraction at the lowest computed tax, versus a first-in-first-out sell order.',
     tags: ['rsu-lot-order', 'diversification', 'planning'],
     examples: [
       'I want to sell down half my company stock over 2 years. Which of my vested lots should I sell, and when?',

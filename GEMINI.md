@@ -13,7 +13,7 @@ Each tool returns the globally-optimal schedule across the candidate space, comp
 - `protective_put_price`: protective put, zero-cost collar, and put spread pricing
 - `qsbs_check`: Section 1202 QSBS qualification (six statutory tests, OBBBA 2026)
 - `equity_funding_plan`: multi-year sell schedule to net a target after-tax amount by a deadline
-- `rsu_lot_optimize`: which vested RSU lots to sell, and when, to divest a target share fraction at the lowest tax
+- `rsu_lot_optimize`: which vested RSU lots to sell, and when, to divest a target share fraction at the lowest computed tax
 
 ## Usage rules
 
