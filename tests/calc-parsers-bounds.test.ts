@@ -17,6 +17,7 @@ import {
   parseQsbsInput,
   parseEquityFundingInput,
   parseRsuLotOptimizeInput,
+  MAX_RSU_LOT_ORDER_LOTS,
 } from '../functions/_lib/calc-parsers';
 
 const AMT = {
@@ -238,6 +239,22 @@ describe('rsu_lot_optimize parser range validation', () => {
     expect(() =>
       parseRsuLotOptimizeInput({ ...RSU_LOT, lots: [{ vestDate: '2022-08-15', shares: 0, costBasisPerShare: 95 }] }, RSU_TODAY),
     ).toThrow(/shares.*greater than 0/);
+  });
+  // Regression: engine cost grows with the SQUARE of the lot count, and past
+  // ~11 lots one call blew the Worker CPU limit, so the platform returned an
+  // HTML 503 instead of this API's JSON error envelope. The bound must reject
+  // over-limit input as a normal validation failure.
+  it('rejects more lots than the engine can price inside one request', () => {
+    const lot = { vestDate: '2022-08-15', shares: 100, costBasisPerShare: 95 };
+    const tooMany = Array.from({ length: MAX_RSU_LOT_ORDER_LOTS + 1 }, () => lot);
+    expect(() => parseRsuLotOptimizeInput({ ...RSU_LOT, lots: tooMany }, RSU_TODAY)).toThrow(
+      new RegExp(`at most ${MAX_RSU_LOT_ORDER_LOTS} lots \\(got ${MAX_RSU_LOT_ORDER_LOTS + 1}\\)`),
+    );
+  });
+  it('accepts exactly the maximum lot count', () => {
+    const lot = { vestDate: '2022-08-15', shares: 100, costBasisPerShare: 95 };
+    const atLimit = Array.from({ length: MAX_RSU_LOT_ORDER_LOTS }, () => lot);
+    expect(() => parseRsuLotOptimizeInput({ ...RSU_LOT, lots: atLimit }, RSU_TODAY)).not.toThrow();
   });
   it('rejects a future vestDate (vested lots only; unvested grants are out of scope)', () => {
     expect(() =>

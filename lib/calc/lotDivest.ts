@@ -367,37 +367,95 @@ function greedyAssign(
       // whatever remains (handles the fractional-share tail).
       if (!isLast && remaining < blockSize - 1e-9) break;
       const baseTax = planTaxTotal(curYG, input);
-      let best: { li: number; ci: number; blk: number; per: number } | null = null;
+      const fullBlk = Math.min(blockSize, remaining);
+      // Holder rather than a bare `let`: `probe` assigns from inside a closure,
+      // which control-flow analysis cannot see, so a plain local would narrow to
+      // `never` after the null check below.
+      const best: { v: { li: number; ci: number; blk: number; per: number } | null } = { v: null };
+
+      const probe = (li: number, ci: number) => {
+        // Same `fullBlk` the partial-lot exemption below tests against, so the
+        // "less than a full block is exempt" argument is visible in the code
+        // rather than something a reader has to re-derive.
+        const blk = Math.min(fullBlk, inv[li]);
+        if (blk <= 1e-9) return;
+        const gain = blk * gps[li];
+        const yi = cands[ci].yearIdx;
+        const lt = ltAt[li][ci];
+        if (lt) curYG[yi].long += gain;
+        else curYG[yi].short += gain;
+        const per = (planTaxTotal(curYG, input) - baseTax) / blk;
+        if (lt) curYG[yi].long -= gain;
+        else curYG[yi].short -= gain;
+        const cur = best.v;
+        const tied = cur !== null && Math.abs(per - cur.per) <= 1e-9;
+        if (
+          cur === null ||
+          per < cur.per - 1e-9 ||
+          // Ties break to the earliest sale date, then to the lowest lot index.
+          // The lot-index rule is NOT cosmetic: without it the winner of a
+          // same-date tie would be whichever lot the scan happened to probe
+          // first, and since the pruned scan probes one representative per
+          // long/short bucket, a short-term lot could take a tie from a
+          // long-term one. That forfeits optionality (the short-term lot's
+          // remaining shares could still have gone long-term at a later
+          // candidate date, while an already-long-term lot is long-term at
+          // every date) and measurably overstates tax. Deciding it here rather
+          // than by statement order also keeps this identical to the unpruned
+          // full scan, which resolves ties to the lowest index by iterating
+          // lots in order.
+          (tied && ci < cur.ci) ||
+          (tied && ci === cur.ci && li < cur.li)
+        ) {
+          best.v = { li, ci, blk, per };
+        }
+      };
+
+      // Dominance pruning. Plan tax is monotone nondecreasing in realized gain
+      // (more gain never lowers this year's tax, and it can only consume losses
+      // that would otherwise carry forward, so later years never fall either).
+      // For a fixed sale date and a fixed block size, every lot in the same
+      // long/short bucket is priced by the SAME function of its gain-per-share,
+      // so only the lowest-gain lot in that bucket can win: the rest are
+      // dominated and need no probe. That turns the scan from
+      // (lots x dates) tax evaluations into at most (2 x dates), which is what
+      // keeps a full vest history inside the API's CPU budget.
+      //
+      // Lots holding less than a full block are exempt and still probed
+      // individually: their `per` is normalised by a smaller blk, so the
+      // dominance argument (which assumes a common divisor) does not cover them.
+      // Which lots are exempt from pruning does not depend on the sale date, so
+      // partition once per committed block rather than once per candidate date.
+      const partial: number[] = [];
+      const whole: number[] = [];
       for (let li = 0; li < nLots; li += 1) {
         if (inv[li] <= 1e-9) continue;
-        const blk = Math.min(blockSize, inv[li], remaining);
-        if (blk <= 1e-9) continue;
-        const gain = blk * gps[li];
-        for (let ci = 0; ci < cands.length; ci += 1) {
-          const yi = cands[ci].yearIdx;
-          const lt = ltAt[li][ci];
-          if (lt) curYG[yi].long += gain;
-          else curYG[yi].short += gain;
-          const per = (planTaxTotal(curYG, input) - baseTax) / blk;
-          if (lt) curYG[yi].long -= gain;
-          else curYG[yi].short -= gain;
-          if (
-            best === null ||
-            per < best.per - 1e-9 ||
-            (Math.abs(per - best.per) <= 1e-9 && ci < best.ci)
-          ) {
-            best = { li, ci, blk, per };
+        if (inv[li] < fullBlk - 1e-9) partial.push(li);
+        else whole.push(li);
+      }
+      for (let ci = 0; ci < cands.length; ci += 1) {
+        for (const li of partial) probe(li, ci);
+        let repLong = -1;
+        let repShort = -1;
+        for (const li of whole) {
+          if (ltAt[li][ci]) {
+            if (repLong < 0 || gps[li] < gps[repLong] - 1e-12) repLong = li;
+          } else if (repShort < 0 || gps[li] < gps[repShort] - 1e-12) {
+            repShort = li;
           }
         }
+        if (repShort >= 0) probe(repShort, ci);
+        if (repLong >= 0) probe(repLong, ci);
       }
-      if (!best) break;
-      const yi = cands[best.ci].yearIdx;
-      const gain = best.blk * gps[best.li];
-      if (ltAt[best.li][best.ci]) curYG[yi].long += gain;
+      const pick = best.v;
+      if (!pick) break;
+      const yi = cands[pick.ci].yearIdx;
+      const gain = pick.blk * gps[pick.li];
+      if (ltAt[pick.li][pick.ci]) curYG[yi].long += gain;
       else curYG[yi].short += gain;
-      assign.shares[best.li][best.ci] += best.blk;
-      inv[best.li] -= best.blk;
-      committed += best.blk;
+      assign.shares[pick.li][pick.ci] += pick.blk;
+      inv[pick.li] -= pick.blk;
+      committed += pick.blk;
     }
   };
 
@@ -431,9 +489,12 @@ function swapPass(
         if (have <= 1e-9) continue;
         const move = Math.min(slice, have);
         for (let lj = 0; lj < nLots; lj += 1) {
+          // inv[lj] cannot change while scanning this lot's dates (the only
+          // mutation is on accept, which breaks out), so an exhausted
+          // destination skips its whole date scan in one test.
+          if (inv[lj] < move - 1e-9) continue;
           for (let cj = 0; cj < cands.length; cj += 1) {
             if (lj === li && cj === ci) continue;
-            if (inv[lj] < move - 1e-9) continue;
             assign.shares[li][ci] -= move;
             assign.shares[lj][cj] += move;
             const t = planTaxTotal(assignmentYearGains(assign, input, cands, ltAt, years), input);
@@ -441,10 +502,15 @@ function swapPass(
               inv[li] += move;
               inv[lj] -= move;
               improved = true;
-            } else {
-              assign.shares[li][ci] += move;
-              assign.shares[lj][cj] -= move;
+              // Stop at the FIRST accepted move. `move` was sized from this
+              // cell's holding before the move, so continuing the scan would
+              // subtract that stale amount again and drive the cell negative
+              // (a lot "selling" shares it no longer holds, which then shows up
+              // as the schedule's rows summing past the divest target).
+              break;
             }
+            assign.shares[li][ci] += move;
+            assign.shares[lj][cj] -= move;
           }
           if (improved) break;
         }
@@ -711,4 +777,35 @@ function buildDeferralCallouts(
     });
   }
   return out;
+}
+
+// ---- test-only oracle ------------------------------------------------------
+//
+// The greedy prunes its scan using a dominance argument (see the note in
+// greedyAssign). That argument is load-bearing and unproven: if a future tax
+// rule makes plan tax NON-monotone in realized gain — an income-phased credit,
+// a threshold-based preferential rate — the pruning silently starts picking the
+// wrong lot and still returns a plausible-looking plan. Nothing in the result
+// object reveals it.
+//
+// These two exports let a test price an arbitrary allocation and therefore
+// score the engine against an exhaustive optimum on small inputs. They add no
+// production code path and are not used outside tests; keeping the brute-force
+// reference in the test file (rather than a second solver here) means there is
+// only ever one search implementation to maintain.
+
+/** The candidate sale dates the engine will consider for `input`. */
+export function candidateSaleDatesForTest(input: LotDivestInput): Date[] {
+  return buildCandidates(input).map((c) => c.saleDate);
+}
+
+/**
+ * Total plan tax for an explicit allocation. `shares[lotIndex][dateIndex]`
+ * indexes lots as given and dates as returned by candidateSaleDatesForTest.
+ */
+export function priceAllocationForTest(input: LotDivestInput, shares: number[][]): number {
+  const cands = buildCandidates(input);
+  const years = yearsFor(input.today, input.horizonYears);
+  const ltAt = input.lots.map((lot) => cands.map((c) => isLongTermFor(lot.vestDate, c.saleDate)));
+  return planTaxTotal(assignmentYearGains({ shares }, input, cands, ltAt, years), input);
 }

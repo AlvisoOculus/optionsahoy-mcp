@@ -28,6 +28,7 @@ import {
   parseQsbsInput,
   parseEquityFundingInput,
   parseRsuLotOptimizeInput,
+  MAX_RSU_LOT_ORDER_LOTS,
 } from './calc-parsers';
 
 export type McpToolAnnotations = {
@@ -38,8 +39,35 @@ export type McpToolAnnotations = {
   openWorldHint: boolean;
 };
 
+// Every agent-callable tool, by MCP name. This is the ONE hand-maintained list
+// of tool names in the repo; tests/tool-name-coverage.test.ts pins it against
+// TOOLS so the two cannot disagree.
+//
+// Its job is exhaustiveness. Roughly twenty per-tool lookup tables live across
+// poe.ts, sessions.ts, a2a.ts and the codegen scripts, and they were all typed
+// `Record<string, ...>` — so adding the eighth tool meant finding each one by
+// grep, and a miss produced `undefined` in user-facing bot copy rather than a
+// build error. Keyed on ToolName, a missing entry is a compile error at every
+// site. Use `Partial<Record<ToolName, T>>` where an entry is genuinely optional.
+export type ToolName =
+  | 'amt_iso_optimize'
+  | 'nso_calculate'
+  | 'rsu_sell_vs_hold'
+  | 'concentration_analyze'
+  | 'protective_put_price'
+  | 'qsbs_check'
+  | 'equity_funding_plan'
+  | 'rsu_lot_optimize';
+
+/** Narrow an untrusted string (a request field, a Poe help topic) to ToolName.
+ *  Validates against the canonical tool list rather than whichever lookup table
+ *  the caller happens to reach for first. */
+export function isToolName(value: string): value is ToolName {
+  return TOOL_NAMES.has(value);
+}
+
 export type McpTool = {
-  name: string;
+  name: ToolName;
   description: string;
   inputSchema: Record<string, unknown>;
   // JSON Schema for the tool's success result (MCP `outputSchema`). The
@@ -1631,7 +1659,8 @@ export const TOOLS: McpTool[] = [
         lots: {
           type: 'array',
           minItems: 1,
-          description: 'Vested RSU lots you still hold (after any sell-to-cover), one entry per vest tranche. The tool decides which of these to sell and when. Unvested grants are out of scope.',
+          maxItems: MAX_RSU_LOT_ORDER_LOTS,
+          description: `Vested RSU lots you still hold (after any sell-to-cover), one entry per vest tranche. The tool decides which of these to sell and when. Unvested grants are out of scope. At most ${MAX_RSU_LOT_ORDER_LOTS} lots per call, the same cap the web calculator uses. With more tranches than that, combine the ones sharing a vest date and cost basis.`,
           items: {
             type: 'object',
             required: ['vestDate', 'shares', 'costBasisPerShare'],
@@ -1694,3 +1723,7 @@ export function buildToolSpec(): { tools: Array<Pick<McpTool, 'name' | 'descript
     })),
   };
 }
+
+/** Canonical tool names as a set, for isToolName. Derived from TOOLS so it can
+ *  never disagree with what the server actually serves. */
+export const TOOL_NAMES: ReadonlySet<string> = new Set<string>(TOOLS.map((t) => t.name));

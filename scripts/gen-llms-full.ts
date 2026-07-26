@@ -3,14 +3,14 @@
 // from the live tool descriptors so it cannot drift from the server.
 // Usage: npx tsx scripts/gen-llms-full.ts > llms-full.txt
 // The output is committed to optionsahoy_web/web/public/llms-full.txt.
-import { TOOLS } from '../functions/_lib/mcp-tools';
+import { TOOLS, type ToolName } from '../functions/_lib/mcp-tools';
 import { RESOURCES } from '../functions/_lib/mcp-resources';
 import { PROMPTS } from '../functions/_lib/mcp-prompts';
 import pkg from '../package.json';
 
 // Known-valid example payloads (mirrors scripts/e2e-live.mjs, which runs
 // these against production).
-const EXAMPLES: Record<string, unknown> = {
+const EXAMPLES: Record<ToolName, unknown> = {
   amt_iso_optimize: {
     shares: 8000, strike: 5, fmv: 40, horizon: 5, ticker: 'NVDA',
     expectedSalePrice: 80, ordinaryIncome: 200000, filingStatus: 'single',
@@ -63,7 +63,7 @@ const EXAMPLES: Record<string, unknown> = {
   },
 };
 
-const REST_SLUG: Record<string, string> = {
+const REST_SLUG: Record<ToolName, string> = {
   amt_iso_optimize: 'amt-iso',
   nso_calculate: 'nso',
   rsu_sell_vs_hold: 'rsu-sell-vs-hold',

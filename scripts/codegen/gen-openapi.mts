@@ -18,7 +18,7 @@
 //   npm run verify:openapi   # --check: exit 1 if any on-disk copy is stale
 import { writeFileSync, readFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
-import { TOOLS } from '../../functions/_lib/mcp-tools';
+import { TOOLS, type ToolName } from '../../functions/_lib/mcp-tools';
 import {
   parseAmtIsoInput,
   parseNsoInput,
@@ -85,7 +85,7 @@ function withFrozenClock<T>(fn: () => T): T {
 // example. `run` mirrors the REST handler pipeline: parse the public JSON, then
 // compute (see functions/api/v1/<slug>.ts).
 type ToolEntry = {
-  name: string;
+  name: ToolName;
   slug: string;
   prefix: string;
   request: Json;

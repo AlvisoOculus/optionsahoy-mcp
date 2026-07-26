@@ -21,11 +21,11 @@ import {
   priceUsd,
 } from '../functions/poe';
 
+import { TOOLS, type ToolName } from '../functions/_lib/mcp-tools';
+
 const KEY = 'i2xRD3eNjktfohwlGLWBh1UGwB69Ky5w';
-const ALL_TOOLS = [
-  'amt_iso_optimize', 'nso_calculate', 'rsu_sell_vs_hold', 'concentration_analyze',
-  'protective_put_price', 'qsbs_check', 'equity_funding_plan', 'rsu_lot_optimize',
-];
+// Derived, NOT hand-listed — see the note in mcp-session-dedup.test.ts.
+const ALL_TOOLS: ToolName[] = TOOLS.map((t) => t.name);
 
 // Valid inputs for each tool that compute cleanly (rate/ticker supplied where
 // the calc needs a forward estimate).

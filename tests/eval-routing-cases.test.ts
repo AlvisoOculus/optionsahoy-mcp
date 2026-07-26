@@ -21,7 +21,7 @@ const data = JSON.parse(readFileSync('scripts/eval/routing-cases.json', 'utf8'))
     mustMention?: string[];
   }[];
 };
-const toolNames = new Set(TOOLS.map((t) => t.name));
+const toolNames = new Set<string>(TOOLS.map((t) => t.name));
 
 describe('routing-eval dataset drift guard', () => {
   it('has a casesVersion and unique ids', () => {
