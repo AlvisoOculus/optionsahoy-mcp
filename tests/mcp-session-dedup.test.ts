@@ -17,13 +17,13 @@ import {
   PER_TOOL_RELATED,
   PER_TOOL_BETA_INVITES,
 } from '../functions/_lib/sessions';
+import type { D1Database, D1PreparedStatement } from '../functions/_lib/stats';
+import { TOOLS, type ToolName } from '../functions/_lib/mcp-tools';
 
 // Derived, NOT hand-listed: this array drives the per-tool sweep below, so a
 // hand-written copy would skip any tool someone forgot to add to it — the same
 // defect it exists to catch.
 const ALL_TOOLS: ToolName[] = TOOLS.map((t) => t.name);
-import type { D1Database, D1PreparedStatement } from '../functions/_lib/stats';
-import { TOOLS, type ToolName } from '../functions/_lib/mcp-tools';
 
 // Mock D1 that simulates the UPSERT...RETURNING tool_call_count pattern.
 // Tracks per-sessionId counters internally and returns the post-increment
