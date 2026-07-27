@@ -439,7 +439,7 @@
     },
     "/api/v1/rsu-lot-order": {
       "post": {
-        "summary": "RSU lot-order divest plan: which lots to sell, on which dates, at the lowest tax",
+        "summary": "RSU lot-order divest plan: which lots to sell, on which dates, at the lowest computed tax",
         "description": "Given vested RSU lots (vest date, shares, cost basis), a current price, and a divest fraction, chooses which lots and which sale dates minimize total tax to divest the target share count. Three levers: specific-lot identification, long-term deferral, and multi-year bracket spreading with in-plan capital-loss carryforward. Flat-price assumption (no growth model). Returns the year-by-year sell schedule, total tax (federal LTCG + NIIT + state), the saving versus a first-in-first-out (FIFO) sell order on the same schedule, a 1/2/3-year horizon trade-off, and per-lot deferral callouts.",
         "operationId": "optimizeRsuLotOrder",
         "tags": [
@@ -2995,7 +2995,7 @@
       },
       "RsuLotOptimizeInput": {
         "type": "object",
-        "description": "Vested RSU lots + a divest fraction. Chooses which lots to sell on which dates to divest the target share count at the lowest tax.",
+        "description": "Vested RSU lots + a divest fraction. Chooses which lots to sell on which dates to divest the target share count at the lowest computed tax.",
         "required": [
           "lots",
           "currentPrice",

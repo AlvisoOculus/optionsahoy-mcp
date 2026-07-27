@@ -411,3 +411,49 @@ describe('matches the exhaustive optimum (guards the dominance pruning)', () => 
     expect(r.totalTax).toBeCloseTo(4398.27, 2);
   });
 });
+
+// swapPass may re-time a lot's OWN shares between sale dates. Its inventory
+// guard used to block that (a fully-sold lot has inv === 0, so every candidate
+// move failed the "does the destination have room" test) even though moving a
+// lot's shares from one of its own dates to another consumes no inventory at
+// all. That excluded exactly the lot most likely to benefit.
+//
+// Enabling it improved 312 of 12,000 targeted instances (fully-sold lots with
+// their shares split across dates, vest dates straddling the one-year mark),
+// mean $188, max $426, no malformed schedules. It is invisible to a uniform
+// random sweep, which rarely produces that shape.
+//
+// It is NOT a strict improvement, and an earlier version of this comment
+// wrongly claimed zero regressions. swapPass is a first-improvement hill
+// climber: widening its neighbourhood can make it take a different first move
+// and descend to a different local optimum. Both optima sit below the plan it
+// started from (swapPass never raises tax against its own input, since baseTax
+// is recomputed each pass and moves are only accepted below it), but the new
+// one can sit above the old. Adversarial review found ~1 regression per 6,000
+// targeted instances and none in 2,000 uniform ones, worst observed $41.79 from
+// sweeping and $83.73 on a deliberately hill-climbed input. Against that, one
+// 8,000-case aggregate showed 111 improvements totalling $13,790 versus a single
+// $8.69 regression. The asymmetry is why this ships, not a guarantee that it
+// never costs anything.
+describe('swapPass can re-time a fully-sold lot across its own sale dates', () => {
+  it('harvests $252 more loss than the pre-fix plan on a fully-divested pair', () => {
+    const r = computeLotDivestPlan(base({
+      lots: [
+        { vestDate: d('2025-05-02'), shares: 85, costBasisPerShare: 113.2471 },
+        { vestDate: d('2025-05-11'), shares: 51, costBasisPerShare: 41.8941 },
+      ],
+      currentPrice: 90.7757,
+      divestPercent: 1,
+      horizonYears: 2,
+      ordinaryIncome: 20_000,
+      filingStatus: 'single',
+      stateCode: 'SC',
+      today: d('2026-07-26'),
+    }));
+    // Pre-fix this plan priced at -$3.44; the re-timed plan realizes far more of
+    // the loss inside the horizon. A negative total tax is a net credit against
+    // other income, so MORE negative is better.
+    expect(r.totalTax).toBeLessThan(-250);
+    expect(r.totalTax).toBeCloseTo(-255.85, 1);
+  });
+});

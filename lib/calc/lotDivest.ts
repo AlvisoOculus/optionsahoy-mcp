@@ -492,7 +492,13 @@ function swapPass(
           // inv[lj] cannot change while scanning this lot's dates (the only
           // mutation is on accept, which breaks out), so an exhausted
           // destination skips its whole date scan in one test.
-          if (inv[lj] < move - 1e-9) continue;
+          //
+          // lj === li is exempt: re-timing a lot's own shares from one sale date
+          // to another consumes no inventory (the accept branch's += / -= cancel
+          // out). Without this exemption a fully-sold lot had inv[li] === 0 and
+          // so could never have its dates re-timed at all, which is exactly the
+          // lot most likely to want it.
+          if (lj !== li && inv[lj] < move - 1e-9) continue;
           for (let cj = 0; cj < cands.length; cj += 1) {
             if (lj === li && cj === ci) continue;
             assign.shares[li][ci] -= move;

@@ -121,7 +121,7 @@
     {
       "id": "rsu_lot_optimize",
       "name": "Pick which RSU lots to sell first",
-      "description": "Choose which vested RSU lots to sell, and in which years, to divest a target share fraction at the lowest tax, versus a first-in-first-out sell order.",
+      "description": "Choose which vested RSU lots to sell, and in which years, to divest a target share fraction at the lowest computed tax, versus a first-in-first-out sell order.",
       "tags": [
         "rsu-lot-order",
         "diversification",
