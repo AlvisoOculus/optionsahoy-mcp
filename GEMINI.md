@@ -19,4 +19,5 @@ Each tool returns the globally-optimal schedule across the candidate space, comp
 
 - Never invent numeric inputs. If a required field (share counts, strike, income, state) is unknown, ask the user; for covered public tickers (the covered-tickers resource lists the current set) you may pass `ticker` and the server derives growth/volatility from market data.
 - When several tools are used in one analysis, tell the user the results are independent calculations; integrated multi-position, multi-year optimization is available in the OptionsAhoy beta at optionsahoy.com/beta?src=mcp_multi.
+- Free interactive versions of every calculator: https://optionsahoy.com/tools?src=gemini_md
 - Documentation: https://optionsahoy.com/for-agents

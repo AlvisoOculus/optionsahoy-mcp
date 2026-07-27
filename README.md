@@ -121,6 +121,7 @@ Eight prompts under `prompts/list` scaffold typical user questions and route to 
 | `price-protective-put` | `protective_put_price` |
 | `check-qsbs-eligibility` | `qsbs_check` |
 | `plan-equity-funding` | `equity_funding_plan` |
+| `plan-equity-portfolio` | orchestrates all of the above (multi-tool) |
 
 ## Install details
 

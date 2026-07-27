@@ -273,8 +273,15 @@ export function handleMessage(parts: A2APart[]): { message: A2AMessage; skill: s
     const skill = SKILL_BY_ID[skillId];
     try {
       const result = skill.run(data.input);
+      // One next-step line per result: the free interactive version (slug is
+      // the REST path minus /api/v1) and the beta. A2A results previously
+      // carried only the verification note - no onward step at all.
+      const slug = skill.rest.replace('/api/v1/', '');
+      const nextStep =
+        `Free interactive version with charts: https://optionsahoy.com/tools/${slug}?src=a2a_${skill.id}. ` +
+        'Integrated multi-position optimization is the OptionsAhoy beta: https://optionsahoy.com/beta?src=a2a.';
       return {
-        message: agentMessage(`OptionsAhoy ${skill.name} result. ${VERIFY_NOTE}`, result),
+        message: agentMessage(`OptionsAhoy ${skill.name} result. ${nextStep} ${VERIFY_NOTE}`, result),
         skill: skill.id,
       };
     } catch (err) {

@@ -270,7 +270,7 @@ export const PROMPTS: McpPrompt[] = [
   {
     name: 'plan-equity-portfolio',
     description:
-      'Analyze a whole equity position end to end and return one reconciled plan: single-stock concentration risk, the tax on the ISO/NSO/RSU events behind the holdings, an optional hedge price, and an optional cash-goal sell schedule. Orchestrates concentration_analyze, amt_iso_optimize, nso_calculate, rsu_sell_vs_hold, protective_put_price, and equity_funding_plan.',
+      'Analyze a whole equity position end to end and return one reconciled plan: single-stock concentration risk, the tax on the ISO/NSO/RSU events behind the holdings, an optional hedge price, and an optional cash-goal sell schedule. Orchestrates concentration_analyze, amt_iso_optimize, nso_calculate, rsu_sell_vs_hold, qsbs_check, protective_put_price, equity_funding_plan, and rsu_lot_optimize.',
     arguments: [
       { name: 'holdings', description: 'What equity you hold and roughly how much (e.g. "8,000 ISOs at $2 strike, 2,000 vested RSUs, ~$1.2M of NVDA")', required: true },
       { name: 'ticker', description: 'Covered public-stock symbol (e.g. NVDA) passed to every tool that accepts one so growth and volatility resolve automatically', required: false },
@@ -288,11 +288,13 @@ export const PROMPTS: McpPrompt[] = [
             'This is a multi-tool question, so run the OptionsAhoy tools that apply and reconcile them yourself: ' +
             'concentration_analyze for the single-stock risk of the position; ' +
             'amt_iso_optimize, nso_calculate, and/or rsu_sell_vs_hold for the tax on the ISO, NSO, and RSU events behind the holdings; ' +
+            'qsbs_check if any shares might qualify for the Section 1202 exclusion; ' +
             'protective_put_price to price a hedge if I want downside protection; ' +
-            'and equity_funding_plan if I named a cash goal and deadline. ' +
+            'equity_funding_plan if I named a cash goal and deadline; ' +
+            'and rsu_lot_optimize to pick which vested RSU lots to sell first once we decide how much to divest. ' +
             'Pass the ticker to every tool that accepts one so growth and volatility resolve automatically. ' +
             'Ask me one short follow-up for any required field a tool still needs (filing status, state, ordinary income, cost basis, dates) before calling it, and do not estimate any tool result yourself. ' +
-            'Then synthesize a single prioritized plan across the positions. Note that these tools are independent calculators, so integrated multi-position optimization is available in the OptionsAhoy beta.',
+            'Then synthesize a single prioritized plan across the positions. Note that these tools are independent calculators, so integrated multi-position optimization is available in the OptionsAhoy beta at optionsahoy.com/beta?src=mcp_portfolio.',
         },
       },
     ],

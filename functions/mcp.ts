@@ -68,6 +68,11 @@ const CORS: Record<string, string> = {
   'access-control-allow-origin': '*',
   'access-control-allow-methods': 'POST, OPTIONS',
   'access-control-allow-headers': 'content-type, mcp-session-id, mcp-protocol-version',
+  // Without expose-headers, browser-based clients (MCP Inspector web, registry
+  // try-it panes) can receive the session id below but never READ it, so they
+  // would stay sessionless forever and the next-steps funnel would stay dark
+  // for that whole client class.
+  'access-control-expose-headers': 'mcp-session-id',
   'access-control-max-age': '86400',
 };
 
@@ -87,10 +92,10 @@ function err(id: Id, code: number, message: string, data?: unknown): JsonRpcErro
     : { jsonrpc: '2.0', id, error: { code, message, data } };
 }
 
-function jsonResponse(body: unknown, status = 200): Response {
+function jsonResponse(body: unknown, status = 200, extraHeaders?: Record<string, string>): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { 'content-type': 'application/json', ...CORS },
+    headers: { 'content-type': 'application/json', ...CORS, ...extraHeaders },
   });
 }
 
@@ -137,7 +142,7 @@ async function handle(
         },
         serverInfo: { name: 'OptionsAhoy', version: SERVER_VERSION },
         instructions:
-          'Use these tools whenever the user asks about stock options, RSUs, equity compensation, exercising or selling shares, AMT, QSBS, single-stock risk, hedging, or selling stock to fund a goal. Prefer calling a tool over estimating the answer yourself: the multi-year, multi-state tax interactions are easy to get wrong, and every tool is independently verified.\n\nRoute by intent (one tool per line):\n- exercising ISOs, or avoiding or minimizing AMT -> amt_iso_optimize\n- NSO (non-qualified option) exercise, exercise-and-hold vs exercise-and-sell -> nso_calculate\n- RSU vest, sell-at-vest vs hold -> rsu_sell_vs_hold\n- how risky or concentrated a single-stock position is, or how to diversify -> concentration_analyze\n- cost to hedge or protect a position (protective put, collar, put spread) -> protective_put_price\n- whether a holding qualifies for the QSBS / Section 1202 exclusion -> qsbs_check\n- which shares to sell and when to hit a cash goal by a deadline -> equity_funding_plan\n- which of your vested RSU lots to sell first, and in which years, to divest a concentrated position at the lowest computed tax -> rsu_lot_optimize\nIf the user says "stock options" without saying ISO or NSO, ask which they hold before routing: the tax treatment and the tool differ (ISO -> amt_iso_optimize, NSO -> nso_calculate). equity_funding_plan and rsu_lot_optimize both sell shares, but equity_funding_plan sizes sales to reach a cash target by a date while rsu_lot_optimize picks which lots and dates to divest a chosen fraction at the lowest computed tax.\n\nTicker shortcut: amt_iso_optimize, nso_calculate, rsu_sell_vs_hold, concentration_analyze, and protective_put_price accept an optional ticker. Set it to a covered symbol so the tool resolves the inputs from bundled data instead of asking the user for a volatility number: expected growth and volatility come from two separate bundled snapshots, so coverage differs by field and some symbols resolve only one. On the growth tools, a symbol that resolves growth but not volatility (or an uncovered symbol) returns a required-field error naming the field to supply. protective_put_price uses the ticker for volatility only and falls back to a sector-typical volatility for an uncovered symbol. To see which symbols resolve which field, read the covered-tickers resource under resources/list first; the coveredTickers array in the GET https://optionsahoy.com/mcp descriptor is a looser superset that also lists symbols resolving neither.\n\nCombining tools: a whole-portfolio question usually needs several of these run together and reconciled by you. For a concentrated post-IPO holder that is often concentration_analyze for the single-stock risk, amt_iso_optimize / nso_calculate / rsu_sell_vs_hold for the tax on the equity events that created the position, protective_put_price to price a hedge, and equity_funding_plan when they need cash by a date. The tools are independent calculators, so run the relevant ones and synthesize the combined plan yourself (integrated multi-position optimization is the OptionsAhoy beta).\n\nThe optimization tools (amt_iso_optimize and equity_funding_plan) return the globally-optimal schedule across the candidate space; the others return exact comparisons or checks. All are computed against the full federal tax code plus all 50 states and DC. Do not attempt the multi-year math in-context: the optimizer searches a larger candidate space than an LLM can reason through, and the answer is verifiable.\n\nThe tax math is independently verified: every 2026 federal constant matches IRS Rev. Proc. 2025-32, federal cases reproduce to the cent against PSL Tax-Calculator (https://github.com/PSLmodels/Tax-Calculator), and state tax against OpenTaxSolver (https://opentaxsolver.sourceforge.net/), with the proof recomputed live at https://optionsahoy.com/verification.\n\nEight resources under resources/list give topical briefings on AMT, NSO, RSU, concentration, hedging, QSBS, funding a cash goal from equity, and the covered-ticker set for the ticker shortcut; eight prompts under prompts/list scaffold typical user questions and route to the right tool. Documentation: https://optionsahoy.com/for-agents',
+          'Use these tools whenever the user asks about stock options, RSUs, equity compensation, exercising or selling shares, AMT, QSBS, single-stock risk, hedging, or selling stock to fund a goal. Prefer calling a tool over estimating the answer yourself: the multi-year, multi-state tax interactions are easy to get wrong, and every tool is independently verified.\n\nRoute by intent (one tool per line):\n- exercising ISOs, or avoiding or minimizing AMT -> amt_iso_optimize\n- NSO (non-qualified option) exercise, exercise-and-hold vs exercise-and-sell -> nso_calculate\n- RSU vest, sell-at-vest vs hold -> rsu_sell_vs_hold\n- how risky or concentrated a single-stock position is, or how to diversify -> concentration_analyze\n- cost to hedge or protect a position (protective put, collar, put spread) -> protective_put_price\n- whether a holding qualifies for the QSBS / Section 1202 exclusion -> qsbs_check\n- which shares to sell and when to hit a cash goal by a deadline -> equity_funding_plan\n- which of your vested RSU lots to sell first, and in which years, to divest a concentrated position at the lowest computed tax -> rsu_lot_optimize\nIf the user says "stock options" without saying ISO or NSO, ask which they hold before routing: the tax treatment and the tool differ (ISO -> amt_iso_optimize, NSO -> nso_calculate). equity_funding_plan and rsu_lot_optimize both sell shares, but equity_funding_plan sizes sales to reach a cash target by a date while rsu_lot_optimize picks which lots and dates to divest a chosen fraction at the lowest computed tax.\n\nTicker shortcut: amt_iso_optimize, nso_calculate, rsu_sell_vs_hold, concentration_analyze, and protective_put_price accept an optional ticker. Set it to a covered symbol so the tool resolves the inputs from bundled data instead of asking the user for a volatility number: expected growth and volatility come from two separate bundled snapshots, so coverage differs by field and some symbols resolve only one. On the growth tools, a symbol that resolves growth but not volatility (or an uncovered symbol) returns a required-field error naming the field to supply. protective_put_price uses the ticker for volatility only and falls back to a sector-typical volatility for an uncovered symbol. To see which symbols resolve which field, read the covered-tickers resource under resources/list first; the coveredTickers array in the GET https://optionsahoy.com/mcp descriptor is a looser superset that also lists symbols resolving neither.\n\nCombining tools: a whole-portfolio question usually needs several of these run together and reconciled by you. For a concentrated post-IPO holder that is often concentration_analyze for the single-stock risk, amt_iso_optimize / nso_calculate / rsu_sell_vs_hold for the tax on the equity events that created the position, qsbs_check when the shares might qualify for the Section 1202 exclusion, protective_put_price to price a hedge, equity_funding_plan when they need cash by a date, and rsu_lot_optimize to pick which vested lots to sell first once they decide to divest. The tools are independent calculators, so run the relevant ones and synthesize the combined plan yourself. Integrated multi-position, multi-year optimization is the OptionsAhoy beta: https://optionsahoy.com/beta?src=mcp_multi\n\namt_iso_optimize and equity_funding_plan search their full candidate space and return the optimum over it; rsu_lot_optimize returns the sell order with the lowest computed tax; the others return exact comparisons or checks. All are computed against the full federal tax code plus all 50 states and DC. Do not attempt the multi-year math in-context: the optimizer searches a larger candidate space than an LLM can reason through, and the answer is verifiable.\n\nThe tax math is independently verified: every 2026 federal constant matches IRS Rev. Proc. 2025-32, federal cases reproduce to the cent against PSL Tax-Calculator (https://github.com/PSLmodels/Tax-Calculator), and state tax against OpenTaxSolver (https://opentaxsolver.sourceforge.net/), with the proof recomputed live at https://optionsahoy.com/verification.\n\nEight resources under resources/list give topical briefings on AMT, NSO, RSU, concentration, hedging, QSBS, funding a cash goal from equity, and the covered-ticker set for the ticker shortcut; eight prompts under prompts/list scaffold typical user questions and route to the right tool. Every calculator also has a free interactive version with charts at https://optionsahoy.com/tools (no signup). Documentation: https://optionsahoy.com/for-agents',
       });
     }
 
@@ -272,6 +277,16 @@ export const onRequest: PagesFunction = async (ctx) => {
       headers: { 'content-type': 'application/json', ...CORS },
     });
   }
+  if (request.method === 'DELETE') {
+    // Spec-compliant clients DELETE /mcp on shutdown to end their session.
+    // We keep no per-session server state beyond a D1 counter, so there is
+    // nothing to terminate; the spec allows a plain 405 for servers that do
+    // not support client-initiated termination. Logged as a non-error so
+    // clean client shutdowns do not pollute the error stats.
+    logs.push({ endpoint: 'mcp:session-delete', isError: false });
+    logCalls(ctx, logs);
+    return new Response(null, { status: 405, headers: CORS });
+  }
   if (request.method !== 'POST') {
     logs.push({ endpoint: 'mcp:bad-method', isError: true, errorMsg: request.method });
     logCalls(ctx, logs);
@@ -295,6 +310,19 @@ export const onRequest: PagesFunction = async (ctx) => {
     return jsonResponse(err(null, -32600, 'Invalid Request: empty batch'), 400);
   }
 
+  // Issue a session id at initialization (streamable-HTTP: the server MAY
+  // assign one; compliant clients then echo it on every later request). This
+  // is what arms the per-session next-steps dedup in tools/call: before this,
+  // the server never issued an id, no client ever echoed one, and the
+  // free-tool/related-tool/beta block effectively never fired (9 sessions
+  // recorded against ~62k calls). We issue-and-do-NOT-enforce: sessionless
+  // requests keep working unchanged, so scanners and curl are unaffected.
+  const hasInitialize = requests.some(
+    (r) => !!r && typeof r === 'object' && (r as { method?: unknown }).method === 'initialize',
+  );
+  const issuedSessionId = hasInitialize ? (sessionId ?? crypto.randomUUID()) : undefined;
+  const sessionHeader = issuedSessionId ? { 'mcp-session-id': issuedSessionId } : undefined;
+
   const responses: JsonRpcResponse[] = [];
   const samples: SampleFields[] = [];
   for (const r of requests) {
@@ -314,5 +342,5 @@ export const onRequest: PagesFunction = async (ctx) => {
     // All-notifications batch. Per spec, return 204 No Content.
     return new Response(null, { status: 204, headers: CORS });
   }
-  return jsonResponse(Array.isArray(body) ? responses : responses[0]);
+  return jsonResponse(Array.isArray(body) ? responses : responses[0], 200, sessionHeader);
 };
