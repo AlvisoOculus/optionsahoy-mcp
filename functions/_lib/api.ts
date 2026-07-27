@@ -57,6 +57,56 @@ export function preflight(): Response {
 // Logs one row to MCP_STATS per inbound POST (preflight OPTIONS skipped).
 import { logCall, logSample } from './stats';
 
+
+// Per-endpoint next-step block for REST responses. REST is the highest-volume
+// tool surface (roughly 10x MCP tools/call) and until now returned bare
+// {ok, result} - no free-tool link, no related endpoint, no beta pointer.
+// Constant and short by design: three strings per endpoint, same on every
+// call, so agents can cache or ignore it; nothing here varies with the input.
+// Slugs match functions/api/v1/<slug>.ts and the web calculator paths.
+const REST_NEXT_STEPS: Record<string, { web_tool: string; also_run: string[]; beta: string }> = {
+  'amt-iso': {
+    web_tool: 'https://optionsahoy.com/tools/amt-iso?src=rest_amt_iso',
+    also_run: ['/api/v1/qsbs', '/api/v1/concentration', '/api/v1/nso'],
+    beta: 'https://optionsahoy.com/beta?src=rest_amt_iso',
+  },
+  nso: {
+    web_tool: 'https://optionsahoy.com/tools/nso?src=rest_nso',
+    also_run: ['/api/v1/concentration', '/api/v1/amt-iso'],
+    beta: 'https://optionsahoy.com/beta?src=rest_nso',
+  },
+  'rsu-sell-vs-hold': {
+    web_tool: 'https://optionsahoy.com/tools/rsu-sell-vs-hold?src=rest_rsu',
+    also_run: ['/api/v1/rsu-lot-order', '/api/v1/concentration'],
+    beta: 'https://optionsahoy.com/beta?src=rest_rsu',
+  },
+  concentration: {
+    web_tool: 'https://optionsahoy.com/tools/concentration?src=rest_concentration',
+    also_run: ['/api/v1/protective-put', '/api/v1/rsu-lot-order', '/api/v1/equity-funding'],
+    beta: 'https://optionsahoy.com/beta?src=rest_concentration',
+  },
+  'protective-put': {
+    web_tool: 'https://optionsahoy.com/tools/protective-put?src=rest_put',
+    also_run: ['/api/v1/concentration'],
+    beta: 'https://optionsahoy.com/beta?src=rest_put',
+  },
+  qsbs: {
+    web_tool: 'https://optionsahoy.com/tools/qsbs?src=rest_qsbs',
+    also_run: ['/api/v1/amt-iso', '/api/v1/concentration'],
+    beta: 'https://optionsahoy.com/beta?src=rest_qsbs',
+  },
+  'equity-funding': {
+    web_tool: 'https://optionsahoy.com/tools/equity-funding?src=rest_funding',
+    also_run: ['/api/v1/rsu-lot-order', '/api/v1/concentration', '/api/v1/rsu-sell-vs-hold'],
+    beta: 'https://optionsahoy.com/beta?src=rest_funding',
+  },
+  'rsu-lot-order': {
+    web_tool: 'https://optionsahoy.com/tools/rsu-lot-order?src=rest_lot_order',
+    also_run: ['/api/v1/equity-funding', '/api/v1/concentration'],
+    beta: 'https://optionsahoy.com/beta?src=rest_lot_order',
+  },
+};
+
 export async function runCalc<I, O>(
   context: PagesContext,
   endpoint: string,
@@ -93,7 +143,11 @@ export async function runCalc<I, O>(
       query: safeStringify(raw),
       answer: safeStringify(output),
     });
-    return jsonResponse(200, { ok: true, result: output });
+    const nextSteps = REST_NEXT_STEPS[endpoint.replace(/^rest:/, '')];
+    return jsonResponse(
+      200,
+      nextSteps ? { ok: true, result: output, next_steps: nextSteps } : { ok: true, result: output },
+    );
   } catch (err) {
     // The input already parsed and validated, so a throw here is a server-side
     // computation failure, not a caller error - surface it as 5xx so agents

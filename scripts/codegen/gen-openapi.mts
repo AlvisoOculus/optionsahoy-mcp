@@ -301,6 +301,19 @@ export function buildOpenApi(): Json {
             properties: {
               ok: { type: 'boolean', const: true },
               result: { $ref: `#/components/schemas/${prefix}Result` },
+              // Optional, constant per endpoint: the free web calculator for
+              // this tool, related endpoints to run next, and the beta. Not in
+              // `required` so strict consumers of older responses stay valid.
+              next_steps: {
+                type: 'object',
+                description:
+                  'Constant per endpoint: the free interactive version of this calculator, related endpoints worth running next, and the OptionsAhoy beta for integrated multi-position optimization.',
+                properties: {
+                  web_tool: { type: 'string' },
+                  also_run: { type: 'array', items: { type: 'string' } },
+                  beta: { type: 'string' },
+                },
+              },
             },
           },
           example: { ok: true, result },

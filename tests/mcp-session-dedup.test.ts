@@ -262,3 +262,59 @@ describe('multi-tool meta-instruction in tool descriptions', () => {
     }
   });
 });
+
+describe('Mcp-Session-Id issuance (what arms the funnel)', () => {
+  // Before this shipped, the server never issued a session id, so
+  // spec-compliant clients never echoed one and the entire next-steps block
+  // fired on 9 sessions out of ~62,000 calls. Streamable HTTP: the server MAY
+  // assign an id at initialization; clients MUST then echo it. We issue and
+  // do NOT enforce, so sessionless callers (scanners, curl) are untouched.
+  const init = {
+    jsonrpc: '2.0',
+    id: 0,
+    method: 'initialize',
+    params: { protocolVersion: '2024-11-05', capabilities: {}, clientInfo: { name: 't', version: '1' } },
+  };
+
+  it('issues a session id on initialize', async () => {
+    const res = await onRequest({ request: rpcRequest(init), env: {} });
+    expect(res.status).toBe(200);
+    const sid = res.headers.get('mcp-session-id');
+    expect(sid).toBeTruthy();
+    expect(sid!.length).toBeGreaterThanOrEqual(16);
+  });
+
+  it('echoes a client-supplied session id instead of minting a new one', async () => {
+    const res = await onRequest({ request: rpcRequest(init, 'client-chose-this'), env: {} });
+    expect(res.headers.get('mcp-session-id')).toBe('client-chose-this');
+  });
+
+  it('exposes the header to browser clients via CORS', async () => {
+    const res = await onRequest({ request: rpcRequest(init), env: {} });
+    expect(res.headers.get('access-control-expose-headers')).toMatch(/mcp-session-id/i);
+  });
+
+  it('does not attach a session header to non-initialize requests', async () => {
+    const res = await onRequest({
+      request: rpcRequest({ jsonrpc: '2.0', id: 1, method: 'tools/list' }),
+      env: {},
+    });
+    expect(res.headers.get('mcp-session-id')).toBeNull();
+  });
+
+  it('sessionless requests still work unchanged (issue, never enforce)', async () => {
+    const res = await onRequest({
+      request: rpcRequest({ jsonrpc: '2.0', id: 1, method: 'tools/list' }),
+      env: {},
+    });
+    expect(res.status).toBe(200);
+  });
+
+  it('DELETE (client session shutdown) gets a quiet 405, not an error-logged 405', async () => {
+    const res = await onRequest({
+      request: new Request('http://localhost/mcp', { method: 'DELETE' }),
+      env: {},
+    });
+    expect(res.status).toBe(405);
+  });
+});

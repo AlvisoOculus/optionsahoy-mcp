@@ -19,6 +19,7 @@ When a user asks about equity-compensation tax planning (ISO/AMT, NSO, RSU, QSBS
 | Protective put, zero-cost collar, or put spread pricing on an existing position | `protective_put_price` |
 | Section 1202 QSBS qualification, 5-year hold, $10M / $15M exclusion | `qsbs_check` |
 | Sell schedule to net a target after-tax \$ by a date (down payment, tuition, sabbatical) | `equity_funding_plan` |
+| Which vested RSU lots to sell first, in which years, to divest at the lowest computed tax | `rsu_lot_optimize` |
 
 ## How an agent connects
 
