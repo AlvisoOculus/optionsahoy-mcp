@@ -59,6 +59,16 @@ export function hasTrailingReturn(ticker: string): boolean {
   return typeof entry.return5y === 'number' || typeof entry.return10y === 'number';
 }
 
+// True when the ticker (or its alias) has a row in the table at all — including
+// a recent IPO whose 5y AND 10y returns are both still null. Parsers use this
+// to tell "unknown symbol" apart from "known but too recently listed", which
+// need different error messages (the latter should not send the caller hunting
+// for a typo).
+export function isKnownTicker(ticker: string): boolean {
+  if (!ticker) return false;
+  return TICKERS[canonicalTicker(ticker)] !== undefined;
+}
+
 const TICKER_COUNT = Object.keys(TICKERS).length;
 
 export function trailingReturnsCoverage(): { total: number; refreshedAt: string } {

@@ -205,6 +205,74 @@ describe('parseEquityFundingInput error paths', () => {
     ).toThrow(/stacks\[0\]\.expectedAnnualGrowth.*NOSUCHTKR.*not in our trailing-returns/);
   });
 
+  // Growth is required-or-resolved (regression: it used to fall through to a
+  // silent flat-price projection, indistinguishable from an explicit 0%/yr
+  // view, skewing `recommended`/`holdForGrowth` whenever an agent omitted it).
+  it('throws when a stack has neither expectedAnnualGrowth nor ticker', () => {
+    expect(() =>
+      parse({
+        ...BASE,
+        stacks: [
+          {
+            currentPrice: 100,
+            lots: [{ shares: 3000, costBasisPerShare: 20, acquisitionDate: '2022-03-15' }],
+          },
+        ],
+      }),
+    ).toThrow(/stacks\[0\]\.expectedAnnualGrowth.*required.*flat/s);
+  });
+
+  it('accepts "market" as a stack growth and resolves the SPY blend', () => {
+    const input = parse({
+      ...BASE,
+      stacks: [
+        {
+          currentPrice: 100,
+          expectedAnnualGrowth: 'market',
+          lots: [{ shares: 3000, costBasisPerShare: 20, acquisitionDate: '2022-03-15' }],
+        },
+      ],
+    });
+    // Horizon = 2 years (2026-06-01 → 2028-06-01); blend weight is horizon-dependent.
+    expect(input.stacks![0].expectedAnnualGrowth).toBe(getTrailingReturn('SPY', 2));
+  });
+
+  it('still accepts an explicit 0 for a deliberately flat-price plan', () => {
+    const input = parse({
+      ...BASE,
+      stacks: [
+        {
+          currentPrice: 100,
+          expectedAnnualGrowth: 0,
+          lots: [{ shares: 3000, costBasisPerShare: 20, acquisitionDate: '2022-03-15' }],
+        },
+      ],
+    });
+    expect(input.stacks![0].expectedAnnualGrowth).toBe(0);
+  });
+
+  it('throws when the legacy lots shape omits expectedAnnualGrowth', () => {
+    const { stacks: _s, ...noStacks } = BASE;
+    expect(() =>
+      parse({
+        ...noStacks,
+        lots: [{ shares: 3000, costBasisPerShare: 20, acquisitionDate: '2022-03-15' }],
+        currentPrice: 100,
+      }),
+    ).toThrow(/expectedAnnualGrowth.*required.*flat/s);
+  });
+
+  it('legacy lots shape accepts "market" growth', () => {
+    const { stacks: _s, ...noStacks } = BASE;
+    const input = parse({
+      ...noStacks,
+      lots: [{ shares: 3000, costBasisPerShare: 20, acquisitionDate: '2022-03-15' }],
+      currentPrice: 100,
+      expectedAnnualGrowth: 'market',
+    });
+    expect(input.expectedAnnualGrowth).toBe(getTrailingReturn('SPY', 2));
+  });
+
   it('throws on empty stacks array', () => {
     expect(() => parse({ ...BASE, stacks: [] })).toThrow(/stacks.*non-empty/);
   });

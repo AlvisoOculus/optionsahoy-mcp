@@ -4,7 +4,7 @@
     "title": "OptionsAhoy Calculator API",
     "summary": "Deterministic equity-compensation calculator endpoints. JSON in, JSON out.",
     "description": "Multi-year equity-compensation optimization engine. Seven free calculators that compute the globally-optimal schedule across the candidate space (not heuristics, not samples). Full federal tax code plus all 50 states and DC: ordinary brackets, long-term capital gains, AMT with credit recovery, FICA, NIIT; state AMT modeled for CA, CO, CT, MN. Unauthenticated, wide-open CORS. Same engine as the in-browser tools at https://optionsahoy.com/tools: response is byte-identical. Determinism is a side benefit: same inputs always return the same answer, so the optimizer's recommendation is verifiable. The tax math is independently verified: every 2026 federal constant matches its IRS Rev. Proc. 2025-32 value, federal cases reproduce to the cent against the independently-maintained PSL Tax-Calculator (https://github.com/PSLmodels/Tax-Calculator), and state tax reproduces to the cent against OpenTaxSolver (https://opentaxsolver.sourceforge.net/) across CA, NY, NJ, PA, and MA, with the proof recomputed live at https://optionsahoy.com/verification. Empirical justification for using an optimizer rather than letting a chatbot do the math: https://optionsahoy.com/benchmark (live, updated for the latest models) and https://hackernoon.com/but-can-it-do-taxes-though-why-you-shouldnt-trust-chatbots-with-tax-optimization-math",
-    "version": "1.9.8",
+    "version": "1.10.0",
     "contact": {
       "name": "AlphaLatitude Inc.",
       "email": "andrew@alphalatitude.com",
@@ -2385,8 +2385,11 @@
             "description": "Fair market value per share today (year 1)."
           },
           "expectedGrowth": {
-            "type": "number",
-            "description": "Arithmetic-mean annual growth rate, e.g. 0.10 for 10%/year. Required unless `ticker` resolves it from trailing CAGR."
+            "type": [
+              "number",
+              "string"
+            ],
+            "description": "Arithmetic-mean annual growth rate, e.g. 0.10 for 10%/year. Required unless `ticker` resolves it from trailing CAGR. Also accepts the string \"market\" to use the S&P 500 trailing average when the user has no view."
           },
           "ticker": {
             "$ref": "#/components/schemas/Ticker"
@@ -2495,9 +2498,12 @@
             "description": "Hold horizon. Sub-1-year is short-term and out of scope."
           },
           "expectedSalePrice": {
-            "type": "number",
+            "type": [
+              "number",
+              "string"
+            ],
             "minimum": 0,
-            "description": "Expected sale price at horizon, USD per share. Required unless `ticker` resolves it from currentPrice × (1 + trailing CAGR)^holdYears."
+            "description": "Expected sale price at horizon, USD per share. Required unless `ticker` resolves it from currentPrice × (1 + trailing CAGR)^holdYears. Also accepts the string \"market\" to project currentPrice at the S&P 500 trailing average."
           },
           "haircut": {
             "type": "number",
@@ -2512,8 +2518,11 @@
             "maximum": 5
           },
           "expectedMarketReturn": {
-            "type": "number",
-            "description": "Per-year median market return rate (vol-drag pre-applied). Defaults to SPY trailing CAGR for holdYears if omitted."
+            "type": [
+              "number",
+              "string"
+            ],
+            "description": "Per-year median market return rate (vol-drag pre-applied). Defaults to SPY trailing CAGR for holdYears if omitted. The string \"market\" names that same default explicitly."
           },
           "ticker": {
             "$ref": "#/components/schemas/Ticker"
@@ -2567,9 +2576,12 @@
             "maximum": 5
           },
           "expectedSalePrice": {
-            "type": "number",
+            "type": [
+              "number",
+              "string"
+            ],
             "minimum": 0,
-            "description": "Projected $/share at end of holdYears. Required unless `ticker` resolves it from currentPrice × (1 + trailing CAGR)^holdYears."
+            "description": "Projected $/share at end of holdYears. Required unless `ticker` resolves it from currentPrice × (1 + trailing CAGR)^holdYears. Also accepts the string \"market\" to project currentPrice at the S&P 500 trailing average."
           },
           "haircut": {
             "type": "number",
@@ -2584,8 +2596,11 @@
             "maximum": 5
           },
           "expectedMarketReturn": {
-            "type": "number",
-            "description": "Per-year reinvestment rate. Defaults to SPY trailing CAGR for holdYears if omitted."
+            "type": [
+              "number",
+              "string"
+            ],
+            "description": "Per-year reinvestment rate. Defaults to SPY trailing CAGR for holdYears if omitted. The string \"market\" names that same default explicitly."
           },
           "ticker": {
             "$ref": "#/components/schemas/Ticker"
@@ -2636,12 +2651,18 @@
             "description": "Total investable portfolio in dollars (concentrated position + everything else). User-supplied; never inferred."
           },
           "expectedPositionReturn": {
-            "type": "number",
-            "description": "Annual return on the concentrated stock. Required unless `ticker` resolves it from trailing CAGR."
+            "type": [
+              "number",
+              "string"
+            ],
+            "description": "Annual return on the concentrated stock. Required unless `ticker` resolves it from trailing CAGR. Also accepts the string \"market\" to use the S&P 500 trailing average when the user has no view."
           },
           "expectedMarketReturn": {
-            "type": "number",
-            "description": "Annual return on diversified holdings + reinvested proceeds. Defaults to SPY trailing CAGR for the 3-year horizon if omitted."
+            "type": [
+              "number",
+              "string"
+            ],
+            "description": "Annual return on diversified holdings + reinvested proceeds. Defaults to SPY trailing CAGR for the 3-year horizon if omitted. The string \"market\" names that same default explicitly."
           },
           "ticker": {
             "$ref": "#/components/schemas/Ticker"
@@ -2890,7 +2911,11 @@
                   "minimum": 0
                 },
                 "expectedAnnualGrowth": {
-                  "type": "number"
+                  "type": [
+                    "number",
+                    "string"
+                  ],
+                  "description": "Per-stack growth decimal (0.08 = 8%/yr), or the string \"market\" for the S&P 500 trailing average. Required unless `ticker` resolves it; omitting it is an error, not a flat default. Pass 0 for a deliberately flat-price plan."
                 },
                 "volatility": {
                   "type": "number",
@@ -2962,8 +2987,11 @@
             "description": "Legacy single-stack current share price."
           },
           "expectedAnnualGrowth": {
-            "type": "number",
-            "description": "Legacy single-stack annual growth decimal."
+            "type": [
+              "number",
+              "string"
+            ],
+            "description": "Legacy single-stack annual growth decimal, or the string \"market\" for the S&P 500 trailing average. Required with legacy `lots`: pass 0 for a deliberately flat-price plan (omitting it is an error, not a flat default)."
           },
           "ordinaryIncome": {
             "type": "number",

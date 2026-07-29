@@ -20,7 +20,7 @@
 // month) uses the Poe cost API; extraction uses OPENROUTER_API_KEY.
 
 import { TOOLS, isToolName, type ToolName } from './_lib/mcp-tools';
-import { DEFAULT_CASH_RETURN_RATE } from './_lib/calc-parsers';
+import { DEFAULT_CASH_RETURN_RATE, isMarketSentinel } from './_lib/calc-parsers';
 import { PER_TOOL_FREE_TOOL_BARE } from './_lib/sessions';
 import { logCall, logSample } from './_lib/stats';
 import { getCurrentPrice } from '../lib/data/prices';
@@ -643,10 +643,13 @@ function assumptionsLine(tool: string, a: Record<string, any>): string {
     case 'equity_funding_plan': {
       const stacks = Array.isArray(a.stacks) ? a.stacks : [];
       const tks = [...new Set(stacks.map((st: any) => (st && typeof st.ticker === 'string' ? st.ticker.toUpperCase() : '')).filter(Boolean))];
-      const anyFlat = stacks.some((st: any) => st && typeof st.expectedAnnualGrowth !== 'number' && typeof st.ticker !== 'string');
+      // A stack without growth or ticker no longer reaches here (the parser
+      // rejects it), so the old "flat stock price" disclosure is gone; the
+      // reachable delegation is the explicit "market" sentinel.
+      const anyMarket = stacks.some((st: any) => st && isMarketSentinel(st.expectedAnnualGrowth));
       if (tks.length) parts.push(`growth and volatility from ${tks.join(', ')}'s historical returns`);
-      if (anyFlat) parts.push('a flat stock price for holdings without a stated growth rate or ticker');
-      if (!tks.length && !anyFlat) parts.push("each holding's growth and volatility from your numbers");
+      if (anyMarket) parts.push("the S&P 500 trailing average for holdings you told me to grow at the market rate");
+      if (!tks.length && !anyMarket) parts.push("each holding's growth and volatility from your numbers");
       break;
     }
     case 'rsu_lot_optimize': {
@@ -709,7 +712,7 @@ function extractorPrompt(conversation: string): string {
     '- A later turn usually just ADJUSTS one parameter (for example "what about 2% shortfall risk?", "make it single filer", "same as above"). When it does, KEEP every field already established in earlier turns -- the ticker, share counts, cost basis, dates, income, state, filing status -- and only change what the new turn states. Never drop the stock/ticker or re-ask for something an earlier turn already gave or that a ticker derives.',
     '- If the chat fits a tool AND every required (*) field is present or safely inferable, reply {"tool":"<name>","args":{...}} using the exact field names.',
     '- Include EVERY field the user provides, not just the required ones. Map their words to the field names: "17% growth" -> expectedGrowth: 0.17, "0.72 vol" / "volatility 0.72" -> volatility: 0.72, "married" -> filingStatus: "married_joint", "$300k income" -> ordinaryIncome: 300000, percentages as decimals. When the user names a stock ("my NVDA position", "I hold AAPL", "5,000 NVDA shares"), set ticker to that symbol (e.g. "NVDA").',
-    '- Some tools need a forward estimate -- expectedGrowth for ISOs, expectedPositionReturn for concentration, expectedSalePrice for NSOs, and for equity_funding each stack\'s expectedAnnualGrowth and volatility -- OR a ticker symbol to derive it. A TICKER IS SUFFICIENT: when a stock\'s ticker is present, its growth, volatility, and price are derived automatically, so do NOT ask for them and do NOT clarify for a growth/return rate. For equity_funding, a stack with a ticker (e.g. {ticker:"AMZN", lots:[...]}) needs no expectedAnnualGrowth or volatility from you. Only when there is NEITHER a rate NOR a ticker, reply {"clarify":"ask for an expected annual growth rate (e.g. 10%) or a ticker"}. Never invent a growth rate, and NEVER reuse cashReturnRate (the return on idle cash) as the stock growth. Do not output a placeholder ticker like "unknown"; omit ticker if you do not have a real symbol.',
+    '- Some tools need a forward estimate -- expectedGrowth for ISOs, expectedPositionReturn for concentration, expectedSalePrice for NSOs, and for equity_funding each stack\'s expectedAnnualGrowth and volatility -- OR a ticker symbol to derive it. A TICKER IS SUFFICIENT: when a stock\'s ticker is present, its growth, volatility, and price are derived automatically, so do NOT ask for them and do NOT clarify for a growth/return rate. For equity_funding, a stack with a ticker (e.g. {ticker:"AMZN", lots:[...]}) needs no expectedAnnualGrowth or volatility from you. Only when there is NEITHER a rate NOR a ticker, reply {"clarify":"ask for an expected annual growth rate (e.g. 10%) or a ticker"}. If the user says to assume market/average/index growth, pass the string "market" as the growth field. Never invent a growth rate, and NEVER reuse cashReturnRate (the return on idle cash) as the stock growth. Do not output a placeholder ticker like "unknown"; omit ticker if you do not have a real symbol.',
     '- If required fields are missing and cannot be inferred, reply {"clarify":"<one short, friendly question naming EVERYTHING you need>"} -- list every missing field in that single question so the user is not asked twice. Never invent a tax rate, cash return rate, growth rate, or grant date.',
     '- If the user asks what you can do, what inputs you need, or how to use you (instead of giving a scenario), reply {"help":"<the tool name if they asked about a specific one, otherwise general>"}.',
     '- If the chat is not about equity-compensation tax planning at all, reply {"reject":"<one short sentence>"}.',
@@ -1241,7 +1244,12 @@ async function handleQuery(ctx: PagesContext, req: PoeRequest, extractor?: Extra
       terminationDate: 'when you left the company (for example 2026-03-15)',
     };
     let ask: string;
-    if (FORWARD.has(field)) {
+    if (field.endsWith('expectedAnnualGrowth')) {
+      // A stack (or legacy) growth the engine now refuses to default silently.
+      // Same ticker-first shape as FORWARD below, plus the two words that make
+      // the no-view paths reachable: "market" and 0.
+      ask = `Almost there. For each holding give me its ticker and I will use its historical growth, or tell me an expected annual growth rate (for example 10%). If you have no view, say "market" for the S&P 500 average, or 0 to plan on a flat price.`;
+    } else if (FORWARD.has(field)) {
       // A missing forward estimate. One ticker-first ask covering everything the
       // engine derives from a symbol, so the user does not get asked twice.
       if (tool.name === 'amt_iso_optimize' || tool.name === 'concentration_analyze') {

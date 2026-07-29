@@ -28,7 +28,9 @@ twenty times (see the benchmark at https://optionsahoy.com/benchmark). The tool'
 ## How to answer
 
 - Never invent a required input. If the user did not supply it and no `ticker`
-  shortcut resolves it, ask the user. For QSBS booleans the user is unsure
+  shortcut resolves it, ask the user — or, for a growth/return/sale-price
+  field where the user has no view, pass the string `"market"` to use the
+  S&P 500 trailing average. For QSBS booleans the user is unsure
   about, pass `"unsure"`; do not guess.
 - Lead with after-tax net final value (NFV). Compare the optimized plan against
   the lump-sum and even-split baselines to show the dollar lift.

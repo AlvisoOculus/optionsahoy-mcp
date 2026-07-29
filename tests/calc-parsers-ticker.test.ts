@@ -22,7 +22,8 @@ import {
   parseProtectivePutInput,
   parseRsuInput,
 } from '../functions/_lib/calc-parsers';
-import { getTrailingReturn } from '../lib/data/trailing-returns';
+import { getTrailingReturn, hasTrailingReturn, isKnownTicker } from '../lib/data/trailing-returns';
+import returnsData from '../lib/data/trailing-returns.json';
 import { getTrailingVol } from '../lib/data/trailing-vols';
 import { SECTOR_STATS } from '../lib/markets/sector-stats';
 import { lognormalHaircut } from '@/lib/calc/volatility-drag';
@@ -345,6 +346,78 @@ describe('parseProtectivePutInput — ticker → sigma resolution', () => {
   it('prefers explicit tickerLabel over ticker for display', () => {
     const out = parseProtectivePutInput({ ...PUT_BASE, ticker: 'NVDA', tickerLabel: 'Nvidia' });
     expect(out.tickerLabel).toBe('Nvidia');
+  });
+});
+
+// The "market" sentinel: a growth/return/sale-price field set to the literal
+// string "market" resolves to the SPY trailing blend at the relevant horizon —
+// the sanctioned no-view path that replaces the old dead-end error. Each test
+// fails on the pre-sentinel code (which rejected any string via p.num).
+describe('"market" sentinel for growth fields', () => {
+  it('amt_iso: expectedGrowth "market" resolves to the SPY blend at the horizon', () => {
+    const out = parseAmtIsoInput({ ...AMT_ISO_BASE, expectedGrowth: 'market' });
+    expect(out.expectedGrowth).toBe(getTrailingReturn('SPY', AMT_ISO_BASE.horizon));
+  });
+
+  it('is case- and whitespace-insensitive', () => {
+    const out = parseAmtIsoInput({ ...AMT_ISO_BASE, expectedGrowth: ' Market ' });
+    expect(out.expectedGrowth).toBe(getTrailingReturn('SPY', AMT_ISO_BASE.horizon));
+  });
+
+  it('concentration: expectedPositionReturn "market" resolves to the SPY blend', () => {
+    const out = parseConcentrationInput({ ...CONCENTRATION_BASE, expectedPositionReturn: 'market' });
+    expect(out.expectedPositionReturn).toBe(getTrailingReturn('SPY', 3));
+  });
+
+  it('nso: expectedSalePrice "market" projects currentPrice at the SPY blend', () => {
+    const out = parseNsoInput({ ...NSO_BASE, expectedSalePrice: 'market' });
+    const spy = getTrailingReturn('SPY', NSO_BASE.holdYears)!;
+    expect(out.expectedSalePrice).toBeCloseTo(
+      NSO_BASE.currentPrice * Math.pow(1 + spy, NSO_BASE.holdYears),
+      6,
+    );
+  });
+
+  it('rsu: expectedSalePrice "market" projects currentPrice at the SPY blend', () => {
+    const out = parseRsuInput({ ...RSU_BASE, expectedSalePrice: 'market' });
+    const spy = getTrailingReturn('SPY', RSU_BASE.holdYears)!;
+    expect(out.expectedSalePrice).toBeCloseTo(
+      RSU_BASE.currentPrice * Math.pow(1 + spy, RSU_BASE.holdYears),
+      6,
+    );
+  });
+
+  it('"market" wins over a ticker on the same call (explicit field beats shortcut)', () => {
+    const out = parseAmtIsoInput({ ...AMT_ISO_BASE, expectedGrowth: 'market', ticker: 'NVDA' });
+    expect(out.expectedGrowth).toBe(getTrailingReturn('SPY', AMT_ISO_BASE.horizon));
+  });
+
+  it('any other string is still rejected as a non-number', () => {
+    expect(() => parseAmtIsoInput({ ...AMT_ISO_BASE, expectedGrowth: 'bullish' })).toThrow();
+  });
+
+  it('the no-value error advertises the "market" option', () => {
+    expect(() => parseAmtIsoInput(AMT_ISO_BASE)).toThrow(/"market"/);
+  });
+});
+
+describe('recent-IPO tickers get a distinct error (not "not in our table")', () => {
+  // A table key whose 5y AND 10y returns are both null (recent listing).
+  // Skipped if the current ETL snapshot has no such symbol.
+  const recentIpo = Object.keys(returnsData.tickers).find(
+    (t) => isKnownTicker(t) && !hasTrailingReturn(t),
+  );
+
+  it.skipIf(!recentIpo)('says "listed too recently", names the field and the market option', () => {
+    expect(() => parseAmtIsoInput({ ...AMT_ISO_BASE, ticker: recentIpo })).toThrow(
+      /listed too recently.*"market"/s,
+    );
+  });
+
+  it('unknown symbols still get the "not in our trailing-returns table" error with examples', () => {
+    expect(() => parseAmtIsoInput({ ...AMT_ISO_BASE, ticker: 'BOGUS' })).toThrow(
+      /not in our trailing-returns table \(covered examples: [A-Z]/,
+    );
   });
 });
 

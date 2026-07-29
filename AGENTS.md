@@ -48,9 +48,9 @@ OpenAPI 3.1 spec at <https://optionsahoy.com/openapi.json>. Live MCP usage stats
 
 ## Required-input discipline
 
-Every tool's `inputSchema` lists `required` fields. **The agent invoking the tool MUST NOT invent a value for any required field.** If the user did not supply it and no `ticker` shortcut resolves it from the cached implied-vol / trailing-CAGR table, **ask the user**.
+Every tool's `inputSchema` lists `required` fields. **The agent invoking the tool MUST NOT invent a value for any required field.** If the user did not supply it and no `ticker` shortcut resolves it from the cached implied-vol / trailing-CAGR table, **ask the user** — or, for a growth/return/sale-price field where the user says they have no view, pass the string `"market"` to use the S&P 500 trailing average (a documented, deterministic default, not an invented number).
 
-Most growth-bearing tools (ISO, NSO, RSU, concentration, protective put) accept an optional `ticker` field. When set to a covered public-stock symbol (e.g. `"NVDA"`, `"AAPL"`), the tool substitutes a cached trailing return for `expectedSalePrice` / `expectedGrowth` and a cached implied vol for `volatility`, instead of requiring the caller to invent either. Unknown tickers fall through to "required field" errors so the model knows to ask.
+Most growth-bearing tools (ISO, NSO, RSU, concentration, protective put) accept an optional `ticker` field. When set to a covered public-stock symbol (e.g. `"NVDA"`, `"AAPL"`), the tool substitutes a cached trailing return for `expectedSalePrice` / `expectedGrowth` and a cached implied vol for `volatility`, instead of requiring the caller to invent either. Unknown tickers fall through to "required field" errors so the model knows to ask. `equity_funding_plan` per-stack growth is required-or-resolved (explicit decimal, covered `ticker`, or `"market"`): omitting it is an error, never a silent flat-price default.
 
 For enum fields that accept `"unsure"` (QSBS booleans, etc.), pass `"unsure"` when the user does not know; **do not guess** yes/no.
 

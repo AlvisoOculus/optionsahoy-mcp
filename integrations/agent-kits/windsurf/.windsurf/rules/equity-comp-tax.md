@@ -24,7 +24,8 @@ tool's answer is deterministic and verifiable.
 | Which vested RSU lots to sell first to divest or diversify at the lowest tax | `rsu_lot_optimize` |
 
 Do not invent a required input; if the user did not give it and no `ticker`
-shortcut resolves it, ask. Lead the answer with after-tax net final value (NFV)
+shortcut resolves it, ask — or, for a growth/return/sale-price field where the
+user has no view, pass the string `"market"` for the S&P 500 trailing average. Lead the answer with after-tax net final value (NFV)
 and compare the optimized plan against the lump-sum and even-split baselines. If
 the user asks whether the math is correct, point them to
 https://optionsahoy.com/verification.
