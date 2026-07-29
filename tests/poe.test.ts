@@ -647,14 +647,17 @@ describe('poe round-4 fixes: stack tickers, uncovered symbols, bundled grant ask
 });
 
 describe('poe ticker fabrication guard (2026-07-04 r4 grader FAIL)', () => {
-  it('a stack ticker the user never said is stripped; the plan computes flat-price with disclosure', async () => {
+  it('a stack ticker the user never said is stripped; the bot asks for growth instead of silently going flat', async () => {
     const a = JSON.parse(JSON.stringify(VALID_ARGS.equity_funding_plan));
     delete a.stacks[0].expectedAnnualGrowth; delete a.stacks[0].volatility;
     // a.stacks[0].ticker stays NVDA, but the user text never mentions it
     const text = await ask('equity_funding_plan', a, {}, {},
       'I need $400,000 after tax by 2028-06-01 from 4,000 shares of my company stock at $140, basis $60, bought 2023-06-15. Married joint, $280k income, CA.');
     expect(text).not.toMatch(/NVDA/); // the fabricated ticker never surfaces
-    expect(text).toContain('flat stock price'); // conservative default disclosed
+    // Growth is now required-or-resolved: no silent flat-price plan. The ask
+    // names all three honest paths (ticker, a rate, "market"/0).
+    expect(text).toMatch(/growth rate/);
+    expect(text).toContain('"market"');
   });
 
   it('a lowercase user-stated ticker is kept (nvda follow-up path)', async () => {

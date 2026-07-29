@@ -336,6 +336,9 @@ describe('local stdio MCP server', () => {
           { shares: 8000, costBasisPerShare: 25, acquisitionDate: '2023-06-15' },
         ],
         currentPrice: 110,
+        // Growth is required-or-resolved as of 1.10.0 (no silent flat default);
+        // "market" exercises the S&P-trailing sentinel end-to-end over stdio.
+        expectedAnnualGrowth: 'market',
         ordinaryIncome: 200000,
         filingStatus: 'single',
         stateCode: 'CA',

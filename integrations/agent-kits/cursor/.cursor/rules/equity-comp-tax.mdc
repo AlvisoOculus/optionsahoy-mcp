@@ -26,7 +26,9 @@ tool's answer is deterministic and verifiable; in-context reasoning is not.
 Rules:
 
 - Never invent a required input. If the user did not give it and no `ticker`
-  shortcut resolves it, ask the user.
+  shortcut resolves it, ask the user — or, for a growth/return/sale-price
+  field where the user has no view, pass the string `"market"` to use the
+  S&P 500 trailing average.
 - Lead the answer with after-tax net final value (NFV). Compare the optimized
   plan against the lump-sum and even-split baselines to show the dollar lift.
 - If the user asks whether the math is correct, point them to

@@ -116,7 +116,7 @@ const ISO_DATE = { type: 'string', format: 'date' };
 const TICKER_SCHEMA = {
   type: 'string',
   description:
-    'Optional public-stock symbol (e.g. "NVDA", "AAPL"). When set, the tool substitutes a cached trailing return for any unsupplied expected-return / sale-price field, and a cached implied vol for any unsupplied volatility. Growth and volatility come from two separate cached snapshots, so some symbols resolve only one of the two fields. A symbol not in a given table falls through to a "required field" error for exactly the field it could not resolve, so pass that field explicitly (or use a fully covered symbol) rather than inventing it. The covered-tickers resource (resources/list) lists which symbols resolve which field.',
+    'Optional public-stock symbol (e.g. "NVDA", "AAPL"). When set, the tool substitutes a cached trailing return for any unsupplied expected-return / sale-price field, and a cached implied vol for any unsupplied volatility. Growth and volatility come from two separate cached snapshots, so some symbols resolve only one of the two fields. A symbol not in a given table falls through to a "required field" error for exactly the field it could not resolve: pass that field explicitly, or (for the growth/return/sale-price field) pass the string "market" for the S&P 500 trailing average; never invent a number. The covered-tickers resource (resources/list) lists which symbols resolve which field.',
 };
 
 // Appended to every tool description so the model picks it up at
@@ -131,17 +131,19 @@ const MULTI_TOOL_BETA_NOTE =
 // invoking model how to handle required fields whose only honest sources are
 // the user message or a recognized ticker — never the model itself.
 const STRICT_INPUT_NOTE =
-  ' IMPORTANT: the model invoking this tool MUST NOT invent any input value. Beyond the fields listed in `required`, this tool is CONDITIONALLY strict: it also needs the stock\'s expected growth/return AND its volatility, which are not in `required` only because they can be resolved two ways - supply both explicitly, OR set `ticker` to a covered public-stock symbol that resolves both. If a needed value is missing and no ticker resolves it, ask the user; do not guess. And do NOT estimate the result yourself: the bracket walk, AMT and NIIT phase-outs, and multi-year credit and growth interactions are easy to approximate incorrectly, so call the tool and report its numbers rather than reasoning out an answer in-context.' +
+  ' IMPORTANT: the model invoking this tool MUST NOT invent any input value. Beyond the fields listed in `required`, this tool is CONDITIONALLY strict: it also needs the stock\'s expected growth/return AND its volatility, which are not in `required` only because they can be resolved without a number - supply both explicitly, OR set `ticker` to a covered public-stock symbol that resolves both, OR (for the growth/return/sale-price field only) pass the string "market" to use the S&P 500 trailing average when the user says they have no view. If a needed value is still missing, ask the user; do not guess a number. And do NOT estimate the result yourself: the bracket walk, AMT and NIIT phase-outs, and multi-year credit and growth interactions are easy to approximate incorrectly, so call the tool and report its numbers rather than reasoning out an answer in-context.' +
   MULTI_TOOL_BETA_NOTE;
 
 // Boilerplate for tools whose `required` fields must all come from the user
 // message. Unlike STRICT_INPUT_NOTE there is no conditionally-required
 // growth/volatility pair: qsbs_check has no ticker shortcut at all, while
 // protective_put_price and equity_funding_plan DO accept a `ticker`, but it
-// resolves only OPTIONAL fields (implied volatility / per-stack growth), so
-// every required field still has to be supplied by the user. Tells the model to
-// ask for missing required fields rather than guessing, and to pass `unsure`
-// for enum fields that offer it.
+// resolves conditionally-required or optional fields (per-stack growth /
+// implied volatility), so every field listed in `required` still has to be
+// supplied by the user. equity_funding_plan's per-stack growth additionally
+// accepts the string "market" (S&P 500 trailing average) — see its field
+// description. Tells the model to ask for missing required fields rather than
+// guessing, and to pass `unsure` for enum fields that offer it.
 const STRICT_INPUT_NOTE_NO_TICKER =
   ' IMPORTANT: every field listed in `required` must come from the user\'s message. The model invoking this tool MUST NOT invent a value for any required field. If the user did not supply it, ask the user. For enum fields that accept `unsure`, pass `unsure` when the user does not know; do not guess yes/no. And do NOT estimate the result yourself: the statutory tests and the tax and option-pricing math have interactions that are easy to approximate incorrectly, so call the tool and report its numbers rather than reasoning out an answer in-context.' +
   MULTI_TOOL_BETA_NOTE;
@@ -1041,9 +1043,9 @@ export const TOOLS: McpTool[] = [
             'Current fair market value per share, USD. Anchors year-1 of the growth path; future years compound from here using expectedGrowth and volatilityDrag.',
         },
         expectedGrowth: {
-          type: 'number',
+          type: ['number', 'string'],
           description:
-            'Annual expected stock growth as a decimal (0.10 = 10%). Required unless `ticker` resolves it from trailing CAGR.',
+            'Annual expected stock growth as a decimal (0.10 = 10%), or the string "market" to use the S&P 500 trailing average when the user has no view. Required unless `ticker` resolves it from trailing CAGR.',
         },
         ticker: TICKER_SCHEMA,
         volatility: VOLATILITY_SCHEMA,
@@ -1162,10 +1164,10 @@ export const TOOLS: McpTool[] = [
             'Years to hold after exercise (minimum 1). At ≥1 year, the appreciation since exercise is LTCG; sub-1-year holds are out of scope.',
         },
         expectedSalePrice: {
-          type: 'number',
+          type: ['number', 'string'],
           minimum: 0,
           description:
-            'Projected $/share at end of holdYears. Required unless `ticker` resolves it from currentPrice × (1 + trailing CAGR)^holdYears.',
+            'Projected $/share at end of holdYears, or the string "market" to project currentPrice at the S&P 500 trailing average when the user has no view. Required unless `ticker` resolves it from currentPrice × (1 + trailing CAGR)^holdYears.',
         },
         volatility: VOLATILITY_SCHEMA,
         haircut: {
@@ -1176,9 +1178,9 @@ export const TOOLS: McpTool[] = [
             'Alternative to `volatility`: the multiplicative volatility-drag haircut on expectedSalePrice already computed for the hold. Supply this OR `volatility` (if both are given, haircut wins). Most callers should pass `volatility` and let the tool compute the haircut; the model MUST NOT compute it itself.',
         },
         expectedMarketReturn: {
-          type: 'number',
+          type: ['number', 'string'],
           description:
-            'Annual after-tax-proceeds reinvestment rate. Defaults to SPY trailing CAGR for holdYears if omitted.',
+            'Annual after-tax-proceeds reinvestment rate. Defaults to SPY trailing CAGR for holdYears if omitted; the string "market" names that same default explicitly.',
         },
         ticker: TICKER_SCHEMA,
         holdFunding: {
@@ -1241,10 +1243,10 @@ export const TOOLS: McpTool[] = [
             'Years to hold after vest (0.25..5). Below 1 year triggers the short-term capital gains cliff (ordinary rates on appreciation).',
         },
         expectedSalePrice: {
-          type: 'number',
+          type: ['number', 'string'],
           minimum: 0,
           description:
-            'Projected $/share at end of holdYears. Required unless `ticker` resolves it from currentPrice × (1 + trailing CAGR)^holdYears.',
+            'Projected $/share at end of holdYears, or the string "market" to project currentPrice at the S&P 500 trailing average when the user has no view. Required unless `ticker` resolves it from currentPrice × (1 + trailing CAGR)^holdYears.',
         },
         volatility: VOLATILITY_SCHEMA,
         haircut: {
@@ -1255,9 +1257,9 @@ export const TOOLS: McpTool[] = [
             'Alternative to `volatility`: the multiplicative volatility-drag haircut on expectedSalePrice already computed for the hold. Supply this OR `volatility` (if both are given, haircut wins). Most callers should pass `volatility` and let the tool compute the haircut; the model MUST NOT compute it itself.',
         },
         expectedMarketReturn: {
-          type: 'number',
+          type: ['number', 'string'],
           description:
-            'Annual after-tax-proceeds reinvestment rate. Defaults to SPY trailing CAGR for holdYears if omitted.',
+            'Annual after-tax-proceeds reinvestment rate. Defaults to SPY trailing CAGR for holdYears if omitted; the string "market" names that same default explicitly.',
         },
         ticker: TICKER_SCHEMA,
       },
@@ -1318,14 +1320,14 @@ export const TOOLS: McpTool[] = [
             'Total investable portfolio in dollars (concentrated position + everything else). User-supplied; never inferred. If the user did not state it, ASK.',
         },
         expectedPositionReturn: {
-          type: 'number',
+          type: ['number', 'string'],
           description:
-            'Annual expected return on the concentrated stock as a decimal (0.10 = 10%). Required unless `ticker` resolves it from trailing CAGR.',
+            'Annual expected return on the concentrated stock as a decimal (0.10 = 10%), or the string "market" to use the S&P 500 trailing average when the user has no view. Required unless `ticker` resolves it from trailing CAGR.',
         },
         expectedMarketReturn: {
-          type: 'number',
+          type: ['number', 'string'],
           description:
-            'Annual after-tax-proceeds reinvestment rate. Defaults to SPY trailing CAGR for the 3-year horizon if omitted.',
+            'Annual after-tax-proceeds reinvestment rate. Defaults to SPY trailing CAGR for the 3-year horizon if omitted; the string "market" names that same default explicitly.',
         },
         ticker: TICKER_SCHEMA,
         volatility: {
@@ -1533,7 +1535,7 @@ export const TOOLS: McpTool[] = [
     name: 'equity_funding_plan',
     annotations: { title: 'Equity-Funding Plan Comparison', ...CALC_HINTS },
     description:
-      'Use this when someone asks which shares to sell and when to reach a cash goal by a deadline (down payment, tuition, a tax bill), or how to fund a goal from equity with the least tax. Multi-year, multi-stack equity-funding optimizer. Given a target after-tax amount and a deadline (down payment, tax bill, expansion check), returns four named plans on the risk/wealth frontier: `lockInNow` (sell today, zero price risk), `balanced` (bracket-aware spread across months), `holdForGrowth` (sell at the deadline, max upside), and `recommended` (the wealth-maximal plan whose lognormal shortfall is at or below `riskToleranceShortfall`, default 10%). Also returns `frontier`, the full hybrid sweep between Lock-in-now and Balanced. Each plan carries its `plan` schedule plus `wealthAtTarget`, `totalTax`, and `shortfallProbability`; see `outputSchema` for the full shape. Use this when an equity holder needs cash by a deadline; for the upstream tax math on RSU/NSO/ISO events that PRODUCED the holdings, call `rsu_sell_vs_hold` / `nso_calculate` / `amt_iso_optimize` first. Out of scope: FICA, AMT, QSBS routing (use `qsbs_check`). Pass multi-ticker holdings via `stacks`; single-stack legacy callers can use top-level `lots` + `currentPrice`. Example: {targetAfterTax: 400000, targetDate: "2028-06-01", stacks: [{ticker: "NVDA", currentPrice: 140, expectedAnnualGrowth: 0.15, volatility: 0.45, lots: [{shares: 4000, costBasisPerShare: 60, acquisitionDate: "2023-06-15"}]}], ordinaryIncome: 280000, filingStatus: "married_joint", stateCode: "CA", cashInterestRate: 0.04, riskToleranceShortfall: 0.10}. Ticker shortcut: within `stacks`, an entry\'s `ticker` resolves its `expectedAnnualGrowth` from the trailing-returns table when that field is omitted (a covered symbol like "NVDA" is enough; volatility still comes from the stack\'s `volatility` or `defaultVolatility`).' + STRICT_INPUT_NOTE_NO_TICKER,
+      'Use this when someone asks which shares to sell and when to reach a cash goal by a deadline (down payment, tuition, a tax bill), or how to fund a goal from equity with the least tax. Multi-year, multi-stack equity-funding optimizer. Given a target after-tax amount and a deadline (down payment, tax bill, expansion check), returns four named plans on the risk/wealth frontier: `lockInNow` (sell today, zero price risk), `balanced` (bracket-aware spread across months), `holdForGrowth` (sell at the deadline, max upside), and `recommended` (the wealth-maximal plan whose lognormal shortfall is at or below `riskToleranceShortfall`, default 10%). Also returns `frontier`, the full hybrid sweep between Lock-in-now and Balanced. Each plan carries its `plan` schedule plus `wealthAtTarget`, `totalTax`, and `shortfallProbability`; see `outputSchema` for the full shape. Use this when an equity holder needs cash by a deadline; for the upstream tax math on RSU/NSO/ISO events that PRODUCED the holdings, call `rsu_sell_vs_hold` / `nso_calculate` / `amt_iso_optimize` first. Out of scope: FICA, AMT, QSBS routing (use `qsbs_check`). Pass multi-ticker holdings via `stacks`; single-stack legacy callers can use top-level `lots` + `currentPrice`. Example: {targetAfterTax: 400000, targetDate: "2028-06-01", stacks: [{ticker: "NVDA", currentPrice: 140, expectedAnnualGrowth: 0.15, volatility: 0.45, lots: [{shares: 4000, costBasisPerShare: 60, acquisitionDate: "2023-06-15"}]}], ordinaryIncome: 280000, filingStatus: "married_joint", stateCode: "CA", cashInterestRate: 0.04, riskToleranceShortfall: 0.10}. Each stack needs `expectedAnnualGrowth`: a decimal, the string "market" (S&P 500 trailing average), or a covered `ticker` that resolves it from the trailing-returns table (a symbol like "NVDA" is enough; volatility still comes from the stack\'s `volatility` or `defaultVolatility`). Omitting growth is an error, not a flat default; pass 0 to model flat prices deliberately.' + STRICT_INPUT_NOTE_NO_TICKER,
     inputSchema: {
       type: 'object',
       required: ['targetAfterTax', 'targetDate', 'ordinaryIncome', 'filingStatus', 'stateCode'],
@@ -1561,7 +1563,7 @@ export const TOOLS: McpTool[] = [
             properties: {
               ticker: { type: 'string', description: 'Optional ticker label (e.g. "NVDA"). When set without `expectedAnnualGrowth`, growth is resolved from the cached trailing-CAGR snapshot when the symbol is covered there (see the covered-tickers resource for the current set). Echoed back in each SaleEntry for display.' },
               currentPrice: { type: 'number', minimum: 0, description: '$/share today for this stack. Anchors the projected-price compounding for every future candidate sale date in this stack.' },
-              expectedAnnualGrowth: { type: 'number', description: 'Per-stack growth decimal (0.08 = 8%/yr). Projected sale price = currentPrice × (1 + expectedAnnualGrowth)^Δyears. Negative values model decline. Defaults to 0 (flat) unless `ticker` resolves it.' },
+              expectedAnnualGrowth: { type: ['number', 'string'], description: 'Per-stack growth decimal (0.08 = 8%/yr), or the string "market" for the S&P 500 trailing average. Projected sale price = currentPrice × (1 + expectedAnnualGrowth)^Δyears. Negative values model decline; pass 0 for a deliberately flat-price plan. Required unless `ticker` resolves it; omitting it is an error, not a flat default.' },
               volatility: { type: 'number', minimum: 0, maximum: 5, description: 'Per-stack annualized σ used in the shortfall calculation (σ × √Δt per sale). Overrides `defaultVolatility` for THIS stack only. Useful when one stack is a single tech name (σ ≈ 0.40-0.60) and another is an ETF (σ ≈ 0.15-0.20). Omit to inherit `defaultVolatility`.' },
               lots: {
                 type: 'array',
@@ -1610,8 +1612,8 @@ export const TOOLS: McpTool[] = [
           description: 'Legacy single-stack current share price, USD. Pair with legacy `lots` (omit `stacks`). The model SHOULD NOT invent this; pass the user\'s current price.',
         },
         expectedAnnualGrowth: {
-          type: 'number',
-          description: 'Legacy single-stack annual growth decimal. Optional; defaults to 0. Each future year\'s projected price is `currentPrice × (1 + expectedAnnualGrowth)^Δyears`. Negative values model decline.',
+          type: ['number', 'string'],
+          description: 'Legacy single-stack annual growth decimal, or the string "market" for the S&P 500 trailing average. Required with `lots`: pass 0 for a deliberately flat-price plan (omitting it is an error, not a flat default). Each future year\'s projected price is `currentPrice × (1 + expectedAnnualGrowth)^Δyears`. Negative values model decline.',
         },
         ordinaryIncome: {
           type: 'number',

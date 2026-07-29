@@ -21,7 +21,7 @@ import type { LotDivestInput, LotDivestLot } from '../../lib/calc/lotDivest';
 
 import { asObject, p, FILING_STATUSES, type Obj } from './api';
 import { STATE_CODES } from '../../lib/tax/state-tax';
-import { getTrailingReturn } from '../../lib/data/trailing-returns';
+import { getTrailingReturn, hasTrailingReturn, isKnownTicker } from '../../lib/data/trailing-returns';
 import { getTrailingVol } from '../../lib/data/trailing-vols';
 import { SECTOR_STATS, type SectorKey } from '../../lib/markets/sector-stats';
 import { HORIZON_YEARS as CONCENTRATION_HORIZON_YEARS, IV_OVER_RV_MULTIPLIER } from '../../lib/calc/concentration';
@@ -48,6 +48,49 @@ const dayUTC = (d: Date) => Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getU
 
 const ASK_USER_HINT =
   'The model invoking this tool MUST NOT invent this value — ask the user.';
+
+// Example symbols quoted in growth-field error messages so a retrying agent
+// can self-serve a covered ticker without a resources/read round-trip.
+// Filtered through the live table at module load: if the ETL ever drops one,
+// the message self-heals instead of advertising a symbol the parser rejects.
+const EXAMPLE_COVERED_TICKERS = ['NVDA', 'AAPL', 'MSFT', 'GOOGL', 'AMZN']
+  .filter(hasTrailingReturn)
+  .join(', ');
+
+// The growth/return fields below also accept the literal string "market":
+// explicit delegation to the S&P 500 trailing blend (the same source
+// expectedMarketReturn already defaults to). This is a sanctioned assumption,
+// not invention — the value is deterministic and documented — so agents get a
+// one-token path forward when the user has no view on growth, instead of a
+// dead-end "ask the user" error. Exported so other surfaces (poe.ts's
+// assumptions disclosure) test the sentinel with the same definition.
+export function isMarketSentinel(v: unknown): boolean {
+  return typeof v === 'string' && v.trim().toLowerCase() === 'market';
+}
+
+function marketRate(fieldName: string, horizonYears: number): number {
+  const spy = getTrailingReturn('SPY', horizonYears);
+  if (spy === null) {
+    throw new Error(
+      `field "${fieldName}": the "market" lookup (SPY trailing blend) failed for ${horizonYears}y. Pass a numeric value instead.`,
+    );
+  }
+  return spy;
+}
+
+// Ticker-couldn't-resolve-growth error. Distinguishes a symbol that is not in
+// the table at all (likely a typo or genuinely uncovered — point at examples)
+// from one that IS known but too recently listed to have any trailing CAGR
+// (the CRCL case — telling that caller "not in our table" sent them hunting
+// for a typo that wasn't there).
+function tickerGrowthError(fieldName: string, ticker: string): Error {
+  const why = isKnownTicker(ticker)
+    ? `ticker "${ticker}" is covered but listed too recently to have 5y/10y trailing returns`
+    : `ticker "${ticker}" is not in our trailing-returns table (covered examples: ${EXAMPLE_COVERED_TICKERS}; full set in the covered-tickers resource)`;
+  return new Error(
+    `field "${fieldName}" required: ${why}. Pass "${fieldName}" explicitly, or pass the string "market" to use the S&P 500 trailing average. ${ASK_USER_HINT}`,
+  );
+}
 
 // Returns the cached sigma for `o.ticker`, or null when no ticker is set
 // or the ticker isn't covered. Callers decide how to handle null (throw,
@@ -76,47 +119,56 @@ function resolveDragFromVolatility(o: Obj, dragField: string, horizonYears: numb
   );
 }
 
-function resolveGrowthRate(o: Obj, fieldName: string, horizonYears: number): number {
+// One resolution ladder for every growth/return field: "market" sentinel →
+// explicit number → ticker lookup → "required" error. `label` is the field
+// name quoted in errors when it differs from the key read off `o` (the
+// per-stack `stacks[i].expectedAnnualGrowth` case); `zeroHint` adds the
+// flat-plan wording for callers whose omission used to mean a silent flat
+// default.
+function resolveGrowthRate(
+  o: Obj,
+  fieldName: string,
+  horizonYears: number,
+  label: string = fieldName,
+  zeroHint = false,
+): number {
+  if (isMarketSentinel(o[fieldName])) return marketRate(label, horizonYears);
   if (o[fieldName] !== undefined) return p.num(o, fieldName, RATE_BOUNDS);
   if (o.ticker !== undefined) {
     const ticker = p.str(o, 'ticker');
     const r = getTrailingReturn(ticker, horizonYears);
     if (r !== null) return r;
-    throw new Error(
-      `field "${fieldName}" required: ticker "${ticker}" is not in our trailing-returns table. Pass "${fieldName}" explicitly or use a covered public-stock symbol (the covered-tickers resource lists the set). ${ASK_USER_HINT}`,
-    );
+    throw tickerGrowthError(label, ticker);
   }
   throw new Error(
-    `field "${fieldName}" required: pass a decimal annual rate (e.g. 0.10 for 10%) or set "ticker" to a covered public-stock symbol (e.g. "NVDA") to derive from trailing returns. ${ASK_USER_HINT}`,
+    `field "${label}" required: pass a decimal annual rate (e.g. 0.10 for 10%${zeroHint ? ', or 0 for a deliberately flat-price plan' : ''}), set "ticker" to a covered public-stock symbol (e.g. ${EXAMPLE_COVERED_TICKERS}) to derive from trailing returns, or pass the string "market" to use the S&P 500 trailing average.${zeroHint ? ' Omitting it would silently project flat prices.' : ''} ${ASK_USER_HINT}`,
   );
 }
 
 // Resolve the market-comparison return — defaults to SPY's horizon-blended
 // trailing CAGR. Unlike position return, market return isn't user-belief-
-// dependent, so a documented default is reasonable.
+// dependent, so a documented default is reasonable. "market" is accepted for
+// uniformity with the position-growth fields (it just names the default).
 function resolveMarketReturn(o: Obj, horizonYears: number): number {
-  if (o.expectedMarketReturn !== undefined) return p.num(o, 'expectedMarketReturn', RATE_BOUNDS);
-  const spy = getTrailingReturn('SPY', horizonYears);
-  if (spy === null) {
-    throw new Error(
-      `field "expectedMarketReturn" required: SPY default lookup failed for ${horizonYears}y. Pass "expectedMarketReturn" explicitly.`,
-    );
+  if (o.expectedMarketReturn !== undefined && !isMarketSentinel(o.expectedMarketReturn)) {
+    return p.num(o, 'expectedMarketReturn', RATE_BOUNDS);
   }
-  return spy;
+  return marketRate('expectedMarketReturn', horizonYears);
 }
 
 function resolveExpectedSalePrice(o: Obj, currentPrice: number, holdYears: number): number {
+  if (isMarketSentinel(o.expectedSalePrice)) {
+    return currentPrice * Math.pow(1 + marketRate('expectedSalePrice', holdYears), holdYears);
+  }
   if (o.expectedSalePrice !== undefined) return p.num(o, 'expectedSalePrice', { min: 0 });
   if (o.ticker !== undefined) {
     const ticker = p.str(o, 'ticker');
     const r = getTrailingReturn(ticker, holdYears);
     if (r !== null) return currentPrice * Math.pow(1 + r, holdYears);
-    throw new Error(
-      `field "expectedSalePrice" required: ticker "${ticker}" is not in our trailing-returns table. Pass "expectedSalePrice" explicitly or use a covered public-stock symbol (the covered-tickers resource lists the set). ${ASK_USER_HINT}`,
-    );
+    throw tickerGrowthError('expectedSalePrice', ticker);
   }
   throw new Error(
-    `field "expectedSalePrice" required: pass the projected $/share at end of holdYears, or set "ticker" to a covered public-stock symbol to derive from currentPrice × (1 + trailing CAGR)^holdYears. ${ASK_USER_HINT}`,
+    `field "expectedSalePrice" required: pass the projected $/share at end of holdYears, set "ticker" to a covered public-stock symbol to derive from currentPrice × (1 + trailing CAGR)^holdYears, or pass the string "market" to project currentPrice at the S&P 500 trailing average. ${ASK_USER_HINT}`,
   );
 }
 
@@ -328,20 +380,18 @@ function parseEquityFundingStack(
     lots: lotsRaw.map((lot, idx) => parseEquityFundingLot(lot, idx)),
   };
   if (o.ticker !== undefined) stack.ticker = p.str(o, 'ticker');
-  // Growth is optional; leave undefined when neither explicit field nor ticker
-  // fallback resolves it (the calc defaults to flat-price). Throw only when a
-  // ticker is supplied but unknown to the trailing-returns table.
-  if (o.expectedAnnualGrowth !== undefined) {
-    stack.expectedAnnualGrowth = p.num(o, 'expectedAnnualGrowth', RATE_BOUNDS);
-  } else if (o.ticker !== undefined) {
-    const r = getTrailingReturn(stack.ticker!, horizonYears);
-    if (r === null) {
-      throw new Error(
-        `field "stacks[${index}].expectedAnnualGrowth" required: ticker "${stack.ticker}" is not in our trailing-returns table. Pass "expectedAnnualGrowth" explicitly or use a covered public-stock symbol (the covered-tickers resource lists the set). ${ASK_USER_HINT}`,
-      );
-    }
-    stack.expectedAnnualGrowth = r;
-  }
+  // Growth is required-or-resolved, like every other growth-bearing tool.
+  // It used to be optional with a silent flat-price fallback — indistinguishable
+  // from an explicit 0%/yr view, which quietly skewed `recommended` and
+  // `holdForGrowth` toward selling early whenever an agent simply omitted the
+  // field. A deliberately flat plan is still one token away: pass 0.
+  stack.expectedAnnualGrowth = resolveGrowthRate(
+    o,
+    'expectedAnnualGrowth',
+    horizonYears,
+    `stacks[${index}].expectedAnnualGrowth`,
+    true,
+  );
   // Volatility is sidecar (returned next to the stack) because the calc
   // consumes it via the parallel `stackVolatilities` array, not via a
   // per-stack field. Caller assembles the array from this stream.
@@ -410,9 +460,11 @@ export function parseEquityFundingInput(raw: unknown, trustedToday?: Date): Equi
   }
   base.lots = lotsRaw.map((lot, idx) => parseEquityFundingLot(lot, idx));
   base.currentPrice = p.num(o, 'currentPrice', { min: 0 });
-  if (o.expectedAnnualGrowth !== undefined) {
-    base.expectedAnnualGrowth = p.num(o, 'expectedAnnualGrowth', RATE_BOUNDS);
-  }
+  // Same required-or-resolved ladder as the stacks shape. The legacy schema
+  // declares no top-level ticker, but the shared ladder resolves one if a
+  // caller supplies it anyway — strictly more forgiving than erroring on a
+  // stated symbol.
+  base.expectedAnnualGrowth = resolveGrowthRate(o, 'expectedAnnualGrowth', horizonYears, 'expectedAnnualGrowth', true);
   return base;
 }
 
