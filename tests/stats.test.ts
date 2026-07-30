@@ -92,6 +92,41 @@ describe('logCall', () => {
     expect(b[7]).toBe('US');
   });
 
+  // The proxy worker stamps the REAL caller's network metadata as
+  // x-oa-client-* headers; this deployment's own request.cf is the worker's
+  // egress (always Cloudflare/Dallas) and must lose to them. Regression for
+  // the blind spot that hid every real client behind "Cloudflare, Inc.".
+  it('prefers x-oa-client-* forwarded headers over cf-ipcountry/request.cf', async () => {
+    const { db, recorded } = mockDb();
+    const c = ctx({ db, country: 'US' }); // cf-ipcountry says US (worker egress)
+    c.request.headers.set('x-oa-client-country', 'DE');
+    c.request.headers.set('x-oa-client-region', 'Bavaria');
+    c.request.headers.set('x-oa-client-city', 'Munich');
+    c.request.headers.set('x-oa-client-as-org', 'Hetzner Online GmbH');
+    c.request.headers.set('x-oa-client-asn', '24940');
+    logCall(c, { endpoint: 'mcp:tools/call', tool: 'nso_calculate', isError: false });
+    await Promise.all(c.waited);
+    const b = recorded[0].bindings;
+    // country, as_org, asn, region, city columns (INSERT order)
+    expect(b[7]).toBe('DE');
+    expect(b[8]).toBe('Hetzner Online GmbH');
+    expect(b[9]).toBe(24940);
+    expect(b[10]).toBe('Bavaria');
+    expect(b[11]).toBe('Munich');
+  });
+
+  it('a non-numeric forwarded asn falls back to null, other headers still win', async () => {
+    const { db, recorded } = mockDb();
+    const c = ctx({ db });
+    c.request.headers.set('x-oa-client-asn', 'not-a-number');
+    c.request.headers.set('x-oa-client-country', 'FR');
+    logCall(c, { endpoint: 'mcp:tools/call', tool: 'nso_calculate', isError: false });
+    await Promise.all(c.waited);
+    const b = recorded[0].bindings;
+    expect(b[7]).toBe('FR');
+    expect(b[9]).toBeNull();
+  });
+
   it('passes is_error=1 and the truncated error message', async () => {
     const { db, recorded } = mockDb();
     const c = ctx({ db });
