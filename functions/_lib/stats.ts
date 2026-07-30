@@ -67,21 +67,32 @@ interface CfGeo {
   asn: number | null;
 }
 
-// Coarse geo + originating network from Cloudflare's request.cf. The raw IP is
-// never read or stored. Country falls back to the cf-ipcountry header; every
-// field is null when cf is absent (local dev, tests).
+// Coarse geo + originating network of the REAL caller. The raw IP is never
+// read or stored.
+//
+// Preference order: the x-oa-client-* headers stamped by the optionsahoy.com
+// proxy worker (worker-proxy/src/index.ts) carry the caller's own cf metadata
+// and win when present — this deployment's request.cf describes the WORKER's
+// egress (always Cloudflare/Dallas), which blinded the stats to every real
+// network behind the public domain. Direct pages.dev callers have no proxy
+// hop, so their own request.cf is already correct (and a direct caller could
+// spoof the x-oa-* headers — acceptable: this is telemetry, not auth).
+// Country falls back to the cf-ipcountry header; every field is null when
+// both sources are absent (local dev, tests).
 function readCf(request: Request): CfGeo {
   const cf = (request as {
     cf?: { country?: string; region?: string; city?: string; asOrganization?: string; asn?: number };
   }).cf;
   const cut = (s: string | undefined | null) => (s ? String(s).slice(0, GEO_MAX) : null);
-  const country = cf?.country ?? request.headers.get('cf-ipcountry') ?? undefined;
+  const h = (name: string) => request.headers.get(name) ?? undefined;
+  const fwdAsn = Number(h('x-oa-client-asn'));
+  const country = h('x-oa-client-country') ?? cf?.country ?? request.headers.get('cf-ipcountry') ?? undefined;
   return {
     country: cut(country),
-    region: cut(cf?.region),
-    city: cut(cf?.city),
-    asOrg: cut(cf?.asOrganization),
-    asn: typeof cf?.asn === 'number' ? cf.asn : null,
+    region: cut(h('x-oa-client-region') ?? cf?.region),
+    city: cut(h('x-oa-client-city') ?? cf?.city),
+    asOrg: cut(h('x-oa-client-as-org') ?? cf?.asOrganization),
+    asn: Number.isFinite(fwdAsn) && fwdAsn > 0 ? fwdAsn : typeof cf?.asn === 'number' ? cf.asn : null,
   };
 }
 
