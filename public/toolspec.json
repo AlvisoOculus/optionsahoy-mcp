@@ -20,17 +20,17 @@
           "shares": {
             "type": "integer",
             "minimum": 1,
-            "description": "Total Incentive Stock Option (ISO) shares available to exercise across the planning horizon."
+            "description": "Total Incentive Stock Option (ISO) shares available to exercise across the planning horizon. Must come from the user."
           },
           "strike": {
             "type": "number",
             "minimum": 0,
-            "description": "Strike price per share, USD."
+            "description": "Strike price per share, USD. Must come from the user."
           },
           "fmv": {
             "type": "number",
             "minimum": 0,
-            "description": "Current fair market value per share, USD. Anchors year-1 of the growth path; future years compound from here using expectedGrowth and volatilityDrag."
+            "description": "Current fair market value per share, USD. Anchors year-1 of the growth path; future years compound from here using expectedGrowth and volatilityDrag. Must come from the user."
           },
           "expectedGrowth": {
             "type": [
@@ -67,7 +67,7 @@
           "ordinaryIncome": {
             "type": "number",
             "minimum": 0,
-            "description": "Annual ordinary income before this exercise, USD. Baseline for the bracket walk and the AMT exemption phaseout. This is taxable income after deductions, not gross wages: the engine applies no standard or itemized deduction to it."
+            "description": "Annual ordinary income before this exercise, USD. Baseline for the bracket walk and the AMT exemption phaseout. Must come from the user. This is taxable income after deductions, not gross wages: the engine applies no standard or itemized deduction to it."
           },
           "stateCode": {
             "type": "string",
@@ -192,22 +192,22 @@
           "shares": {
             "type": "integer",
             "minimum": 1,
-            "description": "Non-qualified Stock Option (NSO) shares to exercise."
+            "description": "Non-qualified Stock Option (NSO) shares to exercise. Must come from the user."
           },
           "strike": {
             "type": "number",
             "minimum": 0,
-            "description": "Strike price per share, USD."
+            "description": "Strike price per share, USD. Must come from the user."
           },
           "currentPrice": {
             "type": "number",
             "minimum": 0,
-            "description": "Current fair market value per share, USD. The bargain element at exercise is shares × (currentPrice − strike)."
+            "description": "Current fair market value per share, USD. The bargain element at exercise is shares × (currentPrice − strike). Must come from the user."
           },
           "ordinaryIncome": {
             "type": "number",
             "minimum": 0,
-            "description": "Annual ordinary income before this exercise, USD. Baseline for the bracket walk on the bargain element. This is taxable income after deductions, not gross wages: the engine applies no standard or itemized deduction to it."
+            "description": "Annual ordinary income before this exercise, USD. Baseline for the bracket walk on the bargain element. Must come from the user. This is taxable income after deductions, not gross wages: the engine applies no standard or itemized deduction to it."
           },
           "filingStatus": {
             "type": "string",
@@ -351,17 +351,17 @@
           "shares": {
             "type": "integer",
             "minimum": 1,
-            "description": "Restricted Stock Unit (RSU) shares vesting in this tranche."
+            "description": "Restricted Stock Unit (RSU) shares vesting in this tranche. Must come from the user."
           },
           "currentPrice": {
             "type": "number",
             "minimum": 0,
-            "description": "Fair market value per share at vest, USD. Also the cost basis on retained shares."
+            "description": "Fair market value per share at vest, USD. Also the cost basis on retained shares. Must come from the user."
           },
           "ordinaryIncome": {
             "type": "number",
             "minimum": 0,
-            "description": "Annual ordinary income before this vest, USD. Baseline for the bracket walk on the vest amount. This is taxable income after deductions, not gross wages: the engine applies no standard or itemized deduction to it."
+            "description": "Annual ordinary income before this vest, USD. Baseline for the bracket walk on the vest amount. Must come from the user. This is taxable income after deductions, not gross wages: the engine applies no standard or itemized deduction to it."
           },
           "filingStatus": {
             "type": "string",
@@ -499,12 +499,12 @@
           "positionValue": {
             "type": "number",
             "minimum": 0,
-            "description": "Current market value of the concentrated single-stock position, USD."
+            "description": "Current market value of the concentrated single-stock position, USD. Must come from the user."
           },
           "costBasis": {
             "type": "number",
             "minimum": 0,
-            "description": "Total cost basis of the position, USD (sum of strikes paid + ordinary-income inclusions on RSU vest / NSO exercise / disqualified ISO)."
+            "description": "Total cost basis of the position, USD (sum of strikes paid + ordinary-income inclusions on RSU vest / NSO exercise / disqualified ISO). Must come from the user."
           },
           "acquisitionDate": {
             "type": "string",
@@ -596,7 +596,7 @@
           "ordinaryIncome": {
             "type": "number",
             "minimum": 0,
-            "description": "Annual ordinary income before any sales, USD. Baseline for LTCG bracket determination. This is taxable income after deductions, not gross wages: the engine applies no standard or itemized deduction to it."
+            "description": "Annual ordinary income before any sales, USD. Baseline for LTCG bracket determination. Must come from the user. This is taxable income after deductions, not gross wages: the engine applies no standard or itemized deduction to it."
           },
           "totalAssets": {
             "type": "number",
@@ -692,7 +692,7 @@
           "positionValue": {
             "type": "number",
             "minimum": 0,
-            "description": "Market value of the underlying single-stock position, USD. Premium and max-loss scale linearly with this."
+            "description": "Market value of the underlying single-stock position, USD. Premium and max-loss scale linearly with this. Must come from the user."
           },
           "sector": {
             "type": "string",
@@ -848,11 +848,11 @@
           "adjustedBasis": {
             "type": "number",
             "minimum": 0,
-            "description": "Adjusted basis of the QSBS shares, USD. Used in the 10× basis cap: the per-issuer exclusion cap is max($10M, 10 × adjustedBasis)."
+            "description": "Adjusted basis of the QSBS shares, USD. Used in the 10× basis cap: the per-issuer exclusion cap is max($10M, 10 × adjustedBasis). Must come from the user."
           },
           "expectedGain": {
             "type": "number",
-            "description": "Expected total gain on sale, USD. Compared against the per-issuer exclusion cap to compute excludableGain and taxableGain."
+            "description": "Expected total gain on sale, USD. Compared against the per-issuer exclusion cap to compute excludableGain and taxableGain. Must come from the user."
           },
           "stateCode": {
             "type": "string",
@@ -914,7 +914,7 @@
           "ordinaryIncome": {
             "type": "number",
             "minimum": 0,
-            "description": "Annual ordinary income, USD. Baseline for the federal LTCG bracket on any taxable gain. This is taxable income after deductions, not gross wages: the engine applies no standard or itemized deduction to it."
+            "description": "Annual ordinary income, USD. Baseline for the federal LTCG bracket on any taxable gain. Must come from the user. This is taxable income after deductions, not gross wages: the engine applies no standard or itemized deduction to it."
           },
           "filingStatus": {
             "type": "string",
@@ -964,7 +964,7 @@
           "targetAfterTax": {
             "type": "number",
             "minimum": 0,
-            "description": "Net cash needed in the user's pocket after all applicable taxes (federal LTCG/ordinary + state + NIIT), USD. Example: a $1M house with 20% down minus existing savings might give a $200,000 target."
+            "description": "Net cash needed in the user's pocket after all applicable taxes (federal LTCG/ordinary + state + NIIT), USD. Example: a $1M house with 20% down minus existing savings might give a $200,000 target. Must come from the user."
           },
           "targetDate": {
             "type": "string",
@@ -1092,7 +1092,7 @@
           "ordinaryIncome": {
             "type": "number",
             "minimum": 0,
-            "description": "Annual ordinary income, USD. Used as the baseline for the federal LTCG bracket walk in each candidate year and for NIIT threshold tests. This is taxable income after deductions, not gross wages: the engine applies no standard or itemized deduction to it."
+            "description": "Annual ordinary income, USD. Used as the baseline for the federal LTCG bracket walk in each candidate year and for NIIT threshold tests. Must come from the user. This is taxable income after deductions, not gross wages: the engine applies no standard or itemized deduction to it."
           },
           "filingStatus": {
             "type": "string",
@@ -1252,7 +1252,7 @@
           "ordinaryIncome": {
             "type": "number",
             "minimum": 0,
-            "description": "Total household ordinary income for the year, USD, from all sources. Sets the federal LTCG bracket floor, the short-term ordinary rate, and the net investment income tax (NIIT) threshold test. This is taxable income after deductions, not gross wages: the engine applies no standard or itemized deduction to it. Assumed constant across plan years."
+            "description": "Total household ordinary income for the year, USD, from all sources. Sets the federal LTCG bracket floor, the short-term ordinary rate, and the net investment income tax (NIIT) threshold test. This is taxable income after deductions, not gross wages: the engine applies no standard or itemized deduction to it. Assumed constant across plan years. Must come from the user."
           },
           "filingStatus": {
             "type": "string",

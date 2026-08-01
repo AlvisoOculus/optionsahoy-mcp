@@ -1,214 +1,1428 @@
 {
-  "casesVersion": "2026-07-19.1",
+  "casesVersion": "2026-08-01.1",
   "cases": [
-    {"id": "single-amt-001", "kind": "single", "utterance": "I have incentive stock options and want to figure out the best year to exercise them without a huge tax surprise.", "expected": "amt_iso_optimize"},
-    {"id": "single-amt-002", "kind": "single", "utterance": "Can you help me build a multi-year plan for exercising my ISOs?", "expected": "amt_iso_optimize"},
-    {"id": "single-amt-003", "kind": "single", "utterance": "How many ISO shares can I exercise this year before AMT kicks in hard?", "expected": "amt_iso_optimize"},
-    {"id": "single-amt-004", "kind": "single", "utterance": "I'm trying to understand the AMT impact of exercising my incentive stock options.", "expected": "amt_iso_optimize"},
-    {"id": "single-amt-005", "kind": "single", "utterance": "What's the optimal exercise schedule for my ISOs across the next three years?", "expected": "amt_iso_optimize"},
-    {"id": "single-amt-006", "kind": "single", "utterance": "I want to exercise some incentive stock options but I'm worried about the alternative minimum tax.", "expected": "amt_iso_optimize"},
-    {"id": "single-amt-007", "kind": "single", "utterance": "My ISOs are freaking me out, if I exercise am I gonna get hammered by AMT?", "expected": "amt_iso_optimize"},
-    {"id": "single-amt-008", "kind": "single", "utterance": "Trying to nibble at my ISO exercise every year to dodge the AMT hit, help me map it out.", "expected": "amt_iso_optimize"},
-    {"id": "single-amt-009", "kind": "single", "utterance": "How much of my incentive options can I pull the trigger on before Uncle Sam slaps me with AMT?", "expected": "amt_iso_optimize"},
-    {"id": "single-amt-010", "kind": "single", "utterance": "Spread my ISO exercises out so I don't get wrecked by the alt min tax please.", "expected": "amt_iso_optimize"},
-    {"id": "single-amt-011", "kind": "single", "utterance": "Wanna early exercise my ISOs but scared of that phantom AMT bill, thoughts?", "expected": "amt_iso_optimize"},
-    {"id": "single-amt-012", "kind": "single", "utterance": "Ok so incentive options, when's the smart time to exercise without an AMT nightmare?", "expected": "amt_iso_optimize"},
-    {"id": "single-amt-013", "kind": "single", "utterance": "I have 12,000 ISOs at a $4 strike, current FMV is $38, I'm in California, how much can I exercise in 2026 before AMT bites?", "expected": "amt_iso_optimize"},
-    {"id": "single-amt-014", "kind": "single", "utterance": "Got 8,500 incentive stock options, strike $2.10, 409A now $22, need a 3-year exercise ladder to minimize AMT.", "expected": "amt_iso_optimize"},
-    {"id": "single-amt-015", "kind": "single", "utterance": "My ISO grant is 20,000 shares, $6 strike, FMV $15, married filing jointly in Texas, what's the AMT crossover point?", "expected": "amt_iso_optimize"},
-    {"id": "single-amt-016", "kind": "single", "utterance": "I want to exercise 5,000 of my 15,000 ISOs before Dec 31, strike $1.50, FMV $40, will I owe AMT and how much?", "expected": "amt_iso_optimize"},
-    {"id": "single-amt-017", "kind": "single", "utterance": "ISO exercise timing to avoid AMT?", "expected": "amt_iso_optimize"},
-    {"id": "single-amt-018", "kind": "single", "utterance": "How many ISOs can I exercise AMT-safe?", "expected": "amt_iso_optimize"},
-    {"id": "single-amt-019", "kind": "single", "utterance": "I hold incentve stock options and need to know when to excercise to keep my AMT low.", "expected": "amt_iso_optimize"},
-    {"id": "single-amt-020", "kind": "single", "utterance": "Basically I don't wanna trip the AMT, how do I stagger exercising my incentive options over a few years?", "expected": "amt_iso_optimize"},
-
-    {"id": "single-nso-001", "kind": "single", "utterance": "I have non-qualified stock options and want to know the tax hit when I exercise.", "expected": "nso_calculate"},
-    {"id": "single-nso-002", "kind": "single", "utterance": "Can you calculate what I'll owe when I exercise my NSOs?", "expected": "nso_calculate"},
-    {"id": "single-nso-003", "kind": "single", "utterance": "Should I sell my NSO shares right away after exercising or hold them?", "expected": "nso_calculate"},
-    {"id": "single-nso-004", "kind": "single", "utterance": "What are the taxes on exercising my nonqualified stock options this year?", "expected": "nso_calculate"},
-    {"id": "single-nso-005", "kind": "single", "utterance": "I'm considering a cashless exercise of my NSOs, what does that cost me in tax?", "expected": "nso_calculate"},
-    {"id": "single-nso-006", "kind": "single", "utterance": "Help me understand the ordinary income I'll recognize when exercising my non-qualified options.", "expected": "nso_calculate"},
-    {"id": "single-nso-007", "kind": "single", "utterance": "My NQSOs, if I do a same-day exercise and sell, how bad is the tax?", "expected": "nso_calculate"},
-    {"id": "single-nso-008", "kind": "single", "utterance": "Thinking about cashing out my nonqual options, what's the damage taxwise?", "expected": "nso_calculate"},
-    {"id": "single-nso-009", "kind": "single", "utterance": "Should I flip my NSO shares immediately or sit on em after exercising?", "expected": "nso_calculate"},
-    {"id": "single-nso-010", "kind": "single", "utterance": "How much does the IRS take when I exercise my non-qualified options, ballpark?", "expected": "nso_calculate"},
-    {"id": "single-nso-011", "kind": "single", "utterance": "Just wanna do a cashless on my NSOs and be done, tell me the tax cost.", "expected": "nso_calculate"},
-    {"id": "single-nso-012", "kind": "single", "utterance": "NQSOs about to expire, exercise and sell same day, what do I actually net?", "expected": "nso_calculate"},
-    {"id": "single-nso-013", "kind": "single", "utterance": "I have 3,000 NSOs at $10 strike, stock is $65, I'm in New York, should I exercise and hold or exercise and sell?", "expected": "nso_calculate"},
-    {"id": "single-nso-014", "kind": "single", "utterance": "10,000 non-qualified options, strike $5, FMV $28, what's my ordinary income and withholding if I exercise them all in 2026?", "expected": "nso_calculate"},
-    {"id": "single-nso-015", "kind": "single", "utterance": "My NQSO grant is 6,000 shares at $12, trading at $40, cashless exercise, how much cash do I walk away with after tax?", "expected": "nso_calculate"},
-    {"id": "single-nso-016", "kind": "single", "utterance": "Exercising 2,500 NSOs, strike $8, price $22, single filer in Illinois, what's the difference between selling immediately and holding a year?", "expected": "nso_calculate"},
-    {"id": "single-nso-017", "kind": "single", "utterance": "NSO exercise tax estimate?", "expected": "nso_calculate"},
-    {"id": "single-nso-018", "kind": "single", "utterance": "Cashless NSO exercise, what tax?", "expected": "nso_calculate"},
-    {"id": "single-nso-019", "kind": "single", "utterance": "I got nonqualifed stock options, whats the tax if I exercse and sell right away?", "expected": "nso_calculate"},
-    {"id": "single-nso-020", "kind": "single", "utterance": "What's the difference in taxes if I hold my NSO shares versus selling at the moment I exercise?", "expected": "nso_calculate"},
-
-    {"id": "single-rsu-001", "kind": "single", "utterance": "My RSUs are vesting soon, should I sell them at vest or keep the shares?", "expected": "rsu_sell_vs_hold"},
-    {"id": "single-rsu-002", "kind": "single", "utterance": "Is it better to hold my restricted stock units after they vest or sell right away?", "expected": "rsu_sell_vs_hold"},
-    {"id": "single-rsu-003", "kind": "single", "utterance": "I'm worried the withholding on my RSU vest is too low, will I owe more at tax time?", "expected": "rsu_sell_vs_hold"},
-    {"id": "single-rsu-004", "kind": "single", "utterance": "Help me decide whether to sell or hold my vesting RSUs.", "expected": "rsu_sell_vs_hold"},
-    {"id": "single-rsu-005", "kind": "single", "utterance": "What are the taxes when my restricted stock units vest?", "expected": "rsu_sell_vs_hold"},
-    {"id": "single-rsu-006", "kind": "single", "utterance": "My company only withholds 22% on RSUs, is that enough or will I owe?", "expected": "rsu_sell_vs_hold"},
-    {"id": "single-rsu-007", "kind": "single", "utterance": "RSUs hitting next month, dump em or hold em?", "expected": "rsu_sell_vs_hold"},
-    {"id": "single-rsu-008", "kind": "single", "utterance": "Should I just sell my RSUs the second they vest or ride the stock up?", "expected": "rsu_sell_vs_hold"},
-    {"id": "single-rsu-009", "kind": "single", "utterance": "My RSU withholding feels way too low, am I gonna get a nasty tax bill?", "expected": "rsu_sell_vs_hold"},
-    {"id": "single-rsu-010", "kind": "single", "utterance": "Vesting shares coming, do I cash out or diamond-hand it?", "expected": "rsu_sell_vs_hold"},
-    {"id": "single-rsu-011", "kind": "single", "utterance": "Keep my restricted units or sell at vest, what would you do?", "expected": "rsu_sell_vs_hold"},
-    {"id": "single-rsu-012", "kind": "single", "utterance": "Big RSU vest coming up, sell to cover and bounce or hold for gains?", "expected": "rsu_sell_vs_hold"},
-    {"id": "single-rsu-013", "kind": "single", "utterance": "1,200 RSUs vesting in March at about $180 a share, I'm in the California top bracket, sell or hold?", "expected": "rsu_sell_vs_hold"},
-    {"id": "single-rsu-014", "kind": "single", "utterance": "My RSUs vest 500 shares a quarter, stock at $90, company withholds a flat 22%, how much extra tax will I owe in April?", "expected": "rsu_sell_vs_hold"},
-    {"id": "single-rsu-015", "kind": "single", "utterance": "3,000 restricted units vesting at $45, single, Massachusetts, should I sell immediately given the supplemental withholding gap?", "expected": "rsu_sell_vs_hold"},
-    {"id": "single-rsu-016", "kind": "single", "utterance": "I have about $200k of RSUs vesting this year in NVDA, worried about underwithholding, sell at vest or hold?", "expected": "rsu_sell_vs_hold"},
-    {"id": "single-rsu-017", "kind": "single", "utterance": "Sell RSUs at vest or hold?", "expected": "rsu_sell_vs_hold"},
-    {"id": "single-rsu-018", "kind": "single", "utterance": "RSU withholding too low?", "expected": "rsu_sell_vs_hold"},
-    {"id": "single-rsu-019", "kind": "single", "utterance": "My restircted stock units vest soon, shoud I sell or keep them?", "expected": "rsu_sell_vs_hold"},
-    {"id": "single-rsu-020", "kind": "single", "utterance": "After my RSUs vest is there any tax benefit to holding versus selling immediately?", "expected": "rsu_sell_vs_hold"},
-
-    {"id": "single-conc-001", "kind": "single", "utterance": "Most of my net worth is tied up in one company's stock, how risky is that?", "expected": "concentration_analyze"},
-    {"id": "single-conc-002", "kind": "single", "utterance": "I have too much of my portfolio in a single stock, how should I diversify?", "expected": "concentration_analyze"},
-    {"id": "single-conc-003", "kind": "single", "utterance": "Is it dangerous to have 70% of my savings in my employer's shares?", "expected": "concentration_analyze"},
-    {"id": "single-conc-004", "kind": "single", "utterance": "Should I sell down my concentrated position or keep holding it?", "expected": "concentration_analyze"},
-    {"id": "single-conc-005", "kind": "single", "utterance": "How do I think about diversifying away from one big stock holding?", "expected": "concentration_analyze"},
-    {"id": "single-conc-006", "kind": "single", "utterance": "I'm overexposed to a single company, what are my options to reduce the risk?", "expected": "concentration_analyze"},
-    {"id": "single-conc-007", "kind": "single", "utterance": "Like 80% of my money is in one ticker, is that nuts?", "expected": "concentration_analyze"},
-    {"id": "single-conc-008", "kind": "single", "utterance": "All my eggs are in the NVDA basket, how do I unwind this safely?", "expected": "concentration_analyze"},
-    {"id": "single-conc-009", "kind": "single", "utterance": "Way too much of my worth is one stock, should I trim, hold, or hedge?", "expected": "concentration_analyze"},
-    {"id": "single-conc-010", "kind": "single", "utterance": "My whole nest egg is basically TSLA, help me not blow myself up.", "expected": "concentration_analyze"},
-    {"id": "single-conc-011", "kind": "single", "utterance": "I'm super concentrated in my company stock, whats the move to spread out?", "expected": "concentration_analyze"},
-    {"id": "single-conc-012", "kind": "single", "utterance": "One stock is my entire portfolio, how do I derisk without a huge tax bomb?", "expected": "concentration_analyze"},
-    {"id": "single-conc-013", "kind": "single", "utterance": "I hold 15,000 shares of my employer worth $2.1M, that's 75% of my net worth, how fast should I diversify?", "expected": "concentration_analyze"},
-    {"id": "single-conc-014", "kind": "single", "utterance": "$900k of my $1.2M portfolio is in one biotech stock, I'm in California, what's my sell-down plan?", "expected": "concentration_analyze"},
-    {"id": "single-conc-015", "kind": "single", "utterance": "40,000 shares of a single tech company at $55, it's 85% of my assets, how bad is my concentration risk?", "expected": "concentration_analyze"},
-    {"id": "single-conc-016", "kind": "single", "utterance": "My AAPL position is $600k and everything else is $150k, how do I rebalance this over time?", "expected": "concentration_analyze"},
-    {"id": "single-conc-017", "kind": "single", "utterance": "Too concentrated in one stock?", "expected": "concentration_analyze"},
-    {"id": "single-conc-018", "kind": "single", "utterance": "Diversify my single-stock risk?", "expected": "concentration_analyze"},
-    {"id": "single-conc-019", "kind": "single", "utterance": "Almost all my networth is in one comapny stock, how risky is it and how do I diversfy?", "expected": "concentration_analyze"},
-    {"id": "single-conc-020", "kind": "single", "utterance": "What's the smart way to reduce risk when one stock dominates my portfolio?", "expected": "concentration_analyze"},
-
-    {"id": "single-put-001", "kind": "single", "utterance": "What would it cost to protect my stock position against a big drop?", "expected": "protective_put_price"},
-    {"id": "single-put-002", "kind": "single", "utterance": "How much are protective puts on my shares?", "expected": "protective_put_price"},
-    {"id": "single-put-003", "kind": "single", "utterance": "I want to hedge my stock holding, can you price a collar for me?", "expected": "protective_put_price"},
-    {"id": "single-put-004", "kind": "single", "utterance": "What's the cost to insure my position with a put option?", "expected": "protective_put_price"},
-    {"id": "single-put-005", "kind": "single", "utterance": "Can you price a put spread to limit my downside on this stock?", "expected": "protective_put_price"},
-    {"id": "single-put-006", "kind": "single", "utterance": "I'd like to cap my losses on my shares, what does buying puts cost?", "expected": "protective_put_price"},
-    {"id": "single-put-007", "kind": "single", "utterance": "How much to buy some insurance on my stock in case it tanks?", "expected": "protective_put_price"},
-    {"id": "single-put-008", "kind": "single", "utterance": "Wanna lock in downside protection on my shares, what's the price tag?", "expected": "protective_put_price"},
-    {"id": "single-put-009", "kind": "single", "utterance": "If I collar my position, how much does that run me?", "expected": "protective_put_price"},
-    {"id": "single-put-010", "kind": "single", "utterance": "Stock's been wild, what would puts cost to cover my downside?", "expected": "protective_put_price"},
-    {"id": "single-put-011", "kind": "single", "utterance": "Cheapest way to hedge my shares against a crash, puts or a collar?", "expected": "protective_put_price"},
-    {"id": "single-put-012", "kind": "single", "utterance": "I just wanna protect my gains, price me a protective put.", "expected": "protective_put_price"},
-    {"id": "single-put-013", "kind": "single", "utterance": "I hold 2,000 shares of NVDA at $130, want a 6-month put at $110 strike, what's the premium?", "expected": "protective_put_price"},
-    {"id": "single-put-014", "kind": "single", "utterance": "Protect 1,000 shares of a $90 stock through year-end, price me a protective put and a zero-cost collar.", "expected": "protective_put_price"},
-    {"id": "single-put-015", "kind": "single", "utterance": "5,000 shares worth $400k, I want to hedge against a 20% drop for the next 3 months, what does that cost?", "expected": "protective_put_price"},
-    {"id": "single-put-016", "kind": "single", "utterance": "My TSLA is at $250 and I own 800 shares, price a put spread to protect between $220 and $180.", "expected": "protective_put_price"},
-    {"id": "single-put-017", "kind": "single", "utterance": "Cost to hedge my stock?", "expected": "protective_put_price"},
-    {"id": "single-put-018", "kind": "single", "utterance": "Price protective puts please.", "expected": "protective_put_price"},
-    {"id": "single-put-019", "kind": "single", "utterance": "How much to buy a protectve put on my shares to gaurd against a drop?", "expected": "protective_put_price"},
-    {"id": "single-put-020", "kind": "single", "utterance": "What's it cost to insure my position against a downturn using options?", "expected": "protective_put_price"},
-
-    {"id": "single-qsbs-001", "kind": "single", "utterance": "Do my startup shares qualify for the QSBS exclusion?", "expected": "qsbs_check"},
-    {"id": "single-qsbs-002", "kind": "single", "utterance": "Can I sell my early-employee stock federal-tax-free under Section 1202?", "expected": "qsbs_check"},
-    {"id": "single-qsbs-003", "kind": "single", "utterance": "I'm a founder, does my stock meet the qualified small business stock rules?", "expected": "qsbs_check"},
-    {"id": "single-qsbs-004", "kind": "single", "utterance": "How do I know if my shares are eligible for the 1202 gain exclusion?", "expected": "qsbs_check"},
-    {"id": "single-qsbs-005", "kind": "single", "utterance": "Will my startup equity qualify for tax-free treatment when I sell?", "expected": "qsbs_check"},
-    {"id": "single-qsbs-006", "kind": "single", "utterance": "Do I meet the QSBS requirements on the shares I got as employee number 5?", "expected": "qsbs_check"},
-    {"id": "single-qsbs-007", "kind": "single", "utterance": "Are my startup shares the magic tax-free QSBS kind?", "expected": "qsbs_check"},
-    {"id": "single-qsbs-008", "kind": "single", "utterance": "Founder here, can I dodge federal tax on my stock sale via 1202?", "expected": "qsbs_check"},
-    {"id": "single-qsbs-009", "kind": "single", "utterance": "Is my early startup stock QSBS eligible or am I dreaming?", "expected": "qsbs_check"},
-    {"id": "single-qsbs-010", "kind": "single", "utterance": "Heard I might owe zero federal tax on my startup shares, is that real for me?", "expected": "qsbs_check"},
-    {"id": "single-qsbs-011", "kind": "single", "utterance": "Do my founder shares count for that Section 1202 gain exclusion?", "expected": "qsbs_check"},
-    {"id": "single-qsbs-012", "kind": "single", "utterance": "My equity from a tiny startup, does it get the QSBS freebie?", "expected": "qsbs_check"},
-    {"id": "single-qsbs-013", "kind": "single", "utterance": "I got founder stock in 2020 when the company had under $10M in assets and sold nothing yet, do I qualify for QSBS?", "expected": "qsbs_check"},
-    {"id": "single-qsbs-014", "kind": "single", "utterance": "Early employee, exercised in 2021, it's a C-corp and I've held over 5 years now, is my $3M gain 1202-exempt?", "expected": "qsbs_check"},
-    {"id": "single-qsbs-015", "kind": "single", "utterance": "I own 500,000 shares of a Delaware C-corp I joined at the seed stage, do these meet the qualified small business stock test?", "expected": "qsbs_check"},
-    {"id": "single-qsbs-016", "kind": "single", "utterance": "The startup was an LLC then converted to a C-corp in 2022 and I hold shares from before and after, which qualify for 1202?", "expected": "qsbs_check"},
-    {"id": "single-qsbs-017", "kind": "single", "utterance": "Do my shares qualify for QSBS?", "expected": "qsbs_check"},
-    {"id": "single-qsbs-018", "kind": "single", "utterance": "Is my startup stock 1202 eligible?", "expected": "qsbs_check"},
-    {"id": "single-qsbs-019", "kind": "single", "utterance": "Are my founder shares eligble for the QSBS tax exlusion under section 1202?", "expected": "qsbs_check"},
-    {"id": "single-qsbs-020", "kind": "single", "utterance": "Can you check whether my qualified small business stock lets me exclude the gain from federal tax?", "expected": "qsbs_check"},
-
-    {"id": "single-fund-001", "kind": "single", "utterance": "I need $150k for a house down payment by June, which shares should I sell and when?", "expected": "equity_funding_plan"},
-    {"id": "single-fund-002", "kind": "single", "utterance": "I have to come up with cash for tuition next year, what's the tax-smart way to sell my equity?", "expected": "equity_funding_plan"},
-    {"id": "single-fund-003", "kind": "single", "utterance": "I owe a big tax bill in April, which of my shares should I liquidate to cover it?", "expected": "equity_funding_plan"},
-    {"id": "single-fund-004", "kind": "single", "utterance": "I need to fund a wedding next spring, help me plan which stock to sell with the least tax.", "expected": "equity_funding_plan"},
-    {"id": "single-fund-005", "kind": "single", "utterance": "How do I raise $80k from my equity by December with minimal taxes?", "expected": "equity_funding_plan"},
-    {"id": "single-fund-006", "kind": "single", "utterance": "I need a specific amount of cash by a deadline, which shares get me there cheapest tax-wise?", "expected": "equity_funding_plan"},
-    {"id": "single-fund-007", "kind": "single", "utterance": "Gotta pull together a down payment by summer, which stock do I dump first?", "expected": "equity_funding_plan"},
-    {"id": "single-fund-008", "kind": "single", "utterance": "Need 100 grand for a house by Q3, whats the least-taxy way to sell my shares?", "expected": "equity_funding_plan"},
-    {"id": "single-fund-009", "kind": "single", "utterance": "Kid's college bill is coming, how do I sell equity to cover it without a tax bloodbath?", "expected": "equity_funding_plan"},
-    {"id": "single-fund-010", "kind": "single", "utterance": "I need cash for a wedding, which of my shares should I cash out and in what order?", "expected": "equity_funding_plan"},
-    {"id": "single-fund-011", "kind": "single", "utterance": "Big tax payment due, help me figure out what to sell to make it hurt the least.", "expected": "equity_funding_plan"},
-    {"id": "single-fund-012", "kind": "single", "utterance": "Trying to scrape together $200k by next year from my stock, what's the plan?", "expected": "equity_funding_plan"},
-    {"id": "single-fund-013", "kind": "single", "utterance": "I need $250k by August 2026 for a home purchase, I have RSUs and NSOs, which do I sell first for the lowest tax?", "expected": "equity_funding_plan"},
-    {"id": "single-fund-014", "kind": "single", "utterance": "Tuition of $60k is due each August for 4 years and I hold company stock at $75, plan out my sales.", "expected": "equity_funding_plan"},
-    {"id": "single-fund-015", "kind": "single", "utterance": "I owe $90k in estimated taxes by January and I have 4,000 shares at $40, how do I fund it tax-efficiently?", "expected": "equity_funding_plan"},
-    {"id": "single-fund-016", "kind": "single", "utterance": "Need $180k for a down payment by May 2026, I've got a mix of long-term and short-term shares, what's the optimal sell order?", "expected": "equity_funding_plan"},
-    {"id": "single-fund-017", "kind": "single", "utterance": "Sell what to fund a down payment?", "expected": "equity_funding_plan"},
-    {"id": "single-fund-018", "kind": "single", "utterance": "Raise $100k from stock, least tax?", "expected": "equity_funding_plan"},
-    {"id": "single-fund-019", "kind": "single", "utterance": "I need to raies 120k for a house downpayment by spring, which shares do I sell?", "expected": "equity_funding_plan"},
-    {"id": "single-fund-020", "kind": "single", "utterance": "I have a fixed cash goal by a certain date, which equity should I sell and in what sequence?", "expected": "equity_funding_plan"},
-
-    {"id": "ambig-001", "kind": "ambiguous", "utterance": "I have some employee stock options, when should I exercise them?", "expected": null, "mustMention": ["ISO", "NSO"]},
-    {"id": "ambig-002", "kind": "ambiguous", "utterance": "What's the tax when I exercise my stock options?", "expected": null, "mustMention": ["ISO", "NSO"]},
-    {"id": "ambig-003", "kind": "ambiguous", "utterance": "Should I exercise my options now or wait a while?", "expected": null, "mustMention": ["ISO", "NSO"]},
-    {"id": "ambig-004", "kind": "ambiguous", "utterance": "My company gave me stock options, how do I decide when to cash them in?", "expected": null, "mustMention": ["ISO", "NSO"]},
-    {"id": "ambig-005", "kind": "ambiguous", "utterance": "I'm confused about the taxes on my options, can you help?", "expected": null, "mustMention": ["ISO", "NSO"]},
-    {"id": "ambig-006", "kind": "ambiguous", "utterance": "How many of my stock options should I exercise this year?", "expected": null, "mustMention": ["ISO", "NSO"]},
-    {"id": "ambig-007", "kind": "ambiguous", "utterance": "I've got vested options, is it smart to exercise and hold?", "expected": null, "mustMention": ["ISO", "NSO"]},
-    {"id": "ambig-008", "kind": "ambiguous", "utterance": "What happens tax-wise when I exercise my employee options?", "expected": null, "mustMention": ["ISO", "NSO"]},
-    {"id": "ambig-009", "kind": "ambiguous", "utterance": "My options are worth a lot now, should I pull the trigger?", "expected": null, "mustMention": ["ISO", "NSO"]},
-    {"id": "ambig-010", "kind": "ambiguous", "utterance": "I want to exercise my options but don't know the tax consequences.", "expected": null, "mustMention": ["ISO", "NSO"]},
-    {"id": "ambig-011", "kind": "ambiguous", "utterance": "Help me plan out exercising my company stock options.", "expected": null, "mustMention": ["ISO", "NSO"]},
-    {"id": "ambig-012", "kind": "ambiguous", "utterance": "Is now a good time to exercise my options given the tax hit?", "expected": null, "mustMention": ["ISO", "NSO"]},
-    {"id": "ambig-013", "kind": "ambiguous", "utterance": "I have 5,000 options at a $10 strike and the stock's at $50, what do I owe if I exercise?", "expected": null, "mustMention": ["ISO", "NSO"]},
-    {"id": "ambig-014", "kind": "ambiguous", "utterance": "My startup options are vesting, should I exercise them or not?", "expected": null, "mustMention": ["ISO", "NSO"]},
-    {"id": "ambig-015", "kind": "ambiguous", "utterance": "Whats the smartest way to exercise my employee stock options?", "expected": null, "mustMention": ["ISO", "NSO"]},
-
-    {"id": "neg-001", "kind": "negative", "utterance": "What's the best CD rate I can get for a 12-month term right now?", "expected": null},
-    {"id": "neg-002", "kind": "negative", "utterance": "Should I refinance my mortgage if rates drop half a point?", "expected": null},
-    {"id": "neg-003", "kind": "negative", "utterance": "How are my crypto capital gains taxed when I sell Bitcoin?", "expected": null},
-    {"id": "neg-004", "kind": "negative", "utterance": "What's the contribution limit on a 529 plan for my kid this year?", "expected": null},
-    {"id": "neg-005", "kind": "negative", "utterance": "Can you walk me through doing a backdoor Roth IRA?", "expected": null},
-    {"id": "neg-006", "kind": "negative", "utterance": "Should I put my savings in an index fund or a target-date fund?", "expected": null},
-    {"id": "neg-007", "kind": "negative", "utterance": "How much should I keep in an emergency fund?", "expected": null},
-    {"id": "neg-008", "kind": "negative", "utterance": "What's the difference between a traditional and a Roth 401k?", "expected": null},
-    {"id": "neg-009", "kind": "negative", "utterance": "Is now a good time to buy I bonds?", "expected": null},
-    {"id": "neg-010", "kind": "negative", "utterance": "How do I set up an HSA and what can I use it for?", "expected": null},
-    {"id": "neg-011", "kind": "negative", "utterance": "How is the discount on my ESPP shares taxed when I eventually sell them?", "expected": null},
-    {"id": "neg-012", "kind": "negative", "utterance": "What's the deadline to file an 83(b) election on my restricted stock?", "expected": null},
-    {"id": "neg-013", "kind": "negative", "utterance": "How does the $100k limit on ISOs becoming NSOs actually work?", "expected": null},
-    {"id": "neg-014", "kind": "negative", "utterance": "If I sell my company stock at a loss and rebuy it in 20 days, is that a wash sale?", "expected": null},
-    {"id": "neg-015", "kind": "negative", "utterance": "How do I set up a 10b5-1 trading plan as a company insider?", "expected": null},
-    {"id": "neg-016", "kind": "negative", "utterance": "When does my IPO lockup expire and can I sell any shares before then?", "expected": null},
-    {"id": "neg-017", "kind": "negative", "utterance": "How is a 409A valuation determined for a private company?", "expected": null},
-    {"id": "neg-018", "kind": "negative", "utterance": "Should I enroll in my company's ESPP and how much can I contribute per paycheck?", "expected": null},
-    {"id": "neg-019", "kind": "negative", "utterance": "Do I need to file an 83(b) if I early exercise my unvested options?", "expected": null},
-    {"id": "neg-020", "kind": "negative", "utterance": "Explain the wash sale rule for tax-loss harvesting in my brokerage account.", "expected": null},
-    {"id": "neg-021", "kind": "negative", "utterance": "What's a good recipe for weeknight chicken tikka masala?", "expected": null},
-    {"id": "neg-022", "kind": "negative", "utterance": "Help me plan a 10-day itinerary for Japan in the spring.", "expected": null},
-    {"id": "neg-023", "kind": "negative", "utterance": "Write me a Python function to reverse a linked list.", "expected": null},
-    {"id": "neg-024", "kind": "negative", "utterance": "What's the best way to train for a first marathon?", "expected": null},
-    {"id": "neg-025", "kind": "negative", "utterance": "Recommend a good sci-fi novel similar to Dune.", "expected": null},
-
-    {"id": "multi-001", "kind": "multi", "utterance": "I'm way overconcentrated in my company stock after the IPO, should I sell some down or hedge it with puts?", "expectedSet": ["concentration_analyze", "protective_put_price"]},
-    {"id": "multi-002", "kind": "multi", "utterance": "I have a huge single-stock position and I need $300k for a house in six months, help me figure this out.", "expectedSet": ["concentration_analyze", "equity_funding_plan"]},
-    {"id": "multi-003", "kind": "multi", "utterance": "My RSUs are vesting and I also need $100k for tuition next fall, what should I do?", "expectedSet": ["rsu_sell_vs_hold", "equity_funding_plan"]},
-    {"id": "multi-004", "kind": "multi", "utterance": "I hold a ton of one stock, should I diversify by selling or protect it with a collar first?", "expectedSet": ["concentration_analyze", "protective_put_price"]},
-    {"id": "multi-005", "kind": "multi", "utterance": "I want to exercise my ISOs this year but I'm nervous about both the AMT and being too concentrated in the stock afterward.", "expectedSet": ["amt_iso_optimize", "concentration_analyze"]},
-    {"id": "multi-006", "kind": "multi", "utterance": "As a founder most of my wealth is in startup shares, do they qualify for QSBS and how much should I diversify?", "expectedSet": ["qsbs_check", "concentration_analyze"]},
-    {"id": "multi-007", "kind": "multi", "utterance": "My NSOs are worth a lot, should I exercise and sell to fund a down payment I need next year?", "expectedSet": ["nso_calculate", "equity_funding_plan"]},
-    {"id": "multi-008", "kind": "multi", "utterance": "Big RSU vest coming and I'm already overweight this stock, should I sell at vest, hold, or hedge it?", "expectedSet": ["rsu_sell_vs_hold", "concentration_analyze", "protective_put_price"]},
-    {"id": "multi-009", "kind": "multi", "utterance": "I have incentive options to exercise this year and I want to protect the resulting shares against a drop.", "expectedSet": ["amt_iso_optimize", "protective_put_price"]},
-    {"id": "multi-010", "kind": "multi", "utterance": "Startup exit is coming soon, do my shares qualify for QSBS and how do I raise cash for the tax bill from them?", "expectedSet": ["qsbs_check", "equity_funding_plan"]},
-    {"id": "multi-011", "kind": "multi", "utterance": "About 90% of my net worth is in NVDA, I could sell some or buy protective puts, which should I do first?", "expectedSet": ["concentration_analyze", "protective_put_price"]},
-    {"id": "multi-012", "kind": "multi", "utterance": "My company stock is a huge chunk of my portfolio and I need $200k by December, help me sell it down strategically.", "expectedSet": ["concentration_analyze", "equity_funding_plan"]},
-    {"id": "multi-013", "kind": "multi", "utterance": "I have RSUs vesting and NSOs to exercise and I need cash for a wedding, where do I even start?", "expectedSet": ["rsu_sell_vs_hold", "nso_calculate", "equity_funding_plan"]},
-    {"id": "multi-014", "kind": "multi", "utterance": "Post-IPO I'm sitting on a concentrated pile of shares from exercised options, help me plan diversification and check if any qualify for QSBS.", "expectedSet": ["concentration_analyze", "qsbs_check"]},
-    {"id": "multi-015", "kind": "multi", "utterance": "I might hedge my big position with a collar or just sell some to cover a tax bill, what makes more sense?", "expectedSet": ["protective_put_price", "concentration_analyze", "equity_funding_plan"]},
-    {"id": "multi-016", "kind": "multi", "utterance": "My restricted units are vesting into an already-concentrated position and I need money for a down payment soon.", "expectedSet": ["rsu_sell_vs_hold", "concentration_analyze", "equity_funding_plan"]},
-    {"id": "multi-017", "kind": "multi", "utterance": "I've got a concentrated position and I could diversify by selling, hedge the downside while I wait, and I also owe taxes soon.", "expectedSet": ["concentration_analyze", "protective_put_price", "equity_funding_plan"]},
-    {"id": "multi-018", "kind": "multi", "utterance": "I need $150k by spring and I'm holding RSUs plus a concentrated chunk of company stock.", "expectedSet": ["equity_funding_plan", "rsu_sell_vs_hold", "concentration_analyze"]},
-    {"id": "multi-019", "kind": "multi", "utterance": "Should I exercise my NSOs now or hedge my existing shares against a drop first?", "expectedSet": ["nso_calculate", "protective_put_price"]},
-    {"id": "multi-020", "kind": "multi", "utterance": "I exercised my ISOs last year and now have a big concentrated position, plus I'm worried about the AMT I still owe.", "expectedSet": ["amt_iso_optimize", "concentration_analyze"]}
+    {
+      "id": "single-amt-001",
+      "kind": "single",
+      "utterance": "I have incentive stock options and want to figure out the best year to exercise them without a huge tax surprise.",
+      "expected": "amt_iso_optimize"
+    },
+    {
+      "id": "single-amt-002",
+      "kind": "single",
+      "utterance": "Can you help me build a multi-year plan for exercising my ISOs?",
+      "expected": "amt_iso_optimize"
+    },
+    {
+      "id": "single-amt-003",
+      "kind": "single",
+      "utterance": "How many ISO shares can I exercise this year before AMT kicks in hard?",
+      "expected": "amt_iso_optimize"
+    },
+    {
+      "id": "single-amt-004",
+      "kind": "single",
+      "utterance": "I'm trying to understand the AMT impact of exercising my incentive stock options.",
+      "expected": "amt_iso_optimize"
+    },
+    {
+      "id": "single-amt-005",
+      "kind": "single",
+      "utterance": "What's the optimal exercise schedule for my ISOs across the next three years?",
+      "expected": "amt_iso_optimize"
+    },
+    {
+      "id": "single-amt-006",
+      "kind": "single",
+      "utterance": "I want to exercise some incentive stock options but I'm worried about the alternative minimum tax.",
+      "expected": "amt_iso_optimize"
+    },
+    {
+      "id": "single-amt-007",
+      "kind": "single",
+      "utterance": "My ISOs are freaking me out, if I exercise am I gonna get hammered by AMT?",
+      "expected": "amt_iso_optimize"
+    },
+    {
+      "id": "single-amt-008",
+      "kind": "single",
+      "utterance": "Trying to nibble at my ISO exercise every year to dodge the AMT hit, help me map it out.",
+      "expected": "amt_iso_optimize"
+    },
+    {
+      "id": "single-amt-009",
+      "kind": "single",
+      "utterance": "How much of my incentive options can I pull the trigger on before Uncle Sam slaps me with AMT?",
+      "expected": "amt_iso_optimize"
+    },
+    {
+      "id": "single-amt-010",
+      "kind": "single",
+      "utterance": "Spread my ISO exercises out so I don't get wrecked by the alt min tax please.",
+      "expected": "amt_iso_optimize"
+    },
+    {
+      "id": "single-amt-011",
+      "kind": "single",
+      "utterance": "Wanna early exercise my ISOs but scared of that phantom AMT bill, thoughts?",
+      "expected": "amt_iso_optimize"
+    },
+    {
+      "id": "single-amt-012",
+      "kind": "single",
+      "utterance": "Ok so incentive options, when's the smart time to exercise without an AMT nightmare?",
+      "expected": "amt_iso_optimize"
+    },
+    {
+      "id": "single-amt-013",
+      "kind": "single",
+      "utterance": "I have 12,000 ISOs at a $4 strike, current FMV is $38, I'm in California, how much can I exercise in 2026 before AMT bites?",
+      "expected": "amt_iso_optimize"
+    },
+    {
+      "id": "single-amt-014",
+      "kind": "single",
+      "utterance": "Got 8,500 incentive stock options, strike $2.10, 409A now $22, need a 3-year exercise ladder to minimize AMT.",
+      "expected": "amt_iso_optimize"
+    },
+    {
+      "id": "single-amt-015",
+      "kind": "single",
+      "utterance": "My ISO grant is 20,000 shares, $6 strike, FMV $15, married filing jointly in Texas, what's the AMT crossover point?",
+      "expected": "amt_iso_optimize"
+    },
+    {
+      "id": "single-amt-016",
+      "kind": "single",
+      "utterance": "I want to exercise 5,000 of my 15,000 ISOs before Dec 31, strike $1.50, FMV $40, will I owe AMT and how much?",
+      "expected": "amt_iso_optimize"
+    },
+    {
+      "id": "single-amt-017",
+      "kind": "single",
+      "utterance": "ISO exercise timing to avoid AMT?",
+      "expected": "amt_iso_optimize"
+    },
+    {
+      "id": "single-amt-018",
+      "kind": "single",
+      "utterance": "How many ISOs can I exercise AMT-safe?",
+      "expected": "amt_iso_optimize"
+    },
+    {
+      "id": "single-amt-019",
+      "kind": "single",
+      "utterance": "I hold incentve stock options and need to know when to excercise to keep my AMT low.",
+      "expected": "amt_iso_optimize"
+    },
+    {
+      "id": "single-amt-020",
+      "kind": "single",
+      "utterance": "Basically I don't wanna trip the AMT, how do I stagger exercising my incentive options over a few years?",
+      "expected": "amt_iso_optimize"
+    },
+    {
+      "id": "single-nso-001",
+      "kind": "single",
+      "utterance": "I have non-qualified stock options and want to know the tax hit when I exercise.",
+      "expected": "nso_calculate"
+    },
+    {
+      "id": "single-nso-002",
+      "kind": "single",
+      "utterance": "Can you calculate what I'll owe when I exercise my NSOs?",
+      "expected": "nso_calculate"
+    },
+    {
+      "id": "single-nso-003",
+      "kind": "single",
+      "utterance": "Should I sell my NSO shares right away after exercising or hold them?",
+      "expected": "nso_calculate"
+    },
+    {
+      "id": "single-nso-004",
+      "kind": "single",
+      "utterance": "What are the taxes on exercising my nonqualified stock options this year?",
+      "expected": "nso_calculate"
+    },
+    {
+      "id": "single-nso-005",
+      "kind": "single",
+      "utterance": "I'm considering a cashless exercise of my NSOs, what does that cost me in tax?",
+      "expected": "nso_calculate"
+    },
+    {
+      "id": "single-nso-006",
+      "kind": "single",
+      "utterance": "Help me understand the ordinary income I'll recognize when exercising my non-qualified options.",
+      "expected": "nso_calculate"
+    },
+    {
+      "id": "single-nso-007",
+      "kind": "single",
+      "utterance": "My NQSOs, if I do a same-day exercise and sell, how bad is the tax?",
+      "expected": "nso_calculate"
+    },
+    {
+      "id": "single-nso-008",
+      "kind": "single",
+      "utterance": "Thinking about cashing out my nonqual options, what's the damage taxwise?",
+      "expected": "nso_calculate"
+    },
+    {
+      "id": "single-nso-009",
+      "kind": "single",
+      "utterance": "Should I flip my NSO shares immediately or sit on em after exercising?",
+      "expected": "nso_calculate"
+    },
+    {
+      "id": "single-nso-010",
+      "kind": "single",
+      "utterance": "How much does the IRS take when I exercise my non-qualified options, ballpark?",
+      "expected": "nso_calculate"
+    },
+    {
+      "id": "single-nso-011",
+      "kind": "single",
+      "utterance": "Just wanna do a cashless on my NSOs and be done, tell me the tax cost.",
+      "expected": "nso_calculate"
+    },
+    {
+      "id": "single-nso-012",
+      "kind": "single",
+      "utterance": "NQSOs about to expire, exercise and sell same day, what do I actually net?",
+      "expected": "nso_calculate"
+    },
+    {
+      "id": "single-nso-013",
+      "kind": "single",
+      "utterance": "I have 3,000 NSOs at $10 strike, stock is $65, I'm in New York, should I exercise and hold or exercise and sell?",
+      "expected": "nso_calculate"
+    },
+    {
+      "id": "single-nso-014",
+      "kind": "single",
+      "utterance": "10,000 non-qualified options, strike $5, FMV $28, what's my ordinary income and withholding if I exercise them all in 2026?",
+      "expected": "nso_calculate"
+    },
+    {
+      "id": "single-nso-015",
+      "kind": "single",
+      "utterance": "My NQSO grant is 6,000 shares at $12, trading at $40, cashless exercise, how much cash do I walk away with after tax?",
+      "expected": "nso_calculate"
+    },
+    {
+      "id": "single-nso-016",
+      "kind": "single",
+      "utterance": "Exercising 2,500 NSOs, strike $8, price $22, single filer in Illinois, what's the difference between selling immediately and holding a year?",
+      "expected": "nso_calculate"
+    },
+    {
+      "id": "single-nso-017",
+      "kind": "single",
+      "utterance": "NSO exercise tax estimate?",
+      "expected": "nso_calculate"
+    },
+    {
+      "id": "single-nso-018",
+      "kind": "single",
+      "utterance": "Cashless NSO exercise, what tax?",
+      "expected": "nso_calculate"
+    },
+    {
+      "id": "single-nso-019",
+      "kind": "single",
+      "utterance": "I got nonqualifed stock options, whats the tax if I exercse and sell right away?",
+      "expected": "nso_calculate"
+    },
+    {
+      "id": "single-nso-020",
+      "kind": "single",
+      "utterance": "What's the difference in taxes if I hold my NSO shares versus selling at the moment I exercise?",
+      "expected": "nso_calculate"
+    },
+    {
+      "id": "single-rsu-001",
+      "kind": "single",
+      "utterance": "My RSUs are vesting soon, should I sell them at vest or keep the shares?",
+      "expected": "rsu_sell_vs_hold"
+    },
+    {
+      "id": "single-rsu-002",
+      "kind": "single",
+      "utterance": "Is it better to hold my restricted stock units after they vest or sell right away?",
+      "expected": "rsu_sell_vs_hold"
+    },
+    {
+      "id": "single-rsu-003",
+      "kind": "single",
+      "utterance": "I'm worried the withholding on my RSU vest is too low, will I owe more at tax time?",
+      "expected": "rsu_sell_vs_hold"
+    },
+    {
+      "id": "single-rsu-004",
+      "kind": "single",
+      "utterance": "Help me decide whether to sell or hold my vesting RSUs.",
+      "expected": "rsu_sell_vs_hold"
+    },
+    {
+      "id": "single-rsu-005",
+      "kind": "single",
+      "utterance": "What are the taxes when my restricted stock units vest?",
+      "expected": "rsu_sell_vs_hold"
+    },
+    {
+      "id": "single-rsu-006",
+      "kind": "single",
+      "utterance": "My company only withholds 22% on RSUs, is that enough or will I owe?",
+      "expected": "rsu_sell_vs_hold"
+    },
+    {
+      "id": "single-rsu-007",
+      "kind": "single",
+      "utterance": "RSUs hitting next month, dump em or hold em?",
+      "expected": "rsu_sell_vs_hold"
+    },
+    {
+      "id": "single-rsu-008",
+      "kind": "single",
+      "utterance": "Should I just sell my RSUs the second they vest or ride the stock up?",
+      "expected": "rsu_sell_vs_hold"
+    },
+    {
+      "id": "single-rsu-009",
+      "kind": "single",
+      "utterance": "My RSU withholding feels way too low, am I gonna get a nasty tax bill?",
+      "expected": "rsu_sell_vs_hold"
+    },
+    {
+      "id": "single-rsu-010",
+      "kind": "single",
+      "utterance": "Vesting shares coming, do I cash out or diamond-hand it?",
+      "expected": "rsu_sell_vs_hold"
+    },
+    {
+      "id": "single-rsu-011",
+      "kind": "single",
+      "utterance": "Keep my restricted units or sell at vest, what would you do?",
+      "expected": "rsu_sell_vs_hold"
+    },
+    {
+      "id": "single-rsu-012",
+      "kind": "single",
+      "utterance": "Big RSU vest coming up, sell to cover and bounce or hold for gains?",
+      "expected": "rsu_sell_vs_hold"
+    },
+    {
+      "id": "single-rsu-013",
+      "kind": "single",
+      "utterance": "1,200 RSUs vesting in March at about $180 a share, I'm in the California top bracket, sell or hold?",
+      "expected": "rsu_sell_vs_hold"
+    },
+    {
+      "id": "single-rsu-014",
+      "kind": "single",
+      "utterance": "My RSUs vest 500 shares a quarter, stock at $90, company withholds a flat 22%, how much extra tax will I owe in April?",
+      "expected": "rsu_sell_vs_hold"
+    },
+    {
+      "id": "single-rsu-015",
+      "kind": "single",
+      "utterance": "3,000 restricted units vesting at $45, single, Massachusetts, should I sell immediately given the supplemental withholding gap?",
+      "expected": "rsu_sell_vs_hold"
+    },
+    {
+      "id": "single-rsu-016",
+      "kind": "single",
+      "utterance": "I have about $200k of RSUs vesting this year in NVDA, worried about underwithholding, sell at vest or hold?",
+      "expected": "rsu_sell_vs_hold"
+    },
+    {
+      "id": "single-rsu-017",
+      "kind": "single",
+      "utterance": "Sell RSUs at vest or hold?",
+      "expected": "rsu_sell_vs_hold"
+    },
+    {
+      "id": "single-rsu-018",
+      "kind": "single",
+      "utterance": "RSU withholding too low?",
+      "expected": "rsu_sell_vs_hold"
+    },
+    {
+      "id": "single-rsu-019",
+      "kind": "single",
+      "utterance": "My restircted stock units vest soon, shoud I sell or keep them?",
+      "expected": "rsu_sell_vs_hold"
+    },
+    {
+      "id": "single-rsu-020",
+      "kind": "single",
+      "utterance": "After my RSUs vest is there any tax benefit to holding versus selling immediately?",
+      "expected": "rsu_sell_vs_hold"
+    },
+    {
+      "id": "single-conc-001",
+      "kind": "single",
+      "utterance": "Most of my net worth is tied up in one company's stock, how risky is that?",
+      "expected": "concentration_analyze"
+    },
+    {
+      "id": "single-conc-002",
+      "kind": "single",
+      "utterance": "I have too much of my portfolio in a single stock, how should I diversify?",
+      "expected": "concentration_analyze"
+    },
+    {
+      "id": "single-conc-003",
+      "kind": "single",
+      "utterance": "Is it dangerous to have 70% of my savings in my employer's shares?",
+      "expected": "concentration_analyze"
+    },
+    {
+      "id": "single-conc-004",
+      "kind": "single",
+      "utterance": "Should I sell down my concentrated position or keep holding it?",
+      "expected": "concentration_analyze"
+    },
+    {
+      "id": "single-conc-005",
+      "kind": "single",
+      "utterance": "How do I think about diversifying away from one big stock holding?",
+      "expected": "concentration_analyze"
+    },
+    {
+      "id": "single-conc-006",
+      "kind": "single",
+      "utterance": "I'm overexposed to a single company, what are my options to reduce the risk?",
+      "expected": "concentration_analyze"
+    },
+    {
+      "id": "single-conc-007",
+      "kind": "single",
+      "utterance": "Like 80% of my money is in one ticker, is that nuts?",
+      "expected": "concentration_analyze"
+    },
+    {
+      "id": "single-conc-008",
+      "kind": "single",
+      "utterance": "All my eggs are in the NVDA basket, how do I unwind this safely?",
+      "expected": "concentration_analyze"
+    },
+    {
+      "id": "single-conc-009",
+      "kind": "single",
+      "utterance": "Way too much of my worth is one stock, should I trim, hold, or hedge?",
+      "expected": "concentration_analyze"
+    },
+    {
+      "id": "single-conc-010",
+      "kind": "single",
+      "utterance": "My whole nest egg is basically TSLA, help me not blow myself up.",
+      "expected": "concentration_analyze"
+    },
+    {
+      "id": "single-conc-011",
+      "kind": "single",
+      "utterance": "I'm super concentrated in my company stock, whats the move to spread out?",
+      "expected": "concentration_analyze"
+    },
+    {
+      "id": "single-conc-012",
+      "kind": "single",
+      "utterance": "One stock is my entire portfolio, how do I derisk without a huge tax bomb?",
+      "expected": "concentration_analyze"
+    },
+    {
+      "id": "single-conc-013",
+      "kind": "single",
+      "utterance": "I hold 15,000 shares of my employer worth $2.1M, that's 75% of my net worth, how fast should I diversify?",
+      "expected": "concentration_analyze"
+    },
+    {
+      "id": "single-conc-014",
+      "kind": "single",
+      "utterance": "$900k of my $1.2M portfolio is in one biotech stock, I'm in California, what's my sell-down plan?",
+      "expected": "concentration_analyze"
+    },
+    {
+      "id": "single-conc-015",
+      "kind": "single",
+      "utterance": "40,000 shares of a single tech company at $55, it's 85% of my assets, how bad is my concentration risk?",
+      "expected": "concentration_analyze"
+    },
+    {
+      "id": "single-conc-016",
+      "kind": "single",
+      "utterance": "My AAPL position is $600k and everything else is $150k, how do I rebalance this over time?",
+      "expected": "concentration_analyze"
+    },
+    {
+      "id": "single-conc-017",
+      "kind": "single",
+      "utterance": "Too concentrated in one stock?",
+      "expected": "concentration_analyze"
+    },
+    {
+      "id": "single-conc-018",
+      "kind": "single",
+      "utterance": "Diversify my single-stock risk?",
+      "expected": "concentration_analyze"
+    },
+    {
+      "id": "single-conc-019",
+      "kind": "single",
+      "utterance": "Almost all my networth is in one comapny stock, how risky is it and how do I diversfy?",
+      "expected": "concentration_analyze"
+    },
+    {
+      "id": "single-conc-020",
+      "kind": "single",
+      "utterance": "What's the smart way to reduce risk when one stock dominates my portfolio?",
+      "expected": "concentration_analyze"
+    },
+    {
+      "id": "single-put-001",
+      "kind": "single",
+      "utterance": "What would it cost to protect my stock position against a big drop?",
+      "expected": "protective_put_price"
+    },
+    {
+      "id": "single-put-002",
+      "kind": "single",
+      "utterance": "How much are protective puts on my shares?",
+      "expected": "protective_put_price"
+    },
+    {
+      "id": "single-put-003",
+      "kind": "single",
+      "utterance": "I want to hedge my stock holding, can you price a collar for me?",
+      "expected": "protective_put_price"
+    },
+    {
+      "id": "single-put-004",
+      "kind": "single",
+      "utterance": "What's the cost to insure my position with a put option?",
+      "expected": "protective_put_price"
+    },
+    {
+      "id": "single-put-005",
+      "kind": "single",
+      "utterance": "Can you price a put spread to limit my downside on this stock?",
+      "expected": "protective_put_price"
+    },
+    {
+      "id": "single-put-006",
+      "kind": "single",
+      "utterance": "I'd like to cap my losses on my shares, what does buying puts cost?",
+      "expected": "protective_put_price"
+    },
+    {
+      "id": "single-put-007",
+      "kind": "single",
+      "utterance": "How much to buy some insurance on my stock in case it tanks?",
+      "expected": "protective_put_price"
+    },
+    {
+      "id": "single-put-008",
+      "kind": "single",
+      "utterance": "Wanna lock in downside protection on my shares, what's the price tag?",
+      "expected": "protective_put_price"
+    },
+    {
+      "id": "single-put-009",
+      "kind": "single",
+      "utterance": "If I collar my position, how much does that run me?",
+      "expected": "protective_put_price"
+    },
+    {
+      "id": "single-put-010",
+      "kind": "single",
+      "utterance": "Stock's been wild, what would puts cost to cover my downside?",
+      "expected": "protective_put_price"
+    },
+    {
+      "id": "single-put-011",
+      "kind": "single",
+      "utterance": "Cheapest way to hedge my shares against a crash, puts or a collar?",
+      "expected": "protective_put_price"
+    },
+    {
+      "id": "single-put-012",
+      "kind": "single",
+      "utterance": "I just wanna protect my gains, price me a protective put.",
+      "expected": "protective_put_price"
+    },
+    {
+      "id": "single-put-013",
+      "kind": "single",
+      "utterance": "I hold 2,000 shares of NVDA at $130, want a 6-month put at $110 strike, what's the premium?",
+      "expected": "protective_put_price"
+    },
+    {
+      "id": "single-put-014",
+      "kind": "single",
+      "utterance": "Protect 1,000 shares of a $90 stock through year-end, price me a protective put and a zero-cost collar.",
+      "expected": "protective_put_price"
+    },
+    {
+      "id": "single-put-015",
+      "kind": "single",
+      "utterance": "5,000 shares worth $400k, I want to hedge against a 20% drop for the next 3 months, what does that cost?",
+      "expected": "protective_put_price"
+    },
+    {
+      "id": "single-put-016",
+      "kind": "single",
+      "utterance": "My TSLA is at $250 and I own 800 shares, price a put spread to protect between $220 and $180.",
+      "expected": "protective_put_price"
+    },
+    {
+      "id": "single-put-017",
+      "kind": "single",
+      "utterance": "Cost to hedge my stock?",
+      "expected": "protective_put_price"
+    },
+    {
+      "id": "single-put-018",
+      "kind": "single",
+      "utterance": "Price protective puts please.",
+      "expected": "protective_put_price"
+    },
+    {
+      "id": "single-put-019",
+      "kind": "single",
+      "utterance": "How much to buy a protectve put on my shares to gaurd against a drop?",
+      "expected": "protective_put_price"
+    },
+    {
+      "id": "single-put-020",
+      "kind": "single",
+      "utterance": "What's it cost to insure my position against a downturn using options?",
+      "expected": "protective_put_price"
+    },
+    {
+      "id": "single-qsbs-001",
+      "kind": "single",
+      "utterance": "Do my startup shares qualify for the QSBS exclusion?",
+      "expected": "qsbs_check"
+    },
+    {
+      "id": "single-qsbs-002",
+      "kind": "single",
+      "utterance": "Can I sell my early-employee stock federal-tax-free under Section 1202?",
+      "expected": "qsbs_check"
+    },
+    {
+      "id": "single-qsbs-003",
+      "kind": "single",
+      "utterance": "I'm a founder, does my stock meet the qualified small business stock rules?",
+      "expected": "qsbs_check"
+    },
+    {
+      "id": "single-qsbs-004",
+      "kind": "single",
+      "utterance": "How do I know if my shares are eligible for the 1202 gain exclusion?",
+      "expected": "qsbs_check"
+    },
+    {
+      "id": "single-qsbs-005",
+      "kind": "single",
+      "utterance": "Will my startup equity qualify for tax-free treatment when I sell?",
+      "expected": "qsbs_check"
+    },
+    {
+      "id": "single-qsbs-006",
+      "kind": "single",
+      "utterance": "Do I meet the QSBS requirements on the shares I got as employee number 5?",
+      "expected": "qsbs_check"
+    },
+    {
+      "id": "single-qsbs-007",
+      "kind": "single",
+      "utterance": "Are my startup shares the magic tax-free QSBS kind?",
+      "expected": "qsbs_check"
+    },
+    {
+      "id": "single-qsbs-008",
+      "kind": "single",
+      "utterance": "Founder here, can I dodge federal tax on my stock sale via 1202?",
+      "expected": "qsbs_check"
+    },
+    {
+      "id": "single-qsbs-009",
+      "kind": "single",
+      "utterance": "Is my early startup stock QSBS eligible or am I dreaming?",
+      "expected": "qsbs_check"
+    },
+    {
+      "id": "single-qsbs-010",
+      "kind": "single",
+      "utterance": "Heard I might owe zero federal tax on my startup shares, is that real for me?",
+      "expected": "qsbs_check"
+    },
+    {
+      "id": "single-qsbs-011",
+      "kind": "single",
+      "utterance": "Do my founder shares count for that Section 1202 gain exclusion?",
+      "expected": "qsbs_check"
+    },
+    {
+      "id": "single-qsbs-012",
+      "kind": "single",
+      "utterance": "My equity from a tiny startup, does it get the QSBS freebie?",
+      "expected": "qsbs_check"
+    },
+    {
+      "id": "single-qsbs-013",
+      "kind": "single",
+      "utterance": "I got founder stock in 2020 when the company had under $10M in assets and sold nothing yet, do I qualify for QSBS?",
+      "expected": "qsbs_check"
+    },
+    {
+      "id": "single-qsbs-014",
+      "kind": "single",
+      "utterance": "Early employee, exercised in 2021, it's a C-corp and I've held over 5 years now, is my $3M gain 1202-exempt?",
+      "expected": "qsbs_check"
+    },
+    {
+      "id": "single-qsbs-015",
+      "kind": "single",
+      "utterance": "I own 500,000 shares of a Delaware C-corp I joined at the seed stage, do these meet the qualified small business stock test?",
+      "expected": "qsbs_check"
+    },
+    {
+      "id": "single-qsbs-016",
+      "kind": "single",
+      "utterance": "The startup was an LLC then converted to a C-corp in 2022 and I hold shares from before and after, which qualify for 1202?",
+      "expected": "qsbs_check"
+    },
+    {
+      "id": "single-qsbs-017",
+      "kind": "single",
+      "utterance": "Do my shares qualify for QSBS?",
+      "expected": "qsbs_check"
+    },
+    {
+      "id": "single-qsbs-018",
+      "kind": "single",
+      "utterance": "Is my startup stock 1202 eligible?",
+      "expected": "qsbs_check"
+    },
+    {
+      "id": "single-qsbs-019",
+      "kind": "single",
+      "utterance": "Are my founder shares eligble for the QSBS tax exlusion under section 1202?",
+      "expected": "qsbs_check"
+    },
+    {
+      "id": "single-qsbs-020",
+      "kind": "single",
+      "utterance": "Can you check whether my qualified small business stock lets me exclude the gain from federal tax?",
+      "expected": "qsbs_check"
+    },
+    {
+      "id": "single-fund-001",
+      "kind": "single",
+      "utterance": "I need $150k for a house down payment by June, which shares should I sell and when?",
+      "expected": "equity_funding_plan"
+    },
+    {
+      "id": "single-fund-002",
+      "kind": "single",
+      "utterance": "I have to come up with cash for tuition next year, what's the tax-smart way to sell my equity?",
+      "expected": "equity_funding_plan"
+    },
+    {
+      "id": "single-fund-003",
+      "kind": "single",
+      "utterance": "I owe a big tax bill in April, which of my shares should I liquidate to cover it?",
+      "expected": "equity_funding_plan"
+    },
+    {
+      "id": "single-fund-004",
+      "kind": "single",
+      "utterance": "I need to fund a wedding next spring, help me plan which stock to sell with the least tax.",
+      "expected": "equity_funding_plan"
+    },
+    {
+      "id": "single-fund-005",
+      "kind": "single",
+      "utterance": "How do I raise $80k from my equity by December with minimal taxes?",
+      "expected": "equity_funding_plan"
+    },
+    {
+      "id": "single-fund-006",
+      "kind": "single",
+      "utterance": "I need a specific amount of cash by a deadline, which shares get me there cheapest tax-wise?",
+      "expected": "equity_funding_plan"
+    },
+    {
+      "id": "single-fund-007",
+      "kind": "single",
+      "utterance": "Gotta pull together a down payment by summer, which stock do I dump first?",
+      "expected": "equity_funding_plan"
+    },
+    {
+      "id": "single-fund-008",
+      "kind": "single",
+      "utterance": "Need 100 grand for a house by Q3, whats the least-taxy way to sell my shares?",
+      "expected": "equity_funding_plan"
+    },
+    {
+      "id": "single-fund-009",
+      "kind": "single",
+      "utterance": "Kid's college bill is coming, how do I sell equity to cover it without a tax bloodbath?",
+      "expected": "equity_funding_plan"
+    },
+    {
+      "id": "single-fund-010",
+      "kind": "single",
+      "utterance": "I need cash for a wedding, which of my shares should I cash out and in what order?",
+      "expected": "equity_funding_plan"
+    },
+    {
+      "id": "single-fund-011",
+      "kind": "single",
+      "utterance": "Big tax payment due, help me figure out what to sell to make it hurt the least.",
+      "expected": "equity_funding_plan"
+    },
+    {
+      "id": "single-fund-012",
+      "kind": "single",
+      "utterance": "Trying to scrape together $200k by next year from my stock, what's the plan?",
+      "expected": "equity_funding_plan"
+    },
+    {
+      "id": "single-fund-013",
+      "kind": "single",
+      "utterance": "I need $250k by August 2026 for a home purchase, I have RSUs and NSOs, which do I sell first for the lowest tax?",
+      "expected": "equity_funding_plan"
+    },
+    {
+      "id": "single-fund-014",
+      "kind": "single",
+      "utterance": "Tuition of $60k is due each August for 4 years and I hold company stock at $75, plan out my sales.",
+      "expected": "equity_funding_plan"
+    },
+    {
+      "id": "single-fund-015",
+      "kind": "single",
+      "utterance": "I owe $90k in estimated taxes by January and I have 4,000 shares at $40, how do I fund it tax-efficiently?",
+      "expected": "equity_funding_plan"
+    },
+    {
+      "id": "single-fund-016",
+      "kind": "single",
+      "utterance": "Need $180k for a down payment by May 2026, I've got a mix of long-term and short-term shares, what's the optimal sell order?",
+      "expected": "equity_funding_plan"
+    },
+    {
+      "id": "single-fund-017",
+      "kind": "single",
+      "utterance": "Sell what to fund a down payment?",
+      "expected": "equity_funding_plan"
+    },
+    {
+      "id": "single-fund-018",
+      "kind": "single",
+      "utterance": "Raise $100k from stock, least tax?",
+      "expected": "equity_funding_plan"
+    },
+    {
+      "id": "single-fund-019",
+      "kind": "single",
+      "utterance": "I need to raies 120k for a house downpayment by spring, which shares do I sell?",
+      "expected": "equity_funding_plan"
+    },
+    {
+      "id": "single-fund-020",
+      "kind": "single",
+      "utterance": "I have a fixed cash goal by a certain date, which equity should I sell and in what sequence?",
+      "expected": "equity_funding_plan"
+    },
+    {
+      "id": "ambig-001",
+      "kind": "ambiguous",
+      "utterance": "I have some employee stock options, when should I exercise them?",
+      "expected": null,
+      "mustMention": [
+        "ISO",
+        "NSO"
+      ]
+    },
+    {
+      "id": "ambig-002",
+      "kind": "ambiguous",
+      "utterance": "What's the tax when I exercise my stock options?",
+      "expected": null,
+      "mustMention": [
+        "ISO",
+        "NSO"
+      ]
+    },
+    {
+      "id": "ambig-003",
+      "kind": "ambiguous",
+      "utterance": "Should I exercise my options now or wait a while?",
+      "expected": null,
+      "mustMention": [
+        "ISO",
+        "NSO"
+      ]
+    },
+    {
+      "id": "ambig-004",
+      "kind": "ambiguous",
+      "utterance": "My company gave me stock options, how do I decide when to cash them in?",
+      "expected": null,
+      "mustMention": [
+        "ISO",
+        "NSO"
+      ]
+    },
+    {
+      "id": "ambig-005",
+      "kind": "ambiguous",
+      "utterance": "I'm confused about the taxes on my options, can you help?",
+      "expected": null,
+      "mustMention": [
+        "ISO",
+        "NSO"
+      ]
+    },
+    {
+      "id": "ambig-006",
+      "kind": "ambiguous",
+      "utterance": "How many of my stock options should I exercise this year?",
+      "expected": null,
+      "mustMention": [
+        "ISO",
+        "NSO"
+      ]
+    },
+    {
+      "id": "ambig-007",
+      "kind": "ambiguous",
+      "utterance": "I've got vested options, is it smart to exercise and hold?",
+      "expected": null,
+      "mustMention": [
+        "ISO",
+        "NSO"
+      ]
+    },
+    {
+      "id": "ambig-008",
+      "kind": "ambiguous",
+      "utterance": "What happens tax-wise when I exercise my employee options?",
+      "expected": null,
+      "mustMention": [
+        "ISO",
+        "NSO"
+      ]
+    },
+    {
+      "id": "ambig-009",
+      "kind": "ambiguous",
+      "utterance": "My options are worth a lot now, should I pull the trigger?",
+      "expected": null,
+      "mustMention": [
+        "ISO",
+        "NSO"
+      ]
+    },
+    {
+      "id": "ambig-010",
+      "kind": "ambiguous",
+      "utterance": "I want to exercise my options but don't know the tax consequences.",
+      "expected": null,
+      "mustMention": [
+        "ISO",
+        "NSO"
+      ]
+    },
+    {
+      "id": "ambig-011",
+      "kind": "ambiguous",
+      "utterance": "Help me plan out exercising my company stock options.",
+      "expected": null,
+      "mustMention": [
+        "ISO",
+        "NSO"
+      ]
+    },
+    {
+      "id": "ambig-012",
+      "kind": "ambiguous",
+      "utterance": "Is now a good time to exercise my options given the tax hit?",
+      "expected": null,
+      "mustMention": [
+        "ISO",
+        "NSO"
+      ]
+    },
+    {
+      "id": "ambig-013",
+      "kind": "ambiguous",
+      "utterance": "I have 5,000 options at a $10 strike and the stock's at $50, what do I owe if I exercise?",
+      "expected": null,
+      "mustMention": [
+        "ISO",
+        "NSO"
+      ]
+    },
+    {
+      "id": "ambig-014",
+      "kind": "ambiguous",
+      "utterance": "My startup options are vesting, should I exercise them or not?",
+      "expected": null,
+      "mustMention": [
+        "ISO",
+        "NSO"
+      ]
+    },
+    {
+      "id": "ambig-015",
+      "kind": "ambiguous",
+      "utterance": "Whats the smartest way to exercise my employee stock options?",
+      "expected": null,
+      "mustMention": [
+        "ISO",
+        "NSO"
+      ]
+    },
+    {
+      "id": "neg-001",
+      "kind": "negative",
+      "utterance": "What's the best CD rate I can get for a 12-month term right now?",
+      "expected": null
+    },
+    {
+      "id": "neg-002",
+      "kind": "negative",
+      "utterance": "Should I refinance my mortgage if rates drop half a point?",
+      "expected": null
+    },
+    {
+      "id": "neg-003",
+      "kind": "negative",
+      "utterance": "How are my crypto capital gains taxed when I sell Bitcoin?",
+      "expected": null
+    },
+    {
+      "id": "neg-004",
+      "kind": "negative",
+      "utterance": "What's the contribution limit on a 529 plan for my kid this year?",
+      "expected": null
+    },
+    {
+      "id": "neg-005",
+      "kind": "negative",
+      "utterance": "Can you walk me through doing a backdoor Roth IRA?",
+      "expected": null
+    },
+    {
+      "id": "neg-006",
+      "kind": "negative",
+      "utterance": "Should I put my savings in an index fund or a target-date fund?",
+      "expected": null
+    },
+    {
+      "id": "neg-007",
+      "kind": "negative",
+      "utterance": "How much should I keep in an emergency fund?",
+      "expected": null
+    },
+    {
+      "id": "neg-008",
+      "kind": "negative",
+      "utterance": "What's the difference between a traditional and a Roth 401k?",
+      "expected": null
+    },
+    {
+      "id": "neg-009",
+      "kind": "negative",
+      "utterance": "Is now a good time to buy I bonds?",
+      "expected": null
+    },
+    {
+      "id": "neg-010",
+      "kind": "negative",
+      "utterance": "How do I set up an HSA and what can I use it for?",
+      "expected": null
+    },
+    {
+      "id": "neg-011",
+      "kind": "negative",
+      "utterance": "How is the discount on my ESPP shares taxed when I eventually sell them?",
+      "expected": null
+    },
+    {
+      "id": "neg-012",
+      "kind": "negative",
+      "utterance": "What's the deadline to file an 83(b) election on my restricted stock?",
+      "expected": null
+    },
+    {
+      "id": "neg-013",
+      "kind": "negative",
+      "utterance": "How does the $100k limit on ISOs becoming NSOs actually work?",
+      "expected": null
+    },
+    {
+      "id": "neg-014",
+      "kind": "negative",
+      "utterance": "If I sell my company stock at a loss and rebuy it in 20 days, is that a wash sale?",
+      "expected": null
+    },
+    {
+      "id": "neg-015",
+      "kind": "negative",
+      "utterance": "How do I set up a 10b5-1 trading plan as a company insider?",
+      "expected": null
+    },
+    {
+      "id": "neg-016",
+      "kind": "negative",
+      "utterance": "When does my IPO lockup expire and can I sell any shares before then?",
+      "expected": null
+    },
+    {
+      "id": "neg-017",
+      "kind": "negative",
+      "utterance": "How is a 409A valuation determined for a private company?",
+      "expected": null
+    },
+    {
+      "id": "neg-018",
+      "kind": "negative",
+      "utterance": "Should I enroll in my company's ESPP and how much can I contribute per paycheck?",
+      "expected": null
+    },
+    {
+      "id": "neg-019",
+      "kind": "negative",
+      "utterance": "Do I need to file an 83(b) if I early exercise my unvested options?",
+      "expected": null
+    },
+    {
+      "id": "neg-020",
+      "kind": "negative",
+      "utterance": "Explain the wash sale rule for tax-loss harvesting in my brokerage account.",
+      "expected": null
+    },
+    {
+      "id": "neg-021",
+      "kind": "negative",
+      "utterance": "What's a good recipe for weeknight chicken tikka masala?",
+      "expected": null
+    },
+    {
+      "id": "neg-022",
+      "kind": "negative",
+      "utterance": "Help me plan a 10-day itinerary for Japan in the spring.",
+      "expected": null
+    },
+    {
+      "id": "neg-023",
+      "kind": "negative",
+      "utterance": "Write me a Python function to reverse a linked list.",
+      "expected": null
+    },
+    {
+      "id": "neg-024",
+      "kind": "negative",
+      "utterance": "What's the best way to train for a first marathon?",
+      "expected": null
+    },
+    {
+      "id": "neg-025",
+      "kind": "negative",
+      "utterance": "Recommend a good sci-fi novel similar to Dune.",
+      "expected": null
+    },
+    {
+      "id": "multi-001",
+      "kind": "multi",
+      "utterance": "I'm way overconcentrated in my company stock after the IPO, should I sell some down or hedge it with puts?",
+      "expectedSet": [
+        "concentration_analyze",
+        "protective_put_price"
+      ]
+    },
+    {
+      "id": "multi-002",
+      "kind": "multi",
+      "utterance": "I have a huge single-stock position and I need $300k for a house in six months, help me figure this out.",
+      "expectedSet": [
+        "concentration_analyze",
+        "equity_funding_plan"
+      ]
+    },
+    {
+      "id": "multi-003",
+      "kind": "multi",
+      "utterance": "My RSUs are vesting and I also need $100k for tuition next fall, what should I do?",
+      "expectedSet": [
+        "rsu_sell_vs_hold",
+        "equity_funding_plan"
+      ]
+    },
+    {
+      "id": "multi-004",
+      "kind": "multi",
+      "utterance": "I hold a ton of one stock, should I diversify by selling or protect it with a collar first?",
+      "expectedSet": [
+        "concentration_analyze",
+        "protective_put_price"
+      ]
+    },
+    {
+      "id": "multi-005",
+      "kind": "multi",
+      "utterance": "I want to exercise my ISOs this year but I'm nervous about both the AMT and being too concentrated in the stock afterward.",
+      "expectedSet": [
+        "amt_iso_optimize",
+        "concentration_analyze"
+      ]
+    },
+    {
+      "id": "multi-006",
+      "kind": "multi",
+      "utterance": "As a founder most of my wealth is in startup shares, do they qualify for QSBS and how much should I diversify?",
+      "expectedSet": [
+        "qsbs_check",
+        "concentration_analyze"
+      ]
+    },
+    {
+      "id": "multi-007",
+      "kind": "multi",
+      "utterance": "My NSOs are worth a lot, should I exercise and sell to fund a down payment I need next year?",
+      "expectedSet": [
+        "nso_calculate",
+        "equity_funding_plan"
+      ]
+    },
+    {
+      "id": "multi-008",
+      "kind": "multi",
+      "utterance": "Big RSU vest coming and I'm already overweight this stock, should I sell at vest, hold, or hedge it?",
+      "expectedSet": [
+        "rsu_sell_vs_hold",
+        "concentration_analyze",
+        "protective_put_price"
+      ]
+    },
+    {
+      "id": "multi-009",
+      "kind": "multi",
+      "utterance": "I have incentive options to exercise this year and I want to protect the resulting shares against a drop.",
+      "expectedSet": [
+        "amt_iso_optimize",
+        "protective_put_price"
+      ]
+    },
+    {
+      "id": "multi-010",
+      "kind": "multi",
+      "utterance": "Startup exit is coming soon, do my shares qualify for QSBS and how do I raise cash for the tax bill from them?",
+      "expectedSet": [
+        "qsbs_check",
+        "equity_funding_plan"
+      ]
+    },
+    {
+      "id": "multi-011",
+      "kind": "multi",
+      "utterance": "About 90% of my net worth is in NVDA, I could sell some or buy protective puts, which should I do first?",
+      "expectedSet": [
+        "concentration_analyze",
+        "protective_put_price"
+      ]
+    },
+    {
+      "id": "multi-012",
+      "kind": "multi",
+      "utterance": "My company stock is a huge chunk of my portfolio and I need $200k by December, help me sell it down strategically.",
+      "expectedSet": [
+        "concentration_analyze",
+        "equity_funding_plan"
+      ]
+    },
+    {
+      "id": "multi-013",
+      "kind": "multi",
+      "utterance": "I have RSUs vesting and NSOs to exercise and I need cash for a wedding, where do I even start?",
+      "expectedSet": [
+        "rsu_sell_vs_hold",
+        "nso_calculate",
+        "equity_funding_plan"
+      ]
+    },
+    {
+      "id": "multi-014",
+      "kind": "multi",
+      "utterance": "Post-IPO I'm sitting on a concentrated pile of shares from exercised options, help me plan diversification and check if any qualify for QSBS.",
+      "expectedSet": [
+        "concentration_analyze",
+        "qsbs_check"
+      ]
+    },
+    {
+      "id": "multi-015",
+      "kind": "multi",
+      "utterance": "I might hedge my big position with a collar or just sell some to cover a tax bill, what makes more sense?",
+      "expectedSet": [
+        "protective_put_price",
+        "concentration_analyze",
+        "equity_funding_plan"
+      ]
+    },
+    {
+      "id": "multi-016",
+      "kind": "multi",
+      "utterance": "My restricted units are vesting into an already-concentrated position and I need money for a down payment soon.",
+      "expectedSet": [
+        "rsu_sell_vs_hold",
+        "concentration_analyze",
+        "equity_funding_plan"
+      ]
+    },
+    {
+      "id": "multi-017",
+      "kind": "multi",
+      "utterance": "I've got a concentrated position and I could diversify by selling, hedge the downside while I wait, and I also owe taxes soon.",
+      "expectedSet": [
+        "concentration_analyze",
+        "protective_put_price",
+        "equity_funding_plan"
+      ]
+    },
+    {
+      "id": "multi-018",
+      "kind": "multi",
+      "utterance": "I need $150k by spring and I'm holding RSUs plus a concentrated chunk of company stock.",
+      "expectedSet": [
+        "equity_funding_plan",
+        "rsu_sell_vs_hold",
+        "concentration_analyze"
+      ]
+    },
+    {
+      "id": "multi-019",
+      "kind": "multi",
+      "utterance": "Should I exercise my NSOs now or hedge my existing shares against a drop first?",
+      "expectedSet": [
+        "nso_calculate",
+        "protective_put_price"
+      ]
+    },
+    {
+      "id": "multi-020",
+      "kind": "multi",
+      "utterance": "I exercised my ISOs last year and now have a big concentrated position, plus I'm worried about the AMT I still owe.",
+      "expectedSet": [
+        "amt_iso_optimize",
+        "concentration_analyze"
+      ]
+    },
+    {
+      "id": "input-disc-001",
+      "kind": "input-discipline",
+      "expected": "amt_iso_optimize",
+      "utterance": "I have 10,000 ISOs at a $2 strike, current 409A fair market value $50, at a private startup called Northwind Robotics. Single filer in California, $200,000 of taxable income. Plan a 3-year exercise schedule that minimizes AMT.",
+      "forbiddenArgs": [
+        "volatility",
+        "expectedGrowth"
+      ]
+    },
+    {
+      "id": "input-disc-002",
+      "kind": "input-discipline",
+      "expected": "nso_calculate",
+      "utterance": "I want to exercise 5,000 NSOs at a $10 strike. The company is private, last 409A was $50 a share. Single, California, $180,000 taxable income, still employed, and I would hold 2 years after exercising.",
+      "forbiddenArgs": [
+        "volatility",
+        "expectedSalePrice"
+      ]
+    },
+    {
+      "id": "input-disc-003",
+      "kind": "input-discipline",
+      "expected": "rsu_sell_vs_hold",
+      "utterance": "1,000 RSUs vesting next month at my employer Fabrikam Systems, which is private, valued at $100 a share internally. Single filer, California, $200,000 taxable income, still employed. Should I sell at vest or hold 2 years?",
+      "forbiddenArgs": [
+        "volatility",
+        "expectedSalePrice"
+      ]
+    },
+    {
+      "id": "input-disc-004",
+      "kind": "input-discipline",
+      "expected": "concentration_analyze",
+      "utterance": "I hold $400,000 of stock in Contoso Manufacturing, a private company, cost basis $100,000, acquired 2022-01-01, industrials. Single filer in California with $200,000 taxable income. How concentrated am I and what should I do?",
+      "forbiddenArgs": [
+        "volatility",
+        "expectedPositionReturn",
+        "totalAssets"
+      ]
+    },
+    {
+      "id": "input-disc-005",
+      "kind": "input-discipline",
+      "expected": "rsu_lot_optimize",
+      "utterance": "I want to sell half my vested RSUs at Initech, which is private. Lots: 120 shares vested 2022-08-15 at $95 basis, 100 shares vested 2024-02-15 at $130 basis. Single, California, $200,000 taxable income, over the next 2 years. Which lots first?",
+      "forbiddenArgs": [
+        "currentPrice"
+      ]
+    },
+    {
+      "id": "input-disc-006",
+      "kind": "input-discipline",
+      "expected": "amt_iso_optimize",
+      "utterance": "20,000 ISOs, $1 strike, $40 fair market value, granted 2021-03-01, married filing jointly in New York, still employed, 4-year horizon. The stock is NVDA. Plan the exercise schedule.",
+      "forbiddenArgs": [
+        "ordinaryIncome"
+      ]
+    },
+    {
+      "id": "input-disc-007",
+      "kind": "input-discipline",
+      "expected": "qsbs_check",
+      "utterance": "I bought 50,000 shares of a Delaware C-corp at original issuance on 2020-01-15 for $0.10 a share, gross assets were under $50M, software company, active business, and I want to sell in 2026 for about $5,000,000 of gain. Single filer in California. Do I qualify for QSBS?",
+      "forbiddenArgs": [
+        "ordinaryIncome"
+      ]
+    },
+    {
+      "id": "input-disc-008",
+      "kind": "input-discipline",
+      "expected": "protective_put_price",
+      "utterance": "I want to price a protective put on my position in a private biotech I hold through a secondary, roughly 10% downside protection over one year.",
+      "forbiddenArgs": [
+        "positionValue",
+        "volatility"
+      ]
+    },
+    {
+      "id": "input-disc-009",
+      "kind": "input-discipline",
+      "expected": "amt_iso_optimize",
+      "utterance": "8,000 ISOs at $3 strike, $60 fair market value, granted 2022-06-01, single filer in Texas, $250,000 taxable income, 3-year horizon, volatility 0.55. I have absolutely no view on how the stock will grow, so use a market assumption.",
+      "forbiddenArgs": [
+        "expectedGrowth"
+      ]
+    },
+    {
+      "id": "input-disc-010",
+      "kind": "input-discipline",
+      "expected": "rsu_sell_vs_hold",
+      "utterance": "500 AAPL RSUs vesting at $230 a share. Single filer, California, $300,000 taxable income, still employed, thinking about holding 2 years. Use the ticker to fill in the market assumptions.",
+      "forbiddenArgs": [
+        "volatility",
+        "expectedSalePrice"
+      ]
+    }
   ]
 }

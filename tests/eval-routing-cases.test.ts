@@ -19,9 +19,11 @@ const data = JSON.parse(readFileSync('scripts/eval/routing-cases.json', 'utf8'))
     expected: string | null;
     expectedSet?: string[];
     mustMention?: string[];
+    forbiddenArgs?: string[];
   }[];
 };
 const toolNames = new Set<string>(TOOLS.map((t) => t.name));
+const byName = Object.fromEntries(TOOLS.map((t) => [t.name, t]));
 
 describe('routing-eval dataset drift guard', () => {
   it('has a casesVersion and unique ids', () => {
@@ -44,12 +46,25 @@ describe('routing-eval dataset drift guard', () => {
 
   it('kinds are valid and carry the fields their grading requires', () => {
     for (const c of data.cases) {
-      expect(['single', 'ambiguous', 'negative', 'multi']).toContain(c.kind);
+      expect(['single', 'ambiguous', 'negative', 'multi', 'input-discipline']).toContain(c.kind);
       expect(c.utterance.length).toBeGreaterThan(0);
       if (c.kind === 'single') expect(c.expected, c.id).toBeTypeOf('string');
       if (c.kind === 'negative' || c.kind === 'ambiguous') expect(c.expected, c.id).toBeNull();
       if (c.kind === 'ambiguous') expect((c.mustMention ?? []).length, c.id).toBeGreaterThan(0);
       if (c.kind === 'multi') expect((c.expectedSet ?? []).length, c.id).toBeGreaterThan(1);
+      if (c.kind === 'input-discipline') {
+        // Graded on the ARGUMENTS of the call, so the case is meaningless
+        // without the fields it forbids, and each must be a real input on the
+        // tool it expects (a typo would make the case unfailable).
+        expect(c.expected, c.id).toBeTypeOf('string');
+        expect((c.forbiddenArgs ?? []).length, c.id).toBeGreaterThan(0);
+        const props = Object.keys(
+          (byName[c.expected!]?.inputSchema?.properties ?? {}) as Record<string, unknown>,
+        );
+        for (const f of c.forbiddenArgs ?? []) {
+          expect(props, `${c.id}: ${f} is not an input of ${c.expected}`).toContain(f);
+        }
+      }
     }
   });
 
@@ -61,6 +76,7 @@ describe('routing-eval dataset drift guard', () => {
     expect(counts.ambiguous ?? 0).toBeGreaterThanOrEqual(15);
     expect(counts.negative ?? 0).toBeGreaterThanOrEqual(25);
     expect(counts.multi ?? 0).toBeGreaterThanOrEqual(20);
+    expect(counts['input-discipline'] ?? 0).toBeGreaterThanOrEqual(10);
   });
 
   it('contains no em-dash (repo-wide agent-surface lint convention)', () => {

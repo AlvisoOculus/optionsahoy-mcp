@@ -172,6 +172,15 @@ const QSBS_UNSURE_NOTE =
 // be taxable income. Regular tax and the AMTI base legitimately differ here -
 // AMT disallows the standard deduction - and one field feeds both, so the
 // contract is stated per field rather than guessed from "W-2 income".
+// Appended to required fields that are FACTS ABOUT THE USER (share counts,
+// prices, balances, income) rather than planning choices (horizon, tenor).
+// The validator range-checks these but cannot provenance-check them, so an
+// invented figure is accepted silently; the 2026-08-01 input-discipline eval
+// caught Opus inventing positionValue=1000000 on a call that routed correctly.
+// "values must come from the user" in a parameter description is the placement
+// the Anthropic directory review asked for.
+const USER_FACT = ' Must come from the user.';
+
 const TAXABLE_INCOME_NOTE =
   ' This is taxable income after deductions, not gross wages: the engine applies no standard or itemized deduction to it.';
 
@@ -1053,18 +1062,18 @@ export const TOOLS: McpTool[] = [
           type: 'integer',
           minimum: 1,
           description:
-            'Total Incentive Stock Option (ISO) shares available to exercise across the planning horizon.',
+            'Total Incentive Stock Option (ISO) shares available to exercise across the planning horizon.' + USER_FACT,
         },
         strike: {
           type: 'number',
           minimum: 0,
-          description: 'Strike price per share, USD.',
+          description: 'Strike price per share, USD.' + USER_FACT,
         },
         fmv: {
           type: 'number',
           minimum: 0,
           description:
-            'Current fair market value per share, USD. Anchors year-1 of the growth path; future years compound from here using expectedGrowth and volatilityDrag.',
+            'Current fair market value per share, USD. Anchors year-1 of the growth path; future years compound from here using expectedGrowth and volatilityDrag.' + USER_FACT,
         },
         expectedGrowth: {
           type: ['number', 'string'],
@@ -1089,7 +1098,7 @@ export const TOOLS: McpTool[] = [
           type: 'number',
           minimum: 0,
           description:
-            'Annual ordinary income before this exercise, USD. Baseline for the bracket walk and the AMT exemption phaseout.' + TAXABLE_INCOME_NOTE,
+            'Annual ordinary income before this exercise, USD. Baseline for the bracket walk and the AMT exemption phaseout.' + USER_FACT + TAXABLE_INCOME_NOTE,
         },
         stateCode: {
           ...STATE_SCHEMA,
@@ -1149,24 +1158,24 @@ export const TOOLS: McpTool[] = [
         shares: {
           type: 'integer',
           minimum: 1,
-          description: 'Non-qualified Stock Option (NSO) shares to exercise.',
+          description: 'Non-qualified Stock Option (NSO) shares to exercise.' + USER_FACT,
         },
         strike: {
           type: 'number',
           minimum: 0,
-          description: 'Strike price per share, USD.',
+          description: 'Strike price per share, USD.' + USER_FACT,
         },
         currentPrice: {
           type: 'number',
           minimum: 0,
           description:
-            'Current fair market value per share, USD. The bargain element at exercise is shares × (currentPrice − strike).',
+            'Current fair market value per share, USD. The bargain element at exercise is shares × (currentPrice − strike).' + USER_FACT,
         },
         ordinaryIncome: {
           type: 'number',
           minimum: 0,
           description:
-            'Annual ordinary income before this exercise, USD. Baseline for the bracket walk on the bargain element.' + TAXABLE_INCOME_NOTE,
+            'Annual ordinary income before this exercise, USD. Baseline for the bracket walk on the bargain element.' + USER_FACT + TAXABLE_INCOME_NOTE,
         },
         filingStatus: {
           ...FILING_SCHEMA,
@@ -1233,18 +1242,18 @@ export const TOOLS: McpTool[] = [
         shares: {
           type: 'integer',
           minimum: 1,
-          description: 'Restricted Stock Unit (RSU) shares vesting in this tranche.',
+          description: 'Restricted Stock Unit (RSU) shares vesting in this tranche.' + USER_FACT,
         },
         currentPrice: {
           type: 'number',
           minimum: 0,
           description:
-            'Fair market value per share at vest, USD. Also the cost basis on retained shares.',
+            'Fair market value per share at vest, USD. Also the cost basis on retained shares.' + USER_FACT,
         },
         ordinaryIncome: {
           type: 'number',
           minimum: 0,
-          description: 'Annual ordinary income before this vest, USD. Baseline for the bracket walk on the vest amount.' + TAXABLE_INCOME_NOTE,
+          description: 'Annual ordinary income before this vest, USD. Baseline for the bracket walk on the vest amount.' + USER_FACT + TAXABLE_INCOME_NOTE,
         },
         filingStatus: {
           ...FILING_SCHEMA,
@@ -1306,13 +1315,13 @@ export const TOOLS: McpTool[] = [
         positionValue: {
           type: 'number',
           minimum: 0,
-          description: 'Current market value of the concentrated single-stock position, USD.',
+          description: 'Current market value of the concentrated single-stock position, USD.' + USER_FACT,
         },
         costBasis: {
           type: 'number',
           minimum: 0,
           description:
-            'Total cost basis of the position, USD (sum of strikes paid + ordinary-income inclusions on RSU vest / NSO exercise / disqualified ISO).',
+            'Total cost basis of the position, USD (sum of strikes paid + ordinary-income inclusions on RSU vest / NSO exercise / disqualified ISO).' + USER_FACT,
         },
         acquisitionDate: {
           ...ISO_DATE,
@@ -1335,7 +1344,7 @@ export const TOOLS: McpTool[] = [
         ordinaryIncome: {
           type: 'number',
           minimum: 0,
-          description: 'Annual ordinary income before any sales, USD. Baseline for LTCG bracket determination.' + TAXABLE_INCOME_NOTE,
+          description: 'Annual ordinary income before any sales, USD. Baseline for LTCG bracket determination.' + USER_FACT + TAXABLE_INCOME_NOTE,
         },
         totalAssets: {
           type: 'number',
@@ -1416,7 +1425,7 @@ export const TOOLS: McpTool[] = [
           type: 'number',
           minimum: 0,
           description:
-            'Market value of the underlying single-stock position, USD. Premium and max-loss scale linearly with this.',
+            'Market value of the underlying single-stock position, USD. Premium and max-loss scale linearly with this.' + USER_FACT,
         },
         sector: {
           ...SECTOR_SCHEMA,
@@ -1529,12 +1538,12 @@ export const TOOLS: McpTool[] = [
           type: 'number',
           minimum: 0,
           description:
-            "Adjusted basis of the QSBS shares, USD. Used in the 10× basis cap: the per-issuer exclusion cap is max($10M, 10 × adjustedBasis).",
+            "Adjusted basis of the QSBS shares, USD. Used in the 10× basis cap: the per-issuer exclusion cap is max($10M, 10 × adjustedBasis)." + USER_FACT,
         },
         expectedGain: {
           type: 'number',
           description:
-            'Expected total gain on sale, USD. Compared against the per-issuer exclusion cap to compute excludableGain and taxableGain.',
+            'Expected total gain on sale, USD. Compared against the per-issuer exclusion cap to compute excludableGain and taxableGain.' + USER_FACT,
         },
         stateCode: {
           ...STATE_SCHEMA,
@@ -1544,7 +1553,7 @@ export const TOOLS: McpTool[] = [
         ordinaryIncome: {
           type: 'number',
           minimum: 0,
-          description: 'Annual ordinary income, USD. Baseline for the federal LTCG bracket on any taxable gain.' + TAXABLE_INCOME_NOTE,
+          description: 'Annual ordinary income, USD. Baseline for the federal LTCG bracket on any taxable gain.' + USER_FACT + TAXABLE_INCOME_NOTE,
         },
         filingStatus: {
           ...FILING_SCHEMA,
@@ -1571,7 +1580,7 @@ export const TOOLS: McpTool[] = [
         targetAfterTax: {
           type: 'number',
           minimum: 0,
-          description: 'Net cash needed in the user\'s pocket after all applicable taxes (federal LTCG/ordinary + state + NIIT), USD. Example: a $1M house with 20% down minus existing savings might give a $200,000 target.',
+          description: 'Net cash needed in the user\'s pocket after all applicable taxes (federal LTCG/ordinary + state + NIIT), USD. Example: a $1M house with 20% down minus existing savings might give a $200,000 target.' + USER_FACT,
         },
         targetDate: {
           ...ISO_DATE,
@@ -1642,7 +1651,7 @@ export const TOOLS: McpTool[] = [
         ordinaryIncome: {
           type: 'number',
           minimum: 0,
-          description: 'Annual ordinary income, USD. Used as the baseline for the federal LTCG bracket walk in each candidate year and for NIIT threshold tests.' + TAXABLE_INCOME_NOTE,
+          description: 'Annual ordinary income, USD. Used as the baseline for the federal LTCG bracket walk in each candidate year and for NIIT threshold tests.' + USER_FACT + TAXABLE_INCOME_NOTE,
         },
         filingStatus: {
           ...FILING_SCHEMA,
@@ -1717,7 +1726,7 @@ export const TOOLS: McpTool[] = [
         ordinaryIncome: {
           type: 'number',
           minimum: 0,
-          description: 'Total household ordinary income for the year, USD, from all sources. Sets the federal LTCG bracket floor, the short-term ordinary rate, and the net investment income tax (NIIT) threshold test. This is taxable income after deductions, not gross wages: the engine applies no standard or itemized deduction to it. Assumed constant across plan years.',
+          description: 'Total household ordinary income for the year, USD, from all sources. Sets the federal LTCG bracket floor, the short-term ordinary rate, and the net investment income tax (NIIT) threshold test. This is taxable income after deductions, not gross wages: the engine applies no standard or itemized deduction to it. Assumed constant across plan years.' + USER_FACT,
         },
         filingStatus: {
           ...FILING_SCHEMA,

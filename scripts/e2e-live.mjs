@@ -1,7 +1,12 @@
 // AlphaLatitude Inc. © 2026
 // Live end-to-end smoke against the production MCP endpoint: initialize,
-// tools/list, resources/list, prompts/list, then tools/call for all 7
-// tools with known-valid payloads (mirrors the /for-agents try-it bodies).
+// tools/list, resources/list, prompts/list, then tools/call for every tool
+// with known-valid payloads (mirrors the /for-agents try-it bodies).
+//
+// CALLS must cover every name in tools/list, and the script asserts that
+// rather than a hardcoded count: shipping a tool without a live payload then
+// fails here instead of going unsmoked (rsu_lot_optimize did, from #174 until
+// 2026-08-01).
 // Usage: node scripts/e2e-live.mjs [base-url]   (default https://optionsahoy.com/mcp)
 
 const BASE = process.argv[2] ?? 'https://optionsahoy.com/mcp';
@@ -48,6 +53,15 @@ const CALLS = {
     ] }],
     ordinaryIncome: 350000, filingStatus: 'single', stateCode: 'CA',
   },
+  rsu_lot_optimize: {
+    lots: [
+      { vestDate: '2022-08-15', shares: 120, costBasisPerShare: 95 },
+      { vestDate: '2024-02-15', shares: 100, costBasisPerShare: 130 },
+      { vestDate: '2026-05-15', shares: 80, costBasisPerShare: 210 },
+    ],
+    currentPrice: 180, divestFraction: 0.5, horizonYears: 2,
+    ordinaryIncome: 200000, filingStatus: 'single', stateCode: 'CA',
+  },
 };
 
 let id = 0;
@@ -85,11 +99,18 @@ check(
   tools.filter((t) => t.outputSchema?.type !== 'object').map((t) => t.name).join(',') || 'all present',
 );
 
+const missingPayloads = tools.map((t) => t.name).filter((n) => !(n in CALLS));
+check(
+  'every tool in tools/list has a live payload here',
+  missingPayloads.length === 0,
+  missingPayloads.length ? `no CALLS entry for: ${missingPayloads.join(',')}` : 'all covered',
+);
+
 const resources = (await rpc('resources/list', {})).resources;
-check('resources/list has 7 resources', resources.length === 7);
+check('resources/list has 8 resources', resources.length === 8, `got ${resources.length}`);
 
 const prompts = (await rpc('prompts/list', {})).prompts;
-check('prompts/list has 7 prompts', prompts.length === 7);
+check('prompts/list has 8 prompts', prompts.length === 8, `got ${prompts.length}`);
 
 for (const [name, args] of Object.entries(CALLS)) {
   const t0 = Date.now();
