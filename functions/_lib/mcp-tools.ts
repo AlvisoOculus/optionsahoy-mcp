@@ -181,6 +181,19 @@ const QSBS_UNSURE_NOTE =
 // the Anthropic directory review asked for.
 const USER_FACT = ' Must come from the user.';
 
+// Required fields that are the user's CHOICE rather than a fact they know:
+// horizon, hold period, tenor, protection level, divest fraction. There is no
+// true value to contradict a guess here, which makes a silent one worse, not
+// better: the user gets an answer to a question they did not ask and never
+// learns a different assumption was substituted. All are required, so the tool
+// cannot default them either. So the instruction is to ask, not to propose:
+// a proposal is only safe if the user is told, and the disclosure would land
+// after the call, where nothing can verify it (the 2026-08-01 eval kills at
+// the first tool_use for exactly this reason). Opus invented divestFraction
+// 0.5 - half the position - for a user who said only "start diversifying".
+const PLANNING_CHOICE =
+  " The user's choice, not a modelling detail, and it changes the answer: use the value they gave, and if they gave none, ask for it rather than assuming one.";
+
 const TAXABLE_INCOME_NOTE =
   ' This is taxable income after deductions, not gross wages: the engine applies no standard or itemized deduction to it.';
 
@@ -1116,7 +1129,7 @@ export const TOOLS: McpTool[] = [
           minimum: 1,
           maximum: 10,
           description:
-            'Planning horizon in years (1..10). The optimizer searches all feasible per-year share allocations across this many years.',
+            'Planning horizon in years (1..10). The optimizer searches all feasible per-year share allocations across this many years.' + PLANNING_CHOICE,
         },
         cashReturnRate: {
           type: 'number',
@@ -1194,7 +1207,7 @@ export const TOOLS: McpTool[] = [
           type: 'number',
           minimum: 1,
           description:
-            'Years to hold after exercise (minimum 1). At ≥1 year, the appreciation since exercise is LTCG; sub-1-year holds are out of scope.',
+            'Years to hold after exercise (minimum 1). At ≥1 year, the appreciation since exercise is LTCG; sub-1-year holds are out of scope.' + PLANNING_CHOICE,
         },
         expectedSalePrice: {
           type: ['number', 'string'],
@@ -1273,7 +1286,7 @@ export const TOOLS: McpTool[] = [
           minimum: 0.25,
           maximum: 5,
           description:
-            'Years to hold after vest (0.25..5). Below 1 year triggers the short-term capital gains cliff (ordinary rates on appreciation).',
+            'Years to hold after vest (0.25..5). Below 1 year triggers the short-term capital gains cliff (ordinary rates on appreciation).' + PLANNING_CHOICE,
         },
         expectedSalePrice: {
           type: ['number', 'string'],
@@ -1393,12 +1406,12 @@ export const TOOLS: McpTool[] = [
               type: 'number',
               minimum: 0.05,
               maximum: 0.5,
-              description: 'Put strike chosen as (1 − this fraction) × spot. 0.10 = 10% OTM put. Range 0.05..0.50.',
+              description: 'Put strike chosen as (1 − this fraction) × spot. 0.10 = 10% OTM put. Range 0.05..0.50.' + PLANNING_CHOICE,
             },
             tenorYears: {
               type: 'number',
               minimum: 0.25,
-              description: 'Option tenor in years. 1 = 12-month; 0.25 = ~90-day.',
+              description: 'Option tenor in years. 1 = 12-month; 0.25 = ~90-day.' + PLANNING_CHOICE,
             },
             upsideCapPct: {
               type: 'number',
@@ -1448,12 +1461,12 @@ export const TOOLS: McpTool[] = [
           type: 'number',
           minimum: 0.05,
           maximum: 0.5,
-          description: 'Put strike as (1 − this fraction) × spot. 0.10 = 10% OTM put. Range 0.05..0.50.',
+          description: 'Put strike as (1 − this fraction) × spot. 0.10 = 10% OTM put. Range 0.05..0.50.' + PLANNING_CHOICE,
         },
         tenorYears: {
           type: 'number',
           minimum: 0.25,
-          description: 'Option tenor in years. 1 = 12-month; 0.25 = ~90-day.',
+          description: 'Option tenor in years. 1 = 12-month; 0.25 = ~90-day.' + PLANNING_CHOICE,
         },
         expectedReturn: {
           type: 'number',
@@ -1715,13 +1728,13 @@ export const TOOLS: McpTool[] = [
           type: 'number',
           minimum: 0.1,
           maximum: 1,
-          description: 'Fraction of TOTAL shares to divest, as a decimal (0.5 = sell half). Range 0.10 to 1.0. NOTE: a decimal fraction, NOT a percent, so pass 0.5 not 50. The tool sells round(divestFraction x totalShares) shares, floored at 1.',
+          description: 'Fraction of TOTAL shares to divest, as a decimal (0.5 = sell half). Range 0.10 to 1.0. NOTE: a decimal fraction, NOT a percent, so pass 0.5 not 50. The tool sells round(divestFraction x totalShares) shares, floored at 1.' + PLANNING_CHOICE,
         },
         horizonYears: {
           type: 'integer',
           minimum: 1,
           maximum: 3,
-          description: 'Tax years the plan may span: 1 = sell everything now, 2, or 3. More years let the plan spread gains across brackets and defer short-term lots to long-term, at the cost of staying exposed to the stock longer.',
+          description: 'Tax years the plan may span: 1 = sell everything now, 2, or 3. More years let the plan spread gains across brackets and defer short-term lots to long-term, at the cost of staying exposed to the stock longer.' + PLANNING_CHOICE,
         },
         ordinaryIncome: {
           type: 'number',

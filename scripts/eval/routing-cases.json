@@ -1,5 +1,5 @@
 {
-  "casesVersion": "2026-08-01.1",
+  "casesVersion": "2026-08-01.2",
   "cases": [
     {
       "id": "single-amt-001",
@@ -1422,6 +1422,24 @@
       "forbiddenArgs": [
         "volatility",
         "expectedSalePrice"
+      ]
+    },
+    {
+      "id": "input-disc-011",
+      "kind": "input-discipline",
+      "expected": "rsu_lot_optimize",
+      "utterance": "I want to start diversifying out of my vested Acme Corp RSUs, which trade at $180. Lots: 120 shares vested 2022-08-15 at $95 basis, 100 shares vested 2024-02-15 at $130 basis. Single filer, California, $200,000 taxable income, over the next 2 tax years. Which lots should I sell first?",
+      "forbiddenArgs": [
+        "divestFraction"
+      ]
+    },
+    {
+      "id": "input-disc-012",
+      "kind": "input-discipline",
+      "expected": "nso_calculate",
+      "utterance": "I am exercising 5,000 NSOs at a $10 strike, the stock is AAPL at $230. Single filer, California, $180,000 taxable income, still employed. What does the tax look like?",
+      "forbiddenArgs": [
+        "holdYears"
       ]
     }
   ]

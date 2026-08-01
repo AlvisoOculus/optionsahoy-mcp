@@ -135,7 +135,7 @@
             "type": "integer",
             "minimum": 1,
             "maximum": 10,
-            "description": "Planning horizon in years (1..10). The optimizer searches all feasible per-year share allocations across this many years."
+            "description": "Planning horizon in years (1..10). The optimizer searches all feasible per-year share allocations across this many years. The user's choice, not a modelling detail, and it changes the answer: use the value they gave, and if they gave none, ask for it rather than assuming one."
           },
           "cashReturnRate": {
             "type": "number",
@@ -282,7 +282,7 @@
           "holdYears": {
             "type": "number",
             "minimum": 1,
-            "description": "Years to hold after exercise (minimum 1). At ≥1 year, the appreciation since exercise is LTCG; sub-1-year holds are out of scope."
+            "description": "Years to hold after exercise (minimum 1). At ≥1 year, the appreciation since exercise is LTCG; sub-1-year holds are out of scope. The user's choice, not a modelling detail, and it changes the answer: use the value they gave, and if they gave none, ask for it rather than assuming one."
           },
           "expectedSalePrice": {
             "type": [
@@ -437,7 +437,7 @@
             "type": "number",
             "minimum": 0.25,
             "maximum": 5,
-            "description": "Years to hold after vest (0.25..5). Below 1 year triggers the short-term capital gains cliff (ordinary rates on appreciation)."
+            "description": "Years to hold after vest (0.25..5). Below 1 year triggers the short-term capital gains cliff (ordinary rates on appreciation). The user's choice, not a modelling detail, and it changes the answer: use the value they gave, and if they gave none, ask for it rather than assuming one."
           },
           "expectedSalePrice": {
             "type": [
@@ -654,12 +654,12 @@
                 "type": "number",
                 "minimum": 0.05,
                 "maximum": 0.5,
-                "description": "Put strike chosen as (1 − this fraction) × spot. 0.10 = 10% OTM put. Range 0.05..0.50."
+                "description": "Put strike chosen as (1 − this fraction) × spot. 0.10 = 10% OTM put. Range 0.05..0.50. The user's choice, not a modelling detail, and it changes the answer: use the value they gave, and if they gave none, ask for it rather than assuming one."
               },
               "tenorYears": {
                 "type": "number",
                 "minimum": 0.25,
-                "description": "Option tenor in years. 1 = 12-month; 0.25 = ~90-day."
+                "description": "Option tenor in years. 1 = 12-month; 0.25 = ~90-day. The user's choice, not a modelling detail, and it changes the answer: use the value they gave, and if they gave none, ask for it rather than assuming one."
               },
               "upsideCapPct": {
                 "type": "number",
@@ -724,12 +724,12 @@
             "type": "number",
             "minimum": 0.05,
             "maximum": 0.5,
-            "description": "Put strike as (1 − this fraction) × spot. 0.10 = 10% OTM put. Range 0.05..0.50."
+            "description": "Put strike as (1 − this fraction) × spot. 0.10 = 10% OTM put. Range 0.05..0.50. The user's choice, not a modelling detail, and it changes the answer: use the value they gave, and if they gave none, ask for it rather than assuming one."
           },
           "tenorYears": {
             "type": "number",
             "minimum": 0.25,
-            "description": "Option tenor in years. 1 = 12-month; 0.25 = ~90-day."
+            "description": "Option tenor in years. 1 = 12-month; 0.25 = ~90-day. The user's choice, not a modelling detail, and it changes the answer: use the value they gave, and if they gave none, ask for it rather than assuming one."
           },
           "expectedReturn": {
             "type": "number",
@@ -1241,13 +1241,13 @@
             "type": "number",
             "minimum": 0.1,
             "maximum": 1,
-            "description": "Fraction of TOTAL shares to divest, as a decimal (0.5 = sell half). Range 0.10 to 1.0. NOTE: a decimal fraction, NOT a percent, so pass 0.5 not 50. The tool sells round(divestFraction x totalShares) shares, floored at 1."
+            "description": "Fraction of TOTAL shares to divest, as a decimal (0.5 = sell half). Range 0.10 to 1.0. NOTE: a decimal fraction, NOT a percent, so pass 0.5 not 50. The tool sells round(divestFraction x totalShares) shares, floored at 1. The user's choice, not a modelling detail, and it changes the answer: use the value they gave, and if they gave none, ask for it rather than assuming one."
           },
           "horizonYears": {
             "type": "integer",
             "minimum": 1,
             "maximum": 3,
-            "description": "Tax years the plan may span: 1 = sell everything now, 2, or 3. More years let the plan spread gains across brackets and defer short-term lots to long-term, at the cost of staying exposed to the stock longer."
+            "description": "Tax years the plan may span: 1 = sell everything now, 2, or 3. More years let the plan spread gains across brackets and defer short-term lots to long-term, at the cost of staying exposed to the stock longer. The user's choice, not a modelling detail, and it changes the answer: use the value they gave, and if they gave none, ask for it rather than assuming one."
           },
           "ordinaryIncome": {
             "type": "number",
