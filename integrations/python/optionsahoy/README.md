@@ -4,11 +4,11 @@
 [![Python versions](https://img.shields.io/pypi/pyversions/optionsahoy.svg)](https://pypi.org/project/optionsahoy/)
 [![License: MIT](https://img.shields.io/pypi/l/optionsahoy.svg)](https://github.com/AlvisoOculus/optionsahoy-mcp/blob/main/LICENSE)
 
-A thin, dependency-light Python client for the OptionsAhoy keyless public REST application programming interface (API). It wraps eight deterministic equity-compensation tax calculators behind one synchronous client. No OptionsAhoy account, no API key, full federal tax code plus all 50 states and the District of Columbia (DC).
+A thin, dependency-light Python client for the OptionsAhoy keyless public REST application programming interface (API). It wraps eight deterministic equity-compensation tax calculators behind one synchronous client. No OptionsAhoy account, no API key, relevant federal tax code plus all 50 states and the District of Columbia (DC).
 
 ## Why not just ask the model?
 
-We benchmarked five frontier large language models (LLMs), 3 runs each, 15 trials total, on the same multi-year incentive stock option (ISO) exercise problem. Every trial overshot the true after-tax outcome, by 2x to 20x. See the benchmark, updated for the latest models, at https://optionsahoy.com/benchmark. Multi-year scheduling has a search space larger than an LLM can reason through in-context; these tools return the verifiable answer instead.
+We benchmarked five frontier large language models (LLMs), 3 runs each, 15 trials total, on the same multi-year incentive stock option (ISO) exercise problem. Every trial overshot the true after-tax outcome, by 2x to 20x. See the benchmark, updated for the latest models, at https://optionsahoy.com/benchmark. Multi-year scheduling has a search space larger than is practical to work through in-context; these tools return the verifiable answer instead.
 
 Raw responses and scoring: [llm-iso-benchmark](https://github.com/AlvisoOculus/llm-iso-benchmark). Full write-up: [But can it do taxes though?](https://hackernoon.com/but-can-it-do-taxes-though-why-you-shouldnt-trust-chatbots-with-tax-optimization-math).
 
@@ -29,7 +29,7 @@ Eight calculators, each a method on `OptionsAhoyClient`:
 - `equity_funding(...)` - multi-year plan to fund a cash goal from equity by a target date
 - `rsu_lot_order(...)` - lowest-tax sell order for vested RSU lots to divest a target fraction, versus first-in-first-out (FIFO)
 
-Coverage spans the full federal tax code (ordinary brackets, long-term capital gains, AMT with credit recovery, FICA, the net investment income tax) plus all 50 states and DC. The only runtime dependency is [httpx](https://www.python-httpx.org/). No API key is read, stored, or sent anywhere.
+Coverage spans the relevant federal tax code (ordinary brackets, long-term capital gains, AMT with credit recovery, FICA, the net investment income tax) plus all 50 states and DC. The only runtime dependency is [httpx](https://www.python-httpx.org/). No API key is read, stored, or sent anywhere.
 
 ## Tools: inputs and outputs
 

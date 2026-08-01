@@ -13,9 +13,9 @@
 
 <sub>**Live usage:** MCP calls over the last 30 days, served straight from the server's own telemetry ([/api/v1/stats](https://optionsahoy.com/api/v1/stats), aggregate counts only, no PII).</sub>
 
-Deterministic equity-compensation tax math that any Model Context Protocol (MCP) client can call: incentive stock option (ISO) exercise schedules under the alternative minimum tax (AMT), non-qualified stock option (NSO) and restricted stock unit (RSU) decisions, qualified small business stock (QSBS) qualification, single-stock concentration, protective-put hedging, and equity-funding goals. Full federal tax code plus all 50 states and DC, 2026 brackets. Built by [AlphaLatitude Inc.](https://alphalatitude.com), the company behind [OptionsAhoy](https://optionsahoy.com).
+Deterministic equity-compensation tax math that any Model Context Protocol (MCP) client can call: incentive stock option (ISO) exercise schedules under the alternative minimum tax (AMT), non-qualified stock option (NSO) and restricted stock unit (RSU) decisions, qualified small business stock (QSBS) qualification, single-stock concentration, protective-put hedging, and equity-funding goals. Relevant federal tax code plus all 50 states and DC, 2026 brackets. Built by [AlphaLatitude Inc.](https://alphalatitude.com), the company behind [OptionsAhoy](https://optionsahoy.com).
 
-**Why not just ask the model?** We benchmarked five frontier large language models (LLMs), 3 runs each, 15 trials total, on the same multi-year ISO exercise problem. Every trial overshot the true after-tax outcome, by 2x to 20x. Multi-year scheduling has a search space larger than an LLM can reason through in-context; these tools return the verifiable answer instead. Live benchmark, updated for the latest models: [optionsahoy.com/benchmark](https://optionsahoy.com/benchmark). Raw responses and scoring: [llm-iso-benchmark](https://github.com/AlvisoOculus/llm-iso-benchmark). Full write-up: [But can it do taxes though?](https://hackernoon.com/but-can-it-do-taxes-though-why-you-shouldnt-trust-chatbots-with-tax-optimization-math)
+**Why not just ask the model?** We benchmarked five frontier large language models (LLMs), 3 runs each, 15 trials total, on the same multi-year ISO exercise problem. Every trial overshot the true after-tax outcome, by 2x to 20x. Multi-year scheduling has a search space larger than is practical to work through in-context; these tools return the verifiable answer instead. Live benchmark, updated for the latest models: [optionsahoy.com/benchmark](https://optionsahoy.com/benchmark). Raw responses and scoring: [llm-iso-benchmark](https://github.com/AlvisoOculus/llm-iso-benchmark). Full write-up: [But can it do taxes though?](https://hackernoon.com/but-can-it-do-taxes-though-why-you-shouldnt-trust-chatbots-with-tax-optimization-math)
 
 ## Install in one line
 
@@ -43,7 +43,7 @@ Full install matrix (Gemini CLI extension, config-file JSON, REST API, Google Cl
 | `equity_funding_plan` | Multi-year, multi-stack sell schedule to hit a target after-tax amount by a deadline; returns four named plans plus the full risk/wealth frontier |
 | `rsu_lot_optimize` | Which vested RSU lots to sell, and on which dates, to divest a target share fraction at the lowest computed tax: specific-lot identification, long-term deferral, and multi-year bracket spreading with in-plan loss carryforward, versus a FIFO sell order |
 
-The optimizers return the best schedule across the candidate space; the calculators return exact deterministic results. Deterministic computation, not a language-model guess, validated against brute-force ground truth on tractable cases ([see the proof](https://optionsahoy.com/verification)). Coverage spans the full federal tax code (ordinary brackets, long-term capital gains, AMT with credit recovery, FICA, NIIT) plus all 50 states and DC (state ordinary brackets, LTCG treatment, state AMT for CA, CO, CT, MN). Same engine as the in-browser calculators at [optionsahoy.com/tools](https://optionsahoy.com/tools); the API response is byte-identical to clicking through the tool.
+The ISO optimizer searches its full discretized candidate space and refines share by share, matching a brute-force maximum to the cent on a published tractable case ([see the proof](https://optionsahoy.com/verification)); the planners run deterministic bracket-aware searches and the calculators return exact results. Deterministic computation, not a language-model guess. Coverage spans the relevant federal tax code (ordinary brackets, long-term capital gains, AMT with credit recovery, FICA, NIIT) plus all 50 states and DC (state ordinary brackets, LTCG treatment, state AMT for CA, CO, CT, MN). Same engine as the in-browser calculators at [optionsahoy.com/tools](https://optionsahoy.com/tools); the API response carries the same computed figures as clicking through the tool.
 
 ## Use it in your agent framework (Python)
 
@@ -171,7 +171,7 @@ Or add to a Claude Desktop / Cline / Goose config file:
 }
 ```
 
-The local server returns byte-identical responses to the hosted endpoint at `https://optionsahoy.com/mcp`. Source for both lives in [`functions/_lib/mcp-tools.ts`](functions/_lib/mcp-tools.ts); the stdio entry point is [`src/stdio-server.ts`](src/stdio-server.ts).
+The local server returns the same computed figures as the hosted endpoint at `https://optionsahoy.com/mcp`. Source for both lives in [`functions/_lib/mcp-tools.ts`](functions/_lib/mcp-tools.ts); the stdio entry point is [`src/stdio-server.ts`](src/stdio-server.ts).
 
 ## Use the REST API directly
 

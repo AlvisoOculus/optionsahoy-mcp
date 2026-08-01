@@ -81,7 +81,7 @@ with live POST calls returning HTTP 200 JSON before this submission was prepared
    ```bash
    gh pr create --repo aipotheosis-labs/aci \
      --title "Add OptionsAhoy app: equity-comp tax/trade optimizer (7 functions)" \
-     --body "Adds the OptionsAhoy app under backend/apps/optionsahoy/ with eight REST functions covering ISO/AMT exercise optimization, NSO exercise, RSU sell-vs-hold, single-stock concentration, hedge pricing (protective put, zero-cost collar, and put spread), Section 1202 QSBS qualification, equity-funding planning, and RSU lot-order divest planning. Unauthenticated public API (no_auth); server https://optionsahoy.com. Full federal tax code plus all 50 states and DC. All eight endpoints validated with live HTTP 200 calls. Parameter schemas mirror the published OpenAPI spec at https://optionsahoy.com/openapi.json."
+     --body "Adds the OptionsAhoy app under backend/apps/optionsahoy/ with eight REST functions covering ISO/AMT exercise optimization, NSO exercise, RSU sell-vs-hold, single-stock concentration, hedge pricing (protective put, zero-cost collar, and put spread), Section 1202 QSBS qualification, equity-funding planning, and RSU lot-order divest planning. Unauthenticated public API (no_auth); server https://optionsahoy.com. Relevant federal tax code plus all 50 states and DC. All eight endpoints validated with live HTTP 200 calls. Parameter schemas mirror the published OpenAPI spec at https://optionsahoy.com/openapi.json."
    ```
 
 ## Open questions / operator action required

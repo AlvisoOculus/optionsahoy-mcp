@@ -3,11 +3,11 @@
 [![npm version](https://img.shields.io/npm/v/optionsahoy-ai-sdk.svg)](https://www.npmjs.com/package/optionsahoy-ai-sdk)
 [![License: MIT](https://img.shields.io/npm/l/optionsahoy-ai-sdk.svg)](https://github.com/AlvisoOculus/optionsahoy-mcp/blob/main/LICENSE)
 
-Vercel AI SDK tools for the OptionsAhoy equity-compensation calculators. One `tool()` per OptionsAhoy REST endpoint, each with a `zod` parameters schema and an `execute` that calls the keyless REST API. No OptionsAhoy account, no application programming interface (API) key, full federal tax code plus all 50 states and the District of Columbia (DC).
+Vercel AI SDK tools for the OptionsAhoy equity-compensation calculators. One `tool()` per OptionsAhoy REST endpoint, each with a `zod` parameters schema and an `execute` that calls the keyless REST API. No OptionsAhoy account, no application programming interface (API) key, relevant federal tax code plus all 50 states and the District of Columbia (DC).
 
 ## Why not just ask the model?
 
-We benchmarked five frontier large language models (LLMs), 3 runs each, 15 trials total, on the same multi-year incentive stock option (ISO) exercise problem. Every trial overshot the true after-tax outcome, by 2x to 20x. See the benchmark, updated for the latest models, at https://optionsahoy.com/benchmark. Multi-year scheduling has a search space larger than an LLM can reason through in-context; these tools return the verifiable answer instead.
+We benchmarked five frontier large language models (LLMs), 3 runs each, 15 trials total, on the same multi-year incentive stock option (ISO) exercise problem. Every trial overshot the true after-tax outcome, by 2x to 20x. See the benchmark, updated for the latest models, at https://optionsahoy.com/benchmark. Multi-year scheduling has a search space larger than is practical to work through in-context; these tools return the verifiable answer instead.
 
 Raw responses and scoring: [llm-iso-benchmark](https://github.com/AlvisoOculus/llm-iso-benchmark). Full write-up: [But can it do taxes though?](https://hackernoon.com/but-can-it-do-taxes-though-why-you-shouldnt-trust-chatbots-with-tax-optimization-math).
 

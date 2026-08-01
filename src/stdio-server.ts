@@ -28,6 +28,7 @@ import {
 import { TOOLS } from '../functions/_lib/mcp-tools';
 import { RESOURCES } from '../functions/_lib/mcp-resources';
 import { PROMPTS } from '../functions/_lib/mcp-prompts';
+import { SERVER_INSTRUCTIONS } from '../functions/_lib/mcp-instructions';
 import { SERVER_VERSION } from '../functions/_lib/version';
 
 const SERVER_INFO = { name: 'optionsahoy', version: SERVER_VERSION };
@@ -63,6 +64,9 @@ const server = new Server(SERVER_INFO, {
     resources: {},
     prompts: {},
   },
+  // Same routing guidance the hosted endpoint sends on initialize. Without it
+  // every stdio install (npx, MCPB bundle, Zed) saw tool descriptions only.
+  instructions: SERVER_INSTRUCTIONS,
 });
 
 server.setRequestHandler(ListToolsRequestSchema, async () => ({ tools: TOOLS_LIST }));

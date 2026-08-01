@@ -4,11 +4,11 @@
 [![Python versions](https://img.shields.io/pypi/pyversions/llama-index-tools-optionsahoy.svg)](https://pypi.org/project/llama-index-tools-optionsahoy/)
 [![License: MIT](https://img.shields.io/pypi/l/llama-index-tools-optionsahoy.svg)](https://github.com/AlvisoOculus/optionsahoy-mcp/blob/main/LICENSE)
 
-LlamaIndex tools for the OptionsAhoy equity-compensation calculators. `OptionsAhoyToolSpec` exposes one tool per OptionsAhoy REST endpoint, built on the keyless [`optionsahoy`](https://pypi.org/project/optionsahoy/) client. No OptionsAhoy account, no application programming interface (API) key, full federal tax code plus all 50 states and the District of Columbia (DC).
+LlamaIndex tools for the OptionsAhoy equity-compensation calculators. `OptionsAhoyToolSpec` exposes one tool per OptionsAhoy REST endpoint, built on the keyless [`optionsahoy`](https://pypi.org/project/optionsahoy/) client. No OptionsAhoy account, no application programming interface (API) key, relevant federal tax code plus all 50 states and the District of Columbia (DC).
 
 ## Why not just ask the model?
 
-We benchmarked five frontier large language models (LLMs), 3 runs each, 15 trials total, on the same multi-year incentive stock option (ISO) exercise problem. Every trial overshot the true after-tax outcome, by 2x to 20x. See the benchmark, updated for the latest models, at https://optionsahoy.com/benchmark. Multi-year scheduling has a search space larger than an LLM can reason through in-context; these tools return the verifiable answer instead.
+We benchmarked five frontier large language models (LLMs), 3 runs each, 15 trials total, on the same multi-year incentive stock option (ISO) exercise problem. Every trial overshot the true after-tax outcome, by 2x to 20x. See the benchmark, updated for the latest models, at https://optionsahoy.com/benchmark. Multi-year scheduling has a search space larger than is practical to work through in-context; these tools return the verifiable answer instead.
 
 Raw responses and scoring: [llm-iso-benchmark](https://github.com/AlvisoOculus/llm-iso-benchmark). Full write-up: [But can it do taxes though?](https://hackernoon.com/but-can-it-do-taxes-though-why-you-shouldnt-trust-chatbots-with-tax-optimization-math).
 
@@ -29,7 +29,7 @@ Beyond determinism, the tax math is independently verified, every release: every
 - `equity_funding_plan` - multi-year plan to fund a cash goal from equity by a target date
 - `rsu_lot_optimize` - which vested RSU lots to sell, and when, to divest a target fraction at the lowest tax
 
-Coverage spans the full federal tax code plus all 50 states and DC. The adapter pulls in the keyless `optionsahoy` client automatically. No API key is read, stored, or sent anywhere.
+Coverage spans the relevant federal tax code plus all 50 states and DC. The adapter pulls in the keyless `optionsahoy` client automatically. No API key is read, stored, or sent anywhere.
 
 ## Tools: inputs and outputs
 

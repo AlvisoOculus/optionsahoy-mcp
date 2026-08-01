@@ -58,12 +58,13 @@ const TOOL_INTENTS: Record<string, string> = {
   protective_put_price: 'hedge pricing: protective put, collar, put spread',
   qsbs_check: 'QSBS / Section 1202 qualification',
   equity_funding_plan: 'which shares to sell and when to hit a cash goal',
+  rsu_lot_optimize: 'which vested RSU lots to sell first, and in which years, to divest at the lowest tax',
 };
 for (const n of TOOL_NAMES) {
   if (!(n in TOOL_INTENTS)) throw new Error(`TOOL_INTENTS missing an entry for tool "${n}" (add it or the judge cannot route to it)`);
 }
 
-type Kind = 'single' | 'ambiguous' | 'negative' | 'multi';
+type Kind = 'single' | 'ambiguous' | 'negative' | 'multi' | 'input-discipline';
 type EvalCase = {
   id: string;
   kind: Kind;
@@ -71,6 +72,13 @@ type EvalCase = {
   expected: string | null;
   expectedSet?: string[];
   mustMention?: string[];
+  /**
+   * input-discipline only: fields the utterance does NOT supply and that no
+   * ticker or sentinel can resolve for this scenario (the company is private
+   * or uncovered). Passing a NUMBER for any of these is fabrication; asking
+   * the user, or passing the documented "market" sentinel, is correct.
+   */
+  forbiddenArgs?: string[];
 };
 // route: how the model expressed its tool choice.
 //   called  — emitted a tool_use block
@@ -86,6 +94,8 @@ type Verdict = {
   firstTool: string | null;
   route: 'called' | 'implied' | 'none';
   routedTool: string | null;
+  /** input-discipline: the forbidden fields the model supplied a number for. */
+  fabricated?: string[];
   note?: string;
 };
 
@@ -114,7 +124,7 @@ const { out: args, pos: positional } = parseArgs(process.argv.slice(2));
 if (args.help) {
   console.log(
     'Flags: --label <name> --models a,b --toolspec <path> --mcp-src <path> --cases <path> ' +
-      '--limit N --trials N --concurrency N --dry | --compare <runA.json> <runB.json>\n' +
+      '--kinds single,input-discipline --ids case-1,case-2 --limit N --trials N --concurrency N --dry | --compare <runA.json> <runB.json>\n' +
       '  --via-claude-code <armRepoPath>  Run through headless `claude -p` (subscription-billed)\n' +
       '    instead of the raw API. The arm repo supplies the stdio MCP server + instructions.\n' +
       '    Measures routing INSIDE the Claude Code harness (its system prompt is a confound);\n' +
@@ -138,6 +148,12 @@ const MODELS = (args.models ?? (VIA_CC ? 'sonnet,haiku' : 'claude-haiku-4-5,clau
   .split(',')
   .map((s) => s.trim());
 const LABEL = args.label ?? 'unlabeled';
+// --kinds single,input-discipline : run only those case kinds. Keeps a targeted
+// run (e.g. the 12 input-discipline cases) off the price of all 200.
+const KINDS = args.kinds ? new Set(args.kinds.split(',').map((k) => k.trim())) : null;
+// --ids a,b : run exactly these case ids. For re-testing a single regression
+// after a description change without paying for the whole set.
+const IDS = args.ids ? new Set(args.ids.split(',').map((k) => k.trim())) : null;
 // `|| default` (not `?? default`): a flag passed with no value parses to '' ->
 // Number('') === 0 -> falsy -> default, and a nonsensical 0 also falls back.
 const TRIALS = Number(args.trials) || 1;
@@ -150,6 +166,14 @@ const PROVIDER = VIA_CC ? 'claude-code' : 'anthropic';
 const CC_DISALLOWED =
   'Bash,Read,Write,Edit,Glob,Grep,WebSearch,WebFetch,Task,TodoWrite,NotebookEdit,BashOutput,KillShell,ExitPlanMode,Agent,SlashCommand,Skill';
 const CC_TIMEOUT_MS = 90_000;
+
+// True when the arm's stdio server serves SERVER_INSTRUCTIONS on initialize
+// (i.e. the arm postdates the instructions parity fix). Such an arm must not
+// ALSO get --append-system-prompt, or the block is injected twice and the A/B
+// stops being comparable against a pre-fix arm.
+const ARM_SERVES_INSTRUCTIONS = VIA_CC
+  ? fs.existsSync(path.join(VIA_CC, 'functions/_lib/mcp-instructions.ts'))
+  : false;
 
 // ---- Surface loading ----------------------------------------------------
 
@@ -169,21 +193,27 @@ function loadTools(toolspecPath: string) {
   return tools;
 }
 
-// The server instructions live as a single-quoted TS literal in mcp.ts
-// (instructions: '...'), the same shape the deploy patcher targets. Extract
-// and unescape it so the eval system prompt mirrors what a real MCP client
-// receives at initialize. (A shared exported SERVER_INSTRUCTIONS constant would
-// remove this scrape and also close the stdio-server no-instructions parity
-// gap; tracked as a separate product change.)
+// The server instructions live as a single-quoted TS literal, now in the
+// shared functions/_lib/mcp-instructions.ts (SERVER_INSTRUCTIONS) rather than
+// inline in mcp.ts. Extract and unescape it so the eval system prompt mirrors
+// what a real MCP client receives at initialize. The scrape survives the
+// extraction because arm checkouts under --via-claude-code may predate it.
 function loadInstructions(mcpSrcPath: string): string {
-  const src = fs.readFileSync(mcpSrcPath, 'utf8');
+  // The literal now lives in functions/_lib/mcp-instructions.ts (shared with
+  // the stdio server). Older arm checkouts still hold it inline in
+  // functions/mcp.ts, so try the shared module first and fall back, and accept
+  // either `SERVER_INSTRUCTIONS =` or the legacy `instructions:` form. That
+  // keeps --via-claude-code A/B runs against pre-extraction arms working.
+  const shared = path.join(path.dirname(mcpSrcPath), '_lib', 'mcp-instructions.ts');
+  const srcPath = fs.existsSync(shared) ? shared : mcpSrcPath;
+  const src = fs.readFileSync(srcPath, 'utf8');
   // Capture the literal, plus a trailing `+` if the literal is concatenated.
-  const m = src.match(/instructions:\s*'((?:[^'\\]|\\.)*)'(\s*\+)?/);
-  if (!m) throw new Error(`could not find instructions literal in ${mcpSrcPath}`);
+  const m = src.match(/(?:instructions:|SERVER_INSTRUCTIONS\s*=)\s*'((?:[^'\\]|\\.)*)'(\s*\+)?/);
+  if (!m) throw new Error(`could not find instructions literal in ${srcPath}`);
   if (m[2]) {
     throw new Error(
-      `instructions literal in ${mcpSrcPath} appears concatenated (found a trailing '+'); ` +
-        'the regex would capture only the first chunk. Extract a shared SERVER_INSTRUCTIONS constant.',
+      `instructions literal in ${srcPath} appears concatenated (found a trailing '+'); ` +
+        'the regex would capture only the first chunk. Keep SERVER_INSTRUCTIONS a single literal.',
     );
   }
   // Single left-to-right pass: `\\` -> `\`, `\n` -> newline, `\'` -> `'`. A
@@ -195,7 +225,13 @@ function loadInstructions(mcpSrcPath: string): string {
 
 // `routedTool` is firstTool when called, else the judge's classification of
 // which tool the reply is preparing (null = none).
-function grade(c: EvalCase, firstTool: string | null, routedTool: string | null, text: string): Verdict {
+function grade(
+  c: EvalCase,
+  firstTool: string | null,
+  routedTool: string | null,
+  text: string,
+  firstToolInput?: Record<string, unknown> | null,
+): Verdict {
   const route: Verdict['route'] = firstTool ? 'called' : routedTool ? 'implied' : 'none';
   const base = { id: c.id, kind: c.kind, firstTool, route, routedTool };
   switch (c.kind) {
@@ -210,6 +246,33 @@ function grade(c: EvalCase, firstTool: string | null, routedTool: string | null,
       // Stronger than "no call": preparing a tool for an out-of-scope ask
       // (route=implied) is also a routing failure.
       return { ...base, pass: routedTool === null };
+    case 'input-discipline': {
+      // The tools range-check but cannot provenance-check, so a fabricated
+      // number is accepted silently and returns a confident wrong answer.
+      // Correct behaviour is to ask for the field, or to use a documented
+      // resolver. Anything numeric in `forbiddenArgs` is fabrication.
+      //
+      // Routing is NOT graded here: asking for the missing field is a pass
+      // even though no tool was called, which is exactly the case the routing
+      // kinds would score as an under-call.
+      const args = firstToolInput ?? {};
+      const fabricated = (c.forbiddenArgs ?? []).filter((f) => {
+        const v = (args as Record<string, unknown>)[f];
+        if (v === undefined || v === null) return false;
+        // The "market" sentinel is a documented resolver, not a guess.
+        if (typeof v === 'string') return v.trim().toLowerCase() !== 'market';
+        return typeof v === 'number';
+      });
+      if (firstTool === null) return { ...base, pass: true, note: 'asked instead of calling' };
+      return {
+        ...base,
+        pass: fabricated.length === 0,
+        fabricated: fabricated.length ? fabricated : undefined,
+        note: fabricated.length
+          ? `fabricated ${fabricated.map((f) => `${f}=${JSON.stringify((args as Record<string, unknown>)[f])}`).join(', ')}`
+          : 'called with no invented inputs',
+      };
+    }
     case 'ambiguous': {
       // A clarifying question must actually surface the distinction; a model
       // that silently under-calls must not score here.
@@ -381,7 +444,7 @@ function compareRuns(pathA: string, pathB: string): void {
     p = Math.min(1, 2 * tail);
   }
   console.log(`model=${a.model} cases=${a.casesVersion} pairedN=${paired.length}`);
-  for (const kind of ['single', 'ambiguous', 'negative', 'multi'] as Kind[]) {
+  for (const kind of ['single', 'ambiguous', 'negative', 'multi', 'input-discipline'] as Kind[]) {
     const ra = rate(aV.filter((v) => v.kind === kind));
     const rb = rate(bV.filter((v) => v.kind === kind));
     console.log(`  ${kind.padEnd(9)} ${a.label}=${(ra * 100).toFixed(1)}%  ${b.label}=${(rb * 100).toFixed(1)}%  delta=${((rb - ra) * 100).toFixed(1)}pp`);
@@ -407,9 +470,11 @@ function resolveApiKey(): string | undefined {
 // ---- claude -p mode -----------------------------------------------------
 //
 // Spawns headless Claude Code with ONLY the arm repo's stdio MCP server
-// (--strict-mcp-config) and the arm's server instructions appended to the
-// system prompt (the stdio server does not ship `instructions` itself — known
-// parity gap). Parses stream-json and kills the child after the FIRST
+// (--strict-mcp-config). Arms whose stdio server predates the instructions
+// parity fix get those instructions appended to the system prompt instead;
+// arms that serve them on initialize must NOT also get the flag, or the block
+// lands in the prompt twice and the A/B is no longer comparable. Parses
+// stream-json and kills the child after the FIRST
 // assistant message: the routing decision is complete there, so tools never
 // need to execute. env drops ANTHROPIC_API_KEY to force subscription auth
 // (same idiom as the ops benchmark runner).
@@ -447,7 +512,9 @@ function callOnceViaClaudeCode(
       '--verbose',
       '--strict-mcp-config',
       '--mcp-config', mcpConfigPath,
-      '--append-system-prompt', instructions,
+      // Skip when the arm's stdio server already returns these on initialize
+      // (see ARM_SERVES_INSTRUCTIONS) - otherwise they land in the prompt twice.
+      ...(ARM_SERVES_INSTRUCTIONS ? [] : ['--append-system-prompt', instructions]),
       '--disallowedTools', CC_DISALLOWED,
       '--dangerously-skip-permissions',
     ]);
@@ -490,7 +557,7 @@ function callOnceViaClaudeCode(
           return;
         }
         if (evt.type !== 'assistant' || !evt.message?.content) continue;
-        for (const b of evt.message.content as { type: string; name?: string; text?: string }[]) {
+        for (const b of evt.message.content as { type: string; name?: string; text?: string; input?: Record<string, unknown> }[]) {
           if (b.type === 'text' && b.text) texts.push(b.text);
           if (b.type === 'tool_use') {
             const m = b.name?.match(CC_TOOL_RE);
@@ -499,7 +566,7 @@ function callOnceViaClaudeCode(
             // not the routing decision. Only an optionsahoy call ends the
             // case; stream on through everything else.
             if (m) {
-              finish({ firstTool: m[1]!, text: texts.join('\n') });
+              finish({ firstTool: m[1]!, firstToolInput: b.input ?? null, text: texts.join('\n') });
               return;
             }
           }
@@ -548,10 +615,23 @@ async function callOnce(
     .filter((b): b is Anthropic.TextBlock => b.type === 'text')
     .map((b) => b.text)
     .join('\n');
-  return { firstTool: firstToolBlock?.name ?? null, text, usage: resp.usage };
+  return {
+    firstTool: firstToolBlock?.name ?? null,
+    firstToolInput: (firstToolBlock?.input as Record<string, unknown> | undefined) ?? null,
+    text,
+    usage: resp.usage,
+  };
 }
 
-type CallResult = { firstTool: string | null; text: string; usage?: Anthropic.Usage; error?: boolean };
+type CallResult = {
+  firstTool: string | null;
+  /** Arguments of the first tool_use block. The routing kinds ignore this;
+   *  input-discipline grades on it, which is why it must not be discarded. */
+  firstToolInput?: Record<string, unknown> | null;
+  text: string;
+  usage?: Anthropic.Usage;
+  error?: boolean;
+};
 type CallFn = (utterance: string) => Promise<CallResult>;
 type JudgeFn = (reply: string) => Promise<string | null>;
 
@@ -579,9 +659,12 @@ async function runCase(
       continue;
     }
     // Route resolution: if no tool was called, ask the judge which tool the
-    // reply is preparing (ambiguous cases skip it — their grading is textual).
-    const routedTool = r.firstTool ?? (c.kind !== 'ambiguous' && r.text ? await judge(r.text) : null);
-    verdicts.push(grade(c, r.firstTool, routedTool, r.text));
+    // reply is preparing (ambiguous cases skip it - their grading is textual;
+    // input-discipline skips it too, since a no-call is already a pass there
+    // and the judge call would be spend with no effect on the verdict).
+    const skipJudge = c.kind === 'ambiguous' || c.kind === 'input-discipline';
+    const routedTool = r.firstTool ?? (!skipJudge && r.text ? await judge(r.text) : null);
+    verdicts.push(grade(c, r.firstTool, routedTool, r.text, r.firstToolInput));
   }
   const passMajority = verdicts.filter((v) => v.pass).length * 2 > verdicts.length;
   // Record a trial whose pass matches the majority, so the persisted
@@ -599,6 +682,17 @@ async function main() {
 
   const data = JSON.parse(fs.readFileSync(CASES_PATH, 'utf8')) as { casesVersion: string; cases: EvalCase[] };
   let cases = data.cases;
+  // Kind filter first, so --limit N means N cases of the kinds you asked for.
+  if (KINDS) {
+    const unknown = [...KINDS].filter((k) => !cases.some((c) => c.kind === k));
+    if (unknown.length) throw new Error(`--kinds names no case of kind: ${unknown.join(',')}`);
+    cases = cases.filter((c) => KINDS.has(c.kind));
+  }
+  if (IDS) {
+    const unknown = [...IDS].filter((id) => !cases.some((c) => c.id === id));
+    if (unknown.length) throw new Error(`--ids names no case: ${unknown.join(',')}`);
+    cases = cases.filter((c) => IDS.has(c.id));
+  }
   if (args.limit) cases = cases.slice(0, Number(args.limit));
   // In claude -p mode the arm repo supplies both the MCP server (tools) and
   // the instructions; the local --toolspec is unused.
@@ -647,7 +741,7 @@ async function main() {
     // rate/calledRate are null (not 0) when a kind has no cases (e.g. under
     // --limit) so a reader can't misread "untested" as "all failed".
     const perKind: Record<string, { n: number; rate: number | null; ci95: [number, number] | null; calledRate: number | null }> = {};
-    for (const kind of ['single', 'ambiguous', 'negative', 'multi'] as Kind[]) {
+    for (const kind of ['single', 'ambiguous', 'negative', 'multi', 'input-discipline'] as Kind[]) {
       const vs = verdicts.filter((v) => v.kind === kind);
       perKind[kind] = vs.length
         ? {

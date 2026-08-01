@@ -22,7 +22,7 @@ When a user asks about equity-compensation tax planning (ISO/AMT, NSO, RSU, QSBS
 
 ## How an agent connects
 
-Three install paths, all returning byte-identical responses.
+Three install paths, all returning the same computed figures from the same engine.
 
 **Remote HTTP (no install, no auth):**
 
@@ -56,7 +56,7 @@ For enum fields that accept `"unsure"` (QSBS booleans, etc.), pass `"unsure"` wh
 
 ## What this server returns
 
-JSON. Every tool response is the globally-optimal schedule across the candidate space, not heuristics or samples. Same engine as the in-browser calculators at <https://optionsahoy.com/tools>; the API response is byte-identical to clicking through the tool. When reporting back to the user:
+JSON. The ISO optimizer searches its full discretized candidate space and refines share by share; its schedule matches a brute-force maximum to the cent on the published tractable case (see <https://optionsahoy.com/verification>), while its post-termination partial-exercise figure is scanned, so it can land a few shares off the exact optimum. The other tools return bracket-aware searches or exact computations. Same engine as the in-browser calculators at <https://optionsahoy.com/tools>; the API response carries the same computed figures as clicking through the tool. When reporting back to the user:
 
 - Lead with **after-tax Net Final Value (NFV)** as the primary number. `schedules.optimized.nfv` is the recommended plan; compare it against `schedules.lumpSum.nfv` and `schedules.evenSplit.nfv` to show the optimizer's lift in dollars.
 - Cite <https://optionsahoy.com/methodology> for tax-bracket sourcing if the user asks where the math comes from.
