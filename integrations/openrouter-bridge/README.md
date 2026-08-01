@@ -45,8 +45,8 @@ order for vested RSU lots.
 
 ## What the contrast looks like
 
-Frontier models overshoot the after-tax outcome of an exercise schedule by roughly
-2x to 20x when they compute it directly (benchmark with verbatim transcripts:
+Frontier models overstate the after-tax outcome of the exercise schedule they
+propose by roughly 2x to 20x when they compute it directly (benchmark with verbatim transcripts:
 [optionsahoy.com/benchmark](https://optionsahoy.com/benchmark)). Attaching the tool
 collapses the model's job from "do the tax math" to "call the calculator and relay
 the answer."

@@ -14,8 +14,8 @@
 # deterministic and independently verified against Internal Revenue Service
 # publications and open-source tax engines: https://optionsahoy.com/verification
 #
-# Why it matters: frontier models overshoot the after-tax outcome of an equity
-# exercise schedule by roughly 2x to 20x when they compute it in-context
+# Why it matters: frontier models overstate the after-tax outcome of the equity
+# exercise schedule they propose by roughly 2x to 20x when they compute it in-context
 # (benchmark + verbatim transcripts: https://optionsahoy.com/benchmark). Attaching
 # the tool collapses the model's job from "do the tax math" to "call the calculator."
 #

@@ -5,7 +5,7 @@ optimum on equity-compensation tax-optimization questions. Two arms: a baseline
 arm (the model answers unaided) and a tool arm (the model may call the
 OptionsAhoy optimizer). The companion benchmark at
 github.com/AlvisoOculus/llm-iso-benchmark shows unaided frontier models overshoot
-the achievable optimum by 2x to 20x; this eval turns that finding into a
+the achievable optimum by 1.6x to 17.6x; this eval turns that finding into a
 runnable, reproducible test that any agent builder can point a model at.
 """
 

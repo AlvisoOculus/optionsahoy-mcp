@@ -53,6 +53,13 @@ const BANNED: Array<[string, RegExp]> = [
   ['unscoped full-tax-code claim', /full (US )?federal tax code|full federal plus|full tax-code coverage/i],
   ['unscoped globally-optimal claim', /globally[-\s]optimal/i],  // \s: the phrase wraps across lines in READMEs
   ['unverifiable LLM-capability claim', /than an LLM can reason through/i],
+  // The benchmark has two denominators and they yield different numbers:
+  // stated-vs-own-schedule is 2x to 20x (the published write-up's headline),
+  // stated-vs-provable-optimum is 1.6x to 17.6x. Attaching the 2x-20x figure
+  // to "the achievable outcome/optimum" mixes them, which is what shipped on
+  // a dozen surfaces until 2026-08-01. Quote the range that matches the
+  // denominator you name.
+  ['benchmark denominator conflation', /(achievable|optimum)[^.]{0,40}by (roughly )?2[x-]\s?to\s?20x|(achievable|optimum)[^.]{0,40}by 2-20x/i],
 ];
 
 // The two claims the Anthropic directory review asked us to soften, guarded
@@ -84,6 +91,8 @@ const CLAIM_FILES = [
   'integrations/python/arcade-optionsahoy/README.md',
   'integrations/python/crewai-optionsahoy/README.md',
   'integrations/python/llama-index-tools-optionsahoy/README.md',
+  'integrations/eval/README.md',
+  'integrations/openrouter-bridge/README.md',
 ];
 const CLAIM_BANNED = BANNED.filter(([label]) =>
   label === 'unscoped full-tax-code claim' ||
