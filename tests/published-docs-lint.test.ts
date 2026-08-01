@@ -46,7 +46,49 @@ const BANNED: Array<[string, RegExp]> = [
   ['source path', /web\/lib\/calc|lib\/calc\/\*/],
   ['search-strategy IP', /chunk-grid|\bgreedy\b|1-share refinement/],
   ['em-dash', /—/],
+  // Directory-review claims (2026-08-01). "Relevant federal tax code" is the
+  // scoped wording; the engine models the pieces it names, not the whole code.
+  // Optimality is stated per tool (only the ISO optimizer is exhaustively
+  // searched and brute-force checked), never as a blanket superlative.
+  ['unscoped full-tax-code claim', /full (US )?federal tax code|full federal plus|full tax-code coverage/i],
+  ['unscoped globally-optimal claim', /globally[- ]optimal/i],
+  ['unverifiable LLM-capability claim', /than an LLM can reason through/i],
 ];
+
+// The two claims the Anthropic directory review asked us to soften, guarded
+// across every artifact that publishes them - including the ones the first
+// sweep missed because they are neither generated nor previously linted:
+// mcpb/manifest.json ships inside the Desktop extension bundle and the ACI
+// descriptors are published to ACI.dev. Only the claim patterns apply here;
+// these files carry their own conventions for the rest of BANNED.
+const CLAIM_FILES = [
+  'mcpb/manifest.json',
+  'integrations/aci/optionsahoy/functions.json',
+  'README.md',
+  'AGENTS.md',
+  'GEMINI.md',
+  'public/openapi.json',
+  'functions/_lib/mcp-instructions.ts',
+];
+const CLAIM_BANNED = BANNED.filter(([label]) =>
+  label === 'unscoped full-tax-code claim' ||
+  label === 'unscoped globally-optimal claim' ||
+  label === 'unverifiable LLM-capability claim' ||
+  label === 'false daily-refreshed claim' ||
+  label === 'eight tests',
+);
+for (const file of CLAIM_FILES) {
+  describe(`directory-review claim lint: ${file}`, () => {
+    const present = existsSync(file);
+    const text = present ? readFileSync(file, 'utf8') : '';
+    for (const [label, re] of CLAIM_BANNED) {
+      it(`no ${label}`, () => {
+        if (!present) { expect(true).toBe(true); return; }
+        expect(re.test(text), `${file} contains ${label}`).toBe(false);
+      });
+    }
+  });
+}
 
 for (const file of FILES) {
   describe(`published doc lint: ${file}`, () => {

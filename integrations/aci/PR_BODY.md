@@ -1,6 +1,6 @@
 ## What this adds
 
-A new public app, **OptionsAhoy** (`backend/apps/optionsahoy/`) — an equity-compensation tax/trade optimizer covering ISO/AMT exercise scheduling, NSO exercise, RSU sell-vs-hold, §1202 QSBS qualification, single-stock concentration, protective-put/collar hedging, and multi-year equity-funding plans, computed against the full federal tax code plus all 50 states + DC.
+A new public app, **OptionsAhoy** (`backend/apps/optionsahoy/`) — an equity-compensation tax/trade optimizer covering ISO/AMT exercise scheduling, NSO exercise, RSU sell-vs-hold, §1202 QSBS qualification, single-stock concentration, protective-put/collar hedging, and multi-year equity-funding plans, computed against the relevant federal tax code plus all 50 states + DC.
 
 - **7 functions**, all `protocol: rest`, `no_auth`, pointing at the public production REST API at `https://optionsahoy.com/api/v1/*`.
 - No credentials required — the calculators are open.

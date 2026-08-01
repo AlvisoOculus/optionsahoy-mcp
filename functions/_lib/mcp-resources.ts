@@ -51,7 +51,7 @@ function buildCoveredTickersResource(): McpResource {
   const growthTotal = c.growthAndVol.length + c.growthOnly.length;
   const volTotal = c.growthAndVol.length + c.volOnly.length;
   return {
-    uri: 'https://optionsahoy.com/tools/covered-tickers',
+    uri: COVERED_TICKERS_URI,
     name: 'Covered tickers for the optional ticker shortcut (growth and volatility)',
     description: COVERED_TICKERS_DESC,
     mimeType: 'text/markdown',
@@ -113,7 +113,7 @@ The crossover depends on filing status, ordinary income, state, deductions, and 
 
 ## What the amt_iso_optimize tool computes
 
-The MCP tool \`amt_iso_optimize\` returns a multi-year exercise schedule that is globally optimal within the modeled problem. It searches over every reasonable per-year share count from year 1 through your chosen horizon (up to 10 years), accounting for:
+The MCP tool \`amt_iso_optimize\` returns the best multi-year exercise schedule it finds, matching a brute-force maximum to the cent on the published tractable case. It searches over every reasonable per-year share count from year 1 through your chosen horizon (up to 10 years), accounting for:
 
 - Federal regular tax brackets and AMT brackets (2026 inflation-adjusted)
 - State regular tax and state AMT in all 50 states + DC
@@ -303,7 +303,7 @@ Typical pricing for a 1-year 10%-out-of-the-money (OTM) put on a 30% implied-vol
 
 ## What the protective_put_price tool computes
 
-The MCP tool \`protective_put_price\` prices all three structures - a protective put, a zero-cost collar, and a put spread - against current option-market implied volatility (a sector-typical volatility when no ticker is supplied). It accounts for:
+The MCP tool \`protective_put_price\` prices all three structures - a protective put, a zero-cost collar, and a put spread - against cached implied volatility (a sector-typical volatility when no ticker is supplied). It accounts for:
 
 - Strike (defined as percentage below current price)
 - Tenor (months to expiration)

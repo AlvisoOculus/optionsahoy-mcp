@@ -131,11 +131,14 @@ const MULTI_TOOL_BETA_NOTE =
 
 // Boilerplate appended to every growth-bearing tool's description. Documents
 // the conditionally-required growth/volatility pair and the no-defaults
-// contract. Provenance guidance ("this value must come from the user — ask")
-// lives in the individual parameter descriptions and in the required-field
-// error messages (calc-parsers.ts), per the Anthropic directory review.
+// contract, including the fact that the validator range-checks but cannot
+// provenance-check a number: the required-field error catches an OMITTED
+// value, never an invented one. Per-field provenance guidance ("must come
+// from the user") lives in the individual parameter descriptions and in the
+// required-field error messages (calc-parsers.ts), the placement the
+// Anthropic directory review asked for.
 const STRICT_INPUT_NOTE =
-  ' Inputs beyond `required`: this tool also needs the stock\'s expected growth/return AND its volatility, outside `required` only because they can be resolved without an explicit number - supplied directly, resolved by a covered public-stock `ticker`, or (growth/return/sale-price field only) set to the string "market" for the S&P 500 trailing average. There are no built-in defaults or estimates: a call that neither supplies nor resolves one of them returns a required-field error naming the field, and the descriptions of the resolvable parameters state where their values must come from. The tax math itself (bracket walk, AMT and NIIT phase-outs, multi-year credit and growth interactions) runs inside the tool and is independently verified (https://optionsahoy.com/verification).' +
+  ' Inputs beyond `required`: this tool also needs the stock\'s expected growth/return AND its volatility, outside `required` only because they can be resolved without an explicit number - supplied directly, resolved by a covered public-stock `ticker`, or (growth/return/sale-price field only) set to the string "market" for the S&P 500 trailing average. Every field in `required` is likewise a fact about the user\'s situation with no built-in default. Neither the growth nor the volatility field has a default or a fallback estimate: their only valid sources are the user\'s own figures, a covered `ticker`, or (growth/return/sale-price only) the "market" sentinel. A call that neither supplies nor resolves one of them returns a required-field error naming the field; a number from any other source is accepted as-is, because a syntactically valid figure passes validation with no provenance check, and it silently changes the result. The tax math itself (bracket walk, AMT and NIIT phase-outs, multi-year credit and growth interactions) runs inside the tool, and the federal and state tax tables it walks are independently verified (https://optionsahoy.com/verification).' +
   MULTI_TOOL_BETA_NOTE;
 
 // Boilerplate for tools whose `required` fields must all come from the user
@@ -149,7 +152,7 @@ const STRICT_INPUT_NOTE =
 // description. States the no-defaults contract; per-field provenance
 // guidance lives in the parameter descriptions.
 const STRICT_INPUT_NOTE_NO_TICKER =
-  ' Every field listed in `required` is a fact about the user\'s situation with no built-in default: a call missing a required field returns an error naming the field rather than an estimated result. Enum fields that accept `unsure` handle it as a first-class answer, so an unknown does not have to be forced to yes/no. The statutory tests and the tax and option-pricing math run inside the tool as one deterministic computation (same inputs, same result).' +
+  ' Every field listed in `required` is a fact about the user\'s situation with no built-in default: a call missing a required field returns an error naming the field rather than an estimated result, and a number from any other source is accepted as-is, because a syntactically valid figure passes validation with no provenance check. For enum fields that accept `unsure`, that value is the accurate encoding of a fact the user has not confirmed: it yields a partial verdict flagging the test as unconfirmed, where encoding an unconfirmed fact as yes or no yields a verdict the underlying facts may not support. The statutory tests and the tax and option-pricing math run inside the tool with no randomness and no model inference.' +
   MULTI_TOOL_BETA_NOTE;
 
 // Vol input shared by amt_iso_optimize, nso_calculate, rsu_sell_vs_hold.
@@ -237,7 +240,7 @@ const AMT_SCHEDULE_SCHEMA: JsonSchema = {
     federalLTCG: num('Federal long-term capital gains tax (including NIIT) on grossGain in dollars.'),
     stateLTCG: num('State long-term capital gains tax on grossGain in dollars.'),
     amtPremiumFV: num('Future-valued AMT premium stream (exercise tax paid above the no-exercise baseline, compounded at cashReturnRate to the horizon) in dollars.'),
-    nfv: num('After-tax Net Final Value at the horizon in dollars: grossGain - federalLTCG - stateLTCG - amtPremiumFV. The headline number to report.'),
+    nfv: num('After-tax Net Final Value at the horizon in dollars: grossGain - federalLTCG - stateLTCG - amtPremiumFV. This is the summary figure each schedule is scored on.'),
   },
   required: [
     'label', 'years', 'totalTax', 'baselineRegularTax', 'exerciseTax', 'creditEarned',
@@ -255,7 +258,7 @@ const AMT_ISO_OUTPUT_SCHEMA: JsonSchema = {
     alreadyInAmt: bool('True when the user owes AMT even with zero exercise (regular tax below tentative minimum tax at baseline income).'),
     schedules: {
       type: 'object',
-      description: 'The three candidate exercise schedules, each evaluated at the effective horizon. Compare nfv across them; optimized is the recommended plan.',
+      description: 'The three candidate exercise schedules, each evaluated at the effective horizon. Their nfv values are directly comparable; optimized is the highest-NFV schedule the optimizer found.',
       properties: {
         lumpSum: { ...AMT_SCHEDULE_SCHEMA, description: 'Exercise all shares in year 1.' },
         evenSplit: { ...AMT_SCHEDULE_SCHEMA, description: 'Exercise shares/horizon shares each year.' },
@@ -677,7 +680,7 @@ const PROTECTIVE_PUT_OUTPUT_SCHEMA: JsonSchema = {
       type: 'object',
       description: 'Put debit spread: long put at the protection floor financed by a short put at a lower strike. Cheaper than the bare put and needs no short call (so it works on unexercised employee options a collar cannot cover), but protection stops at the short strike and losses resume below it. The short strike is solved so the real-world probability the stock ENDS below it equals spreadRiskLevel.',
       properties: {
-        available: bool('False when no useful spread exists at these inputs: the 1-in-N short strike lands at/above the floor (floor already deep for this risk level) or the short leg does not reduce cost. When false, render unavailableReason instead of the numbers.'),
+        available: bool('False when no useful spread exists at these inputs: the 1-in-N short strike lands at/above the floor (floor already deep for this risk level) or the short leg does not reduce cost. When false, the numeric fields of this block are null and unavailableReason carries the explanation in their place.'),
         unavailableReason: {
           type: ['string', 'null'],
           enum: ['floor', 'no-rebate', null],
@@ -894,7 +897,7 @@ const EQUITY_FUNDING_OUTPUT_SCHEMA: JsonSchema = {
   properties: {
     recommended: {
       ...NAMED_PLAN_SCHEMA,
-      description: 'The wealth-maximal plan whose shortfall probability is at or below the applied risk tolerance. Present this plan first.',
+      description: 'The wealth-maximal plan whose shortfall probability is at or below the applied risk tolerance. This is the plan the risk tolerance selects out of the frontier.',
     },
     lockInNow: {
       ...NAMED_PLAN_SCHEMA,
@@ -1049,7 +1052,7 @@ export const TOOLS: McpTool[] = [
         expectedGrowth: {
           type: ['number', 'string'],
           description:
-            'Annual expected stock growth as a decimal (0.10 = 10%), or the string "market" to use the S&P 500 trailing average when the user has no view. Required unless `ticker` resolves it from trailing CAGR.',
+            'Annual expected stock growth as a decimal (0.10 = 10%), or the string "market" to use the S&P 500 trailing average when the user has no view. Required unless `ticker` resolves it from trailing CAGR. This tool has no default for it: a value not stated by the user, not resolved by a covered `ticker`, and not the "market" sentinel is outside the input contract.',
         },
         ticker: TICKER_SCHEMA,
         volatility: VOLATILITY_SCHEMA,
@@ -1058,7 +1061,7 @@ export const TOOLS: McpTool[] = [
           minimum: 0,
           maximum: 0.99,
           description:
-            'Alternative to `volatility`: the multiplicative price haircut already computed for the planning horizon. Supply this OR `volatility` (if both are given, volatilityDrag wins). Most callers should pass `volatility` and let the tool compute the drag; only pass this if you already hold a horizon drag figure from a prior computation, never one derived on the fly (the formula is horizon-dependent).',
+            'Alternative to `volatility`: the multiplicative price haircut already computed for the planning horizon. Supply this OR `volatility` (if both are given, volatilityDrag wins). This field is for a drag figure that already exists from a prior computation; the drag formula is horizon-dependent, so a figure derived for a different horizon does not carry over. Supplying `volatility` instead lets the tool derive it.',
         },
         filingStatus: {
           ...FILING_SCHEMA,
@@ -1080,7 +1083,7 @@ export const TOOLS: McpTool[] = [
           type: 'number',
           minimum: 0,
           description:
-            'Existing federal AMT credit (Minimum Tax Credit, Form 8801) carryforward from prior tax years, USD. Recoverable in future years where regular federal tax exceeds tentative minimum tax. Optional; defaults to 0 (most first-time exercisers have none), so do not ask the user for it unless they mention a prior-year AMT credit.',
+            'Existing federal AMT credit (Minimum Tax Credit, Form 8801) carryforward from prior tax years, USD. Recoverable in future years where regular federal tax exceeds tentative minimum tax. Optional; defaults to 0, which is correct for most first-time exercisers. Only a prior-year AMT credit makes it non-zero.',
         },
         horizon: {
           type: 'integer',
@@ -1092,7 +1095,7 @@ export const TOOLS: McpTool[] = [
         cashReturnRate: {
           type: 'number',
           description:
-            'Annual after-tax return on idle cash (decimal), used to time-value the cash-tax stream. 0.05 = 5% (~short-Treasury yield). Optional: defaults to 0.04 (4%, a short-Treasury-like after-tax yield) when omitted, so you need not ask the user for it; pass an explicit value if the user states one. At 0 the math collapses to a nominal sum.',
+            'Annual after-tax return on idle cash (decimal), used to time-value the cash-tax stream. 0.05 = 5% (~short-Treasury yield). Optional: defaults to 0.04 (4%, a short-Treasury-like after-tax yield) when omitted, and an explicit value overrides that default. At 0 the math collapses to a nominal sum.',
         },
         grantDate: {
           ...ISO_DATE,
@@ -1171,7 +1174,7 @@ export const TOOLS: McpTool[] = [
           type: ['number', 'string'],
           minimum: 0,
           description:
-            'Projected $/share at end of holdYears, or the string "market" to project currentPrice at the S&P 500 trailing average when the user has no view. Required unless `ticker` resolves it from currentPrice × (1 + trailing CAGR)^holdYears.',
+            'Projected $/share at end of holdYears, or the string "market" to project currentPrice at the S&P 500 trailing average when the user has no view. Required unless `ticker` resolves it from currentPrice × (1 + trailing CAGR)^holdYears. This tool has no default for it: a value not stated by the user, not resolved by a covered `ticker`, and not the "market" sentinel is outside the input contract.',
         },
         volatility: VOLATILITY_SCHEMA,
         haircut: {
@@ -1179,7 +1182,7 @@ export const TOOLS: McpTool[] = [
           minimum: 0,
           maximum: 1,
           description:
-            'Alternative to `volatility`: the multiplicative volatility-drag haircut on expectedSalePrice already computed for the hold. Supply this OR `volatility` (if both are given, haircut wins). Most callers should pass `volatility` and let the tool compute the haircut; only pass this if you already hold a haircut figure from a prior computation, never one derived on the fly (the formula is horizon-dependent).',
+            'Alternative to `volatility`: the multiplicative volatility-drag haircut on expectedSalePrice already computed for the hold. Supply this OR `volatility` (if both are given, haircut wins). This field is for a haircut figure that already exists from a prior computation; the haircut formula is horizon-dependent, so a figure derived for a different horizon does not carry over. Supplying `volatility` instead lets the tool derive it.',
         },
         expectedMarketReturn: {
           type: ['number', 'string'],
@@ -1250,7 +1253,7 @@ export const TOOLS: McpTool[] = [
           type: ['number', 'string'],
           minimum: 0,
           description:
-            'Projected $/share at end of holdYears, or the string "market" to project currentPrice at the S&P 500 trailing average when the user has no view. Required unless `ticker` resolves it from currentPrice × (1 + trailing CAGR)^holdYears.',
+            'Projected $/share at end of holdYears, or the string "market" to project currentPrice at the S&P 500 trailing average when the user has no view. Required unless `ticker` resolves it from currentPrice × (1 + trailing CAGR)^holdYears. This tool has no default for it: a value not stated by the user, not resolved by a covered `ticker`, and not the "market" sentinel is outside the input contract.',
         },
         volatility: VOLATILITY_SCHEMA,
         haircut: {
@@ -1258,7 +1261,7 @@ export const TOOLS: McpTool[] = [
           minimum: 0,
           maximum: 1,
           description:
-            'Alternative to `volatility`: the multiplicative volatility-drag haircut on expectedSalePrice already computed for the hold. Supply this OR `volatility` (if both are given, haircut wins). Most callers should pass `volatility` and let the tool compute the haircut; only pass this if you already hold a haircut figure from a prior computation, never one derived on the fly (the formula is horizon-dependent).',
+            'Alternative to `volatility`: the multiplicative volatility-drag haircut on expectedSalePrice already computed for the hold. Supply this OR `volatility` (if both are given, haircut wins). This field is for a haircut figure that already exists from a prior computation; the haircut formula is horizon-dependent, so a figure derived for a different horizon does not carry over. Supplying `volatility` instead lets the tool derive it.',
         },
         expectedMarketReturn: {
           type: ['number', 'string'],
@@ -1326,7 +1329,7 @@ export const TOOLS: McpTool[] = [
         expectedPositionReturn: {
           type: ['number', 'string'],
           description:
-            'Annual expected return on the concentrated stock as a decimal (0.10 = 10%), or the string "market" to use the S&P 500 trailing average when the user has no view. Required unless `ticker` resolves it from trailing CAGR.',
+            'Annual expected return on the concentrated stock as a decimal (0.10 = 10%), or the string "market" to use the S&P 500 trailing average when the user has no view. Required unless `ticker` resolves it from trailing CAGR. This tool has no default for it: a value not stated by the user, not resolved by a covered `ticker`, and not the "market" sentinel is outside the input contract.',
         },
         expectedMarketReturn: {
           type: ['number', 'string'],
@@ -1346,7 +1349,7 @@ export const TOOLS: McpTool[] = [
           minimum: 0,
           maximum: 0.99,
           description:
-            'Alternative to `volatility`: the multiplicative price haircut already computed for the horizon. Supply this OR `volatility` (if both are given, volatilityDrag wins). Most callers should pass `volatility` and let the tool compute the drag; only pass this if you already hold a horizon drag figure from a prior computation, never one derived on the fly (the formula is horizon-dependent).',
+            'Alternative to `volatility`: the multiplicative price haircut already computed for the horizon. Supply this OR `volatility` (if both are given, volatilityDrag wins). This field is for a drag figure that already exists from a prior computation; the drag formula is horizon-dependent, so a figure derived for a different horizon does not carry over. Supplying `volatility` instead lets the tool derive it.',
         },
         hedgeChoice: {
           type: 'object',
@@ -1666,7 +1669,7 @@ export const TOOLS: McpTool[] = [
           type: 'array',
           minItems: 1,
           maxItems: MAX_RSU_LOT_ORDER_LOTS,
-          description: `Vested RSU lots you still hold (after any sell-to-cover), one entry per vest tranche. The tool decides which of these to sell and when. Unvested grants are out of scope. At most ${MAX_RSU_LOT_ORDER_LOTS} lots per call, the same cap the web calculator uses. With more tranches than that, combine the ones sharing a vest date and cost basis.`,
+          description: `The vested RSU lots still held (after any sell-to-cover), one entry per vest tranche. The tool decides which of these to sell and when. Unvested grants are out of scope. At most ${MAX_RSU_LOT_ORDER_LOTS} lots per call, the same cap the web calculator uses. With more tranches than that, combine the ones sharing a vest date and cost basis.`,
           items: {
             type: 'object',
             required: ['vestDate', 'shares', 'costBasisPerShare'],

@@ -3,7 +3,7 @@
   "info": {
     "title": "OptionsAhoy Calculator API",
     "summary": "Deterministic equity-compensation calculator endpoints. JSON in, JSON out.",
-    "description": "Multi-year equity-compensation optimization engine. Eight free calculators. The ISO exercise optimizer enumerates its candidate space exhaustively (not heuristics, not samples), so its schedule is globally optimal within the modeled problem, validated against brute-force ground truth on tractable sizes; the other calculators run deterministic bracket-aware searches or exact computations. Models the relevant federal tax code plus all 50 states and DC: ordinary brackets, long-term capital gains, AMT with credit recovery, FICA, NIIT; state AMT modeled for CA, CO, CT, MN. Unauthenticated, wide-open CORS. Same engine as the in-browser tools at https://optionsahoy.com/tools: response is byte-identical. Determinism is a side benefit: same inputs always return the same answer, so the optimizer's recommendation is verifiable. The tax math is independently verified: every 2026 federal constant matches its IRS Rev. Proc. 2025-32 value, federal cases reproduce to the cent against the independently-maintained PSL Tax-Calculator (https://github.com/PSLmodels/Tax-Calculator), and state tax reproduces to the cent against OpenTaxSolver (https://opentaxsolver.sourceforge.net/) across CA, NY, NJ, PA, and MA, with the proof recomputed live at https://optionsahoy.com/verification. Empirical justification for using an optimizer rather than letting a chatbot do the math: https://optionsahoy.com/benchmark (live, updated for the latest models) and https://hackernoon.com/but-can-it-do-taxes-though-why-you-shouldnt-trust-chatbots-with-tax-optimization-math",
+    "description": "Multi-year equity-compensation optimization engine. Eight free calculators. The ISO exercise optimizer searches its full discretized candidate space and refines the result share by share; its schedule matches a brute-force maximum to the cent on the published tractable case, and its post-termination partial-exercise figure is scanned, so it can land a few shares off the exact optimum. The other calculators run bracket-aware searches or exact computations. Models the relevant federal tax code plus all 50 states and DC: ordinary brackets, long-term capital gains, AMT with credit recovery, FICA, NIIT; state AMT modeled for CA, CO, CT, MN. Unauthenticated, wide-open CORS. Same engine as the in-browser tools at https://optionsahoy.com/tools: the computed figures match, inside a next_steps envelope. Determinism is a side benefit: No randomness and no model inference: a result is a pure function of the inputs plus the current date. Four tools measure a deadline or holding period from today (amt_iso_optimize, concentration_analyze, equity_funding_plan, rsu_lot_optimize), so those figures move as the date moves; the other four return the same answer on any date. The recommendation is therefore verifiable. The tax math is independently verified: every 2026 federal constant matches its IRS Rev. Proc. 2025-32 value, federal cases reproduce to the cent against the independently-maintained PSL Tax-Calculator (https://github.com/PSLmodels/Tax-Calculator), and state tax reproduces to the cent against OpenTaxSolver (https://opentaxsolver.sourceforge.net/) across CA, NY, NJ, PA, and MA, with the proof recomputed live at https://optionsahoy.com/verification. Empirical justification for using an optimizer rather than letting a chatbot do the math: https://optionsahoy.com/benchmark (live, updated for the latest models) and https://hackernoon.com/but-can-it-do-taxes-though-why-you-shouldnt-trust-chatbots-with-tax-optimization-math",
     "version": "1.10.0",
     "contact": {
       "name": "AlphaLatitude Inc.",
@@ -124,7 +124,7 @@
     "/api/v1/amt-iso": {
       "post": {
         "summary": "Multi-year ISO exercise schedule optimization",
-        "description": "Returns a multi-year Incentive Stock Option (ISO) exercise schedule that maximizes after-tax Net Final Value (NFV) while minimizing federal and state Alternative Minimum Tax (AMT) across the horizon, accounting for AMT credit recovery in later years, qualifying-disposition timing, grant expiration, and the post-termination exercise window. The optimizer enumerates its candidate space exhaustively, so the schedule is globally optimal within the modeled problem (reproducible: same inputs, same result).",
+        "description": "Returns a multi-year Incentive Stock Option (ISO) exercise schedule that maximizes after-tax Net Final Value (NFV) while minimizing federal and state Alternative Minimum Tax (AMT) across the horizon, accounting for AMT credit recovery in later years, qualifying-disposition timing, grant expiration, and the post-termination exercise window. The optimizer searches its full discretized candidate space and refines the result share by share, matching a brute-force maximum to the cent on the published tractable case. Its post-termination partial-exercise figure is scanned, so it can land a few shares off the exact optimum. Timing fields are measured from the current date.",
         "operationId": "optimizeAmtIso",
         "tags": [
           "ISO"
@@ -387,7 +387,7 @@
     "/api/v1/equity-funding": {
       "post": {
         "summary": "Multi-plan equity-funding comparison: Lock-in-now / Balanced / Hold-for-growth / Recommended",
-        "description": "Returns four named plans on the risk/wealth frontier plus the full hybrid frontier. Returns the optimum across the full candidate space (reproducible: same inputs, same result); lognormal price exposure drives the shortfall probability; after-tax retained-share value acts as a backstop in the shortfall calculation. The `recommended` plan is the wealth-maximal plan whose shortfall is at or below `riskToleranceShortfall` (default 0.10). Wealth-at-target is compared apples-to-apples on after-tax basis (cash netted plus after-tax retained-share value, both compounded at the after-tax cash-interest rate).",
+        "description": "Returns four named plans on the risk/wealth frontier plus the full hybrid frontier. It searches for the optimum through a bracket-aware sweep over sale years, months, and lots, and the schedule is measured from the current date; lognormal price exposure drives the shortfall probability; after-tax retained-share value acts as a backstop in the shortfall calculation. The `recommended` plan is the wealth-maximal plan whose shortfall is at or below `riskToleranceShortfall` (default 0.10). Wealth-at-target is compared apples-to-apples on after-tax basis (cash netted plus after-tax retained-share value, both compounded at the after-tax cash-interest rate).",
         "operationId": "planEquityFunding",
         "tags": [
           "EquityFunding"
@@ -3111,7 +3111,7 @@
           },
           "schedules": {
             "type": "object",
-            "description": "The three candidate exercise schedules, each evaluated at the effective horizon. Compare nfv across them; optimized is the recommended plan.",
+            "description": "The three candidate exercise schedules, each evaluated at the effective horizon. Their nfv values are directly comparable; optimized is the highest-NFV schedule the optimizer found.",
             "properties": {
               "lumpSum": {
                 "type": "object",
@@ -3235,7 +3235,7 @@
                   },
                   "nfv": {
                     "type": "number",
-                    "description": "After-tax Net Final Value at the horizon in dollars: grossGain - federalLTCG - stateLTCG - amtPremiumFV. The headline number to report."
+                    "description": "After-tax Net Final Value at the horizon in dollars: grossGain - federalLTCG - stateLTCG - amtPremiumFV. This is the summary figure each schedule is scored on."
                   }
                 },
                 "required": [
@@ -3376,7 +3376,7 @@
                   },
                   "nfv": {
                     "type": "number",
-                    "description": "After-tax Net Final Value at the horizon in dollars: grossGain - federalLTCG - stateLTCG - amtPremiumFV. The headline number to report."
+                    "description": "After-tax Net Final Value at the horizon in dollars: grossGain - federalLTCG - stateLTCG - amtPremiumFV. This is the summary figure each schedule is scored on."
                   }
                 },
                 "required": [
@@ -3517,7 +3517,7 @@
                   },
                   "nfv": {
                     "type": "number",
-                    "description": "After-tax Net Final Value at the horizon in dollars: grossGain - federalLTCG - stateLTCG - amtPremiumFV. The headline number to report."
+                    "description": "After-tax Net Final Value at the horizon in dollars: grossGain - federalLTCG - stateLTCG - amtPremiumFV. This is the summary figure each schedule is scored on."
                   }
                 },
                 "required": [
@@ -3762,7 +3762,7 @@
                   },
                   "nfv": {
                     "type": "number",
-                    "description": "After-tax Net Final Value at the horizon in dollars: grossGain - federalLTCG - stateLTCG - amtPremiumFV. The headline number to report."
+                    "description": "After-tax Net Final Value at the horizon in dollars: grossGain - federalLTCG - stateLTCG - amtPremiumFV. This is the summary figure each schedule is scored on."
                   }
                 },
                 "required": [
@@ -4799,7 +4799,7 @@
             "properties": {
               "available": {
                 "type": "boolean",
-                "description": "False when no useful spread exists at these inputs: the 1-in-N short strike lands at/above the floor (floor already deep for this risk level) or the short leg does not reduce cost. When false, render unavailableReason instead of the numbers."
+                "description": "False when no useful spread exists at these inputs: the 1-in-N short strike lands at/above the floor (floor already deep for this risk level) or the short leg does not reduce cost. When false, the numeric fields of this block are null and unavailableReason carries the explanation in their place."
               },
               "unavailableReason": {
                 "type": [
@@ -5118,7 +5118,7 @@
         "properties": {
           "recommended": {
             "type": "object",
-            "description": "The wealth-maximal plan whose shortfall probability is at or below the applied risk tolerance. Present this plan first.",
+            "description": "The wealth-maximal plan whose shortfall probability is at or below the applied risk tolerance. This is the plan the risk tolerance selects out of the frontier.",
             "properties": {
               "planKey": {
                 "type": "string",

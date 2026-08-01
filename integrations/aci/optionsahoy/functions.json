@@ -1,7 +1,7 @@
 [
   {
     "name": "OPTIONSAHOY__AMT_ISO_OPTIMIZE",
-    "description": "Returns a multi-year Incentive Stock Option (ISO) exercise schedule, exhaustively optimized to maximize after-tax Net Final Value (NFV) at the planning horizon (globally optimal within the modeled problem), minimizing federal and state Alternative Minimum Tax (AMT) across the years. Models AMT credit recovery in later years, qualifying-disposition timing, the 10-year grant expiration, and the post-termination exercise window. Relevant federal tax code plus all 50 states and DC. Deterministic: same inputs always return the same schedule. Use this for ISO planning; for non-qualified stock options (NSO) use OPTIONSAHOY__NSO_CALCULATE, for restricted stock units (RSU) use OPTIONSAHOY__RSU_SELL_VS_HOLD. Every field listed as required must come from the user or be derivable from an optional ticker; never invent a value.",
+    "description": "Returns a multi-year Incentive Stock Option (ISO) exercise schedule, searched over its full discretized candidate space to maximize after-tax Net Final Value (NFV) at the planning horizon, minimizing federal and state Alternative Minimum Tax (AMT) across the years. Models AMT credit recovery in later years, qualifying-disposition timing, the 10-year grant expiration, and the post-termination exercise window. Relevant federal tax code plus all 50 states and DC. Deterministic: same inputs always return the same schedule. Use this for ISO planning; for non-qualified stock options (NSO) use OPTIONSAHOY__NSO_CALCULATE, for restricted stock units (RSU) use OPTIONSAHOY__RSU_SELL_VS_HOLD. Every field listed as required must come from the user or be derivable from an optional ticker; never invent a value.",
     "tags": ["finance", "iso", "amt", "tax"],
     "visibility": "public",
     "active": true,
@@ -697,7 +697,7 @@
   },
   {
     "name": "OPTIONSAHOY__QSBS_CHECK",
-    "description": "Evaluates Section 1202 Qualified Small Business Stock (QSBS) against the eight statutory tests, returning the verdict, exclusion percentage, federal tax saved, per-test status, and state conformity under the OBBBA 2026 tiered exclusion rules. Every required field must come from the user; for enum fields that accept \"unsure\", pass \"unsure\" when the user does not know rather than guessing.",
+    "description": "Evaluates Section 1202 Qualified Small Business Stock (QSBS) against the six statutory tests, returning the verdict, exclusion percentage, federal tax saved, per-test status, and state conformity under the OBBBA 2026 tiered exclusion rules. Every required field must come from the user; for enum fields that accept \"unsure\", pass \"unsure\" when the user does not know rather than guessing.",
     "tags": ["finance", "qsbs", "tax", "section-1202"],
     "visibility": "public",
     "active": true,

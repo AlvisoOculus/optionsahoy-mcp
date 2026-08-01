@@ -58,6 +58,7 @@ const TOOL_INTENTS: Record<string, string> = {
   protective_put_price: 'hedge pricing: protective put, collar, put spread',
   qsbs_check: 'QSBS / Section 1202 qualification',
   equity_funding_plan: 'which shares to sell and when to hit a cash goal',
+  rsu_lot_optimize: 'which vested RSU lots to sell first, and in which years, to divest at the lowest tax',
 };
 for (const n of TOOL_NAMES) {
   if (!(n in TOOL_INTENTS)) throw new Error(`TOOL_INTENTS missing an entry for tool "${n}" (add it or the judge cannot route to it)`);
@@ -176,14 +177,21 @@ function loadTools(toolspecPath: string) {
 // remove this scrape and also close the stdio-server no-instructions parity
 // gap; tracked as a separate product change.)
 function loadInstructions(mcpSrcPath: string): string {
-  const src = fs.readFileSync(mcpSrcPath, 'utf8');
+  // The literal now lives in functions/_lib/mcp-instructions.ts (shared with
+  // the stdio server). Older arm checkouts still hold it inline in
+  // functions/mcp.ts, so try the shared module first and fall back, and accept
+  // either `SERVER_INSTRUCTIONS =` or the legacy `instructions:` form. That
+  // keeps --via-claude-code A/B runs against pre-extraction arms working.
+  const shared = path.join(path.dirname(mcpSrcPath), '_lib', 'mcp-instructions.ts');
+  const srcPath = fs.existsSync(shared) ? shared : mcpSrcPath;
+  const src = fs.readFileSync(srcPath, 'utf8');
   // Capture the literal, plus a trailing `+` if the literal is concatenated.
-  const m = src.match(/instructions:\s*'((?:[^'\\]|\\.)*)'(\s*\+)?/);
-  if (!m) throw new Error(`could not find instructions literal in ${mcpSrcPath}`);
+  const m = src.match(/(?:instructions:|SERVER_INSTRUCTIONS\s*=)\s*'((?:[^'\\]|\\.)*)'(\s*\+)?/);
+  if (!m) throw new Error(`could not find instructions literal in ${srcPath}`);
   if (m[2]) {
     throw new Error(
-      `instructions literal in ${mcpSrcPath} appears concatenated (found a trailing '+'); ` +
-        'the regex would capture only the first chunk. Extract a shared SERVER_INSTRUCTIONS constant.',
+      `instructions literal in ${srcPath} appears concatenated (found a trailing '+'); ` +
+        'the regex would capture only the first chunk. Keep SERVER_INSTRUCTIONS a single literal.',
     );
   }
   // Single left-to-right pass: `\\` -> `\`, `\n` -> newline, `\'` -> `'`. A
