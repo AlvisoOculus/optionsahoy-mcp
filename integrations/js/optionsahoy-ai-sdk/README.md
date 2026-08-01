@@ -3,7 +3,7 @@
 [![npm version](https://img.shields.io/npm/v/optionsahoy-ai-sdk.svg)](https://www.npmjs.com/package/optionsahoy-ai-sdk)
 [![License: MIT](https://img.shields.io/npm/l/optionsahoy-ai-sdk.svg)](https://github.com/AlvisoOculus/optionsahoy-mcp/blob/main/LICENSE)
 
-Vercel AI SDK tools for the OptionsAhoy equity-compensation calculators. One `tool()` per OptionsAhoy REST endpoint, each with a `zod` parameters schema and an `execute` that calls the keyless REST API. No OptionsAhoy account, no application programming interface (API) key, full federal tax code plus all 50 states and the District of Columbia (DC).
+Vercel AI SDK tools for the OptionsAhoy equity-compensation calculators. One `tool()` per OptionsAhoy REST endpoint, each with a `zod` parameters schema and an `execute` that calls the keyless REST API. No OptionsAhoy account, no application programming interface (API) key, relevant federal tax code plus all 50 states and the District of Columbia (DC).
 
 ## Why not just ask the model?
 

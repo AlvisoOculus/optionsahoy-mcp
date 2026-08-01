@@ -4,7 +4,7 @@
 [![Python versions](https://img.shields.io/pypi/pyversions/optionsahoy.svg)](https://pypi.org/project/optionsahoy/)
 [![License: MIT](https://img.shields.io/pypi/l/optionsahoy.svg)](https://github.com/AlvisoOculus/optionsahoy-mcp/blob/main/LICENSE)
 
-A thin, dependency-light Python client for the OptionsAhoy keyless public REST application programming interface (API). It wraps eight deterministic equity-compensation tax calculators behind one synchronous client. No OptionsAhoy account, no API key, full federal tax code plus all 50 states and the District of Columbia (DC).
+A thin, dependency-light Python client for the OptionsAhoy keyless public REST application programming interface (API). It wraps eight deterministic equity-compensation tax calculators behind one synchronous client. No OptionsAhoy account, no API key, relevant federal tax code plus all 50 states and the District of Columbia (DC).
 
 ## Why not just ask the model?
 
@@ -29,7 +29,7 @@ Eight calculators, each a method on `OptionsAhoyClient`:
 - `equity_funding(...)` - multi-year plan to fund a cash goal from equity by a target date
 - `rsu_lot_order(...)` - lowest-tax sell order for vested RSU lots to divest a target fraction, versus first-in-first-out (FIFO)
 
-Coverage spans the full federal tax code (ordinary brackets, long-term capital gains, AMT with credit recovery, FICA, the net investment income tax) plus all 50 states and DC. The only runtime dependency is [httpx](https://www.python-httpx.org/). No API key is read, stored, or sent anywhere.
+Coverage spans the relevant federal tax code (ordinary brackets, long-term capital gains, AMT with credit recovery, FICA, the net investment income tax) plus all 50 states and DC. The only runtime dependency is [httpx](https://www.python-httpx.org/). No API key is read, stored, or sent anywhere.
 
 ## Tools: inputs and outputs
 

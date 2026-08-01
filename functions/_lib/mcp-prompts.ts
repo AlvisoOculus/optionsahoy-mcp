@@ -181,7 +181,7 @@ export const PROMPTS: McpPrompt[] = [
   {
     name: 'price-protective-put',
     description:
-      'Price a protective put, zero-cost collar, or put spread on a single-stock position against current option-market implied volatility. Uses the protective_put_price tool.',
+      'Price a protective put, zero-cost collar, or put spread on a single-stock position against cached implied volatility (sector-typical fallback). Uses the protective_put_price tool.',
     arguments: [
       { name: 'positionValue', description: 'Current market value of the position, USD', required: true },
       { name: 'protectionLevel', description: 'Strike as a percentage below current price (e.g. 0.10 for 10% OTM)', required: false },

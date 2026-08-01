@@ -1301,7 +1301,7 @@ async function handleQuery(ctx: PagesContext, req: PoeRequest, extractor?: Extra
     (priceNote ? `${priceNote}\n\n` : '') +
     (assume ? `${assume}\n\n` : '') +
     `${cta}\n\n` +
-    `_Worked out by the OptionsAhoy optimizer across the full federal tax code plus all 50 states and DC, not estimated._`;
+    `_Worked out by the OptionsAhoy optimizer across the relevant federal tax code plus all 50 states and DC, not estimated._`;
   // Capture this successful answer as an example (7-day rolling, admin-gated) so
   // we can see what people actually ask and what we return.
   logSample(ctx, { surface: 'poe', tool: tool.name, clientName: 'poe', query: convo, answer: body });

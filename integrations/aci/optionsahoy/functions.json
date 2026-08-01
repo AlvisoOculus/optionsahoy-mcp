@@ -1,7 +1,7 @@
 [
   {
     "name": "OPTIONSAHOY__AMT_ISO_OPTIMIZE",
-    "description": "Returns the globally-optimal multi-year Incentive Stock Option (ISO) exercise schedule that maximizes after-tax Net Final Value (NFV) at the planning horizon, minimizing federal and state Alternative Minimum Tax (AMT) across the years. Models AMT credit recovery in later years, qualifying-disposition timing, the 10-year grant expiration, and the post-termination exercise window. Full federal tax code plus all 50 states and DC. Deterministic: same inputs always return the same schedule. Use this for ISO planning; for non-qualified stock options (NSO) use OPTIONSAHOY__NSO_CALCULATE, for restricted stock units (RSU) use OPTIONSAHOY__RSU_SELL_VS_HOLD. Every field listed as required must come from the user or be derivable from an optional ticker; never invent a value.",
+    "description": "Returns a multi-year Incentive Stock Option (ISO) exercise schedule, exhaustively optimized to maximize after-tax Net Final Value (NFV) at the planning horizon (globally optimal within the modeled problem), minimizing federal and state Alternative Minimum Tax (AMT) across the years. Models AMT credit recovery in later years, qualifying-disposition timing, the 10-year grant expiration, and the post-termination exercise window. Relevant federal tax code plus all 50 states and DC. Deterministic: same inputs always return the same schedule. Use this for ISO planning; for non-qualified stock options (NSO) use OPTIONSAHOY__NSO_CALCULATE, for restricted stock units (RSU) use OPTIONSAHOY__RSU_SELL_VS_HOLD. Every field listed as required must come from the user or be derivable from an optional ticker; never invent a value.",
     "tags": ["finance", "iso", "amt", "tax"],
     "visibility": "public",
     "active": true,
@@ -151,7 +151,7 @@
   },
   {
     "name": "OPTIONSAHOY__NSO_CALCULATE",
-    "description": "Computes the after-tax payout on a non-qualified stock option (NSO) exercise: federal, state, FICA (Social Security + Medicare + Additional Medicare) on the bargain element, then compares selling at exercise versus holding for long-term capital gains across the chosen horizon. Full federal tax code plus all 50 states and DC. Use this for NSO grants; for ISOs use OPTIONSAHOY__AMT_ISO_OPTIMIZE, for RSUs use OPTIONSAHOY__RSU_SELL_VS_HOLD. Every required field must come from the user or be derivable from an optional ticker; never invent a value.",
+    "description": "Computes the after-tax payout on a non-qualified stock option (NSO) exercise: federal, state, FICA (Social Security + Medicare + Additional Medicare) on the bargain element, then compares selling at exercise versus holding for long-term capital gains across the chosen horizon. Relevant federal tax code plus all 50 states and DC. Use this for NSO grants; for ISOs use OPTIONSAHOY__AMT_ISO_OPTIMIZE, for RSUs use OPTIONSAHOY__RSU_SELL_VS_HOLD. Every required field must come from the user or be derivable from an optional ticker; never invent a value.",
     "tags": ["finance", "nso", "tax"],
     "visibility": "public",
     "active": true,
@@ -288,7 +288,7 @@
   },
   {
     "name": "OPTIONSAHOY__RSU_SELL_VS_HOLD",
-    "description": "Compares the after-tax payout from selling restricted stock unit (RSU) shares at vest and reinvesting in the market versus holding the shares: includes the 12-month short-term-vs-long-term capital-gains cliff, state tax, FICA, and the optional growth assumption. Full federal tax code plus all 50 states and DC. Use this for RSUs at vest; for ISOs use OPTIONSAHOY__AMT_ISO_OPTIMIZE, for NSOs use OPTIONSAHOY__NSO_CALCULATE. Every required field must come from the user or be derivable from an optional ticker; never invent a value.",
+    "description": "Compares the after-tax payout from selling restricted stock unit (RSU) shares at vest and reinvesting in the market versus holding the shares: includes the 12-month short-term-vs-long-term capital-gains cliff, state tax, FICA, and the optional growth assumption. Relevant federal tax code plus all 50 states and DC. Use this for RSUs at vest; for ISOs use OPTIONSAHOY__AMT_ISO_OPTIMIZE, for NSOs use OPTIONSAHOY__NSO_CALCULATE. Every required field must come from the user or be derivable from an optional ticker; never invent a value.",
     "tags": ["finance", "rsu", "tax"],
     "visibility": "public",
     "active": true,
@@ -412,7 +412,7 @@
   },
   {
     "name": "OPTIONSAHOY__CONCENTRATION_ANALYZE",
-    "description": "Quantifies single-stock concentration risk: drawdown exposure at 30/50/70% scenarios, sell-down plans over 1/2/3 years with multi-year tax math, the tax saved by waiting for long-term treatment, and a Black-Scholes hedging cost. Full federal tax code plus all 50 states and DC. Every required field must come from the user or be derivable from an optional ticker; never invent a value. totalAssets is user-supplied and never inferred.",
+    "description": "Quantifies single-stock concentration risk: drawdown exposure at 30/50/70% scenarios, sell-down plans over 1/2/3 years with multi-year tax math, the tax saved by waiting for long-term treatment, and a Black-Scholes hedging cost. Relevant federal tax code plus all 50 states and DC. Every required field must come from the user or be derivable from an optional ticker; never invent a value. totalAssets is user-supplied and never inferred.",
     "tags": ["finance", "concentration", "risk", "tax"],
     "visibility": "public",
     "active": true,
@@ -844,7 +844,7 @@
   },
   {
     "name": "OPTIONSAHOY__EQUITY_FUNDING_PLAN",
-    "description": "Returns the optimal multi-year share-sale schedule to fund a cash goal (e.g. selling equity to buy a house) by a target date. Produces four named plans on the risk/wealth frontier (Lock-in-now / Balanced / Hold-for-growth / Recommended) plus the full hybrid frontier, with bracket-aware tax math and lognormal shortfall probability. Full federal tax code plus all 50 states and DC. Provide either stacks (multi-stack) or legacy lots + currentPrice (single-stack). Every required field must come from the user; never invent a value.",
+    "description": "Returns the optimal multi-year share-sale schedule to fund a cash goal (e.g. selling equity to buy a house) by a target date. Produces four named plans on the risk/wealth frontier (Lock-in-now / Balanced / Hold-for-growth / Recommended) plus the full hybrid frontier, with bracket-aware tax math and lognormal shortfall probability. Relevant federal tax code plus all 50 states and DC. Provide either stacks (multi-stack) or legacy lots + currentPrice (single-stack). Every required field must come from the user; never invent a value.",
     "tags": ["finance", "equity-funding", "tax", "planning"],
     "visibility": "public",
     "active": true,
@@ -1051,7 +1051,7 @@
   },
   {
     "name": "OPTIONSAHOY__RSU_LOT_OPTIMIZE",
-    "description": "Which vested RSU lots to sell, and when, to divest a target share fraction at the lowest tax: specific-lot identification, long-term deferral, and multi-year bracket spreading versus a first-in-first-out (FIFO) sell order. Returns the year-by-year sell schedule, total tax (federal LTCG plus NIIT plus state), and the saving versus a FIFO sell order on the same schedule. Full federal tax code plus all 50 states and DC. Every required field must come from the user; never invent a value.",
+    "description": "Which vested RSU lots to sell, and when, to divest a target share fraction at the lowest tax: specific-lot identification, long-term deferral, and multi-year bracket spreading versus a first-in-first-out (FIFO) sell order. Returns the year-by-year sell schedule, total tax (federal LTCG plus NIIT plus state), and the saving versus a FIFO sell order on the same schedule. Relevant federal tax code plus all 50 states and DC. Every required field must come from the user; never invent a value.",
     "tags": ["finance", "rsu", "tax", "planning"],
     "visibility": "public",
     "active": true,

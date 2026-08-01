@@ -1,7 +1,7 @@
 // AlphaLatitude Inc. © 2026
 //
 // optionsahoy-ai-sdk: Vercel AI SDK tools for the OptionsAhoy equity-
-// compensation calculators. Keyless, deterministic, full federal tax code plus
+// compensation calculators. Keyless, deterministic, relevant federal tax code plus
 // all 50 states and DC. See https://optionsahoy.com/for-agents.
 
 export {

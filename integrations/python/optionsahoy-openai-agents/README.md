@@ -4,7 +4,7 @@
 [![Python versions](https://img.shields.io/pypi/pyversions/optionsahoy-openai-agents.svg)](https://pypi.org/project/optionsahoy-openai-agents/)
 [![License: MIT](https://img.shields.io/pypi/l/optionsahoy-openai-agents.svg)](https://github.com/AlvisoOculus/optionsahoy-mcp/blob/main/LICENSE)
 
-OpenAI Agents SDK tools for the OptionsAhoy equity-compensation calculators. One `FunctionTool` per OptionsAhoy REST endpoint, built on the keyless [`optionsahoy`](https://pypi.org/project/optionsahoy/) client. No OptionsAhoy account, no application programming interface (API) key, full federal tax code plus all 50 states and the District of Columbia (DC).
+OpenAI Agents SDK tools for the OptionsAhoy equity-compensation calculators. One `FunctionTool` per OptionsAhoy REST endpoint, built on the keyless [`optionsahoy`](https://pypi.org/project/optionsahoy/) client. No OptionsAhoy account, no application programming interface (API) key, relevant federal tax code plus all 50 states and the District of Columbia (DC).
 
 ## Why not just ask the model?
 
@@ -31,7 +31,7 @@ Beyond determinism, the tax math is independently verified, every release: every
 
 Each tool returns an independent calculation for one decision. They are not a single joint optimization across your whole equity portfolio; the integrated, cross-asset optimizer is the OptionsAhoy product, currently in invite-only beta.
 
-Coverage spans the full federal tax code plus all 50 states and DC. The adapter pulls in the keyless `optionsahoy` client automatically. No API key is read, stored, or sent anywhere.
+Coverage spans the relevant federal tax code plus all 50 states and DC. The adapter pulls in the keyless `optionsahoy` client automatically. No API key is read, stored, or sent anywhere.
 
 ## Install
 

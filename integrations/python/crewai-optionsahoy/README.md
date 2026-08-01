@@ -4,7 +4,7 @@
 [![Python versions](https://img.shields.io/pypi/pyversions/crewai-optionsahoy.svg)](https://pypi.org/project/crewai-optionsahoy/)
 [![License: MIT](https://img.shields.io/pypi/l/crewai-optionsahoy.svg)](https://github.com/AlvisoOculus/optionsahoy-mcp/blob/main/LICENSE)
 
-CrewAI tools for the OptionsAhoy equity-compensation calculators. One `crewai.tools.BaseTool` per OptionsAhoy REST endpoint, built on the keyless [`optionsahoy`](https://pypi.org/project/optionsahoy/) client. No OptionsAhoy account, no application programming interface (API) key, full federal tax code plus all 50 states and the District of Columbia (DC).
+CrewAI tools for the OptionsAhoy equity-compensation calculators. One `crewai.tools.BaseTool` per OptionsAhoy REST endpoint, built on the keyless [`optionsahoy`](https://pypi.org/project/optionsahoy/) client. No OptionsAhoy account, no application programming interface (API) key, relevant federal tax code plus all 50 states and the District of Columbia (DC).
 
 ## Why not just ask the model?
 
@@ -29,7 +29,7 @@ Beyond determinism, the tax math is independently verified, every release: every
 - `optionsahoy_equity_funding_plan` - multi-year plan to fund a cash goal from equity by a target date
 - `optionsahoy_rsu_lot_optimize` - which vested RSU lots to sell, and when, to divest a target fraction at the lowest tax
 
-Coverage spans the full federal tax code plus all 50 states and DC. The adapter pulls in the keyless `optionsahoy` client automatically. No API key is read, stored, or sent anywhere.
+Coverage spans the relevant federal tax code plus all 50 states and DC. The adapter pulls in the keyless `optionsahoy` client automatically. No API key is read, stored, or sent anywhere.
 
 ## Tools: inputs and outputs
 

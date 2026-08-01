@@ -150,7 +150,7 @@ describe('local stdio MCP server', () => {
     // Every tool has the input-discipline note appended and an outputSchema
     // describing its structured result (required by OpenAI's app scanner).
     for (const t of tools) {
-      expect(t.description).toContain('MUST NOT invent');
+      expect(t.description).toContain('built-in default');
       expect(t.outputSchema).toBeDefined();
       expect(t.outputSchema!.type).toBe('object');
       expect(Object.keys(t.outputSchema!.properties).length).toBeGreaterThan(0);

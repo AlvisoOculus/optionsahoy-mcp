@@ -29,7 +29,7 @@ const ARTICLE_BASE = 'https://optionsahoy.com/learn';
 // and what does each resolve" so they stop trusting the looser descriptor list.
 const COVERED_TICKERS_URI = 'https://optionsahoy.com/tools/covered-tickers';
 const COVERED_TICKERS_DESC =
-  'The public-stock symbols the optional `ticker` shortcut resolves, split by whether each resolves expected growth, volatility, or both. Read this before passing a ticker; symbols outside these lists need the numeric fields supplied directly.';
+  'The public-stock symbols the optional `ticker` shortcut resolves, split by whether each resolves expected growth, volatility, or both. Symbols outside these lists need the numeric fields supplied directly.';
 
 function buildCoveredTickersResource(): McpResource {
   // Built at module load from the bundled snapshots. A malformed ETL snapshot
@@ -53,8 +53,7 @@ function buildCoveredTickersResource(): McpResource {
   return {
     uri: 'https://optionsahoy.com/tools/covered-tickers',
     name: 'Covered tickers for the optional ticker shortcut (growth and volatility)',
-    description:
-      'The public-stock symbols the optional `ticker` shortcut resolves, split by whether each resolves expected growth, volatility, or both. Read this before passing a ticker; symbols outside these lists need the numeric fields supplied directly.',
+    description: COVERED_TICKERS_DESC,
     mimeType: 'text/markdown',
     contents: `# Covered tickers for the ticker shortcut
 
@@ -114,7 +113,7 @@ The crossover depends on filing status, ordinary income, state, deductions, and 
 
 ## What the amt_iso_optimize tool computes
 
-The MCP tool \`amt_iso_optimize\` returns the globally-optimal multi-year exercise schedule. It searches over every reasonable per-year share count from year 1 through your chosen horizon (up to 10 years), accounting for:
+The MCP tool \`amt_iso_optimize\` returns a multi-year exercise schedule that is globally optimal within the modeled problem. It searches over every reasonable per-year share count from year 1 through your chosen horizon (up to 10 years), accounting for:
 
 - Federal regular tax brackets and AMT brackets (2026 inflation-adjusted)
 - State regular tax and state AMT in all 50 states + DC

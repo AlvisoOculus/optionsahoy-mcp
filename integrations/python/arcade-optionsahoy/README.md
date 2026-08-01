@@ -4,7 +4,7 @@
 [![Python versions](https://img.shields.io/pypi/pyversions/arcade-optionsahoy.svg)](https://pypi.org/project/arcade-optionsahoy/)
 [![License: MIT](https://img.shields.io/pypi/l/arcade-optionsahoy.svg)](https://github.com/AlvisoOculus/optionsahoy-mcp/blob/main/LICENSE)
 
-An [Arcade](https://arcade.dev) toolkit for the OptionsAhoy equity-compensation calculators. One `@tool`-decorated function per OptionsAhoy REST endpoint, built on the keyless [`optionsahoy`](https://pypi.org/project/optionsahoy/) client and the [`arcade-tdk`](https://pypi.org/project/arcade-tdk/) Tool Development Kit. No OptionsAhoy account, no application programming interface (API) key, full federal tax code plus all 50 states and the District of Columbia (DC).
+An [Arcade](https://arcade.dev) toolkit for the OptionsAhoy equity-compensation calculators. One `@tool`-decorated function per OptionsAhoy REST endpoint, built on the keyless [`optionsahoy`](https://pypi.org/project/optionsahoy/) client and the [`arcade-tdk`](https://pypi.org/project/arcade-tdk/) Tool Development Kit. No OptionsAhoy account, no application programming interface (API) key, relevant federal tax code plus all 50 states and the District of Columbia (DC).
 
 ## Why not just ask the model?
 
@@ -29,7 +29,7 @@ The toolkit exposes eight Arcade tools, each a `@tool`-decorated function with `
 - `EquityFundingPlan` - multi-year plan to fund a cash goal from equity by a target date
 - `RsuLotOptimize` - which vested RSU lots to sell, and when, to divest a target fraction at the lowest tax
 
-Coverage spans the full federal tax code plus all 50 states and DC. The toolkit pulls in the keyless `optionsahoy` client automatically. No API key is read, stored, or sent anywhere. Set `OPTIONSAHOY_BASE_URL` to point the tools at a different host.
+Coverage spans the relevant federal tax code plus all 50 states and DC. The toolkit pulls in the keyless `optionsahoy` client automatically. No API key is read, stored, or sent anywhere. Set `OPTIONSAHOY_BASE_URL` to point the tools at a different host.
 
 ## Tools: inputs and outputs
 

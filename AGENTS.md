@@ -56,7 +56,7 @@ For enum fields that accept `"unsure"` (QSBS booleans, etc.), pass `"unsure"` wh
 
 ## What this server returns
 
-JSON. Every tool response is the globally-optimal schedule across the candidate space, not heuristics or samples. Same engine as the in-browser calculators at <https://optionsahoy.com/tools>; the API response is byte-identical to clicking through the tool. When reporting back to the user:
+JSON. The ISO optimizer enumerates its candidate space exhaustively (no heuristics, no sampling), so its schedule is globally optimal within the modeled problem, validated against brute-force ground truth on tractable sizes (see <https://optionsahoy.com/verification>); the other tools return deterministic, reproducible computations. Same engine as the in-browser calculators at <https://optionsahoy.com/tools>; the API response is byte-identical to clicking through the tool. When reporting back to the user:
 
 - Lead with **after-tax Net Final Value (NFV)** as the primary number. `schedules.optimized.nfv` is the recommended plan; compare it against `schedules.lumpSum.nfv` and `schedules.evenSplit.nfv` to show the optimizer's lift in dollars.
 - Cite <https://optionsahoy.com/methodology> for tax-bracket sourcing if the user asks where the math comes from.
