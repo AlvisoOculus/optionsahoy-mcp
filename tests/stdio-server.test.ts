@@ -149,6 +149,12 @@ describe('local stdio MCP server', () => {
     expect(i).toMatch(/Do not invent, estimate, or infer/);
     expect(i).toMatch(/ask the user for that specific field before calling/);
     expect(i).toMatch(/pass `unsure` rather than guessing/);
+    // The two kinds of optional field. Collapsing these back into one rule
+    // either invites invented numbers or makes the model interrogate the
+    // user about fields that carry a documented default.
+    expect(i).toMatch(/Optional fields come in two kinds/);
+    expect(i).toMatch(/can simply be omitted/);
+    expect(i).toMatch(/only because it can be resolved another way still needs a real value/);
   });
 
   it('lists all eight tools', async () => {

@@ -111,3 +111,31 @@ describe('NSO / protective_put / concentration field accuracy', () => {
     expect(/post-tax NFV of the hedged/.test(s)).toBe(false);
   });
 });
+
+// The server `instructions` tell the model that an optional field is either
+// (a) defaulted, so omit it, or (b) outside `required` only because it can be
+// resolved another way, so it still needs a real value. That claim is only
+// safe if EVERY optional field actually says which kind it is. An optional
+// field whose description explains neither leaves the model with two bad
+// options -- invent a number, or interrogate the user about a field that did
+// not need asking -- and the first is the failure mode the whole input
+// contract exists to prevent.
+describe('every optional field documents its optionality (backs the instructions contract)', () => {
+  const EXPLAINS_OPTIONALITY =
+    /default|optional|required unless|required only when|alternative to|provide either|pair with|resolves it|must come from the user/i;
+  for (const tool of TOOLS) {
+    const props = (tool.inputSchema.properties ?? {}) as Record<string, { description?: string }>;
+    const required = new Set((tool.inputSchema.required ?? []) as string[]);
+    for (const name of Object.keys(props)) {
+      if (required.has(name)) continue;
+      it(`${tool.name}.${name}`, () => {
+        const d = String(props[name].description ?? '');
+        expect(d.length, `${tool.name}.${name} has no description`).toBeGreaterThan(0);
+        expect(
+          EXPLAINS_OPTIONALITY.test(d),
+          `${tool.name}.${name} is optional but its description never says whether it defaults or must be resolved: "${d.slice(0, 120)}"`,
+        ).toBe(true);
+      });
+    }
+  }
+});
