@@ -112,17 +112,40 @@ describe('NSO / protective_put / concentration field accuracy', () => {
   });
 });
 
-// The server `instructions` tell the model that an optional field is either
-// (a) defaulted, so omit it, or (b) outside `required` only because it can be
-// resolved another way, so it still needs a real value. That claim is only
-// safe if EVERY optional field actually says which kind it is. An optional
+// The server `instructions` tell the model that a field outside `required` is
+// one of three kinds: defaulted (omit it), resolvable another way (still needs
+// a real value), or required under a stated condition. That claim is only safe
+// if EVERY optional field actually says which kind it is, in words strong
+// enough to distinguish them - the bare word "optional" does not. An optional
 // field whose description explains neither leaves the model with two bad
 // options -- invent a number, or interrogate the user about a field that did
 // not need asking -- and the first is the failure mode the whole input
 // contract exists to prevent.
 describe('every optional field documents its optionality (backs the instructions contract)', () => {
-  const EXPLAINS_OPTIONALITY =
-    /default|optional|required unless|required only when|alternative to|provide either|pair with|resolves it|must come from the user/i;
+  // STRONG tokens only. An earlier version also accepted the bare words
+  // "optional" and "default" and the provenance phrase "must come from the
+  // user", which let a description saying only "Optional." pass while
+  // explaining nothing about which kind of optional field it is.
+  // One alternation per kind of optional field, so a match means the
+  // description actually told the caller what omitting the field does:
+  //   defaulted            -> "defaults to X" / "Default 0.10" / "no built-in default"
+  //   resolvable elsewhere -> "required unless", "resolution order", "alternative to"
+  //   conditionally needed -> "required only when", "required with"
+  //   pure enhancer        -> "when set", "when supplied", "not used in pricing"
+  // The bare words "optional" and "default" are deliberately NOT accepted: a
+  // description reading only "Optional." satisfied the earlier version while
+  // explaining nothing.
+  const EXPLAINS_OPTIONALITY = new RegExp(
+    [
+      /defaults? to|\bdefault\b\s*[:=]?\s*["'\d]|no built-in default|falls back to/,
+      /required unless|resolution order|alternative to|provide either|pair with legacy|resolves it|inherits/,
+      /required only when|required with/,
+      /when set|when supplied|not used in pricing/,
+    ]
+      .map((r) => r.source)
+      .join('|'),
+    'i',
+  );
   for (const tool of TOOLS) {
     const props = (tool.inputSchema.properties ?? {}) as Record<string, { description?: string }>;
     const required = new Set((tool.inputSchema.required ?? []) as string[]);

@@ -143,18 +143,28 @@ describe('local stdio MCP server', () => {
 
   it('instructions carry the input-discipline contract', () => {
     const i = SERVER_INSTRUCTIONS;
-    expect(i).toContain('Input discipline:');
+    expect(i).toContain('Input discipline, the rule that matters most');
     // The tools range-check but cannot provenance-check, so the model has to be
     // told to ask rather than guess. Keep these three commitments in the text.
-    expect(i).toMatch(/Do not invent, estimate, or infer/);
+    expect(i).toMatch(/never invent an input value/);
     expect(i).toMatch(/ask the user for that specific field before calling/);
+    // The reason the model cannot lean on the error path: omission errors,
+    // fabrication does not.
+    expect(i).toMatch(/cannot tell a supplied figure from a guessed one/);
     expect(i).toMatch(/pass `unsure` rather than guessing/);
-    // The two kinds of optional field. Collapsing these back into one rule
-    // either invites invented numbers or makes the model interrogate the
-    // user about fields that carry a documented default.
-    expect(i).toMatch(/Optional fields come in two kinds/);
-    expect(i).toMatch(/can simply be omitted/);
-    expect(i).toMatch(/only because it can be resolved another way still needs a real value/);
+    // The kinds of optional field. Collapsing these into one rule either
+    // invites invented numbers or makes the model interrogate the user about
+    // fields that carry a documented default. An earlier two-kinds version
+    // stranded terminationDate (required only once hasLeftCompany is true)
+    // and the pure enhancers (ticker, tickerLabel, hedgeChoice).
+    expect(i).toMatch(/come in a few kinds/);
+    expect(i).toMatch(/pure enhancers/);
+    expect(i).toMatch(/Omit those, do not ask the user for them/);
+    expect(i).toMatch(/still need a real value/);
+    expect(i).toMatch(/terminationDate once hasLeftCompany is true/);
+    // The income contract changes what the model must ASK for, so it has to
+    // live here and not only in the parameter descriptions.
+    expect(i).toMatch(/taxable income after deductions, not gross wages/);
   });
 
   it('lists all eight tools', async () => {

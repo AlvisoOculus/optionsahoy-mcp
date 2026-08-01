@@ -260,9 +260,9 @@ export const PROMPTS: McpPrompt[] = [
           a.state && `I live in ${a.state}. `,
         ],
         instruction:
-          'Plan the cheapest sell schedule using the equity_funding_plan tool. You will need the per-lot cost basis and acquisition date for each tranche (RSU vest dates and prices, ESPP purchases, open-market buys), filing status, and annual W-2 income. If the user only knows the total shares and an average basis, ask whether to treat the position as a single combined lot. The recommended plan and its shortfall probability depend on the expected growth and volatility: if the holding is a covered public ticker, pass it so growth resolves automatically; otherwise ask me for the volatility rather than silently using the 30% default.',
+          'Plan the cheapest sell schedule using the equity_funding_plan tool. You will need the per-lot cost basis and acquisition date for each tranche (RSU vest dates and prices, ESPP purchases, open-market buys), filing status, and annual taxable income after deductions. If the user only knows the total shares and an average basis, ask whether to treat the position as a single combined lot. The recommended plan and its shortfall probability depend on the expected growth and volatility: if the holding is a covered public ticker, pass it so growth resolves automatically; otherwise ask me for the volatility rather than silently using the 30% default.',
         followUpFields:
-          'per-lot detail (shares, cost basis per share, acquisition date), the volatility (unless a covered ticker is given), filing status, and annual W-2 ordinary income',
+          'per-lot detail (shares, cost basis per share, acquisition date), the volatility (unless a covered ticker is given), filing status, and annual taxable income after deductions',
         outputs:
           'whether the target is feasible, the per-year sell schedule with lot-by-lot detail, total taxes (federal LTCG + NIIT + state), savings vs liquidating everything in the target year, and any leftover shares plus their market value',
       }),

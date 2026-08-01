@@ -152,6 +152,14 @@ const CC_DISALLOWED =
   'Bash,Read,Write,Edit,Glob,Grep,WebSearch,WebFetch,Task,TodoWrite,NotebookEdit,BashOutput,KillShell,ExitPlanMode,Agent,SlashCommand,Skill';
 const CC_TIMEOUT_MS = 90_000;
 
+// True when the arm's stdio server serves SERVER_INSTRUCTIONS on initialize
+// (i.e. the arm postdates the instructions parity fix). Such an arm must not
+// ALSO get --append-system-prompt, or the block is injected twice and the A/B
+// stops being comparable against a pre-fix arm.
+const ARM_SERVES_INSTRUCTIONS = VIA_CC
+  ? fs.existsSync(path.join(VIA_CC, 'functions/_lib/mcp-instructions.ts'))
+  : false;
+
 // ---- Surface loading ----------------------------------------------------
 
 function loadTools(toolspecPath: string) {
@@ -170,12 +178,11 @@ function loadTools(toolspecPath: string) {
   return tools;
 }
 
-// The server instructions live as a single-quoted TS literal in mcp.ts
-// (instructions: '...'), the same shape the deploy patcher targets. Extract
-// and unescape it so the eval system prompt mirrors what a real MCP client
-// receives at initialize. (A shared exported SERVER_INSTRUCTIONS constant would
-// remove this scrape and also close the stdio-server no-instructions parity
-// gap; tracked as a separate product change.)
+// The server instructions live as a single-quoted TS literal, now in the
+// shared functions/_lib/mcp-instructions.ts (SERVER_INSTRUCTIONS) rather than
+// inline in mcp.ts. Extract and unescape it so the eval system prompt mirrors
+// what a real MCP client receives at initialize. The scrape survives the
+// extraction because arm checkouts under --via-claude-code may predate it.
 function loadInstructions(mcpSrcPath: string): string {
   // The literal now lives in functions/_lib/mcp-instructions.ts (shared with
   // the stdio server). Older arm checkouts still hold it inline in
@@ -415,9 +422,11 @@ function resolveApiKey(): string | undefined {
 // ---- claude -p mode -----------------------------------------------------
 //
 // Spawns headless Claude Code with ONLY the arm repo's stdio MCP server
-// (--strict-mcp-config) and the arm's server instructions appended to the
-// system prompt (the stdio server does not ship `instructions` itself — known
-// parity gap). Parses stream-json and kills the child after the FIRST
+// (--strict-mcp-config). Arms whose stdio server predates the instructions
+// parity fix get those instructions appended to the system prompt instead;
+// arms that serve them on initialize must NOT also get the flag, or the block
+// lands in the prompt twice and the A/B is no longer comparable. Parses
+// stream-json and kills the child after the FIRST
 // assistant message: the routing decision is complete there, so tools never
 // need to execute. env drops ANTHROPIC_API_KEY to force subscription auth
 // (same idiom as the ops benchmark runner).
@@ -455,7 +464,9 @@ function callOnceViaClaudeCode(
       '--verbose',
       '--strict-mcp-config',
       '--mcp-config', mcpConfigPath,
-      '--append-system-prompt', instructions,
+      // Skip when the arm's stdio server already returns these on initialize
+      // (see ARM_SERVES_INSTRUCTIONS) - otherwise they land in the prompt twice.
+      ...(ARM_SERVES_INSTRUCTIONS ? [] : ['--append-system-prompt', instructions]),
       '--disallowedTools', CC_DISALLOWED,
       '--dangerously-skip-permissions',
     ]);

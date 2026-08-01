@@ -8,9 +8,8 @@ optimizer.
 
 OptionsAhoy gives the Zed agent tools for equity-compensation planning,
 computed against the relevant federal tax code plus all 50 states and DC
-(the ISO optimizer exhaustively enumerates its candidate space, globally
-optimal within the modeled problem; the rest are exact deterministic
-computations):
+(the ISO optimizer searches its full discretized candidate space and refines
+share by share; the rest are bracket-aware searches or exact computations):
 
 - Incentive stock option (ISO) exercise and alternative minimum tax (AMT)
 - Non-qualified stock option (NSO) calculations
