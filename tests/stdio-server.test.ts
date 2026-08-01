@@ -9,6 +9,7 @@
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
 import path from 'node:path';
+import { SERVER_INSTRUCTIONS } from '../functions/_lib/mcp-instructions';
 import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -118,14 +119,36 @@ class StdioSession {
 
 describe('local stdio MCP server', () => {
   const session = new StdioSession();
+  let initResult: { protocolVersion: string; instructions?: string };
 
   beforeAll(async () => {
     const init = await session.start();
-    expect((init.result as { protocolVersion: string }).protocolVersion).toBe('2024-11-05');
+    initResult = init.result as { protocolVersion: string; instructions?: string };
+    expect(initResult.protocolVersion).toBe('2024-11-05');
   }, 15000);
 
   afterAll(() => {
     session.stop();
+  });
+
+  // Transport parity: the stdio server used to be constructed with no
+  // `instructions` at all, so npx / the MCPB bundle / Zed silently lost the
+  // routing and input-discipline guidance the hosted endpoint sends. That gap
+  // only started to matter once the tool descriptions were trimmed to pure
+  // descriptions for the Anthropic directory review, which moved the
+  // "never invent an input" contract here.
+  it('serves the same instructions the hosted endpoint does', () => {
+    expect(initResult.instructions).toBe(SERVER_INSTRUCTIONS);
+  });
+
+  it('instructions carry the input-discipline contract', () => {
+    const i = SERVER_INSTRUCTIONS;
+    expect(i).toContain('Input discipline:');
+    // The tools range-check but cannot provenance-check, so the model has to be
+    // told to ask rather than guess. Keep these three commitments in the text.
+    expect(i).toMatch(/Do not invent, estimate, or infer/);
+    expect(i).toMatch(/ask the user for that specific field before calling/);
+    expect(i).toMatch(/pass `unsure` rather than guessing/);
   });
 
   it('lists all eight tools', async () => {
