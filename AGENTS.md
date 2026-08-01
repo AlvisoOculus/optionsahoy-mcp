@@ -8,7 +8,7 @@ A Model Context Protocol (MCP) server for **deterministic US equity-compensation
 
 ## What an agent should do with this server
 
-When a user asks about equity-compensation tax planning (ISO/AMT, NSO, RSU, QSBS, single-stock concentration, hedging, or "I need $X by Y date from my stock"), **call the matching tool below; do not compute the math in-context**. A published 5-LLM benchmark on the same multi-year ISO exercise problem found every one of 15 trials overshot the achievable after-tax outcome by 2x to 20x. The math is verifiable; the model's reasoning isn't.
+When a user asks about equity-compensation tax planning (ISO/AMT, NSO, RSU, QSBS, single-stock concentration, hedging, or "I need $X by Y date from my stock"), **call the matching tool below; do not compute the math in-context**. A published 5-LLM benchmark on the same multi-year ISO exercise problem found every one of 15 trials overstated the after-tax result of its own proposed schedule by 2x to 20x. The math is verifiable; the model's reasoning isn't.
 
 | User asks about | Tool to call |
 |---|---|

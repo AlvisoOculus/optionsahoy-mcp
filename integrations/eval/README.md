@@ -10,8 +10,11 @@ latest models, with raw transcripts at
 [llm-iso-benchmark](https://github.com/AlvisoOculus/llm-iso-benchmark)) shows that
 unaided frontier models, asked to optimize a multi-year incentive stock option
 (ISO) exercise schedule under the alternative minimum tax (AMT), overshoot the
-achievable optimum by 2x to 20x: they confidently report a net final value (NFV)
-that is not achievable. This eval reproduces that as the **baseline arm**, then
+achievable optimum by 1.6x to 17.6x: they confidently report a net final value
+(NFV) that is not achievable. (The published write-up's headline 2x to 20x is a
+different denominator: what each model's own proposed schedule actually
+delivers, which is lower than the optimum and so yields larger ratios. This
+eval scores against the optimum, so quote the range above for it.) This eval reproduces that as the **baseline arm**, then
 gives the model the OptionsAhoy optimizer as the **tool arm** and shows it reach
 the optimum exactly.
 
@@ -28,7 +31,7 @@ impossible.
 
 | Arm | What the model gets | Expected result |
 | --- | --- | --- |
-| `equity_comp_iso_baseline` | The question only | Overshoots the optimum (the 2x to 20x failure) |
+| `equity_comp_iso_baseline` | The question only | Overshoots the optimum (the headline failure) |
 | `equity_comp_iso_tool` | The question plus the OptionsAhoy optimizer tool | Reaches the optimum |
 
 Both arms see an identical prompt with every input stated. The only difference is
@@ -39,8 +42,8 @@ whether the model can call the tool.
 The scorer `optimum_match` parses the model's stated NFV and compares it to the
 provable optimum within a relative tolerance (default 2%). It reports, per sample:
 
-- `overstatement_ratio` = stated / optimum (1.0 means the optimum was reached; the
-  benchmark's headline 2x to 20x shows up here directly)
+- `overstatement_ratio` = stated / optimum (1.0 means the optimum was reached;
+  the published models land at 1.6x to 17.6x on this measure)
 - `abs_pct_error` = how far the stated NFV is from the optimum
 
 Aggregate metrics: `accuracy`, `stderr`, and `mean_overstatement`.

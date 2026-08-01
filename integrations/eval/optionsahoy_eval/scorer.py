@@ -3,8 +3,8 @@
 The target is the optimum net final value (NFV), which is the maximum achievable.
 A stated NFV within ``tolerance`` of it counts as correct; anything materially
 higher is an impossible claim and anything materially lower leaves money on the
-table. The ``overstatement_ratio`` metadata (stated / optimum) reproduces the
-companion benchmark's headline finding that unaided models overshoot by 2x to 20x.
+table. The ``overstatement_ratio`` metadata (stated / optimum) is the measure the
+companion benchmark scores on: unaided models land at 1.6x to 17.6x.
 """
 
 import re
