@@ -73,7 +73,7 @@ export const PROMPTS: McpPrompt[] = [
       { name: 'volatility', description: 'Annualized volatility (sigma) as a decimal (e.g. 0.5 for 50%). Optional when you pass a covered ticker', required: false },
       { name: 'expectedGrowth', description: 'Expected annual stock growth as a decimal (e.g. 0.12 for 12%). Optional when you pass a covered ticker', required: false },
       { name: 'state', description: 'Two-letter state code (e.g. CA, NY, TX)', required: false },
-      { name: 'ordinaryIncome', description: 'Annual W-2 ordinary income, USD', required: false },
+      { name: 'ordinaryIncome', description: 'Annual ordinary income, USD, taxable income after deductions (no standard or itemized deduction is applied)', required: false },
     ],
     build: (a) =>
       templatePrompt({

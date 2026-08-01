@@ -158,6 +158,16 @@ const STRICT_INPUT_NOTE_NO_TICKER =
 // Vol input shared by amt_iso_optimize, nso_calculate, rsu_sell_vs_hold.
 // concentration_analyze defines its own version because it also uses sigma
 // for Black-Scholes hedge pricing (dual purpose).
+// Appended to every ordinary-income field. The engine walks the brackets on
+// the figure it is given and applies NO standard or itemized deduction (the
+// STANDARD_DEDUCTION_2026 constant is IRS-conformance-tested and surfaced on
+// the verification page, but no calc subtracts it), so the input must already
+// be taxable income. Regular tax and the AMTI base legitimately differ here -
+// AMT disallows the standard deduction - and one field feeds both, so the
+// contract is stated per field rather than guessed from "W-2 income".
+const TAXABLE_INCOME_NOTE =
+  ' This is taxable income after deductions, not gross wages: the engine applies no standard or itemized deduction to it.';
+
 const VOLATILITY_SCHEMA = {
   type: 'number',
   minimum: 0,
@@ -1072,7 +1082,7 @@ export const TOOLS: McpTool[] = [
           type: 'number',
           minimum: 0,
           description:
-            'Annual W-2 ordinary income before this exercise, USD. Baseline for the bracket walk and the AMT exemption phaseout.',
+            'Annual ordinary income before this exercise, USD. Baseline for the bracket walk and the AMT exemption phaseout.' + TAXABLE_INCOME_NOTE,
         },
         stateCode: {
           ...STATE_SCHEMA,
@@ -1149,7 +1159,7 @@ export const TOOLS: McpTool[] = [
           type: 'number',
           minimum: 0,
           description:
-            'Annual W-2 ordinary income before this exercise, USD. Baseline for the bracket walk on the bargain element.',
+            'Annual ordinary income before this exercise, USD. Baseline for the bracket walk on the bargain element.' + TAXABLE_INCOME_NOTE,
         },
         filingStatus: {
           ...FILING_SCHEMA,
@@ -1227,7 +1237,7 @@ export const TOOLS: McpTool[] = [
         ordinaryIncome: {
           type: 'number',
           minimum: 0,
-          description: 'Annual W-2 ordinary income before this vest, USD. Baseline for the bracket walk on the vest amount.',
+          description: 'Annual ordinary income before this vest, USD. Baseline for the bracket walk on the vest amount.' + TAXABLE_INCOME_NOTE,
         },
         filingStatus: {
           ...FILING_SCHEMA,
@@ -1318,7 +1328,7 @@ export const TOOLS: McpTool[] = [
         ordinaryIncome: {
           type: 'number',
           minimum: 0,
-          description: 'Annual W-2 ordinary income before any sales, USD. Baseline for LTCG bracket determination.',
+          description: 'Annual ordinary income before any sales, USD. Baseline for LTCG bracket determination.' + TAXABLE_INCOME_NOTE,
         },
         totalAssets: {
           type: 'number',
@@ -1527,7 +1537,7 @@ export const TOOLS: McpTool[] = [
         ordinaryIncome: {
           type: 'number',
           minimum: 0,
-          description: 'Annual W-2 ordinary income, USD. Baseline for the federal LTCG bracket on any taxable gain.',
+          description: 'Annual ordinary income, USD. Baseline for the federal LTCG bracket on any taxable gain.' + TAXABLE_INCOME_NOTE,
         },
         filingStatus: {
           ...FILING_SCHEMA,
@@ -1625,7 +1635,7 @@ export const TOOLS: McpTool[] = [
         ordinaryIncome: {
           type: 'number',
           minimum: 0,
-          description: 'Annual W-2 ordinary income, USD. Used as the baseline for the federal LTCG bracket walk in each candidate year and for NIIT threshold tests.',
+          description: 'Annual ordinary income, USD. Used as the baseline for the federal LTCG bracket walk in each candidate year and for NIIT threshold tests.' + TAXABLE_INCOME_NOTE,
         },
         filingStatus: {
           ...FILING_SCHEMA,
@@ -1700,7 +1710,7 @@ export const TOOLS: McpTool[] = [
         ordinaryIncome: {
           type: 'number',
           minimum: 0,
-          description: 'Total household ordinary income for the year, USD (W-2 + interest + other). Sets the federal LTCG bracket floor, the short-term ordinary rate, and the net investment income tax (NIIT) threshold test. Assumed constant across plan years.',
+          description: 'Total household ordinary income for the year, USD (W-2 + interest + other). Sets the federal LTCG bracket floor, the short-term ordinary rate, and the net investment income tax (NIIT) threshold test. This is taxable income after deductions, not gross wages: the engine applies no standard or itemized deduction to it. Assumed constant across plan years.',
         },
         filingStatus: {
           ...FILING_SCHEMA,

@@ -2412,7 +2412,7 @@
           "ordinaryIncome": {
             "type": "number",
             "minimum": 0,
-            "description": "Annual W-2 / 1099 income excluding the exercise."
+            "description": "Annual ordinary income excluding the exercise. Taxable income after deductions, not gross wages: no standard or itemized deduction is applied."
           },
           "stateCode": {
             "$ref": "#/components/schemas/StateCode"
@@ -3083,7 +3083,7 @@
           "ordinaryIncome": {
             "type": "number",
             "minimum": 0,
-            "description": "Total household ordinary income for the year, USD. Sets the LTCG bracket floor, short-term rate, and NIIT threshold."
+            "description": "Total household ordinary income for the year, USD. Taxable income after deductions, not gross wages: no standard or itemized deduction is applied. Sets the LTCG bracket floor, short-term rate, and NIIT threshold."
           },
           "filingStatus": {
             "$ref": "#/components/schemas/FilingStatus"

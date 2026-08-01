@@ -67,7 +67,7 @@
           "ordinaryIncome": {
             "type": "number",
             "minimum": 0,
-            "description": "Annual W-2 ordinary income before this exercise, USD. Baseline for the bracket walk and the AMT exemption phaseout."
+            "description": "Annual ordinary income before this exercise, USD. Baseline for the bracket walk and the AMT exemption phaseout. This is taxable income after deductions, not gross wages: the engine applies no standard or itemized deduction to it."
           },
           "stateCode": {
             "type": "string",
@@ -207,7 +207,7 @@
           "ordinaryIncome": {
             "type": "number",
             "minimum": 0,
-            "description": "Annual W-2 ordinary income before this exercise, USD. Baseline for the bracket walk on the bargain element."
+            "description": "Annual ordinary income before this exercise, USD. Baseline for the bracket walk on the bargain element. This is taxable income after deductions, not gross wages: the engine applies no standard or itemized deduction to it."
           },
           "filingStatus": {
             "type": "string",
@@ -361,7 +361,7 @@
           "ordinaryIncome": {
             "type": "number",
             "minimum": 0,
-            "description": "Annual W-2 ordinary income before this vest, USD. Baseline for the bracket walk on the vest amount."
+            "description": "Annual ordinary income before this vest, USD. Baseline for the bracket walk on the vest amount. This is taxable income after deductions, not gross wages: the engine applies no standard or itemized deduction to it."
           },
           "filingStatus": {
             "type": "string",
@@ -596,7 +596,7 @@
           "ordinaryIncome": {
             "type": "number",
             "minimum": 0,
-            "description": "Annual W-2 ordinary income before any sales, USD. Baseline for LTCG bracket determination."
+            "description": "Annual ordinary income before any sales, USD. Baseline for LTCG bracket determination. This is taxable income after deductions, not gross wages: the engine applies no standard or itemized deduction to it."
           },
           "totalAssets": {
             "type": "number",
@@ -914,7 +914,7 @@
           "ordinaryIncome": {
             "type": "number",
             "minimum": 0,
-            "description": "Annual W-2 ordinary income, USD. Baseline for the federal LTCG bracket on any taxable gain."
+            "description": "Annual ordinary income, USD. Baseline for the federal LTCG bracket on any taxable gain. This is taxable income after deductions, not gross wages: the engine applies no standard or itemized deduction to it."
           },
           "filingStatus": {
             "type": "string",
@@ -1092,7 +1092,7 @@
           "ordinaryIncome": {
             "type": "number",
             "minimum": 0,
-            "description": "Annual W-2 ordinary income, USD. Used as the baseline for the federal LTCG bracket walk in each candidate year and for NIIT threshold tests."
+            "description": "Annual ordinary income, USD. Used as the baseline for the federal LTCG bracket walk in each candidate year and for NIIT threshold tests. This is taxable income after deductions, not gross wages: the engine applies no standard or itemized deduction to it."
           },
           "filingStatus": {
             "type": "string",
@@ -1252,7 +1252,7 @@
           "ordinaryIncome": {
             "type": "number",
             "minimum": 0,
-            "description": "Total household ordinary income for the year, USD (W-2 + interest + other). Sets the federal LTCG bracket floor, the short-term ordinary rate, and the net investment income tax (NIIT) threshold test. Assumed constant across plan years."
+            "description": "Total household ordinary income for the year, USD (W-2 + interest + other). Sets the federal LTCG bracket floor, the short-term ordinary rate, and the net investment income tax (NIIT) threshold test. This is taxable income after deductions, not gross wages: the engine applies no standard or itemized deduction to it. Assumed constant across plan years."
           },
           "filingStatus": {
             "type": "string",
