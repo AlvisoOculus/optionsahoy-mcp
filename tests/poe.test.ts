@@ -617,6 +617,24 @@ describe('poe anti-fabrication scoped to user turns (2026-07-04)', () => {
     expect(prompt).toContain('"under-50m"');
     expect(prompt).toContain('Never confuse the expected GAIN');
   });
+
+  // Both of these were live canary failures on 2026-08-01: the extractor
+  // clarified for a field the user had already given. The prompt taught
+  // assetCategory and filingStatus how to map colloquial wording to an enum
+  // but never taught industry, and every ticker example was a possessive
+  // phrase, so a bare "ticker MSFT" was not recognised. The live battery
+  // costs money to run, so guard the prompt content here instead.
+  it('extractor prompt maps a colloquial industry onto the enum', () => {
+    const prompt = extractorPrompt('User: C-corp founder stock, tech, $5M gain');
+    expect(prompt).toContain('"tech-software"');
+    expect(prompt).toContain('Never omit industry');
+  });
+
+  it('extractor prompt recognises an explicit "ticker X" phrasing', () => {
+    const prompt = extractorPrompt('User: 1,000 RSUs, ticker MSFT');
+    expect(prompt).toContain('"ticker MSFT"');
+    expect(prompt).toContain('never re-ask for a ticker the user has already named');
+  });
 });
 
 describe('poe round-4 fixes: stack tickers, uncovered symbols, bundled grant ask', () => {
