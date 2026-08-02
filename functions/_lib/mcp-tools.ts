@@ -1539,7 +1539,7 @@ export const TOOLS: McpTool[] = [
             'extraction', 'hospitality', 'performing-arts', 'other-services', 'unsure',
           ],
           description:
-            '§1202 Test 4: Industry classification of the corporation. Qualified-trade-or-business industries qualify (tech-software, manufacturing, biotech-research, retail-wholesale, hospitality, etc.). Specified service trades or businesses (law, engineering, architecture, accounting-actuarial, consulting, finance, farming, extraction, health-services, performing-arts) generally do NOT qualify.',
+            '§1202 Test 4: Industry classification of the corporation. Four values qualify: tech-software, manufacturing, biotech-research, retail-wholesale. Specified service trades or businesses (law, engineering, architecture, accounting-actuarial, consulting, finance, health-services, performing-arts) do NOT qualify, and farming, extraction and hospitality are separately excluded, so they do not qualify either. other-services and unsure return a caveated verdict rather than a pass or fail.',
         },
         activeBusiness: {
           type: 'string',

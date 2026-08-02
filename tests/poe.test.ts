@@ -6,6 +6,7 @@
 // A separate live extraction check (real model -> args) lives in
 // scripts/poe-e2e-extract.mts, run manually with an OpenRouter key.
 
+import { QSBS_INDUSTRY_OPTIONS } from '../lib/calc/qsbs';
 import { describe, it, expect } from 'vitest';
 import {
   onRequest,
@@ -624,10 +625,34 @@ describe('poe anti-fabrication scoped to user turns (2026-07-04)', () => {
   // but never taught industry, and every ticker example was a possessive
   // phrase, so a bare "ticker MSFT" was not recognised. The live battery
   // costs money to run, so guard the prompt content here instead.
-  it('extractor prompt maps a colloquial industry onto the enum', () => {
-    const prompt = extractorPrompt('User: C-corp founder stock, tech, $5M gain');
-    expect(prompt).toContain('"tech-software"');
-    expect(prompt).toContain('Never omit industry');
+  // Asserting the prompt merely CONTAINS "tech-software" is vacuous: qsbs_check's
+  // Example call already carries it, so that assertion passes with no rule at
+  // all. Assert the arrow, and bind the rule to the engine's own table so a
+  // newly added industry cannot go unrouted. An unrouted value is not cosmetic:
+  // the rule says "closest allowed value", so a restaurant or mining business
+  // with nowhere to go gets rounded up into a QUALIFYING bucket and the verdict
+  // flips from disqualified to qualifies with a dollar figure attached.
+  it('the industry rule routes every engine enum value, with the exact token', () => {
+    const rule = extractorPrompt('User: C-corp founder stock, tech, $5M gain')
+      .split('\n')
+      .find((l) => l.startsWith('- industry'));
+    expect(rule, 'no industry rule in the extractor prompt').toBeDefined();
+    expect(rule).toContain('-> "tech-software"');
+    for (const o of QSBS_INDUSTRY_OPTIONS) {
+      expect(rule, `industry rule never routes to "${o.value}"`).toContain(`"${o.value}"`);
+    }
+  });
+
+  it('the industry rule warns that hospitality, farming and extraction are excluded', () => {
+    const rule = extractorPrompt('User: founder stock')
+      .split('\n')
+      .find((l) => l.startsWith('- industry'))!;
+    // These three are qualifies:false in the engine; rounding one up into a
+    // qualifying bucket is the failure this guards.
+    for (const v of ['hospitality', 'farming', 'extraction']) {
+      expect(QSBS_INDUSTRY_OPTIONS.find((o) => o.value === v)!.qualifies).toBe(false);
+    }
+    expect(rule).toMatch(/EXCLUDED/);
   });
 
   it('extractor prompt recognises an explicit "ticker X" phrasing', () => {
@@ -816,4 +841,33 @@ describe('poe helpers', () => {
     expect(spec).toContain('Example args:');
     for (const t of ALL_TOOLS) expect(spec).toContain(t);
   });
+});
+
+// toolSpec() pulls each tool's Example JSON out of its description with
+// desc.lastIndexOf('}'), which is only correct while NO brace follows the
+// example. Every trailing note (STRICT_INPUT_NOTE, the qsbs unsure note, the
+// beta note) is appended after it, so adding a brace to any of them would
+// silently hand the extractor a truncated, unparseable example with no other
+// test failing.
+describe('toolSpec example extraction: the no-trailing-brace invariant', () => {
+  for (const tool of TOOLS) {
+    const desc = String(tool.description);
+    const exFrom = desc.search(/Example(?: call)?:/);
+    if (exFrom < 0) continue;
+    it(`${tool.name}: extracted example is a balanced JSON-ish object`, () => {
+      const open = desc.indexOf('{', exFrom);
+      const close = desc.lastIndexOf('}');
+      expect(open, 'no { after the Example marker').toBeGreaterThan(-1);
+      expect(close).toBeGreaterThan(open);
+      const example = desc.slice(open, close + 1);
+      expect(example.startsWith('{')).toBe(true);
+      expect(example.endsWith('}')).toBe(true);
+      expect(
+        (example.match(/\{/g) ?? []).length,
+        `${tool.name} example braces unbalanced: a trailing note probably introduced a brace`,
+      ).toBe((example.match(/\}/g) ?? []).length);
+      // Nothing after the example may contain a brace, or lastIndexOf overshoots.
+      expect(desc.slice(close + 1)).not.toMatch(/[{}]/);
+    });
+  }
 });
