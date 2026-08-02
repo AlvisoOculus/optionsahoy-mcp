@@ -8,6 +8,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { TOOLS } from '../functions/_lib/mcp-tools';
+import { QSBS_INDUSTRY_OPTIONS } from '../lib/calc/qsbs';
 import { evaluateQsbs, type QsbsInputs } from '@/lib/calc/qsbs';
 
 const byName: Record<string, any> = Object.fromEntries(TOOLS.map((t: any) => [t.name, t]));
@@ -161,4 +162,36 @@ describe('every optional field documents its optionality (backs the instructions
       });
     }
   }
+});
+
+// The schema told MCP clients that hospitality is a qualifying industry while
+// the engine returns qualifies:false for it, and filed farming and extraction
+// as service businesses when the statute excludes them separately. A client
+// reading inputSchema got the opposite of what the tool computes. Bind the
+// prose to the engine table so the two cannot drift again.
+describe('qsbs_check industry description matches the engine table', () => {
+  const desc = String(
+    (byName['qsbs_check'].inputSchema.properties as Record<string, { description?: string }>).industry.description,
+  );
+  const qualifying = QSBS_INDUSTRY_OPTIONS.filter((o) => o.qualifies === true).map((o) => o.value);
+  const excluded = QSBS_INDUSTRY_OPTIONS.filter((o) => o.qualifies === false).map((o) => o.value);
+
+  it('names every qualifying industry', () => {
+    for (const v of qualifying) expect(desc, `missing qualifying ${v}`).toContain(v);
+  });
+
+  it('never presents an excluded industry as qualifying', () => {
+    // The qualifying claim is the explicit list after "qualify:", up to its
+    // sentence end. Slicing at the first "do NOT qualify" instead would sweep
+    // in the excluded values named in the clause that precedes that phrase.
+    const m = desc.match(/qualify:\s*([^.]+)\./i);
+    expect(m, 'no explicit "qualify: a, b, c." list in the description').not.toBeNull();
+    const qualifyingList = m![1]!;
+    for (const v of qualifying) {
+      expect(qualifyingList, `${v} qualifies but is not in the qualifying list`).toContain(v);
+    }
+    for (const v of excluded) {
+      expect(qualifyingList, `${v} is qualifies:false but sits in the qualifying list`).not.toContain(v);
+    }
+  });
 });
