@@ -12,6 +12,19 @@
 //   https://optionsahoy-mcp.pages.dev/admin/mcp-stats?token=...
 // The worker-proxy only forwards /mcp* and /api/v1/*, so this path stays
 // off the public optionsahoy.com domain on purpose.
+//
+// ADMIN_TOKEN must be stored as a Pages SECRET (secret_text), never as a
+// plain-text variable: plain variables are readable in the dashboard and are
+// returned in full by the Pages API to anyone with account read access, while
+// secrets are write-only. This drifted once (found 2026-08-02, rotated), so
+// re-check the type after any change to the project's variables.
+//
+// Two things to know when rotating it. Pages Functions read the environment
+// snapshot bound to their DEPLOYMENT, so a changed variable does nothing until
+// a NEW deployment is built - retrying an existing one replays the old
+// snapshot, and the previous token keeps working until then. And `main` here
+// is protected, so that new deployment comes from a merged PR rather than a
+// direct push. Full runbook: optionsahoy_ops docs/ops/optionsahoy-mcp-deploy.md.
 
 import { type PagesFunction } from '../_lib/api';
 import { type D1Database } from '../_lib/stats';
