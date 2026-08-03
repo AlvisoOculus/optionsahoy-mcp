@@ -185,9 +185,10 @@ describe('POST /mcp tools/call next-step injection', () => {
     const inner = JSON.parse(body.result.content[0].text) as {
       _meta?: { optionsahoy?: { free_tool?: string; also_run?: string; beta?: string } };
     };
-    expect(inner._meta?.optionsahoy?.free_tool).toBe(PER_TOOL_FREE_TOOL.amt_iso_optimize);
+    // The canonical lines plus the session join token (s=<8-char prefix>).
+    expect(inner._meta?.optionsahoy?.free_tool).toBe(`${PER_TOOL_FREE_TOOL.amt_iso_optimize}&s=sess-pit`);
     expect(inner._meta?.optionsahoy?.also_run).toBe(PER_TOOL_RELATED.amt_iso_optimize);
-    expect(inner._meta?.optionsahoy?.beta).toBe(PER_TOOL_BETA_INVITES.amt_iso_optimize);
+    expect(inner._meta?.optionsahoy?.beta).toBe(`${PER_TOOL_BETA_INVITES.amt_iso_optimize}&s=sess-pit`);
   });
 
   it('switches to the bare free-tool URL on the second call in the same session', async () => {
@@ -206,7 +207,7 @@ describe('POST /mcp tools/call next-step injection', () => {
     const inner = JSON.parse(body.result.content[0].text) as {
       _meta?: { optionsahoy?: { free_tool?: string; also_run?: string; beta?: string } };
     };
-    expect(inner._meta?.optionsahoy?.free_tool).toBe(PER_TOOL_FREE_TOOL_BARE.amt_iso_optimize);
+    expect(inner._meta?.optionsahoy?.free_tool).toBe(`${PER_TOOL_FREE_TOOL_BARE.amt_iso_optimize}&s=sess-pit`);
     expect(inner._meta?.optionsahoy?.also_run).toBe(PER_TOOL_RELATED.amt_iso_optimize);
     expect(inner._meta?.optionsahoy?.beta).toBeUndefined();
   });
@@ -320,5 +321,31 @@ describe('HEAD /mcp (health checkers)', () => {
     });
     expect(res.status).toBe(200);
     expect(await res.text()).toBe('');
+  });
+});
+
+describe('session join token on next-step URLs (MCP -> web attribution)', () => {
+  it('free_tool and beta carry s=<8-char prefix>; also_run prose never does', async () => {
+    const { nextStepsFor } = await import('../functions/_lib/sessions');
+    const next = nextStepsFor('qsbs_check', 1, '679ea49a-90f4-4e79-88a4-1823824a878b');
+    expect(next?.free_tool).toContain('?src=mcp_qsbs&s=679ea49a');
+    expect(next?.beta).toContain('?src=mcp_qsbs&s=679ea49a');
+    expect(next?.also_run).not.toContain('&s=');
+  });
+
+  it('later calls carry it on the bare URL too', async () => {
+    const { nextStepsFor } = await import('../functions/_lib/sessions');
+    const next = nextStepsFor('qsbs_check', 2, '679ea49a-90f4-4e79-88a4-1823824a878b');
+    expect(next?.free_tool).toBe('optionsahoy.com/tools/qsbs?src=mcp_qsbs&s=679ea49a');
+  });
+
+  it('arbitrary client-supplied ids are sanitized; junk yields no param', async () => {
+    const { nextStepsFor, sessionJoinToken } = await import('../functions/_lib/sessions');
+    expect(sessionJoinToken('e2e-1785591713153')).toBe('e2e-1785');
+    expect(sessionJoinToken('<script>alert(1)</script>')).toBe('scriptal');
+    expect(sessionJoinToken('!!')).toBeNull();
+    expect(sessionJoinToken(undefined)).toBeNull();
+    const next = nextStepsFor('qsbs_check', 1, '!!');
+    expect(next?.free_tool).not.toContain('&s=');
   });
 });
