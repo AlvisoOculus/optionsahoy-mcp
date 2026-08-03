@@ -38,6 +38,14 @@ const SAMPLE_ROWS = [
   // Session funnel rollups: FROM mcp_sessions is the distinctive fragment
   // (their GROUP BY day tail would otherwise collide with the mcp_calls
   // daily matcher below, so these must come first).
+  // Initializes grouped by client, windowed. Distinct from the endpoint
+  // matcher below: this one names both mcp:initialize and client_name.
+  { match: /endpoint = 'mcp:initialize' AND ts >= \? GROUP BY client_name/, rows: [
+    { client_name: 'claude-code', n: 40 },   // human -> counts
+    { client_name: 'langchain', n: 10 },     // agent -> counts
+    { client_name: 'mcpregistry', n: 900 },  // crawler -> excluded
+    { client_name: null, n: 55 },            // unnamed script -> excluded
+  ] },
   { match: /FROM mcp_sessions[\s\S]*GROUP BY day/, rows: [{ day: '2026-08-03', n: 5, calls: 13 }] },
   { match: /FROM mcp_sessions[\s\S]*GROUP BY depth/, rows: [{ depth: 1, n: 3 }, { depth: 8, n: 1 }] },
   // error-fields (topErrorFields): shares 4+1=5, volatility 3; the smoke row is
@@ -237,5 +245,57 @@ describe('admin /mcp-stats', () => {
     const body = await res.json();
     expect(body.samples.map((s: { network: string }) => s.network)).toEqual(['unknown', 'hosting']);
     expect(body.restNet).toHaveLength(2);
+  });
+});
+
+describe('admin /mcp-stats auth accepts a Bearer header (machine callers)', () => {
+  it('authorizes with Authorization: Bearer, so the token need not ride in the URL', async () => {
+    const request = new Request('http://localhost/admin/mcp-stats?days=7', {
+      method: 'GET',
+      headers: { authorization: 'Bearer right' },
+    });
+    const res = await onRequest(ctx({ ADMIN_TOKEN: 'right', MCP_STATS: mockDb(SAMPLE_ROWS) }, request));
+    expect(res.status).toBe(200);
+  });
+
+  it('still rejects a wrong Bearer token', async () => {
+    const request = new Request('http://localhost/admin/mcp-stats', {
+      method: 'GET',
+      headers: { authorization: 'Bearer nope' },
+    });
+    const res = await onRequest(ctx({ ADMIN_TOKEN: 'right', MCP_STATS: mockDb(SAMPLE_ROWS) }, request));
+    expect(res.status).toBe(401);
+  });
+});
+
+describe('initializesReal (funnel top-of-pipeline, probes excluded)', () => {
+  it('counts only human/agent clients, over the requested window', async () => {
+    const res = await onRequest(
+      ctx({ ADMIN_TOKEN: 'right', MCP_STATS: mockDb(SAMPLE_ROWS) }, req('?token=right&days=7&format=json')),
+    );
+    const json = (await res.json()) as { initializesReal: number };
+    // 40 (claude-code, human) + 10 (langchain, agent). The 900 crawler and
+    // the 55 unnamed-script initializes are excluded.
+    expect(json.initializesReal).toBe(50);
+  });
+});
+
+describe('Bearer parsing edge cases', () => {
+  const env = () => ({ ADMIN_TOKEN: 'right', MCP_STATS: mockDb(SAMPLE_ROWS) });
+  const withAuth = (auth: string, qs = '') =>
+    new Request(`http://localhost/admin/mcp-stats${qs}`, { method: 'GET', headers: { authorization: auth } });
+
+  it('accepts a lowercase scheme (RFC 7235: case-insensitive)', async () => {
+    expect((await onRequest(ctx(env(), withAuth('bearer right')))).status).toBe(200);
+  });
+
+  it('a malformed header does not shadow a valid ?token=', async () => {
+    expect((await onRequest(ctx(env(), withAuth('Bearer ', '?token=right')))).status).toBe(200);
+    expect((await onRequest(ctx(env(), withAuth('Basic abc', '?token=right')))).status).toBe(200);
+  });
+
+  it('an empty or unset ADMIN_TOKEN can never be matched', async () => {
+    const res = await onRequest(ctx({ ADMIN_TOKEN: '', MCP_STATS: mockDb(SAMPLE_ROWS) }, withAuth('Bearer ')));
+    expect(res.status).toBe(503);
   });
 });

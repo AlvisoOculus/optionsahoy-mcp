@@ -17,7 +17,8 @@ import { logCalls, logSamples, type CallFields, type SampleFields, type D1Databa
 import { TOOLS } from './_lib/mcp-tools';
 import { RESOURCES } from './_lib/mcp-resources';
 import { PROMPTS } from './_lib/mcp-prompts';
-import { bumpSessionCallCount, nextStepsFor } from './_lib/sessions';
+import { BARE_CALL_COUNT, bumpSessionCallCount, nextStepsFor } from './_lib/sessions';
+import { isInfraClient } from './_lib/classify';
 import { SERVER_VERSION } from './_lib/version';
 import { SERVER_INSTRUCTIONS } from './_lib/mcp-instructions';
 import { coveredTickers } from '../lib/data/trailing-returns';
@@ -109,14 +110,16 @@ function isParams(v: unknown): v is Record<string, unknown> {
 // actionable signal). The caller flushes `logs` to D1 in one batch.
 //
 // `sessionDeps` carries the Mcp-Session-Id + MCP_STATS binding so that
-// tools/call can dedupe its injected beta-access pitch per session. Pass
-// `undefined` to skip injection entirely (e.g. when the binding is
-// missing or no session header was sent).
+// tools/call can dedupe its injected beta-access pitch per session.
+// `injectSessionless` covers the much larger population that never echoes a
+// session id (MCP SDK integrations calling tools/call directly): they get the
+// bare, un-deduped form. Both undefined/false = no injection at all.
 async function handle(
   req: JsonRpcRequest,
   logs: CallFields[],
   samples: SampleFields[],
   sessionDeps: { sessionId: string; db: D1Database } | undefined,
+  allowInjection: boolean,
 ): Promise<JsonRpcResponse | null> {
   const id = req.id ?? null;
   const isNotification = req.id === undefined;
@@ -176,10 +179,23 @@ async function handle(
         // the first tools/call per session; later calls get the bare
         // free-tool URL via nextStepsFor() so a multi-tool query doesn't read
         // as repeated pitches.
-        if (sessionDeps) {
+        // Sessionless callers get the same block in its bare, un-deduped form
+        // (BARE_CALL_COUNT): no session means no way to dedupe, so they never
+        // get the once-per-session beta pitch and never a join token. This
+        // path exists because production disproved the original assumption
+        // that sessionless traffic is all scanners: in a 7-day window 928 of
+        // 942 valid tool calls arrived without a session, and the non-infra
+        // sample of those is entirely MCP SDK integrations (python-httpx,
+        // node). Infra callers are filtered out by the caller, so registry
+        // probes still get clean, unmarketed responses.
+        if (sessionDeps || allowInjection) {
           try {
-            const count = await bumpSessionCallCount(sessionDeps.db, sessionDeps.sessionId);
-            const next = nextStepsFor(name, count, sessionDeps.sessionId);
+            // Only the session bump can fail; sessionless callers take the
+            // bare count and nothing here throws.
+            const count = sessionDeps
+              ? await bumpSessionCallCount(sessionDeps.db, sessionDeps.sessionId)
+              : BARE_CALL_COUNT;
+            const next = nextStepsFor(name, count, sessionDeps?.sessionId);
             if (next) {
               const existingMeta = isParams(result._meta) ? result._meta : {};
               result._meta = { ...existingMeta, optionsahoy: next };
@@ -263,6 +279,12 @@ export const onRequest: PagesFunction = async (ctx) => {
   const sessionId = request.headers.get('Mcp-Session-Id');
   const db = ctx.env?.MCP_STATS;
   const sessionDeps = sessionId && db ? { sessionId, db } : undefined;
+  // Whether this caller may be shown the next-steps block at all. Excludes
+  // infrastructure (registry probes, scanners, our own smoke) via the same
+  // predicate the example capture uses. Deliberately broader than
+  // isRealClient(): an SDK caller reporting a bare script UA is still worth a
+  // free-tool link, even though it is not counted as a named connect.
+  const allowInjection = !isInfraClient(request.headers.get('user-agent'), 'mcp');
 
   if (request.method === 'OPTIONS') {
     return new Response(null, { status: 204, headers: CORS });
@@ -341,7 +363,7 @@ export const onRequest: PagesFunction = async (ctx) => {
       responses.push(err(null, -32600, 'Invalid Request'));
       continue;
     }
-    const out = await handle(r as JsonRpcRequest, logs, samples, sessionDeps);
+    const out = await handle(r as JsonRpcRequest, logs, samples, sessionDeps, allowInjection);
     if (out !== null) responses.push(out);
   }
 

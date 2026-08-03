@@ -186,6 +186,25 @@ const SMOKE_UA = { 'user-agent': 'oa-e2e-live' };
   check('_meta funnel: second call in session dedupes the beta pitch', !!second?.free_tool && second?.beta === undefined, JSON.stringify(second ?? null)?.slice(0, 120));
 }
 
+// Sessionless next-steps: the ~98% of tool calls that never echo a session
+// id. Non-infra callers (SDK integrations) get the bare block; registry
+// probes and scanners must still get clean, unmarketed responses.
+{
+  const sessionlessMeta = async (ua) => {
+    const res = await fetch(BASE, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'user-agent': ua },
+      body: JSON.stringify({ jsonrpc: '2.0', id: ++id, method: 'tools/call', params: { name: 'qsbs_check', arguments: CALLS.qsbs_check } }),
+    });
+    return (await res.json()).result?.structuredContent?._meta?.optionsahoy;
+  };
+  const sdk = await sessionlessMeta('python-httpx/0.28.1');
+  check('sessionless: an SDK caller gets the bare free-tool + related block', !!sdk?.free_tool && !!sdk?.also_run, JSON.stringify(sdk ?? null)?.slice(0, 90));
+  check('sessionless: no beta pitch and no join token (nothing to dedupe)', sdk?.beta === undefined && !(sdk?.free_tool ?? '').includes('&s='));
+  const probe = await sessionlessMeta('mcpregistry/1.0');
+  check('sessionless: registry probes still get a clean, unmarketed response', probe === undefined, JSON.stringify(probe ?? null));
+}
+
 // REST next_steps envelope + tolerant numeric reader, live.
 {
   const res = await fetch(`${ORIGIN}/api/v1/nso`, {

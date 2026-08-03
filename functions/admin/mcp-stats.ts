@@ -28,7 +28,7 @@
 
 import { type PagesFunction } from '../_lib/api';
 import { type D1Database } from '../_lib/stats';
-import { classifyClient, isInfraClient, KIND_RANK, type ClientKind } from '../_lib/classify';
+import { classifyClient, isInfraClient, isRealClient, KIND_RANK, type ClientKind } from '../_lib/classify';
 import { rankErrorFields } from '../_lib/error-fields';
 
 // Client classification lives in ../_lib/classify (shared with the sample
@@ -41,6 +41,7 @@ interface DayRow { day: string; n: number }
 interface ToolRow { tool: string; n: number; errors: number }
 interface ErrorRow { endpoint: string; tool: string | null; error_msg: string; n: number }
 interface ClientRow { client_name: string; n: number }
+interface InitClientRow { client_name: string | null; n: number }
 interface CountryRow { country: string | null; n: number }
 interface ErrFieldRow { error_msg: string; endpoint: string; client: string | null; n: number }
 interface SampleRow { ts: number; surface: string; tool: string | null; client_name: string | null; query: string | null; answer: string | null; country: string | null; region: string | null; city: string | null; as_org: string | null; asn: number | null }
@@ -102,6 +103,10 @@ const SQL_ERR_FIELDS = "SELECT error_msg, endpoint, COALESCE(client_name, ua) AS
 // Clients come from MCP `initialize` handshakes, plus Poe requests (which have
 // no handshake: each poe:* row carries client_name 'poe').
 const SQL_CLIENTS = "SELECT client_name, COUNT(*) AS n FROM mcp_calls WHERE client_name IS NOT NULL AND (endpoint = 'mcp:initialize' OR endpoint LIKE 'poe:%') AND ts >= ? GROUP BY client_name ORDER BY n DESC";
+// Initializes grouped by the client's self-reported name, so the funnel can
+// separate real connects from the registry-probe swarm (~80% of handshakes)
+// using this repo's own classifier rather than a re-invented regex elsewhere.
+const SQL_INIT_CLIENTS = "SELECT client_name, COUNT(*) AS n FROM mcp_calls WHERE endpoint = 'mcp:initialize' AND ts >= ? GROUP BY client_name";
 const SQL_COUNTRIES = 'SELECT country, COUNT(*) AS n FROM mcp_calls WHERE ts >= ? GROUP BY country ORDER BY n DESC LIMIT 20';
 // REST/direct callers by originating network + coarse location. This is where
 // the datacenter-vs-residential bot signal is meaningful (MCP is excluded: its
@@ -139,7 +144,14 @@ function emptyIfUnmigrated(e: unknown): never[] {
 export const onRequest: PagesFunction = async (ctx) => {
   const { request, env } = ctx;
   const url = new URL(request.url);
-  const token = url.searchParams.get('token');
+  // Accept the token as a Bearer header as well as the ?token= query param.
+  // The query form stays for the bookmarkable browser view; machine callers
+  // (the web project's /admin/funnel) use the header so the secret does not
+  // land in this project's request logs or ride through redirects.
+  // Scheme is case-insensitive per RFC 7235, and a malformed header must not
+  // shadow a valid ?token= (a proxy or extension can inject one).
+  const bearer = /^\s*bearer\s+(\S+)\s*$/i.exec(request.headers.get('authorization') ?? '')?.[1] ?? null;
+  const token = bearer ?? url.searchParams.get('token');
   const expected = env?.ADMIN_TOKEN;
 
   if (!expected) {
@@ -158,7 +170,7 @@ export const onRequest: PagesFunction = async (ctx) => {
   const days = Number.isFinite(daysParam) && daysParam > 0 && daysParam <= MAX_DAYS ? daysParam : DEFAULT_DAYS;
   const sinceMs = Date.now() - days * 86_400_000;
 
-  const [endpoints, daily, dailyRest, dailyMcp, tools, errors, clients, countries, restNet, errFieldRaw, sessionsDaily, sessionDepth] = await Promise.all([
+  const [endpoints, daily, dailyRest, dailyMcp, tools, errors, clients, countries, restNet, errFieldRaw, sessionsDaily, sessionDepth, initClients] = await Promise.all([
     q<EndpointRow>(db, SQL_ENDPOINTS, sinceMs),
     q<DayRow>(db, SQL_DAILY, sinceMs),
     q<DayRow>(db, SQL_DAILY_REST, sinceMs),
@@ -169,11 +181,20 @@ export const onRequest: PagesFunction = async (ctx) => {
     q<CountryRow>(db, SQL_COUNTRIES, sinceMs),
     // Resilient: pre-0004 databases lack as_org/region/city, so this throws
     // until the migration is applied. Degrade to an empty rollup, not a 500.
-    q<RestNetRow>(db, SQL_REST_NET, sinceMs).catch(() => [] as RestNetRow[]),
+    q<RestNetRow>(db, SQL_REST_NET, sinceMs).catch(emptyIfUnmigrated),
     q<ErrFieldRow>(db, SQL_ERR_FIELDS, sinceMs),
     q<SessionDayRow>(db, SQL_SESSIONS_DAILY, new Date(sinceMs).toISOString()).catch(emptyIfUnmigrated),
     q<SessionDepthRow>(db, SQL_SESSION_DEPTH, new Date(sinceMs).toISOString()).catch(emptyIfUnmigrated),
+    q<InitClientRow>(db, SQL_INIT_CLIENTS, sinceMs),
   ]);
+
+  // A real connect = a person in an AI client, or a programmatic agent
+  // framework (isRealClient). Note this is NARROWER than the injection gate
+  // in mcp.ts, which only excludes infra: an SDK caller reporting itself as a
+  // bare script is worth a free-tool link but is not a named client connect.
+  const initializesReal = initClients
+    .filter((r) => isRealClient(r.client_name, 'mcp'))
+    .reduce((acc, r) => acc + r.n, 0);
 
   // Rank the fields callers most often omit or botch, dropping infrastructure
   // noise (our smoke suite + scanners) where the client is identifiable (see
@@ -233,7 +254,7 @@ export const onRequest: PagesFunction = async (ctx) => {
   ).slice(0, 50);
 
   if (url.searchParams.get('format') === 'json') {
-    const body = JSON.stringify({ days, endpoints, daily, dailyRest, dailyMcp, tools, errors, topErrorFields, clients, countries, restNet, sessionsDaily, sessionDepth, endpointErrors, samples: classified, sampleCounts });
+    const body = JSON.stringify({ days, endpoints, daily, dailyRest, dailyMcp, tools, errors, topErrorFields, clients, countries, restNet, sessionsDaily, sessionDepth, initializesReal, endpointErrors, samples: classified, sampleCounts });
     return new Response(body, {
       status: 200,
       headers: {
@@ -243,7 +264,7 @@ export const onRequest: PagesFunction = async (ctx) => {
     });
   }
 
-  const html = renderHtml({ days, endpoints, daily, dailyRest, dailyMcp, tools, errors, topErrorFields, clients, countries, restNet, sessionsDaily, sessionDepth, samples: shownSamples, sampleCounts, kindFilter, token, surface: surfaceParam });
+  const html = renderHtml({ days, endpoints, daily, dailyRest, dailyMcp, tools, errors, topErrorFields, clients, countries, restNet, sessionsDaily, sessionDepth, initializesReal, samples: shownSamples, sampleCounts, kindFilter, token, surface: surfaceParam });
   return new Response(html, {
     status: 200,
     headers: {
@@ -269,6 +290,7 @@ interface RenderInput {
   restNet: RestNetRow[];
   sessionsDaily: SessionDayRow[];
   sessionDepth: SessionDepthRow[];
+  initializesReal: number;
   samples: ClassifiedSample[];
   sampleCounts: Partial<Record<ClientKind, number>>;
   kindFilter: string[];
@@ -386,6 +408,10 @@ ${table(
   ['Tool', 'Calls', 'Errors'],
   d.tools.map((r) => [esc(r.tool), `<span class="num">${r.n.toLocaleString()}</span>`, `<span class="num">${r.errors.toLocaleString()}</span>`]),
 )}
+
+<h2>Real connects (initialize, crawlers/scanners/scripts excluded)</h2>
+<p class="legend">Classifier kinds human + agent only. The raw initialize count in the endpoint table is dominated by registry probes and is not an adoption number.</p>
+<p><b>${d.initializesReal.toLocaleString()}</b></p>
 
 <h2>By client (from initialize)</h2>
 ${table(

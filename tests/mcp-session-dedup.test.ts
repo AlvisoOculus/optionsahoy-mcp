@@ -212,7 +212,12 @@ describe('POST /mcp tools/call next-step injection', () => {
     expect(inner._meta?.optionsahoy?.beta).toBeUndefined();
   });
 
-  it('skips injection when no Mcp-Session-Id header is sent', async () => {
+  it('without a session header, injects the bare block and NEVER the beta pitch', async () => {
+    // Changed 2026-08-03: sessionless calls used to get nothing. Production
+    // showed ~98% of valid tool calls are sessionless and non-infra ones are
+    // real SDK integrations, so they now get the bare form. The invariant
+    // that survives: no session means no once-per-session pitch and no join
+    // token, because there is nothing to dedupe against.
     const db = mockD1();
     const res = await onRequest({
       request: rpcRequest(amtIsoCall(1)),
@@ -221,13 +226,17 @@ describe('POST /mcp tools/call next-step injection', () => {
     const body = (await res.json()) as {
       result: { content: { text: string }[] };
     };
-    const inner = JSON.parse(body.result.content[0].text) as {
-      _meta?: { optionsahoy?: unknown };
-    };
-    expect(inner._meta?.optionsahoy).toBeUndefined();
+    const oa = (JSON.parse(body.result.content[0].text) as {
+      _meta?: { optionsahoy?: { free_tool?: string; beta?: string } };
+    })._meta?.optionsahoy;
+    expect(oa?.free_tool).toBe(PER_TOOL_FREE_TOOL_BARE.amt_iso_optimize);
+    expect(oa?.beta).toBeUndefined();
   });
 
-  it('skips injection when MCP_STATS binding is missing', async () => {
+  it('with a session header but no MCP_STATS binding, degrades to the bare block (cannot dedupe)', async () => {
+    // No binding means no call-count row, so the once-per-session pitch
+    // cannot be deduped - fall back to the same bare form sessionless
+    // callers get rather than dropping the conversion surface entirely.
     const res = await onRequest({
       request: rpcRequest(amtIsoCall(1), 'sess-no-binding'),
       env: {},
@@ -235,10 +244,11 @@ describe('POST /mcp tools/call next-step injection', () => {
     const body = (await res.json()) as {
       result: { content: { text: string }[] };
     };
-    const inner = JSON.parse(body.result.content[0].text) as {
-      _meta?: { optionsahoy?: unknown };
-    };
-    expect(inner._meta?.optionsahoy).toBeUndefined();
+    const oa = (JSON.parse(body.result.content[0].text) as {
+      _meta?: { optionsahoy?: { free_tool?: string; beta?: string } };
+    })._meta?.optionsahoy;
+    expect(oa?.free_tool).toBe(PER_TOOL_FREE_TOOL_BARE.amt_iso_optimize);
+    expect(oa?.beta).toBeUndefined();
   });
 });
 
@@ -362,5 +372,62 @@ describe('join-suffix URL invariant (every joinable line ends with its URL)', ()
         expect(line, `${tool} line must end with its ?src= URL`).toMatch(/\?src=[a-z_]+$/);
       }
     }
+  });
+});
+
+describe('sessionless next-steps injection (the 98% of tool calls with no session)', () => {
+  // Production disproved the original "sessionless == scanners" assumption:
+  // in a 7-day window 928 of 942 valid tool calls arrived sessionless, and
+  // the non-infra sample of those was entirely MCP SDK integrations
+  // (python-httpx, node). Those callers now get the bare block; infra
+  // callers (registry probes, scanners, our smoke) still get nothing.
+  function callWithUa(ua: string | undefined) {
+    const headers: Record<string, string> = { 'content-type': 'application/json' };
+    if (ua) headers['user-agent'] = ua;
+    return new Request('http://localhost/mcp', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(amtIsoCall(1)),
+    });
+  }
+
+  async function metaFor(ua: string | undefined) {
+    const res = await onRequest({ request: callWithUa(ua), env: {} });
+    const body = (await res.json()) as { result: { content: { text: string }[] } };
+    const inner = JSON.parse(body.result.content[0].text) as {
+      _meta?: { optionsahoy?: { free_tool?: string; also_run?: string; beta?: string } };
+    };
+    return inner._meta?.optionsahoy;
+  }
+
+  it('an SDK caller with no session gets the bare free-tool + related block', async () => {
+    const oa = await metaFor('python-httpx/0.28.1');
+    expect(oa?.free_tool).toBe(PER_TOOL_FREE_TOOL_BARE.amt_iso_optimize);
+    expect(oa?.also_run).toBe(PER_TOOL_RELATED.amt_iso_optimize);
+  });
+
+  it('never carries the beta pitch or a join token without a session (nothing to dedupe against)', async () => {
+    const oa = await metaFor('node');
+    expect(oa?.beta).toBeUndefined();
+    expect(oa?.free_tool).not.toContain('&s=');
+  });
+
+  it('registry probes and scanners still get clean, unmarketed responses', async () => {
+    for (const ua of ['mcpregistry/1.0', 'smithery-probe', 'oa-e2e-live', 'Googlebot/2.1']) {
+      expect(await metaFor(ua), `${ua} must not be marketed to`).toBeUndefined();
+    }
+  });
+
+  it('a session-bearing call still gets the full first-call block (unchanged path)', async () => {
+    const res = await onRequest({
+      request: rpcRequest(amtIsoCall(1), 'sess-inject-1'),
+      env: { MCP_STATS: mockD1() },
+    });
+    const body = (await res.json()) as { result: { content: { text: string }[] } };
+    const oa = (JSON.parse(body.result.content[0].text) as {
+      _meta?: { optionsahoy?: { beta?: string; free_tool?: string } };
+    })._meta?.optionsahoy;
+    expect(oa?.beta).toBeDefined();
+    expect(oa?.free_tool).toContain('&s=sess-inj');
   });
 });

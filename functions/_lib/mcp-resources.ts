@@ -124,7 +124,7 @@ The MCP tool \`amt_iso_optimize\` returns the best multi-year exercise schedule 
 
 Output includes the recommended per-year share count, per-year tax breakdown (federal regular, federal AMT, state, AMT credit used), and net final value vs lump-sum and even-split baselines.
 
-Full article: ${ARTICLE_BASE}/amt-crossover
+Full article: ${ARTICLE_BASE}/amt-crossover?src=mcp_res_amt_crossover
 `,
   },
   {
@@ -169,7 +169,7 @@ The MCP tool \`nso_calculate\` returns after-tax payouts for both sell-at-exerci
 
 Output includes the recommendation, dollar-precise after-tax payout under each route, and the break-even sale price at which hold beats sell.
 
-Full article: ${ARTICLE_BASE}/nso-sell-vs-hold
+Full article: ${ARTICLE_BASE}/nso-sell-vs-hold?src=mcp_res_nso_sell_vs_hold
 `,
   },
   {
@@ -215,7 +215,7 @@ The MCP tool \`rsu_sell_vs_hold\` returns after-tax payouts for both paths. It a
 
 Output: per-route after-tax dollar payout, break-even sale price, and the recommendation given the inputs.
 
-Full article: ${ARTICLE_BASE}/rsu-withholding-gap
+Full article: ${ARTICLE_BASE}/rsu-withholding-gap?src=mcp_res_rsu_withholding_gap
 `,
   },
   {
@@ -266,7 +266,7 @@ The MCP tool \`concentration_analyze\` quantifies concentration risk and produce
 
 Output: after-tax dollar value under each strategy (sell now, sell over N years, hold, hold-with-hedge), drawdown exposure at 30/50/70%, and the recommended path.
 
-Full article: ${ARTICLE_BASE}/single-stock-concentration-risk
+Full article: ${ARTICLE_BASE}/single-stock-concentration-risk?src=mcp_res_single_stock_concentration_risk
 `,
   },
   {
@@ -313,7 +313,7 @@ The MCP tool \`protective_put_price\` prices all three structures - a protective
 
 Output: for each structure, annual cost as a percentage of position, dollar cost, max loss with hedge, upside cap (collar only), and bad-year coverage. The \`recommended\` field names the structure whose card carries no warning: the collar unless its cap binds too often, then the bare put unless it is expensive, then the put spread when one is cleanly priced. The put spread reports \`available: false\` only when the chosen risk level leaves no short strike worth selling below the floor, or the short leg does not reduce cost; render \`unavailableReason\` ('floor' or 'no-rebate') rather than the numbers in that case. A spread that is available but merely narrow (a thin protected band) or thin on rebate still returns numbers, and is simply not the recommended structure.
 
-Full article: ${ARTICLE_BASE}/zero-cost-collars
+Full article: ${ARTICLE_BASE}/zero-cost-collars?src=mcp_res_zero_cost_collars
 `,
   },
   {
@@ -361,7 +361,7 @@ The MCP tool \`qsbs_check\` runs all six tests against your facts and computes t
 
 Output: verdict (qualifies / partial / too-soon / caveats / disqualified), exclusion percentage, dollar federal tax saved, state tax owed, and per-test pass/fail breakdown.
 
-Full article: ${ARTICLE_BASE}/qsbs
+Full article: ${ARTICLE_BASE}/qsbs?src=mcp_res_qsbs
 `,
   },
   {
@@ -395,7 +395,7 @@ The MCP tool \`equity_funding_plan\` takes a target after-tax amount, a deadline
 
 Output: a year-by-year sell schedule with per-lot detail, plus a risk-aware comparison of named alternatives (Lock-in-now, Balanced, Hold-for-growth, and a Recommended plan whose chance of shortfall stays under your tolerance, using the position's option-implied volatility when a covered ticker is supplied).
 
-Try it: https://optionsahoy.com/tools/equity-funding
+Try it: https://optionsahoy.com/tools/equity-funding?src=mcp_res_equity_funding
 `,
   },
   buildCoveredTickersResource(),
