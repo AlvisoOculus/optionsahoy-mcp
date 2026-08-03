@@ -19,6 +19,7 @@ import {
   parseRsuLotOptimizeInput,
   MAX_RSU_LOT_ORDER_LOTS,
 } from '../functions/_lib/calc-parsers';
+import { p } from '../functions/_lib/api';
 
 const AMT = {
   shares: 8000, strike: 3, fmv: 40, filingStatus: 'single', ordinaryIncome: 250000,
@@ -270,5 +271,40 @@ describe('rsu_lot_optimize parser range validation', () => {
         RSU_TODAY,
       ),
     ).toThrow(/vestDate.*on or before today/);
+  });
+});
+
+describe('tolerant numeric reader (LLM callers quote numbers)', () => {
+  // "must be a finite number" was the single largest real input-error class
+  // across MCP + REST (admin stats, 30d): models send "150000" or "$150,000"
+  // for declared-number fields. Exactly-one-plain-number strings coerce;
+  // anything else still throws.
+  it('accepts quoted integers, decimals, $ and thousands commas', () => {
+    expect(p.num({ x: '150000' }, 'x')).toBe(150000);
+    expect(p.num({ x: '$150,000' }, 'x')).toBe(150000);
+    expect(p.num({ x: ' 42.5 ' }, 'x')).toBe(42.5);
+    expect(p.num({ x: '-3.2' }, 'x')).toBe(-3.2);
+  });
+
+  it('still rejects non-numeric strings and ambiguous shorthand', () => {
+    for (const bad of ['150k', '1e5', '', ' ', 'about 50', '50 shares', '10%']) {
+      expect(() => p.num({ x: bad }, 'x'), `should reject "${bad}"`).toThrow('finite number');
+    }
+    expect(() => p.num({ x: true }, 'x')).toThrow('finite number');
+    expect(() => p.num({}, 'x')).toThrow('finite number');
+  });
+
+  it('coerced values still hit the bounds check', () => {
+    expect(() => p.num({ x: '-5' }, 'x', { min: 0 })).toThrow('>= 0');
+  });
+
+  it('p.int accepts a quoted whole number and rejects a quoted decimal', () => {
+    expect(p.int({ x: '4000' }, 'x')).toBe(4000);
+    expect(() => p.int({ x: '4.5' }, 'x')).toThrow('whole number');
+  });
+
+  it('date errors name the expected format so a model can self-correct', () => {
+    expect(() => p.date({ x: 5 }, 'x')).toThrow('like "2028-06-30"');
+    expect(() => p.date({ x: 'June 30th-ish' }, 'x')).toThrow('like "2028-06-30"');
   });
 });

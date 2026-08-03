@@ -1597,7 +1597,7 @@ export const TOOLS: McpTool[] = [
         },
         targetDate: {
           ...ISO_DATE,
-          description: 'Date by which the user needs the net cash (YYYY-MM-DD). Bounds the planning horizon. Sales in non-target years happen on Dec 31; the target year\'s sale happens on this exact date.',
+          description: 'Date by which the user needs the net cash (YYYY-MM-DD). Bounds the planning horizon. Sales in non-target years happen on Dec 31; the target year\'s sale happens on this exact date.' + USER_FACT,
         },
         stacks: {
           type: 'array',
@@ -1608,7 +1608,7 @@ export const TOOLS: McpTool[] = [
             required: ['currentPrice', 'lots'],
             properties: {
               ticker: { type: 'string', description: 'Optional ticker label (e.g. "NVDA"). When set without `expectedAnnualGrowth`, growth is resolved from the cached trailing-CAGR snapshot when the symbol is covered there (see the covered-tickers resource for the current set). Echoed back in each SaleEntry for display.' },
-              currentPrice: { type: 'number', minimum: 0, description: '$/share today for this stack. Anchors the projected-price compounding for every future candidate sale date in this stack.' },
+              currentPrice: { type: 'number', minimum: 0, description: '$/share today for this stack. Anchors the projected-price compounding for every future candidate sale date in this stack.' + USER_FACT },
               expectedAnnualGrowth: { type: ['number', 'string'], description: 'Per-stack growth decimal (0.08 = 8%/yr), or the string "market" for the S&P 500 trailing average. Projected sale price = currentPrice × (1 + expectedAnnualGrowth)^Δyears. Negative values model decline; pass 0 for a deliberately flat-price plan. Required unless `ticker` resolves it; omitting it is an error, not a flat default.' },
               volatility: { type: 'number', minimum: 0, maximum: 5, description: 'Per-stack annualized σ used in the shortfall calculation (σ × √Δt per sale). Overrides `defaultVolatility` for THIS stack only. Useful when one stack is a single tech name (σ ≈ 0.40-0.60) and another is an ETF (σ ≈ 0.15-0.20). Omit to inherit `defaultVolatility`.' },
               lots: {

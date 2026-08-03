@@ -75,8 +75,10 @@ export const SKILLS: Skill[] = [
     rest: '/api/v1/amt-iso',
     keywords: [
       'incentive stock option',
+      'incentive stock',
       'alternative minimum tax',
       ' iso ',
+      ' isos ',
       ' amt ',
       'exercise schedule',
     ],
@@ -92,7 +94,7 @@ export const SKILLS: Skill[] = [
       'How much tax will I owe if I exercise 5,000 non-qualified stock options, and should I sell at exercise or hold?',
     ],
     rest: '/api/v1/nso',
-    keywords: ['non-qualified', 'nonqualified', 'non qualified', ' nso '],
+    keywords: ['non-qualified', 'nonqualified', 'non qualified', ' nso ', ' nsos '],
     run: (input) => computeNsoResult(parseNsoInput(input)),
   },
   {
@@ -105,7 +107,7 @@ export const SKILLS: Skill[] = [
       'My restricted stock units just vested. Should I sell now or hold for long-term capital gains?',
     ],
     rest: '/api/v1/rsu-sell-vs-hold',
-    keywords: ['restricted stock unit', ' rsu ', 'just vested', 'sell or hold'],
+    keywords: ['restricted stock unit', 'restricted stock', ' rsu ', ' rsus ', 'just vested', 'sell or hold'],
     run: (input) => computeRsuResult(parseRsuInput(input)),
   },
   {
@@ -140,7 +142,7 @@ export const SKILLS: Skill[] = [
     tags: ['qsbs', 'section-1202', 'tax-exclusion'],
     examples: ['Do my shares qualify for the Section 1202 qualified small business stock exclusion?'],
     rest: '/api/v1/qsbs',
-    keywords: ['qsbs', 'section 1202', ' 1202', 'qualified small business'],
+    keywords: ['qsbs', 'section 1202', ' 1202', 'qualified small business', 'small business stock'],
     run: (input) => evaluateQsbs(parseQsbsInput(input)),
   },
   {
@@ -153,7 +155,7 @@ export const SKILLS: Skill[] = [
       'I need 200,000 dollars after tax for a down payment in 2 years. What should I sell and when?',
     ],
     rest: '/api/v1/equity-funding',
-    keywords: ['down payment', 'cash goal', 'fund a', 'raise cash', 'liquidity'],
+    keywords: ['down payment', 'cash goal', 'fund a', 'raise cash', 'liquidity', 'need cash', 'tuition', 'buy a house'],
     run: (input) => computeEquityFundingComparison(parseEquityFundingInput(input)),
   },
   {
@@ -166,7 +168,7 @@ export const SKILLS: Skill[] = [
       'I want to sell down half my company stock over 2 years. Which of my vested lots should I sell, and when?',
     ],
     rest: '/api/v1/rsu-lot-order',
-    keywords: ['which lots', 'sell first', 'lot order', 'specific lot', 'diversify', 'divest'],
+    keywords: ['which lots', 'sell first', 'lot order', 'specific lot', ' fifo ', 'diversify', 'divest'],
     run: (input) => computeLotDivestPlan(parseRsuLotOptimizeInput(input)),
   },
 ];
@@ -240,26 +242,53 @@ function skillList(): string {
 }
 
 // No-model free-text router: pick the first skill whose keywords appear in
-// the text. Padded with spaces so short tokens like "iso"/"amt" match whole
-// words, not substrings of unrelated words.
+// the text. Both sides are normalized (lowercase, punctuation and hyphens to
+// single spaces, space-padded) so short tokens like "iso"/"amt" match whole
+// words but survive punctuation: "my ISOs? AMT?" and "non-qualified" both
+// route, where the old raw-substring match required exact spacing. 75% of
+// production message/send calls were failing to route (D1, 30d) before this.
+function norm(s: string): string {
+  return ` ${s
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim()} `;
+}
+
+// Normalized once at module load; keywords in SKILLS stay human-readable for
+// the agent card while matching runs against these.
+const NORM_KEYWORDS: string[][] = SKILLS.map((s) => s.keywords.map(norm));
+
 export function routeByKeyword(text: string): Skill | null {
-  const t = ` ${text.toLowerCase()} `;
-  for (const s of SKILLS) {
-    if (s.keywords.some((k) => t.includes(k))) return s;
+  const t = norm(text);
+  for (let i = 0; i < SKILLS.length; i++) {
+    if (NORM_KEYWORDS[i].some((k) => t.includes(k))) return SKILLS[i];
   }
   return null;
 }
 
 // Route one inbound user message (the parts of params.message) to a reply.
-// Returns the agent message plus the skill id that ran (for telemetry), or
-// null skill when nothing was computed.
-export function handleMessage(parts: A2APart[]): { message: A2AMessage; skill: string | null } {
+// Returns the agent message plus the skill id that ran (null when no
+// calculator executed), an explicit `isError` (previously inferred as
+// skill === null, which counted successful free-text routing pointers as
+// errors and made this surface read as 75% failing), an `errorMsg` saying
+// why when something actually went wrong, and `query` echoing what the
+// caller sent for the admin example capture.
+export interface HandledMessage {
+  message: A2AMessage;
+  skill: string | null;
+  isError: boolean;
+  errorMsg?: string;
+  query: string;
+}
+
+export function handleMessage(parts: A2APart[]): HandledMessage {
   const dataPart = parts.find(
     (p) => p.kind === 'data' && p.data !== null && typeof p.data === 'object',
   );
 
   if (dataPart) {
     const data = dataPart.data as Record<string, unknown>;
+    const query = JSON.stringify(data);
     const skillId = data.skill;
     if (typeof skillId !== 'string' || !(skillId in SKILL_BY_ID)) {
       return {
@@ -268,6 +297,9 @@ export function handleMessage(parts: A2APart[]): { message: A2AMessage; skill: s
             `of: ${skillList()}.`,
         ),
         skill: null,
+        isError: true,
+        errorMsg: `unknown skill: ${typeof skillId === 'string' ? skillId : '(missing)'}`,
+        query,
       };
     }
     const skill = SKILL_BY_ID[skillId];
@@ -276,6 +308,8 @@ export function handleMessage(parts: A2APart[]): { message: A2AMessage; skill: s
       return {
         message: agentMessage(`OptionsAhoy ${skill.name} result. ${VERIFY_NOTE}`, result),
         skill: skill.id,
+        isError: false,
+        query,
       };
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -286,6 +320,9 @@ export function handleMessage(parts: A2APart[]): { message: A2AMessage; skill: s
             `https://optionsahoy.com/openapi.json.`,
         ),
         skill: null,
+        isError: true,
+        errorMsg: `${skill.id}: ${msg}`,
+        query,
       };
     }
   }
@@ -307,6 +344,12 @@ export function handleMessage(parts: A2APart[]): { message: A2AMessage; skill: s
           `https://optionsahoy.com${matched.rest} and https://optionsahoy.com/openapi.json. ${VERIFY_NOTE}`,
       ),
       skill: null,
+      // Working as designed: the caller sent free text, we pointed it at the
+      // right skill. Not an error; errorMsg carries the routing for the
+      // admin dashboard's endpoint drill-down.
+      isError: false,
+      errorMsg: `text routed to ${matched.id}, no data part`,
+      query: text,
     };
   }
 
@@ -317,5 +360,8 @@ export function handleMessage(parts: A2APart[]): { message: A2AMessage; skill: s
         `https://optionsahoy.com/openapi.json. ${VERIFY_NOTE}`,
     ),
     skill: null,
+    isError: true,
+    errorMsg: text ? 'unrouted free text' : 'no text or data part',
+    query: text,
   };
 }
