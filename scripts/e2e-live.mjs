@@ -134,5 +134,106 @@ for (const [name, args] of Object.entries(CALLS)) {
   }
 }
 
+// --- new-feature checks (funnel P1/P2, 2026-08) -----------------------------
+// Every non-MCP fetch self-identifies as oa-e2e-live via User-Agent so the
+// stats classifier files these as smoke, not real traffic.
+const ORIGIN = new URL(BASE).origin;
+const SMOKE_UA = { 'user-agent': 'oa-e2e-live' };
+
+// Session issuance: the server MUST mint an id when none is supplied, and
+// echo a client-supplied one. This is what arms the _meta funnel.
+{
+  const res = await fetch(BASE, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ jsonrpc: '2.0', id: ++id, method: 'initialize', params: { protocolVersion: '2024-11-05', capabilities: {}, clientInfo: { name: 'oa-e2e-live', version: '1.0' } } }),
+  });
+  const minted = res.headers.get('mcp-session-id');
+  check('session: initialize mints an id when none supplied', !!minted && minted.length >= 16, `got ${minted}`);
+  check('session: expose-headers lets browsers read it', /mcp-session-id/i.test(res.headers.get('access-control-expose-headers') ?? ''));
+  const res2 = await fetch(BASE, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', 'mcp-session-id': 'e2e-echo-check' },
+    body: JSON.stringify({ jsonrpc: '2.0', id: ++id, method: 'initialize', params: { protocolVersion: '2024-11-05', capabilities: {}, clientInfo: { name: 'oa-e2e-live', version: '1.0' } } }),
+  });
+  check('session: client-supplied id is echoed, not replaced', res2.headers.get('mcp-session-id') === 'e2e-echo-check');
+}
+
+// HEAD /mcp: health checkers get 200, not a bad-method error.
+{
+  const res = await fetch(BASE, { method: 'HEAD' });
+  check('HEAD /mcp returns 200', res.status === 200);
+}
+
+// _meta.optionsahoy funnel: full block + s= join token on the first call in a
+// fresh session, deduped bare form on the second. Session id keeps the e2e-
+// prefix so the funnel rollups exclude it as smoke.
+{
+  const metaSession = `e2e-meta-${Date.now()}`;
+  const joinPrefix = metaSession.slice(0, 8); // 'e2e-meta'
+  const callQsbs = async () => {
+    const res = await fetch(BASE, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'mcp-session-id': metaSession },
+      body: JSON.stringify({ jsonrpc: '2.0', id: ++id, method: 'tools/call', params: { name: 'qsbs_check', arguments: CALLS.qsbs_check } }),
+    });
+    return (await res.json()).result?.structuredContent?._meta?.optionsahoy;
+  };
+  const first = await callQsbs();
+  check('_meta funnel: first call carries free_tool + also_run + beta', !!first?.free_tool && !!first?.also_run && !!first?.beta, JSON.stringify(first ?? null)?.slice(0, 120));
+  check('_meta funnel: join token rides free_tool and beta', (first?.free_tool ?? '').endsWith(`&s=${joinPrefix}`) && (first?.beta ?? '').endsWith(`&s=${joinPrefix}`), `free_tool tail: ${(first?.free_tool ?? '').slice(-30)}`);
+  const second = await callQsbs();
+  check('_meta funnel: second call in session dedupes the beta pitch', !!second?.free_tool && second?.beta === undefined, JSON.stringify(second ?? null)?.slice(0, 120));
+}
+
+// REST next_steps envelope + tolerant numeric reader, live.
+{
+  const res = await fetch(`${ORIGIN}/api/v1/nso`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', ...SMOKE_UA },
+    body: JSON.stringify({ ...CALLS.nso_calculate, ordinaryIncome: '$250,000' }),
+  });
+  const body = await res.json();
+  check('REST: quoted "$250,000" coerces and computes', res.status === 200 && body.ok === true);
+  check('REST: success carries next_steps (web_tool/also_run/beta)', !!body.next_steps?.web_tool && Array.isArray(body.next_steps?.also_run) && !!body.next_steps?.beta, JSON.stringify(body.next_steps ?? null)?.slice(0, 100));
+  const err = await fetch(`${ORIGIN}/api/v1/nso`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', ...SMOKE_UA },
+    body: JSON.stringify({ shares: 'not a number' }),
+  });
+  const errBody = await err.json();
+  check('REST: errors stay bare (no next_steps) and name the field', err.status === 400 && errBody.next_steps === undefined && /finite number/.test(errBody.error ?? ''), errBody.error);
+}
+
+// GET /api/v1 index links.
+{
+  const idx = await (await fetch(`${ORIGIN}/api/v1`, { headers: SMOKE_UA })).json();
+  check('GET /api/v1: every endpoint carries a derived web_tool link', Array.isArray(idx.endpoints) && idx.endpoints.every((e) => typeof e.web_tool === 'string' && e.web_tool.includes(e.path.replace('/api/v1/', '/tools/'))), `${idx.endpoints?.length ?? 0} endpoints`);
+  check('GET /api/v1: top-level tools/try_it/beta links present', !!idx.tools && !!idx.try_it && !!idx.beta);
+}
+
+// A2A: routing, legacy task lifecycle, conversational fallback.
+{
+  const a2a = async (method, params) => {
+    const res = await fetch(`${ORIGIN}/a2a`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', ...SMOKE_UA },
+      body: JSON.stringify({ jsonrpc: '2.0', id: ++id, method, params }),
+    });
+    return res.json();
+  };
+  const routed = await a2a('message/send', { message: { parts: [{ kind: 'text', text: 'Should I sell my RSUs?' }] } });
+  check('A2A: free text routes to rsu_sell_vs_hold', (routed.result?.parts?.[0]?.text ?? '').includes('rsu_sell_vs_hold'));
+
+  const task = await a2a('tasks/send', { id: 'e2e-task-1', message: { parts: [{ kind: 'data', data: { skill: 'qsbs_check', input: CALLS.qsbs_check } }] } });
+  check('A2A: legacy tasks/send returns a completed Task with artifacts', task.result?.id === 'e2e-task-1' && task.result?.status?.state === 'completed' && Array.isArray(task.result?.artifacts?.[0]?.parts), JSON.stringify(task.result?.status ?? task.error ?? null));
+
+  const got = await a2a('tasks/get', { id: 'e2e-task-1' });
+  check('A2A: tasks/get returns -32001 with guidance', got.error?.code === -32001 && /synchronously/.test(got.error?.message ?? ''));
+
+  const convo = await a2a('message/send', { message: { parts: [{ kind: 'text', text: 'Hello! I would love to collaborate with your agent.' }] } });
+  check('A2A: conversational message gets the capabilities reply', (convo.result?.parts?.[0]?.text ?? '').includes('deterministic calculator agent'));
+}
+
 console.log(failures === 0 ? '\nALL PASS' : `\n${failures} FAILURE(S)`);
 process.exit(failures === 0 ? 0 : 1);

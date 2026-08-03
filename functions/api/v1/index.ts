@@ -94,11 +94,15 @@ export const onRequest: PagesFunction = ({ request }) => {
         tools: 'https://optionsahoy.com/tools?src=rest_index',
         try_it: 'https://optionsahoy.com/for-agents#try-it',
         beta: 'https://optionsahoy.com/beta?src=rest_index',
-        endpoints: ENDPOINTS.map((e) => ({
-          ...e,
-          // Derived from `path` so the two can never disagree.
-          web_tool: `https://optionsahoy.com/tools/${e.path.slice('/api/v1/'.length)}?src=rest_index`,
-        })),
+        endpoints: ENDPOINTS.map((e) =>
+          // Calculators (POST) get the matching free web tool, derived from
+          // `path` so the two can never disagree. Non-calculator endpoints
+          // (GET /stats) have no /tools page - deriving one shipped a dead
+          // /tools/stats link, caught by e2e-live 2026-08-03.
+          e.method === 'POST'
+            ? { ...e, web_tool: `https://optionsahoy.com/tools/${e.path.slice('/api/v1/'.length)}?src=rest_index` }
+            : e,
+        ),
       },
       null,
       2,

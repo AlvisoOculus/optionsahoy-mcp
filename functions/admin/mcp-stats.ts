@@ -112,15 +112,28 @@ const SQL_COUNTRIES = 'SELECT country, COUNT(*) AS n FROM mcp_calls WHERE ts >= 
 // ISO timestamp rather than the ms epoch the mcp_calls queries use. Only
 // meaningful after 2026-08-03 (before the session-id fix the server never
 // issued ids and this table had 9 rows ever).
-// e2e smoke runs supply their own 'e2e-<ts>' session ids (scripts/e2e-live.mjs)
-// and would otherwise read as organic sessions in the funnel rollups.
-const SQL_SESSIONS_DAILY = "SELECT date(first_seen) AS day, COUNT(*) AS n, SUM(tool_call_count) AS calls FROM mcp_sessions WHERE session_id NOT LIKE 'e2e-%' AND first_seen >= ? GROUP BY day ORDER BY day DESC";
-const SQL_SESSION_DEPTH = "SELECT tool_call_count AS depth, COUNT(*) AS n FROM mcp_sessions WHERE session_id NOT LIKE 'e2e-%' AND first_seen >= ? GROUP BY depth ORDER BY depth";
+// e2e smoke runs supply their own session ids with this prefix
+// (scripts/e2e-live.mjs) and would otherwise read as organic sessions in the
+// funnel rollups. ONE artifact: every mcp_sessions query interpolates
+// SMOKE_SESSION_FILTER rather than restating the literal.
+export const E2E_SESSION_PREFIX = 'e2e-';
+const SMOKE_SESSION_FILTER = `session_id NOT LIKE '${E2E_SESSION_PREFIX}%'`;
+const SQL_SESSIONS_DAILY = `SELECT date(first_seen) AS day, COUNT(*) AS n, SUM(tool_call_count) AS calls FROM mcp_sessions WHERE ${SMOKE_SESSION_FILTER} AND first_seen >= ? GROUP BY day ORDER BY day DESC`;
+const SQL_SESSION_DEPTH = `SELECT tool_call_count AS depth, COUNT(*) AS n FROM mcp_sessions WHERE ${SMOKE_SESSION_FILTER} AND first_seen >= ? GROUP BY depth ORDER BY depth`;
 const SQL_REST_NET = "SELECT COALESCE(as_org, '(unknown)') AS as_org, COALESCE(city, '') AS city, COALESCE(region, '') AS region, COALESCE(country, '') AS country, COUNT(*) AS n FROM mcp_calls WHERE endpoint LIKE 'rest:%' AND ts >= ? GROUP BY as_org, city, region, country ORDER BY n DESC LIMIT 40";
 
-async function q<T>(db: D1Database, sql: string, sinceMs: number): Promise<T[]> {
-  const res = await db.prepare(sql).bind(sinceMs).all<T>();
+// `since` is ms epoch for mcp_calls (integer ts column) and an ISO string
+// for mcp_sessions (text first_seen column).
+async function q<T>(db: D1Database, sql: string, since: number | string): Promise<T[]> {
+  const res = await db.prepare(sql).bind(since).all<T>();
   return res.results;
+}
+
+// Degrade to empty ONLY for the not-yet-migrated case; anything else (typo'd
+// column, real D1 failure) still throws so drift cannot hide as "no data".
+function emptyIfUnmigrated(e: unknown): never[] {
+  if (/no such (table|column)/i.test(e instanceof Error ? e.message : String(e))) return [];
+  throw e;
 }
 
 export const onRequest: PagesFunction = async (ctx) => {
@@ -145,7 +158,7 @@ export const onRequest: PagesFunction = async (ctx) => {
   const days = Number.isFinite(daysParam) && daysParam > 0 && daysParam <= MAX_DAYS ? daysParam : DEFAULT_DAYS;
   const sinceMs = Date.now() - days * 86_400_000;
 
-  const [endpoints, daily, dailyRest, dailyMcp, tools, errors, clients, countries, restNet, errFieldRaw] = await Promise.all([
+  const [endpoints, daily, dailyRest, dailyMcp, tools, errors, clients, countries, restNet, errFieldRaw, sessionsDaily, sessionDepth] = await Promise.all([
     q<EndpointRow>(db, SQL_ENDPOINTS, sinceMs),
     q<DayRow>(db, SQL_DAILY, sinceMs),
     q<DayRow>(db, SQL_DAILY_REST, sinceMs),
@@ -158,22 +171,8 @@ export const onRequest: PagesFunction = async (ctx) => {
     // until the migration is applied. Degrade to an empty rollup, not a 500.
     q<RestNetRow>(db, SQL_REST_NET, sinceMs).catch(() => [] as RestNetRow[]),
     q<ErrFieldRow>(db, SQL_ERR_FIELDS, sinceMs),
-  ]);
-
-  // Session rollups bind ISO (text column); resilient so a DB without the
-  // mcp_sessions table degrades to empty rather than a 500.
-  const sinceIso = new Date(sinceMs).toISOString();
-  const qIso = async <T,>(sql: string): Promise<T[]> => {
-    try {
-      const res = await db.prepare(sql).bind(sinceIso).all<T>();
-      return res.results;
-    } catch {
-      return [] as T[];
-    }
-  };
-  const [sessionsDaily, sessionDepth] = await Promise.all([
-    qIso<SessionDayRow>(SQL_SESSIONS_DAILY),
-    qIso<SessionDepthRow>(SQL_SESSION_DEPTH),
+    q<SessionDayRow>(db, SQL_SESSIONS_DAILY, new Date(sinceMs).toISOString()).catch(emptyIfUnmigrated),
+    q<SessionDepthRow>(db, SQL_SESSION_DEPTH, new Date(sinceMs).toISOString()).catch(emptyIfUnmigrated),
   ]);
 
   // Rank the fields callers most often omit or botch, dropping infrastructure
@@ -376,7 +375,7 @@ function renderHtml(d: RenderInput): string {
 <h1>OptionsAhoy MCP stats</h1>
 <p class="meta">Window: last ${d.days} days &middot; ${total.toLocaleString()} calls &middot; change with <code>?days=N</code></p>
 
-<h2>By endpoint (errors in parens)</h2>
+<h2>By endpoint</h2>
 ${table(
   ['Endpoint', 'Calls', 'Errors'],
   d.endpoints.map((r) => [esc(r.endpoint), `<span class="num">${r.n.toLocaleString()}</span>`, `<span class="num">${(r.errors ?? 0).toLocaleString()}</span>`]),

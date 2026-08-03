@@ -349,3 +349,18 @@ describe('session join token on next-step URLs (MCP -> web attribution)', () => 
     expect(next?.free_tool).not.toContain('&s=');
   });
 });
+
+describe('join-suffix URL invariant (every joinable line ends with its URL)', () => {
+  // The s= append is only correct because these lines END with a
+  // ?src=-carrying URL and no trailing punctuation. A future copy-edit that
+  // breaks the shape would ship silently broken links; this pins all 8 tools
+  // across all three tables.
+  it('free-tool, bare, and beta lines all end with ?src=<bucket>', async () => {
+    const { PER_TOOL_FREE_TOOL, PER_TOOL_FREE_TOOL_BARE, PER_TOOL_BETA_INVITES } = await import('../functions/_lib/sessions');
+    for (const table of [PER_TOOL_FREE_TOOL, PER_TOOL_FREE_TOOL_BARE, PER_TOOL_BETA_INVITES]) {
+      for (const [tool, line] of Object.entries(table)) {
+        expect(line, `${tool} line must end with its ?src= URL`).toMatch(/\?src=[a-z_]+$/);
+      }
+    }
+  });
+});
