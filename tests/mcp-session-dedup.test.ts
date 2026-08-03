@@ -318,3 +318,14 @@ describe('Mcp-Session-Id issuance (what arms the funnel)', () => {
     expect(res.status).toBe(405);
   });
 });
+
+describe('HEAD /mcp (health checkers)', () => {
+  it('answers HEAD with 200, no body, logged as a non-error', async () => {
+    const res = await onRequest({
+      request: new Request('http://localhost/mcp', { method: 'HEAD' }),
+      env: {},
+    });
+    expect(res.status).toBe(200);
+    expect(await res.text()).toBe('');
+  });
+});

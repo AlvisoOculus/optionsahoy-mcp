@@ -277,6 +277,16 @@ export const onRequest: PagesFunction = async (ctx) => {
       headers: { 'content-type': 'application/json', ...CORS },
     });
   }
+  if (request.method === 'HEAD') {
+    // Health checkers and uptime monitors HEAD /mcp (290 hits/30d, previously
+    // logged as bad-method errors). Answer like GET but bodyless, as a
+    // non-error.
+    logs.push({ endpoint: 'mcp:HEAD', isError: false });
+    logCalls(ctx, logs);
+    return new Response(null, {
+      headers: { 'content-type': 'application/json', ...CORS },
+    });
+  }
   if (request.method === 'DELETE') {
     // Spec-compliant clients DELETE /mcp on shutdown to end their session.
     // We keep no per-session server state beyond a D1 counter, so there is
