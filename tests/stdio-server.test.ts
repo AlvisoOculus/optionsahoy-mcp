@@ -408,6 +408,51 @@ describe('local stdio MCP server', () => {
     expect(result.structuredContent).toEqual(parsed);
   });
 
+
+  describe('next-steps block (npx/MCPB installs)', () => {
+    // The local server has no D1 and no session, so it gets the same bare
+    // form sessionless hosted callers get: free tool + related tools, never
+    // the once-per-session beta pitch. Before this, npx users were the one
+    // tool surface with no route back to the web tools at all.
+    it('a successful call carries the bare block and no beta pitch', async () => {
+      const res = await session.request('tools/call', {
+        name: 'qsbs_check',
+        arguments: {
+          acquisitionDate: '2020-03-01',
+          saleDate: '2026-03-15',
+          entityType: 'us-c-corp',
+          acquisitionMethod: 'original-issuance',
+          assetCategory: 'under-50m',
+          industry: 'tech-software',
+          activeBusiness: 'yes',
+          adjustedBasis: 50000,
+          expectedGain: 5000000,
+          stateCode: 'CA',
+          ordinaryIncome: 300000,
+          filingStatus: 'single',
+        },
+      });
+      const result = res.result as { content: Array<{ text: string }>; structuredContent?: unknown };
+      const parsed = JSON.parse(result.content[0].text) as {
+        _meta?: { optionsahoy?: { free_tool?: string; also_run?: string; beta?: string } };
+      };
+      const oa = parsed._meta?.optionsahoy;
+      expect(oa?.free_tool).toContain('optionsahoy.com/tools/qsbs?src=mcp_qsbs');
+      expect(oa?.also_run).toContain('OptionsAhoy tools to run next');
+      expect(oa?.beta).toBeUndefined();
+      expect(oa?.free_tool).not.toContain('&s=');
+      // The mirror invariant must survive the injection.
+      expect(result.structuredContent).toEqual(parsed);
+    });
+
+    it('an errored call carries no block', async () => {
+      const res = await session.request('tools/call', { name: 'qsbs_check', arguments: {} });
+      const result = res.result as { content: Array<{ text: string }>; isError?: boolean };
+      expect(result.isError).toBe(true);
+      expect(result.content[0].text).not.toContain('optionsahoy.com/tools');
+    });
+  });
+
   it('returns isError for an unknown tool', async () => {
     const res = await session.request('tools/call', { name: 'no_such_tool', arguments: {} });
     const result = res.result as {
@@ -445,3 +490,4 @@ describe('local stdio MCP server', () => {
     expect(res.error!.message).toContain('missing required arguments');
   });
 });
+

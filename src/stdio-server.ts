@@ -30,8 +30,13 @@ import { RESOURCES } from '../functions/_lib/mcp-resources';
 import { PROMPTS } from '../functions/_lib/mcp-prompts';
 import { SERVER_INSTRUCTIONS } from '../functions/_lib/mcp-instructions';
 import { SERVER_VERSION } from '../functions/_lib/version';
+import { BARE_CALL_COUNT, nextStepsFor } from '../functions/_lib/sessions';
 
 const SERVER_INFO = { name: 'optionsahoy', version: SERVER_VERSION };
+
+function isPlainObject(v: unknown): v is Record<string, unknown> {
+  return typeof v === 'object' && v !== null && !Array.isArray(v);
+}
 
 // Precomputed list projections + name lookups, mirroring the precomputation
 // in functions/mcp.ts so list calls don't allocate on every request and
@@ -80,13 +85,20 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
     };
   }
   try {
-    const result = tool.handler(req.params.arguments);
+    const result = tool.handler(req.params.arguments) as Record<string, unknown>;
+    // Same next-steps block the hosted server injects, in its bare form:
+    // this process is local and stateless, so there is no session to dedupe
+    // a once-per-session pitch against. Without this, npx/MCPB installs (a
+    // real install path with real weekly downloads) were the one tool
+    // surface offering no way back to the web tools.
+    const next = nextStepsFor(req.params.name, BARE_CALL_COUNT);
+    if (next) result._meta = { ...(isPlainObject(result._meta) ? result._meta : {}), optionsahoy: next };
     // Per MCP spec, tools that declare an outputSchema return the result
     // object as `structuredContent` plus a backwards-compatible serialized
     // text block. Error results stay text-only (no structuredContent).
     return {
       content: [{ type: 'text', text: JSON.stringify(result) }],
-      structuredContent: result as Record<string, unknown>,
+      structuredContent: result,
     };
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
