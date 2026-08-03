@@ -71,7 +71,7 @@ export const PER_TOOL_FREE_TOOL: Record<ToolName, string> = {
   protective_put_price:
     'See the payoff diagram of your protected downside and capped upside, bare put versus zero-cost collar, free at optionsahoy.com/tools/protective-put?src=mcp_protective_put',
   qsbs_check:
-    "See each of the eight Section 1202 tests pass or fail visually, with your state's conformity spelled out, free at optionsahoy.com/tools/qsbs?src=mcp_qsbs",
+    "See each of the six Section 1202 tests pass or fail visually, with your state's conformity spelled out, free at optionsahoy.com/tools/qsbs?src=mcp_qsbs",
   equity_funding_plan:
     "See the risk-and-wealth frontier and each plan's funding trajectory charted across all four plans, free at optionsahoy.com/tools/equity-funding?src=mcp_equity_funding",
   rsu_lot_optimize:
