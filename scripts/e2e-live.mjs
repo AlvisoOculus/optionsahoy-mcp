@@ -208,7 +208,16 @@ const SMOKE_UA = { 'user-agent': 'oa-e2e-live' };
 // GET /api/v1 index links.
 {
   const idx = await (await fetch(`${ORIGIN}/api/v1`, { headers: SMOKE_UA })).json();
-  check('GET /api/v1: every endpoint carries a derived web_tool link', Array.isArray(idx.endpoints) && idx.endpoints.every((e) => typeof e.web_tool === 'string' && e.web_tool.includes(e.path.replace('/api/v1/', '/tools/'))), `${idx.endpoints?.length ?? 0} endpoints`);
+  check(
+    'GET /api/v1: calculator endpoints carry a derived web_tool; non-calculators none',
+    Array.isArray(idx.endpoints) &&
+      idx.endpoints.every((e) =>
+        e.method === 'POST'
+          ? typeof e.web_tool === 'string' && e.web_tool.includes(e.path.replace('/api/v1/', '/tools/'))
+          : e.web_tool === undefined,
+      ),
+    `${idx.endpoints?.length ?? 0} endpoints`,
+  );
   check('GET /api/v1: top-level tools/try_it/beta links present', !!idx.tools && !!idx.try_it && !!idx.beta);
 }
 
