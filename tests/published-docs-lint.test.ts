@@ -36,7 +36,7 @@ describe('llms-full.txt freshness canaries', () => {
 });
 
 const BANNED: Array<[string, RegExp]> = [
-  ['eight tests', /eight statutory tests|eight tests/i],
+  ['eight tests', /eight (statutory |section 1202 )?tests/i],
   ['phantom does-not-qualify verdict', /does-not-qualify/],
   ['false daily-refreshed claim', /daily-refreshed/],
   ['Black-Scholes model name', /Black-?Scholes/],
@@ -81,6 +81,10 @@ const CLAIM_FILES = [
   // the one payload a directory reviewer fetches programmatically.
   'functions/_lib/mcp-tools.ts',
   'public/toolspec.json',
+  // The per-call _meta.optionsahoy nudge strings. Unreachable dead copy until
+  // the session-id fix armed them (2026-08-03); "eight Section 1202 tests"
+  // (engine models six) shipped to real clients the moment they went live.
+  'functions/_lib/sessions.ts',
   // Published package descriptions (npm / PyPI) and the Zed extension listing.
   'integrations/zed/README.md',
   'integrations/js/optionsahoy-ai-sdk/README.md',
