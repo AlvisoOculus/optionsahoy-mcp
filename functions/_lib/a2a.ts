@@ -242,6 +242,12 @@ function skillList(): string {
   return SKILLS.map((s) => s.id).join(', ');
 }
 
+// Shared calling instruction so the conversational reply and the unrouted
+// fallback cannot drift apart.
+function howToCall(): string {
+  return `send a data part {"skill":"<id>","input":{...}} for one of: ${skillList()}. Input schemas: https://optionsahoy.com/openapi.json.`;
+}
+
 // One next-step line per result: the free interactive version (canonical URL
 // from sessions.ts with the src bucket swapped to this surface, the same
 // pattern poe.ts freeToolLink uses) and the beta. Constant per skill, so
@@ -382,9 +388,8 @@ export function handleMessage(parts: A2APart[]): HandledMessage {
     return {
       message: agentMessage(
         `Hello from OptionsAhoy. This is a deterministic calculator agent for US equity-compensation ` +
-          `tax planning - it runs computations, it does not hold conversations. To use it, send a data ` +
-          `part {"skill":"<id>","input":{...}} for one of: ${skillList()}. Input schemas: ` +
-          `https://optionsahoy.com/openapi.json. For partnerships or integration questions, email ` +
+          `tax planning - it runs computations, it does not hold conversations. To use it, ` +
+          `${howToCall()} For partnerships or integration questions, email ` +
           `andrew@alphalatitude.com. ${VERIFY_NOTE}`,
       ),
       skill: null,
@@ -396,9 +401,8 @@ export function handleMessage(parts: A2APart[]): HandledMessage {
 
   return {
     message: agentMessage(
-      `This agent runs the OptionsAhoy calculators on structured input. Send a data part ` +
-        `{"skill":"<id>","input":{...}} for one of: ${skillList()}. Input schemas: ` +
-        `https://optionsahoy.com/openapi.json. ${VERIFY_NOTE}`,
+      `This agent runs the OptionsAhoy calculators on structured input. To use it, ` +
+        `${howToCall()} ${VERIFY_NOTE}`,
     ),
     skill: null,
     isError: true,

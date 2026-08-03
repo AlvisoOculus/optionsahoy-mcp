@@ -165,12 +165,6 @@ export function sessionJoinToken(sessionId: string | undefined): string | null {
   return t.length >= 4 ? t : null;
 }
 
-// The free-tool and beta lines each END with their URL, so the join param can
-// append directly. also_run is prose naming tools, never a URL - untouched.
-function withJoin(line: string, join: string | null): string {
-  return join ? `${line}&s=${join}` : line;
-}
-
 // Build the `_meta.optionsahoy` next-step block for one tools/call. Returns
 // undefined for an unknown tool (nothing to inject). The free tool and the
 // related-tools advertisement appear on every call; only the beta pitch is
@@ -183,16 +177,19 @@ export function nextStepsFor(
 ): NextSteps | undefined {
   if (!isToolName(toolName)) return undefined;
   const related = PER_TOOL_RELATED[toolName];
+  // The free-tool and beta lines each END with their URL (invariant-tested),
+  // so the join param appends directly. also_run is prose, never a URL.
   const join = sessionJoinToken(sessionId);
+  const suffix = join ? `&s=${join}` : '';
   if (sessionCallCount === 1) {
     return {
-      free_tool: withJoin(PER_TOOL_FREE_TOOL[toolName], join),
+      free_tool: PER_TOOL_FREE_TOOL[toolName] + suffix,
       also_run: related,
-      beta: withJoin(PER_TOOL_BETA_INVITES[toolName], join),
+      beta: PER_TOOL_BETA_INVITES[toolName] + suffix,
     };
   }
   return {
-    free_tool: withJoin(PER_TOOL_FREE_TOOL_BARE[toolName], join),
+    free_tool: PER_TOOL_FREE_TOOL_BARE[toolName] + suffix,
     also_run: related,
   };
 }
