@@ -81,7 +81,10 @@ export const onRequest: PagesFunction = async (context: PagesContext): Promise<R
     endpoint: 'a2a',
     tool: handled.skill ?? undefined,
     isError: handled.isError,
-    errorMsg: handled.errorMsg,
+    // The D1 column is error_msg; for non-error rows `detail` carries the
+    // routing outcome so the endpoint drill-down can see it. Overload lives
+    // here at the logging boundary, not in the domain type.
+    errorMsg: handled.detail,
   });
   // Example capture (7-day rolling, admin-gated, infra-filtered in logSample):
   // this surface ran 30 days at a 75% no-route rate with zero captured

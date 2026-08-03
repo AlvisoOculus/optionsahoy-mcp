@@ -89,7 +89,16 @@ export const onRequest: PagesFunction = ({ request }) => {
         documentation: 'https://optionsahoy.com/for-agents',
         openapi: 'https://optionsahoy.com/openapi.json',
         mcp: 'https://optionsahoy.com/mcp',
-        endpoints: ENDPOINTS,
+        // Free interactive versions of every calculator, and the beta for
+        // integrated multi-position optimization.
+        tools: 'https://optionsahoy.com/tools?src=rest_index',
+        try_it: 'https://optionsahoy.com/for-agents#try-it',
+        beta: 'https://optionsahoy.com/beta?src=rest_index',
+        endpoints: ENDPOINTS.map((e) => ({
+          ...e,
+          // Derived from `path` so the two can never disagree.
+          web_tool: `https://optionsahoy.com/tools/${e.path.slice('/api/v1/'.length)}?src=rest_index`,
+        })),
       },
       null,
       2,

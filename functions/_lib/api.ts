@@ -57,6 +57,34 @@ export function preflight(): Response {
 // Logs one row to MCP_STATS per inbound POST (preflight OPTIONS skipped).
 import { logCall, logSample } from './stats';
 
+// Per-endpoint next-step block for REST responses. REST is the highest-volume
+// tool surface (roughly 10x MCP tools/call) and until now returned bare
+// {ok, result} - no free-tool link, no related endpoint, no beta pointer.
+// Constant and short by design: three strings per endpoint, same on every
+// call, so agents can cache or ignore it; nothing here varies with the input.
+// Slugs match functions/api/v1/<slug>.ts and the web calculator paths.
+export const REST_NEXT_STEPS: Record<string, { web_tool: string; also_run: string[]; beta: string }> = (() => {
+  // Only the src abbreviation and the related-endpoint list are real data;
+  // web_tool/beta URLs derive from them so the slug invariant is structural.
+  const SPEC: Record<string, { src: string; also_run: string[] }> = {
+    'amt-iso': { src: 'amt_iso', also_run: ['/api/v1/qsbs', '/api/v1/concentration', '/api/v1/nso'] },
+    nso: { src: 'nso', also_run: ['/api/v1/concentration', '/api/v1/amt-iso'] },
+    'rsu-sell-vs-hold': { src: 'rsu', also_run: ['/api/v1/rsu-lot-order', '/api/v1/concentration'] },
+    concentration: { src: 'concentration', also_run: ['/api/v1/protective-put', '/api/v1/rsu-lot-order', '/api/v1/equity-funding'] },
+    'protective-put': { src: 'put', also_run: ['/api/v1/concentration'] },
+    qsbs: { src: 'qsbs', also_run: ['/api/v1/amt-iso', '/api/v1/concentration'] },
+    'equity-funding': { src: 'funding', also_run: ['/api/v1/rsu-lot-order', '/api/v1/concentration', '/api/v1/rsu-sell-vs-hold'] },
+    'rsu-lot-order': { src: 'lot_order', also_run: ['/api/v1/equity-funding', '/api/v1/concentration'] },
+  };
+  return Object.fromEntries(
+    Object.entries(SPEC).map(([slug, { src, also_run }]) => [slug, {
+      web_tool: `https://optionsahoy.com/tools/${slug}?src=rest_${src}`,
+      also_run,
+      beta: `https://optionsahoy.com/beta?src=rest_${src}`,
+    }]),
+  );
+})();
+
 export async function runCalc<I, O>(
   context: PagesContext,
   endpoint: string,
@@ -86,14 +114,19 @@ export async function runCalc<I, O>(
   }
   try {
     const output = compute(input);
+    const slug = endpoint.startsWith('rest:') ? endpoint.slice(5) : endpoint;
     logCall(context, { endpoint, isError: false });
     logSample(context, {
       surface: 'rest',
-      tool: endpoint.replace(/^rest:/, ''),
+      tool: slug,
       query: safeStringify(raw),
       answer: safeStringify(output),
     });
-    return jsonResponse(200, { ok: true, result: output });
+    const nextSteps = REST_NEXT_STEPS[slug];
+    return jsonResponse(
+      200,
+      nextSteps ? { ok: true, result: output, next_steps: nextSteps } : { ok: true, result: output },
+    );
   } catch (err) {
     // The input already parsed and validated, so a throw here is a server-side
     // computation failure, not a caller error - surface it as 5xx so agents
@@ -123,6 +156,12 @@ export function asObject(raw: unknown): Obj {
 // advertise, instead of computing on out-of-range inputs (e.g. negative shares).
 export type Bounds = { min?: number; max?: number };
 
+// Hoisted from p.num (hot path): a quoted number with optional $ and STRICT
+// thousands-grouped commas. "0,3" (European decimal) must NOT match - it
+// would silently 10x the value.
+const NUM_STRING_RE = /^\s*\$?-?([0-9]+|[0-9]{1,3}(,[0-9]{3})+)(\.[0-9]+)?\s*$/;
+const NUM_STRIP_RE = /[$,\s]/g;
+
 function checkBounds(k: string, v: number, b?: Bounds): number {
   if (b?.min !== undefined && v < b.min) {
     throw new Error(`field "${k}" must be >= ${b.min}`);
@@ -139,11 +178,10 @@ export const p = {
     // Tolerant reader: LLM callers routinely quote numbers ("150000",
     // "$150,000"). "must be a finite number" was the single largest real
     // input-error class across MCP + REST (admin stats, 30d), and every such
-    // string is unambiguous, so coerce instead of bouncing the call. Only a
-    // string that is EXACTLY one plain number (optional $, thousands commas)
-    // coerces; "150k", "1e5 shares", "" still throw.
-    if (typeof v === 'string' && /^\s*\$?-?[0-9][0-9,]*(\.[0-9]+)?\s*$/.test(v)) {
-      v = Number(v.replace(/[$,\s]/g, ''));
+    // string is unambiguous, so coerce instead of bouncing the call.
+    // "150k", "1e5 shares", "", and "0,3" (see NUM_STRING_RE) still throw.
+    if (typeof v === 'string' && NUM_STRING_RE.test(v)) {
+      v = Number(v.replace(NUM_STRIP_RE, ''));
     }
     if (typeof v !== 'number' || !Number.isFinite(v)) {
       throw new Error(`field "${k}" must be a finite number`);

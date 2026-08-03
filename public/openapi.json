@@ -738,6 +738,24 @@
                 },
                 "result": {
                   "$ref": "#/components/schemas/AmtIsoResult"
+                },
+                "next_steps": {
+                  "type": "object",
+                  "description": "Constant per endpoint: the free interactive version of this calculator, related endpoints worth running next, and the OptionsAhoy beta for integrated multi-position optimization.",
+                  "properties": {
+                    "web_tool": {
+                      "type": "string"
+                    },
+                    "also_run": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "beta": {
+                      "type": "string"
+                    }
+                  }
                 }
               }
             },
@@ -987,6 +1005,24 @@
                 },
                 "result": {
                   "$ref": "#/components/schemas/NsoResult"
+                },
+                "next_steps": {
+                  "type": "object",
+                  "description": "Constant per endpoint: the free interactive version of this calculator, related endpoints worth running next, and the OptionsAhoy beta for integrated multi-position optimization.",
+                  "properties": {
+                    "web_tool": {
+                      "type": "string"
+                    },
+                    "also_run": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "beta": {
+                      "type": "string"
+                    }
+                  }
                 }
               }
             },
@@ -1059,6 +1095,24 @@
                 },
                 "result": {
                   "$ref": "#/components/schemas/RsuResult"
+                },
+                "next_steps": {
+                  "type": "object",
+                  "description": "Constant per endpoint: the free interactive version of this calculator, related endpoints worth running next, and the OptionsAhoy beta for integrated multi-position optimization.",
+                  "properties": {
+                    "web_tool": {
+                      "type": "string"
+                    },
+                    "also_run": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "beta": {
+                      "type": "string"
+                    }
+                  }
                 }
               }
             },
@@ -1124,6 +1178,24 @@
                 },
                 "result": {
                   "$ref": "#/components/schemas/ConcentrationResult"
+                },
+                "next_steps": {
+                  "type": "object",
+                  "description": "Constant per endpoint: the free interactive version of this calculator, related endpoints worth running next, and the OptionsAhoy beta for integrated multi-position optimization.",
+                  "properties": {
+                    "web_tool": {
+                      "type": "string"
+                    },
+                    "also_run": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "beta": {
+                      "type": "string"
+                    }
+                  }
                 }
               }
             },
@@ -1501,6 +1573,24 @@
                 },
                 "result": {
                   "$ref": "#/components/schemas/ProtectivePutResult"
+                },
+                "next_steps": {
+                  "type": "object",
+                  "description": "Constant per endpoint: the free interactive version of this calculator, related endpoints worth running next, and the OptionsAhoy beta for integrated multi-position optimization.",
+                  "properties": {
+                    "web_tool": {
+                      "type": "string"
+                    },
+                    "also_run": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "beta": {
+                      "type": "string"
+                    }
+                  }
                 }
               }
             },
@@ -1674,6 +1764,24 @@
                 },
                 "result": {
                   "$ref": "#/components/schemas/QsbsResult"
+                },
+                "next_steps": {
+                  "type": "object",
+                  "description": "Constant per endpoint: the free interactive version of this calculator, related endpoints worth running next, and the OptionsAhoy beta for integrated multi-position optimization.",
+                  "properties": {
+                    "web_tool": {
+                      "type": "string"
+                    },
+                    "also_run": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "beta": {
+                      "type": "string"
+                    }
+                  }
                 }
               }
             },
@@ -1753,6 +1861,24 @@
                 },
                 "result": {
                   "$ref": "#/components/schemas/EquityFundingResult"
+                },
+                "next_steps": {
+                  "type": "object",
+                  "description": "Constant per endpoint: the free interactive version of this calculator, related endpoints worth running next, and the OptionsAhoy beta for integrated multi-position optimization.",
+                  "properties": {
+                    "web_tool": {
+                      "type": "string"
+                    },
+                    "also_run": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "beta": {
+                      "type": "string"
+                    }
+                  }
                 }
               }
             },
@@ -2228,6 +2354,24 @@
                 },
                 "result": {
                   "$ref": "#/components/schemas/RsuLotOptimizeResult"
+                },
+                "next_steps": {
+                  "type": "object",
+                  "description": "Constant per endpoint: the free interactive version of this calculator, related endpoints worth running next, and the OptionsAhoy beta for integrated multi-position optimization.",
+                  "properties": {
+                    "web_tool": {
+                      "type": "string"
+                    },
+                    "also_run": {
+                      "type": "array",
+                      "items": {
+                        "type": "string"
+                      }
+                    },
+                    "beta": {
+                      "type": "string"
+                    }
+                  }
                 }
               }
             },

@@ -294,6 +294,15 @@ describe('tolerant numeric reader (LLM callers quote numbers)', () => {
     expect(() => p.num({}, 'x')).toThrow('finite number');
   });
 
+  it('rejects non-thousands comma placement (European decimals must not 10x)', () => {
+    // "0,3" is 0.3 in much of the world; coercing it to 3 would silently
+    // multiply a volatility or growth input by 10. Strict grouping only.
+    for (const bad of ['0,3', '1,5', '12,34', '1,0000', ',100', '100,']) {
+      expect(() => p.num({ x: bad }, 'x'), `should reject "${bad}"`).toThrow('finite number');
+    }
+    expect(p.num({ x: '1,234,567.89' }, 'x')).toBe(1234567.89);
+  });
+
   it('coerced values still hit the bounds check', () => {
     expect(() => p.num({ x: '-5' }, 'x', { min: 0 })).toThrow('>= 0');
   });

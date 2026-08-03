@@ -36,6 +36,7 @@ import { evaluateQsbs } from '../../lib/calc/qsbs';
 import { computeEquityFundingComparison } from '../../lib/calc/equityFunding';
 import { computeLotDivestPlan } from '../../lib/calc/lotDivest';
 import type { ToolName } from './mcp-tools';
+import { PER_TOOL_FREE_TOOL_BARE } from './sessions';
 
 // The public endpoint advertised in the Agent Card. The card is served at
 // optionsahoy.com/.well-known/agent-card.json and the JSON-RPC endpoint at
@@ -241,6 +242,19 @@ function skillList(): string {
   return SKILLS.map((s) => s.id).join(', ');
 }
 
+// One next-step line per result: the free interactive version (canonical URL
+// from sessions.ts with the src bucket swapped to this surface, the same
+// pattern poe.ts freeToolLink uses) and the beta. Constant per skill, so
+// built once at module load. A2A results previously carried only the
+// verification note - no onward step at all.
+const NEXT_STEP_BY_SKILL: Record<ToolName, string> = Object.fromEntries(
+  SKILLS.map((s) => [
+    s.id,
+    `Free interactive version with charts: https://${PER_TOOL_FREE_TOOL_BARE[s.id].replace('src=mcp_', 'src=a2a_')}. ` +
+      'Integrated multi-position optimization is the OptionsAhoy beta: https://optionsahoy.com/beta?src=a2a.',
+  ]),
+) as Record<ToolName, string>;
+
 // No-model free-text router: pick the first skill whose keywords appear in
 // the text. Both sides are normalized (lowercase, punctuation and hyphens to
 // single spaces, space-padded) so short tokens like "iso"/"amt" match whole
@@ -256,12 +270,12 @@ function norm(s: string): string {
 
 // Normalized once at module load; keywords in SKILLS stay human-readable for
 // the agent card while matching runs against these.
-const NORM_KEYWORDS: string[][] = SKILLS.map((s) => s.keywords.map(norm));
+const ROUTES = SKILLS.map((s) => ({ skill: s, keys: s.keywords.map(norm) }));
 
 export function routeByKeyword(text: string): Skill | null {
   const t = norm(text);
-  for (let i = 0; i < SKILLS.length; i++) {
-    if (NORM_KEYWORDS[i].some((k) => t.includes(k))) return SKILLS[i];
+  for (const r of ROUTES) {
+    if (r.keys.some((k) => t.includes(k))) return r.skill;
   }
   return null;
 }
@@ -270,14 +284,14 @@ export function routeByKeyword(text: string): Skill | null {
 // Returns the agent message plus the skill id that ran (null when no
 // calculator executed), an explicit `isError` (previously inferred as
 // skill === null, which counted successful free-text routing pointers as
-// errors and made this surface read as 75% failing), an `errorMsg` saying
-// why when something actually went wrong, and `query` echoing what the
-// caller sent for the admin example capture.
+// errors and made this surface read as 75% failing), a `detail` line for
+// the stats log (what went wrong, or how a free-text message was routed),
+// and `query` echoing what the caller sent for the admin example capture.
 export interface HandledMessage {
   message: A2AMessage;
   skill: string | null;
   isError: boolean;
-  errorMsg?: string;
+  detail?: string;
   query: string;
 }
 
@@ -298,7 +312,7 @@ export function handleMessage(parts: A2APart[]): HandledMessage {
         ),
         skill: null,
         isError: true,
-        errorMsg: `unknown skill: ${typeof skillId === 'string' ? skillId : '(missing)'}`,
+        detail: `unknown skill: ${typeof skillId === 'string' ? skillId : '(missing)'}`,
         query,
       };
     }
@@ -306,7 +320,7 @@ export function handleMessage(parts: A2APart[]): HandledMessage {
     try {
       const result = skill.run(data.input);
       return {
-        message: agentMessage(`OptionsAhoy ${skill.name} result. ${VERIFY_NOTE}`, result),
+        message: agentMessage(`OptionsAhoy ${skill.name} result. ${NEXT_STEP_BY_SKILL[skill.id]} ${VERIFY_NOTE}`, result),
         skill: skill.id,
         isError: false,
         query,
@@ -321,7 +335,7 @@ export function handleMessage(parts: A2APart[]): HandledMessage {
         ),
         skill: null,
         isError: true,
-        errorMsg: `${skill.id}: ${msg}`,
+        detail: `${skill.id}: ${msg}`,
         query,
       };
     }
@@ -345,10 +359,10 @@ export function handleMessage(parts: A2APart[]): HandledMessage {
       ),
       skill: null,
       // Working as designed: the caller sent free text, we pointed it at the
-      // right skill. Not an error; errorMsg carries the routing for the
+      // right skill. Not an error; detail carries the routing for the
       // admin dashboard's endpoint drill-down.
       isError: false,
-      errorMsg: `text routed to ${matched.id}, no data part`,
+      detail: `text routed to ${matched.id}, no data part`,
       query: text,
     };
   }
@@ -361,7 +375,7 @@ export function handleMessage(parts: A2APart[]): HandledMessage {
     ),
     skill: null,
     isError: true,
-    errorMsg: text ? 'unrouted free text' : 'no text or data part',
+    detail: text ? 'unrouted free text' : 'no text or data part',
     query: text,
   };
 }
