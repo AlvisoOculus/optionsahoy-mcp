@@ -1,0 +1,44 @@
+# Daily drift check: the official MCP registry's latest published version must
+# match package.json. The drift class this guards: publishing to npm via
+# workflow_dispatch skips the release-gated registry job in npm-publish.yml,
+# leaving the registry pinned to a stale version (bit us 2026-08: npm 1.10.1,
+# registry 1.9.8 for two weeks). A red run here is the alert; fix by cutting
+# the missing GitHub release (see npm-publish.yml `registry` job).
+
+name: Registry freshness
+
+permissions:
+  contents: read
+
+on:
+  schedule:
+    - cron: '30 9 * * *'
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Compare registry isLatest to package.json
+        run: |
+          set -euo pipefail
+          local_version=$(node -p "require('./package.json').version")
+          registry_version=$(curl -sSf "https://registry.modelcontextprotocol.io/v0/servers?search=optionsahoy" \
+            | node -e "
+              let s = '';
+              process.stdin.on('data', (c) => (s += c));
+              process.stdin.on('end', () => {
+                const d = JSON.parse(s);
+                const latest = (d.servers || []).find(
+                  (x) => x._meta?.['io.modelcontextprotocol.registry/official']?.isLatest,
+                );
+                if (!latest) { console.error('no isLatest entry found'); process.exit(1); }
+                console.log(latest.server.version);
+              });
+            ")
+          echo "package.json: $local_version | registry isLatest: $registry_version"
+          if [ "$local_version" != "$registry_version" ]; then
+            echo "::error::Registry drift: registry.modelcontextprotocol.io serves $registry_version but package.json is $local_version. Cut the missing GitHub release so npm-publish.yml's registry job republishes (dispatch publishes skip it)."
+            exit 1
+          fi
