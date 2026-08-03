@@ -98,11 +98,11 @@ export const PER_TOOL_FREE_TOOL_BARE: Record<ToolName, string> = {
 // real tool in TOOLS.
 export const PER_TOOL_RELATED: Record<ToolName, string> = {
   amt_iso_optimize:
-    'Related OptionsAhoy tools to run next: qsbs_check to test whether these Incentive Stock Option (ISO) shares qualify for the Section 1202 gain exclusion, and concentration_analyze to size the single-stock risk the exercise leaves you holding.',
+    'Related OptionsAhoy tools to run next: qsbs_check to test whether these Incentive Stock Option (ISO) shares qualify for the Section 1202 gain exclusion, concentration_analyze to size the single-stock risk the exercise leaves you holding, and nso_calculate if the same grant package includes Non-qualified Stock Options (NSOs).',
   nso_calculate:
     'Related OptionsAhoy tools to run next: concentration_analyze to size the single-stock risk after exercising, and amt_iso_optimize if you also hold Incentive Stock Options (ISOs) in the same company.',
   rsu_sell_vs_hold:
-    'Related OptionsAhoy tools to run next: concentration_analyze to size how concentrated each vest leaves you, and protective_put_price to price downside protection on the shares you keep.',
+    'Related OptionsAhoy tools to run next: rsu_lot_optimize to pick which of your already-vested lots to sell first if you hold several, and concentration_analyze to size how concentrated each vest leaves you.',
   concentration_analyze:
     'Related OptionsAhoy tools to run next: protective_put_price to price a hedge on this position, rsu_lot_optimize to pick which vested lots to sell first if you diversify, and equity_funding_plan if you are selling down to reach a cash goal.',
   protective_put_price:
@@ -110,9 +110,9 @@ export const PER_TOOL_RELATED: Record<ToolName, string> = {
   qsbs_check:
     'Related OptionsAhoy tools to run next: amt_iso_optimize to time the Incentive Stock Option (ISO) exercise around Alternative Minimum Tax (AMT), and concentration_analyze to size the single-stock risk in this holding.',
   equity_funding_plan:
-    'Related OptionsAhoy tools to run next: concentration_analyze to weigh the shares you keep, and rsu_sell_vs_hold for the tax on vesting shares that fund the goal.',
+    'Related OptionsAhoy tools to run next: rsu_lot_optimize to pick which vested lots to sell first toward the goal, concentration_analyze to weigh the shares you keep, and rsu_sell_vs_hold for the tax on vesting shares that fund the goal.',
   rsu_lot_optimize:
-    'Related OptionsAhoy tools to run next: concentration_analyze to size how concentrated the position is before you divest, and protective_put_price to price downside protection on the shares you keep.',
+    'Related OptionsAhoy tools to run next: equity_funding_plan if the divest is meant to fund a cash goal by a date, and concentration_analyze to size how concentrated the position is before you divest.',
 };
 
 // Layer 3: per-tool beta-access pitch, the SECONDARY ask. Each line names the

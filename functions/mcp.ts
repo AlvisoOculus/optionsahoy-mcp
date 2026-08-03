@@ -69,6 +69,11 @@ const CORS: Record<string, string> = {
   'access-control-allow-origin': '*',
   'access-control-allow-methods': 'POST, OPTIONS',
   'access-control-allow-headers': 'content-type, mcp-session-id, mcp-protocol-version',
+  // Without expose-headers, browser-based clients (MCP Inspector web, registry
+  // try-it panes) can receive the session id below but never READ it, so they
+  // would stay sessionless forever and the next-steps funnel would stay dark
+  // for that whole client class.
+  'access-control-expose-headers': 'mcp-session-id',
   'access-control-max-age': '86400',
 };
 
@@ -88,10 +93,10 @@ function err(id: Id, code: number, message: string, data?: unknown): JsonRpcErro
     : { jsonrpc: '2.0', id, error: { code, message, data } };
 }
 
-function jsonResponse(body: unknown, status = 200): Response {
+function jsonResponse(body: unknown, status = 200, extraHeaders?: Record<string, string>): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { 'content-type': 'application/json', ...CORS },
+    headers: { 'content-type': 'application/json', ...CORS, ...extraHeaders },
   });
 }
 
@@ -272,6 +277,26 @@ export const onRequest: PagesFunction = async (ctx) => {
       headers: { 'content-type': 'application/json', ...CORS },
     });
   }
+  if (request.method === 'HEAD') {
+    // Health checkers and uptime monitors HEAD /mcp (290 hits/30d, previously
+    // logged as bad-method errors). Answer like GET but bodyless, as a
+    // non-error.
+    logs.push({ endpoint: 'mcp:HEAD', isError: false });
+    logCalls(ctx, logs);
+    return new Response(null, {
+      headers: { 'content-type': 'application/json', ...CORS },
+    });
+  }
+  if (request.method === 'DELETE') {
+    // Spec-compliant clients DELETE /mcp on shutdown to end their session.
+    // We keep no per-session server state beyond a D1 counter, so there is
+    // nothing to terminate; the spec allows a plain 405 for servers that do
+    // not support client-initiated termination. Logged as a non-error so
+    // clean client shutdowns do not pollute the error stats.
+    logs.push({ endpoint: 'mcp:session-delete', isError: false });
+    logCalls(ctx, logs);
+    return new Response(null, { status: 405, headers: CORS });
+  }
   if (request.method !== 'POST') {
     logs.push({ endpoint: 'mcp:bad-method', isError: true, errorMsg: request.method });
     logCalls(ctx, logs);
@@ -295,6 +320,19 @@ export const onRequest: PagesFunction = async (ctx) => {
     return jsonResponse(err(null, -32600, 'Invalid Request: empty batch'), 400);
   }
 
+  // Issue a session id at initialization (streamable-HTTP: the server MAY
+  // assign one; compliant clients then echo it on every later request). This
+  // is what arms the per-session next-steps dedup in tools/call: before this,
+  // the server never issued an id, no client ever echoed one, and the
+  // free-tool/related-tool/beta block effectively never fired (9 sessions
+  // recorded against ~62k calls). We issue-and-do-NOT-enforce: sessionless
+  // requests keep working unchanged, so scanners and curl are unaffected.
+  const hasInitialize = requests.some(
+    (r) => !!r && typeof r === 'object' && (r as { method?: unknown }).method === 'initialize',
+  );
+  const issuedSessionId = hasInitialize ? (sessionId ?? crypto.randomUUID()) : undefined;
+  const sessionHeader = issuedSessionId ? { 'mcp-session-id': issuedSessionId } : undefined;
+
   const responses: JsonRpcResponse[] = [];
   const samples: SampleFields[] = [];
   for (const r of requests) {
@@ -314,5 +352,5 @@ export const onRequest: PagesFunction = async (ctx) => {
     // All-notifications batch. Per spec, return 204 No Content.
     return new Response(null, { status: 204, headers: CORS });
   }
-  return jsonResponse(Array.isArray(body) ? responses : responses[0]);
+  return jsonResponse(Array.isArray(body) ? responses : responses[0], 200, sessionHeader);
 };
