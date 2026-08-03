@@ -279,3 +279,23 @@ describe('initializesReal (funnel top-of-pipeline, probes excluded)', () => {
     expect(json.initializesReal).toBe(50);
   });
 });
+
+describe('Bearer parsing edge cases', () => {
+  const env = () => ({ ADMIN_TOKEN: 'right', MCP_STATS: mockDb(SAMPLE_ROWS) });
+  const withAuth = (auth: string, qs = '') =>
+    new Request(`http://localhost/admin/mcp-stats${qs}`, { method: 'GET', headers: { authorization: auth } });
+
+  it('accepts a lowercase scheme (RFC 7235: case-insensitive)', async () => {
+    expect((await onRequest(ctx(env(), withAuth('bearer right')))).status).toBe(200);
+  });
+
+  it('a malformed header does not shadow a valid ?token=', async () => {
+    expect((await onRequest(ctx(env(), withAuth('Bearer ', '?token=right')))).status).toBe(200);
+    expect((await onRequest(ctx(env(), withAuth('Basic abc', '?token=right')))).status).toBe(200);
+  });
+
+  it('an empty or unset ADMIN_TOKEN can never be matched', async () => {
+    const res = await onRequest(ctx({ ADMIN_TOKEN: '', MCP_STATS: mockDb(SAMPLE_ROWS) }, withAuth('Bearer ')));
+    expect(res.status).toBe(503);
+  });
+});

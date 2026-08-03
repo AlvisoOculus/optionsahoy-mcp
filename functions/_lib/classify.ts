@@ -54,6 +54,18 @@ export function classifyClient(
   return { kind: 'unknown', label: 'unknown' };
 }
 
+// "Real" for ADOPTION counting: a person in an AI client, or a programmatic
+// agent framework. Deliberately and strictly NARROWER than !isInfraClient():
+// that one only drops smoke + crawlers and still admits 'tool' (bare scripts,
+// SDK user-agents like python-httpx) and 'unknown'. The two are not
+// complements, and the gap is meaningful - an SDK integration is worth
+// showing a free-tool link to (so it passes the injection gate) without
+// counting as a named client connect in the funnel's adoption figure.
+export function isRealClient(clientName: string | null | undefined, surface: string): boolean {
+  const kind = classifyClient(clientName, surface).kind;
+  return kind === 'human' || kind === 'agent';
+}
+
 // Infrastructure = automated noise we never want polluting the 7-day example
 // capture or the "real engagement" counts: our own smoke suite plus registry
 // crawlers and security scanners.

@@ -119,7 +119,7 @@ async function handle(
   logs: CallFields[],
   samples: SampleFields[],
   sessionDeps: { sessionId: string; db: D1Database } | undefined,
-  injectSessionless: boolean,
+  allowInjection: boolean,
 ): Promise<JsonRpcResponse | null> {
   const id = req.id ?? null;
   const isNotification = req.id === undefined;
@@ -188,20 +188,21 @@ async function handle(
         // sample of those is entirely MCP SDK integrations (python-httpx,
         // node). Infra callers are filtered out by the caller, so registry
         // probes still get clean, unmarketed responses.
-        try {
-          let next: ReturnType<typeof nextStepsFor>;
-          if (sessionDeps) {
-            const count = await bumpSessionCallCount(sessionDeps.db, sessionDeps.sessionId);
-            next = nextStepsFor(name, count, sessionDeps.sessionId);
-          } else if (injectSessionless) {
-            next = nextStepsFor(name, BARE_CALL_COUNT);
+        if (sessionDeps || allowInjection) {
+          try {
+            // Only the session bump can fail; sessionless callers take the
+            // bare count and nothing here throws.
+            const count = sessionDeps
+              ? await bumpSessionCallCount(sessionDeps.db, sessionDeps.sessionId)
+              : BARE_CALL_COUNT;
+            const next = nextStepsFor(name, count, sessionDeps?.sessionId);
+            if (next) {
+              const existingMeta = isParams(result._meta) ? result._meta : {};
+              result._meta = { ...existingMeta, optionsahoy: next };
+            }
+          } catch {
+            // Session tracking failure must never break the tool response.
           }
-          if (next) {
-            const existingMeta = isParams(result._meta) ? result._meta : {};
-            result._meta = { ...existingMeta, optionsahoy: next };
-          }
-        } catch {
-          // Session tracking failure must never break the tool response.
         }
         // Per MCP spec, tools that declare an outputSchema return the result
         // object as `structuredContent` plus a backwards-compatible
@@ -278,11 +279,12 @@ export const onRequest: PagesFunction = async (ctx) => {
   const sessionId = request.headers.get('Mcp-Session-Id');
   const db = ctx.env?.MCP_STATS;
   const sessionDeps = sessionId && db ? { sessionId, db } : undefined;
-  // Sessionless tool calls still get the bare next-steps block unless the
-  // caller is infrastructure (registry probes, scanners, our own smoke) -
-  // the same classifier the example capture and stats use.
-  const injectSessionless =
-    !sessionDeps && !isInfraClient(request.headers.get('user-agent'), 'mcp');
+  // Whether this caller may be shown the next-steps block at all. Excludes
+  // infrastructure (registry probes, scanners, our own smoke) via the same
+  // predicate the example capture uses. Deliberately broader than
+  // isRealClient(): an SDK caller reporting a bare script UA is still worth a
+  // free-tool link, even though it is not counted as a named connect.
+  const allowInjection = !isInfraClient(request.headers.get('user-agent'), 'mcp');
 
   if (request.method === 'OPTIONS') {
     return new Response(null, { status: 204, headers: CORS });
@@ -361,7 +363,7 @@ export const onRequest: PagesFunction = async (ctx) => {
       responses.push(err(null, -32600, 'Invalid Request'));
       continue;
     }
-    const out = await handle(r as JsonRpcRequest, logs, samples, sessionDeps, injectSessionless);
+    const out = await handle(r as JsonRpcRequest, logs, samples, sessionDeps, allowInjection);
     if (out !== null) responses.push(out);
   }
 

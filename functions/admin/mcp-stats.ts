@@ -28,7 +28,7 @@
 
 import { type PagesFunction } from '../_lib/api';
 import { type D1Database } from '../_lib/stats';
-import { classifyClient, isInfraClient, KIND_RANK, type ClientKind } from '../_lib/classify';
+import { classifyClient, isInfraClient, isRealClient, KIND_RANK, type ClientKind } from '../_lib/classify';
 import { rankErrorFields } from '../_lib/error-fields';
 
 // Client classification lives in ../_lib/classify (shared with the sample
@@ -148,8 +148,9 @@ export const onRequest: PagesFunction = async (ctx) => {
   // The query form stays for the bookmarkable browser view; machine callers
   // (the web project's /admin/funnel) use the header so the secret does not
   // land in this project's request logs or ride through redirects.
-  const auth = request.headers.get('authorization');
-  const bearer = auth?.startsWith('Bearer ') ? auth.slice('Bearer '.length) : null;
+  // Scheme is case-insensitive per RFC 7235, and a malformed header must not
+  // shadow a valid ?token= (a proxy or extension can inject one).
+  const bearer = /^\s*bearer\s+(\S+)\s*$/i.exec(request.headers.get('authorization') ?? '')?.[1] ?? null;
   const token = bearer ?? url.searchParams.get('token');
   const expected = env?.ADMIN_TOKEN;
 
@@ -180,7 +181,7 @@ export const onRequest: PagesFunction = async (ctx) => {
     q<CountryRow>(db, SQL_COUNTRIES, sinceMs),
     // Resilient: pre-0004 databases lack as_org/region/city, so this throws
     // until the migration is applied. Degrade to an empty rollup, not a 500.
-    q<RestNetRow>(db, SQL_REST_NET, sinceMs).catch(() => [] as RestNetRow[]),
+    q<RestNetRow>(db, SQL_REST_NET, sinceMs).catch(emptyIfUnmigrated),
     q<ErrFieldRow>(db, SQL_ERR_FIELDS, sinceMs),
     q<SessionDayRow>(db, SQL_SESSIONS_DAILY, new Date(sinceMs).toISOString()).catch(emptyIfUnmigrated),
     q<SessionDepthRow>(db, SQL_SESSION_DEPTH, new Date(sinceMs).toISOString()).catch(emptyIfUnmigrated),
@@ -188,14 +189,11 @@ export const onRequest: PagesFunction = async (ctx) => {
   ]);
 
   // A real connect = a person in an AI client, or a programmatic agent
-  // framework. Crawlers, scanners, our own smoke, bare scripts and unnamed
-  // callers are not. Same classifier as the example capture, so "real" means
-  // one thing across the whole dashboard.
+  // framework (isRealClient). Note this is NARROWER than the injection gate
+  // in mcp.ts, which only excludes infra: an SDK caller reporting itself as a
+  // bare script is worth a free-tool link but is not a named client connect.
   const initializesReal = initClients
-    .filter((r) => {
-      const kind = classifyClient(r.client_name, 'mcp').kind;
-      return kind === 'human' || kind === 'agent';
-    })
+    .filter((r) => isRealClient(r.client_name, 'mcp'))
     .reduce((acc, r) => acc + r.n, 0);
 
   // Rank the fields callers most often omit or botch, dropping infrastructure
