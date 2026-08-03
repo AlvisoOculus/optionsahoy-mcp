@@ -36,7 +36,7 @@ import { rankErrorFields } from '../_lib/error-fields';
 // route keep working.
 export { classifyClient, KIND_RANK, type ClientKind };
 
-interface EndpointRow { endpoint: string; n: number }
+interface EndpointRow { endpoint: string; n: number; errors: number }
 interface DayRow { day: string; n: number }
 interface ToolRow { tool: string; n: number; errors: number }
 interface ErrorRow { endpoint: string; tool: string | null; error_msg: string; n: number }
@@ -45,6 +45,8 @@ interface CountryRow { country: string | null; n: number }
 interface ErrFieldRow { error_msg: string; endpoint: string; client: string | null; n: number }
 interface SampleRow { ts: number; surface: string; tool: string | null; client_name: string | null; query: string | null; answer: string | null; country: string | null; region: string | null; city: string | null; as_org: string | null; asn: number | null }
 interface RestNetRow { as_org: string; city: string; region: string; country: string; n: number }
+interface SessionDayRow { day: string; n: number; calls: number }
+interface SessionDepthRow { depth: number; n: number }
 
 // --- originating-network classification (the primary bot signal) ------------
 //
@@ -74,7 +76,7 @@ const MAX_DAYS = 365;
 // Patterns must match the regexes in tests/admin-stats.test.ts mockDb —
 // keep the WHERE / GROUP BY clauses distinct enough that the test mock
 // can identify each query unambiguously.
-const SQL_ENDPOINTS = 'SELECT endpoint, COUNT(*) AS n FROM mcp_calls WHERE ts >= ? GROUP BY endpoint ORDER BY n DESC';
+const SQL_ENDPOINTS = 'SELECT endpoint, COUNT(*) AS n, SUM(is_error) AS errors FROM mcp_calls WHERE ts >= ? GROUP BY endpoint ORDER BY n DESC';
 const SQL_DAILY = "SELECT date(ts/1000, 'unixepoch') AS day, COUNT(*) AS n FROM mcp_calls WHERE ts >= ? GROUP BY day ORDER BY day DESC";
 // Per-day legitimate calculator calls, split by surface. Both filter
 // is_error = 0 so probe/garbage traffic (calls that fail input validation
@@ -104,6 +106,14 @@ const SQL_COUNTRIES = 'SELECT country, COUNT(*) AS n FROM mcp_calls WHERE ts >= 
 // REST/direct callers by originating network + coarse location. This is where
 // the datacenter-vs-residential bot signal is meaningful (MCP is excluded: its
 // cloud origin is expected and says nothing about bot-ness).
+// Funnel: sessions per day (id issued at initialize, echoed by compliant
+// clients, one row per session that made at least one tools/call) plus the
+// call-depth histogram. first_seen is an ISO string column, so these bind an
+// ISO timestamp rather than the ms epoch the mcp_calls queries use. Only
+// meaningful after 2026-08-03 (before the session-id fix the server never
+// issued ids and this table had 9 rows ever).
+const SQL_SESSIONS_DAILY = "SELECT date(first_seen) AS day, COUNT(*) AS n, SUM(tool_call_count) AS calls FROM mcp_sessions WHERE first_seen >= ? GROUP BY day ORDER BY day DESC";
+const SQL_SESSION_DEPTH = 'SELECT tool_call_count AS depth, COUNT(*) AS n FROM mcp_sessions WHERE first_seen >= ? GROUP BY depth ORDER BY depth';
 const SQL_REST_NET = "SELECT COALESCE(as_org, '(unknown)') AS as_org, COALESCE(city, '') AS city, COALESCE(region, '') AS region, COALESCE(country, '') AS country, COUNT(*) AS n FROM mcp_calls WHERE endpoint LIKE 'rest:%' AND ts >= ? GROUP BY as_org, city, region, country ORDER BY n DESC LIMIT 40";
 
 async function q<T>(db: D1Database, sql: string, sinceMs: number): Promise<T[]> {
@@ -146,6 +156,22 @@ export const onRequest: PagesFunction = async (ctx) => {
     // until the migration is applied. Degrade to an empty rollup, not a 500.
     q<RestNetRow>(db, SQL_REST_NET, sinceMs).catch(() => [] as RestNetRow[]),
     q<ErrFieldRow>(db, SQL_ERR_FIELDS, sinceMs),
+  ]);
+
+  // Session rollups bind ISO (text column); resilient so a DB without the
+  // mcp_sessions table degrades to empty rather than a 500.
+  const sinceIso = new Date(sinceMs).toISOString();
+  const qIso = async <T,>(sql: string): Promise<T[]> => {
+    try {
+      const res = await db.prepare(sql).bind(sinceIso).all<T>();
+      return res.results;
+    } catch {
+      return [] as T[];
+    }
+  };
+  const [sessionsDaily, sessionDepth] = await Promise.all([
+    qIso<SessionDayRow>(SQL_SESSIONS_DAILY),
+    qIso<SessionDepthRow>(SQL_SESSION_DEPTH),
   ]);
 
   // Rank the fields callers most often omit or botch, dropping infrastructure
@@ -206,7 +232,7 @@ export const onRequest: PagesFunction = async (ctx) => {
   ).slice(0, 50);
 
   if (url.searchParams.get('format') === 'json') {
-    const body = JSON.stringify({ days, endpoints, daily, dailyRest, dailyMcp, tools, errors, topErrorFields, clients, countries, restNet, endpointErrors, samples: classified, sampleCounts });
+    const body = JSON.stringify({ days, endpoints, daily, dailyRest, dailyMcp, tools, errors, topErrorFields, clients, countries, restNet, sessionsDaily, sessionDepth, endpointErrors, samples: classified, sampleCounts });
     return new Response(body, {
       status: 200,
       headers: {
@@ -216,7 +242,7 @@ export const onRequest: PagesFunction = async (ctx) => {
     });
   }
 
-  const html = renderHtml({ days, endpoints, daily, dailyRest, dailyMcp, tools, errors, topErrorFields, clients, countries, restNet, samples: shownSamples, sampleCounts, kindFilter, token, surface: surfaceParam });
+  const html = renderHtml({ days, endpoints, daily, dailyRest, dailyMcp, tools, errors, topErrorFields, clients, countries, restNet, sessionsDaily, sessionDepth, samples: shownSamples, sampleCounts, kindFilter, token, surface: surfaceParam });
   return new Response(html, {
     status: 200,
     headers: {
@@ -240,6 +266,8 @@ interface RenderInput {
   clients: ClientRow[];
   countries: CountryRow[];
   restNet: RestNetRow[];
+  sessionsDaily: SessionDayRow[];
+  sessionDepth: SessionDepthRow[];
   samples: ClassifiedSample[];
   sampleCounts: Partial<Record<ClientKind, number>>;
   kindFilter: string[];
@@ -346,10 +374,10 @@ function renderHtml(d: RenderInput): string {
 <h1>OptionsAhoy MCP stats</h1>
 <p class="meta">Window: last ${d.days} days &middot; ${total.toLocaleString()} calls &middot; change with <code>?days=N</code></p>
 
-<h2>By endpoint</h2>
+<h2>By endpoint (errors in parens)</h2>
 ${table(
-  ['Endpoint', 'Calls'],
-  d.endpoints.map((r) => [esc(r.endpoint), `<span class="num">${r.n.toLocaleString()}</span>`]),
+  ['Endpoint', 'Calls', 'Errors'],
+  d.endpoints.map((r) => [esc(r.endpoint), `<span class="num">${r.n.toLocaleString()}</span>`, `<span class="num">${(r.errors ?? 0).toLocaleString()}</span>`]),
 )}
 
 <h2>By tool (errors in parens)</h2>
@@ -380,6 +408,18 @@ ${table(
 ${table(
   ['Day', 'MCP tool calls'],
   d.dailyMcp.map((r) => [esc(r.day), `<span class="num">${r.n.toLocaleString()}</span>`]),
+)}
+
+<h2>Sessions (funnel: id echoed + made a tools/call)</h2>
+${table(
+  ['Day', 'Sessions', 'Tool calls'],
+  d.sessionsDaily.map((r) => [esc(r.day), `<span class="num">${r.n.toLocaleString()}</span>`, `<span class="num">${r.calls.toLocaleString()}</span>`]),
+)}
+
+<h2>Session call depth</h2>
+${table(
+  ['Calls in session', 'Sessions'],
+  d.sessionDepth.map((r) => [`<span class="num">${r.depth}</span>`, `<span class="num">${r.n.toLocaleString()}</span>`]),
 )}
 
 <h2>By country</h2>

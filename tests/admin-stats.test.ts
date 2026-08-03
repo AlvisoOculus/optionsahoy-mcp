@@ -35,6 +35,11 @@ function ctx(env: Env, request: Request): PagesContext {
 // identified by its ORDER BY n DESC tail. The error-fields query ALSO carries
 // `WHERE is_error = 1`, so its more-specific matcher must come first.
 const SAMPLE_ROWS = [
+  // Session funnel rollups: FROM mcp_sessions is the distinctive fragment
+  // (their GROUP BY day tail would otherwise collide with the mcp_calls
+  // daily matcher below, so these must come first).
+  { match: /FROM mcp_sessions[\s\S]*GROUP BY day/, rows: [{ day: '2026-08-03', n: 5, calls: 13 }] },
+  { match: /FROM mcp_sessions[\s\S]*GROUP BY depth/, rows: [{ depth: 1, n: 3 }, { depth: 8, n: 1 }] },
   // error-fields (topErrorFields): shares 4+1=5, volatility 3; the smoke row is
   // dropped as infra, notARealField is dropped as not-an-input-field.
   { match: /GROUP BY error_msg, endpoint/, rows: [
