@@ -294,20 +294,13 @@ describe('Mcp-Session-Id issuance (what arms the funnel)', () => {
     expect(res.headers.get('access-control-expose-headers')).toMatch(/mcp-session-id/i);
   });
 
-  it('does not attach a session header to non-initialize requests', async () => {
-    const res = await onRequest({
-      request: rpcRequest({ jsonrpc: '2.0', id: 1, method: 'tools/list' }),
-      env: {},
-    });
-    expect(res.headers.get('mcp-session-id')).toBeNull();
-  });
-
-  it('sessionless requests still work unchanged (issue, never enforce)', async () => {
+  it('non-initialize sessionless requests work unchanged and get no session header (issue, never enforce)', async () => {
     const res = await onRequest({
       request: rpcRequest({ jsonrpc: '2.0', id: 1, method: 'tools/list' }),
       env: {},
     });
     expect(res.status).toBe(200);
+    expect(res.headers.get('mcp-session-id')).toBeNull();
   });
 
   it('DELETE (client session shutdown) gets a quiet 405, not an error-logged 405', async () => {

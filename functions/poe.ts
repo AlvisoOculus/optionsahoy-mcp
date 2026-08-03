@@ -1319,16 +1319,16 @@ async function handleQuery(ctx: PagesContext, req: PoeRequest, extractor?: Extra
     ? `Want this across your whole equity position, not just one question? That is the OptionsAhoy beta: optionsahoy.com/beta?src=poe`
     : `See the full year-by-year breakdown, charted, and try your own numbers free at ${freeToolLink(tool.name)}\n\n` +
       `Planning across your whole equity position at once (every grant, every year, jointly optimized) is the OptionsAhoy beta: optionsahoy.com/beta?src=poe_free`;
-  // One-line related-tool hint so a Poe user learns the adjacent calculator
-  // exists. Poe removed suggested-reply buttons platform-wide, so a plain text
-  // line is the only channel left for this.
-  const related = POE_RELATED_HINT[tool.name];
   const assume = assumptionsLine(tool.name, usedArgs);
+  // POE_RELATED_HINT is a total Record<ToolName, string>, so the hint always
+  // exists; it rides unconditionally like the headline. (It exists because
+  // Poe removed suggested-reply buttons platform-wide - a plain text line is
+  // the only related-tool channel left.)
   const body =
     `${headline(tool.name, result)}\n\n` +
     (priceNote ? `${priceNote}\n\n` : '') +
     (assume ? `${assume}\n\n` : '') +
-    (related ? `${related}\n\n` : '') +
+    `${POE_RELATED_HINT[tool.name]}\n\n` +
     `${cta}\n\n` +
     `_Worked out deterministically against the relevant federal tax code plus all 50 states and DC, not estimated._`;
   // Capture this successful answer as an example (7-day rolling, admin-gated) so

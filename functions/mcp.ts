@@ -295,7 +295,7 @@ export const onRequest: PagesFunction = async (ctx) => {
     // clean client shutdowns do not pollute the error stats.
     logs.push({ endpoint: 'mcp:session-delete', isError: false });
     logCalls(ctx, logs);
-    return new Response(null, { status: 405, headers: CORS });
+    return new Response(null, { status: 405, headers: { allow: 'POST, OPTIONS', ...CORS } });
   }
   if (request.method !== 'POST') {
     logs.push({ endpoint: 'mcp:bad-method', isError: true, errorMsg: request.method });

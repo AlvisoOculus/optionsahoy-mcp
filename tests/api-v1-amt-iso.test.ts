@@ -9,31 +9,7 @@
 import { describe, it, expect } from 'vitest';
 import { onRequest } from '../functions/api/v1/amt-iso';
 import { computeAmtIso, type AmtIsoInput } from '@/lib/calc/amtIso';
-
-const VALID_BODY = {
-  shares: 5000,
-  strike: 4,
-  fmv: 90,
-  expectedGrowth: 0.1,
-  volatilityDrag: 0.2,
-  filingStatus: 'single',
-  ordinaryIncome: 250000,
-  stateCode: 'CA',
-  carryforwardCredit: 0,
-  horizon: 4,
-  cashReturnRate: 0.05,
-  grantDate: '2024-05-20',
-  hasLeftCompany: false,
-  terminationDate: null,
-};
-
-function makeReq(body: unknown, method = 'POST'): Request {
-  return new Request('http://localhost/api/v1/amt-iso', {
-    method,
-    headers: { 'content-type': 'application/json' },
-    body: method === 'POST' ? JSON.stringify(body) : undefined,
-  });
-}
+import { VALID_AMT_ISO_BODY as VALID_BODY, makeAmtIsoReq as makeReq } from './helpers/amt-iso-fixture';
 
 describe('POST /api/v1/amt-iso', () => {
   it('returns the same result as computeAmtIso called in-process', async () => {

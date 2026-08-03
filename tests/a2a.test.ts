@@ -285,71 +285,63 @@ describe('A2A free-text routing: punctuation and phrasing coverage', () => {
   });
 });
 
-describe('A2A telemetry semantics (isError / errorMsg / query)', () => {
+// Shared minimal valid rsu_lot_optimize data-part payload for the telemetry
+// and next-step tests below.
+const LOT_CALL = {
+  skill: 'rsu_lot_optimize',
+  input: {
+    lots: [{ vestDate: '2022-08-15', shares: 120, costBasisPerShare: 95 }],
+    currentPrice: 180,
+    divestFraction: 0.5,
+    horizonYears: 1,
+    ordinaryIncome: 200000,
+    filingStatus: 'single',
+    stateCode: 'CA',
+  },
+};
+
+describe('A2A telemetry semantics (isError / detail / query)', () => {
   it('a routed free-text pointer is NOT an error (working as designed)', () => {
     const h = handleMessage([{ kind: 'text', text: 'Should I sell my RSUs?' }]);
     expect(h.skill).toBeNull();
     expect(h.isError).toBe(false);
-    expect(h.errorMsg).toContain('rsu_sell_vs_hold');
+    expect(h.detail).toContain('rsu_sell_vs_hold');
     expect(h.query).toContain('RSUs');
   });
 
   it('unrouted free text is an error with the text captured', () => {
     const h = handleMessage([{ kind: 'text', text: 'what is the weather today' }]);
     expect(h.isError).toBe(true);
-    expect(h.errorMsg).toBe('unrouted free text');
+    expect(h.detail).toBe('unrouted free text');
     expect(h.query).toBe('what is the weather today');
   });
 
   it('an unknown skill id names the id in errorMsg', () => {
     const h = handleMessage([{ kind: 'data', data: { skill: 'not_a_skill', input: {} } }]);
     expect(h.isError).toBe(true);
-    expect(h.errorMsg).toBe('unknown skill: not_a_skill');
+    expect(h.detail).toBe('unknown skill: not_a_skill');
   });
 
   it('a calculator input failure carries the skill id and the parse message', () => {
     const h = handleMessage([{ kind: 'data', data: { skill: 'qsbs_check', input: {} } }]);
     expect(h.isError).toBe(true);
-    expect(h.errorMsg).toMatch(/^qsbs_check: /);
+    expect(h.detail).toMatch(/^qsbs_check: /);
   });
 
   it('a successful data call is not an error and echoes the input as query', () => {
-    const input = {
-      skill: 'rsu_lot_optimize',
-      input: {
-        lots: [{ vestDate: '2022-08-15', shares: 120, costBasisPerShare: 95 }],
-        currentPrice: 180,
-        divestFraction: 0.5,
-        horizonYears: 1,
-        ordinaryIncome: 200000,
-        filingStatus: 'single',
-        stateCode: 'CA',
-      },
-    };
-    const h = handleMessage([{ kind: 'data', data: input }]);
+    const h = handleMessage([{ kind: 'data', data: LOT_CALL }]);
     expect(h.isError).toBe(false);
     expect(h.skill).toBe('rsu_lot_optimize');
-    expect(h.query).toBe(JSON.stringify(input));
+    expect(h.query).toBe(JSON.stringify(LOT_CALL));
   });
 });
 
 describe('A2A result next-step line', () => {
   it('a successful calculator result names the free web version and the beta', () => {
-    const h = handleMessage([{ kind: 'data', data: {
-      skill: 'rsu_lot_optimize',
-      input: {
-        lots: [{ vestDate: '2022-08-15', shares: 120, costBasisPerShare: 95 }],
-        currentPrice: 180,
-        divestFraction: 0.5,
-        horizonYears: 1,
-        ordinaryIncome: 200000,
-        filingStatus: 'single',
-        stateCode: 'CA',
-      },
-    } }]);
+    const h = handleMessage([{ kind: 'data', data: LOT_CALL }]);
     expect(h.isError).toBe(false);
     const text = h.message.parts[0].text ?? '';
-    expect(text).toContain('optionsahoy.com/tools/rsu-lot-order?src=a2a_rsu_lot_optimize');
+    expect(text).toContain('optionsahoy.com/tools/rsu-lot-order?src=a2a_rsu_lot_order');
     expect(text).toContain('optionsahoy.com/beta?src=a2a');
   });
 });

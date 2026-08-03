@@ -9,31 +9,7 @@
 import { readdirSync } from 'node:fs';
 import { describe, it, expect } from 'vitest';
 import { onRequest as amtIso } from '../functions/api/v1/amt-iso';
-
-const VALID_BODY = {
-  shares: 5000,
-  strike: 4,
-  fmv: 90,
-  expectedGrowth: 0.1,
-  volatilityDrag: 0.2,
-  filingStatus: 'single',
-  ordinaryIncome: 250000,
-  stateCode: 'CA',
-  carryforwardCredit: 0,
-  horizon: 4,
-  cashReturnRate: 0.05,
-  grantDate: '2024-05-20',
-  hasLeftCompany: false,
-  terminationDate: null,
-};
-
-function makeReq(body: unknown): Request {
-  return new Request('http://localhost/api/v1/amt-iso', {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-}
+import { VALID_AMT_ISO_BODY, makeAmtIsoReq } from './helpers/amt-iso-fixture';
 
 // The endpoint slugs that exist on disk (each functions/api/v1/<slug>.ts is
 // one calculator endpoint; index/stats/badge are not calculators).
@@ -45,7 +21,7 @@ const SLUGS = readdirSync('functions/api/v1')
 
 describe('REST next_steps envelope', () => {
   it('a successful response carries web_tool, also_run, and beta', async () => {
-    const res = await amtIso({ request: makeReq(VALID_BODY) });
+    const res = await amtIso({ request: makeAmtIsoReq(VALID_AMT_ISO_BODY) });
     expect(res.status).toBe(200);
     const body = (await res.json()) as {
       ok: boolean;
@@ -58,7 +34,7 @@ describe('REST next_steps envelope', () => {
   });
 
   it('an error response stays bare (no next_steps on failures)', async () => {
-    const res = await amtIso({ request: makeReq({}) });
+    const res = await amtIso({ request: makeAmtIsoReq({}) });
     expect(res.status).toBe(400);
     const body = (await res.json()) as Record<string, unknown>;
     expect(body.next_steps).toBeUndefined();
@@ -73,6 +49,28 @@ describe('REST next_steps envelope', () => {
         const targetSlug = target.replace('/api/v1/', '');
         expect(SLUGS, `${slug} advertises unknown endpoint ${target}`).toContain(targetSlug);
       }
+    }
+  });
+});
+
+describe('REST also_run graph stays consistent with the MCP related-tool graph', () => {
+  // REST_NEXT_STEPS.also_run and sessions.ts PER_TOOL_RELATED encode the
+  // same adjacency by hand on two surfaces. This pins them to each other so
+  // a rebalance of one without the other fails loudly instead of drifting.
+  it('every also_run edge matches a tool named in PER_TOOL_RELATED and vice versa', async () => {
+    const { REST_NEXT_STEPS } = await import('../functions/_lib/api');
+    const { PER_TOOL_RELATED } = await import('../functions/_lib/sessions');
+    const { TOOLS } = await import('../functions/_lib/mcp-tools');
+    const { SKILLS } = await import('../functions/_lib/a2a');
+    const slugByTool = Object.fromEntries(SKILLS.map((s) => [s.id, s.rest.replace('/api/v1/', '')]));
+    const toolBySlug = Object.fromEntries(SKILLS.map((s) => [s.rest.replace('/api/v1/', ''), s.id]));
+    for (const t of TOOLS) {
+      const restEdges = (REST_NEXT_STEPS[slugByTool[t.name]]?.also_run ?? [])
+        .map((p: string) => toolBySlug[p.replace('/api/v1/', '')])
+        .sort();
+      const prose = PER_TOOL_RELATED[t.name as keyof typeof PER_TOOL_RELATED];
+      const proseEdges = (prose.match(/[a-z]+(?:_[a-z]+)+/g) ?? []).filter((x: string) => x !== t.name).sort();
+      expect(restEdges, `edge mismatch for ${t.name}`).toEqual([...new Set(proseEdges)].sort());
     }
   });
 });
