@@ -7,6 +7,9 @@
 
 name: Registry freshness
 
+permissions:
+  contents: read
+
 on:
   schedule:
     - cron: '30 9 * * *'
