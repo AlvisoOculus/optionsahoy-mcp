@@ -176,7 +176,7 @@ function stated(v: unknown, nums: number[]): boolean {
 // the Poe attribution bucket. Reuses the canonical /tools slugs from sessions.
 function freeToolLink(toolName: ToolName): string {
   const bare = PER_TOOL_FREE_TOOL_BARE[toolName];
-  if (!bare) return 'optionsahoy.com/tools';
+  if (!bare) return 'optionsahoy.com/tools?src=poe_fallback';
   return bare.replace('src=mcp_', 'src=poe_');
 }
 
@@ -840,6 +840,28 @@ const TOOL_DEFAULTS: Partial<Record<ToolName, Record<string, unknown>>> = {
 // --- query handling --------------------------------------------------------
 
 // Plain-language guidance for help / capability questions.
+// One line after each result naming the natural next question. Phrased as
+// something the user can literally type, because Poe no longer supports
+// suggested-reply buttons and a typed follow-up is the only next step left.
+const POE_RELATED_HINT: Record<ToolName, string> = {
+  amt_iso_optimize:
+    'Next question worth asking: "does this stock qualify for QSBS?" or "how concentrated does this leave me?"',
+  nso_calculate:
+    'Next question worth asking: "how concentrated does this leave me?" or, if you also hold ISOs, "plan my ISO exercise".',
+  rsu_sell_vs_hold:
+    'Next question worth asking: "which of my vested RSU lots should I sell first?" if you hold several vests.',
+  concentration_analyze:
+    'Next question worth asking: "what would a protective put cost?" or "which lots should I sell first?"',
+  protective_put_price:
+    'Next question worth asking: "how concentrated am I?" to compare hedging against selling down.',
+  qsbs_check:
+    'Next question worth asking: "plan my ISO exercise around AMT" if these shares came from options.',
+  equity_funding_plan:
+    'Next question worth asking: "which of my vested lots should I sell first?" to pick the exact lots for this plan.',
+  rsu_lot_optimize:
+    'Next question worth asking: "sell enough for a cash goal by a date" or "how concentrated am I overall?"',
+};
+
 const FRIENDLY: Record<ToolName, string> = {
   amt_iso_optimize: 'plan an incentive stock option (ISO) exercise schedule around the alternative minimum tax (AMT)',
   nso_calculate: 'analyze a non-qualified stock option (NSO) exercise, sell versus hold',
@@ -1024,12 +1046,12 @@ async function handleQuery(ctx: PagesContext, req: PoeRequest, extractor?: Extra
     return textReply(
       "I could not parse that into an equity-compensation calculation. Try restating it with the specifics, " +
         "for example the share count, strike, current price, filing status, state, and horizon.\n\n" +
-        'You can also use the free tools directly at optionsahoy.com/tools',
+        'You can also use the free tools directly at optionsahoy.com/tools?src=poe_err',
     );
   }
   if (typeof extracted.clarify === 'string') {
     log({ endpoint: 'poe:query' });
-    return textReply(`${extracted.clarify}\n\nYou can also use the free tools directly at optionsahoy.com/tools`);
+    return textReply(`${extracted.clarify}\n\nYou can also use the free tools directly at optionsahoy.com/tools?src=poe_clarify`);
   }
   if (typeof extracted.help !== 'undefined') {
     log({ endpoint: 'poe:help' });
@@ -1295,14 +1317,20 @@ async function handleQuery(ctx: PagesContext, req: PoeRequest, extractor?: Extra
   // paid answer is not undercut.
   const cta = pricingActive(env)
     ? `Want this across your whole equity position, not just one question? That is the OptionsAhoy beta: optionsahoy.com/beta?src=poe`
-    : `See the full year-by-year breakdown, charted, and try your own numbers free at ${freeToolLink(tool.name)}`;
+    : `See the full year-by-year breakdown, charted, and try your own numbers free at ${freeToolLink(tool.name)}\n\n` +
+      `Planning across your whole equity position at once (every grant, every year, jointly optimized) is the OptionsAhoy beta: optionsahoy.com/beta?src=poe_free`;
+  // One-line related-tool hint so a Poe user learns the adjacent calculator
+  // exists. Poe removed suggested-reply buttons platform-wide, so a plain text
+  // line is the only channel left for this.
+  const related = POE_RELATED_HINT[tool.name];
   const assume = assumptionsLine(tool.name, usedArgs);
   const body =
     `${headline(tool.name, result)}\n\n` +
     (priceNote ? `${priceNote}\n\n` : '') +
     (assume ? `${assume}\n\n` : '') +
+    (related ? `${related}\n\n` : '') +
     `${cta}\n\n` +
-    `_Worked out by the OptionsAhoy optimizer across the relevant federal tax code plus all 50 states and DC, not estimated._`;
+    `_Worked out deterministically against the relevant federal tax code plus all 50 states and DC, not estimated._`;
   // Capture this successful answer as an example (7-day rolling, admin-gated) so
   // we can see what people actually ask and what we return.
   logSample(ctx, { surface: 'poe', tool: tool.name, clientName: 'poe', query: convo, answer: body });

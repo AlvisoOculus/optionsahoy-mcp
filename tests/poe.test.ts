@@ -871,3 +871,19 @@ describe('toolSpec example extraction: the no-trailing-brace invariant', () => {
     });
   }
 });
+
+describe('poe engagement lines (ported from the parked #179 surfaces)', () => {
+  for (const tool of ALL_TOOLS) {
+    it(`${tool}: answer carries the next-question hint and the free-window beta line`, async () => {
+      const text = await ask(tool, VALID_ARGS[tool], FREE_ENV);
+      expect(text).toContain('Next question worth asking:');
+      expect(text).toContain('optionsahoy.com/beta?src=poe_free');
+    });
+  }
+
+  it('locked term: results are worked out deterministically, never "by the OptionsAhoy optimizer"', async () => {
+    const text = await ask('nso_calculate', VALID_ARGS.nso_calculate, FREE_ENV);
+    expect(text).toContain('Worked out deterministically');
+    expect(text).not.toMatch(/OptionsAhoy optimizer/i);
+  });
+});

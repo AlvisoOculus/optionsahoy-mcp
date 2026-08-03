@@ -332,3 +332,24 @@ describe('A2A telemetry semantics (isError / errorMsg / query)', () => {
     expect(h.query).toBe(JSON.stringify(input));
   });
 });
+
+describe('A2A result next-step line', () => {
+  it('a successful calculator result names the free web version and the beta', () => {
+    const h = handleMessage([{ kind: 'data', data: {
+      skill: 'rsu_lot_optimize',
+      input: {
+        lots: [{ vestDate: '2022-08-15', shares: 120, costBasisPerShare: 95 }],
+        currentPrice: 180,
+        divestFraction: 0.5,
+        horizonYears: 1,
+        ordinaryIncome: 200000,
+        filingStatus: 'single',
+        stateCode: 'CA',
+      },
+    } }]);
+    expect(h.isError).toBe(false);
+    const text = h.message.parts[0].text ?? '';
+    expect(text).toContain('optionsahoy.com/tools/rsu-lot-order?src=a2a_rsu_lot_optimize');
+    expect(text).toContain('optionsahoy.com/beta?src=a2a');
+  });
+});
