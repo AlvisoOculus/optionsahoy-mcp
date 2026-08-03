@@ -153,6 +153,24 @@ export type NextSteps = {
   beta?: string;
 };
 
+// Short join token from an Mcp-Session-Id for the `s=` URL param: the first 8
+// URL-safe chars. Session ids are server-minted UUIDs with no auth semantics
+// (issue-and-ignore), so a truncated prefix is join data, not a secret - it
+// lets the web side connect "used the MCP this deep" to a later signup via a
+// prefix match against mcp_sessions. Client-supplied ids can be arbitrary
+// strings, so sanitize before it rides in a URL; empty result = no param.
+export function sessionJoinToken(sessionId: string | undefined): string | null {
+  if (!sessionId) return null;
+  const t = sessionId.replace(/[^A-Za-z0-9-]/g, '').slice(0, 8);
+  return t.length >= 4 ? t : null;
+}
+
+// The free-tool and beta lines each END with their URL, so the join param can
+// append directly. also_run is prose naming tools, never a URL - untouched.
+function withJoin(line: string, join: string | null): string {
+  return join ? `${line}&s=${join}` : line;
+}
+
 // Build the `_meta.optionsahoy` next-step block for one tools/call. Returns
 // undefined for an unknown tool (nothing to inject). The free tool and the
 // related-tools advertisement appear on every call; only the beta pitch is
@@ -161,18 +179,20 @@ export type NextSteps = {
 export function nextStepsFor(
   toolName: string,
   sessionCallCount: number,
+  sessionId?: string,
 ): NextSteps | undefined {
   if (!isToolName(toolName)) return undefined;
   const related = PER_TOOL_RELATED[toolName];
+  const join = sessionJoinToken(sessionId);
   if (sessionCallCount === 1) {
     return {
-      free_tool: PER_TOOL_FREE_TOOL[toolName],
+      free_tool: withJoin(PER_TOOL_FREE_TOOL[toolName], join),
       also_run: related,
-      beta: PER_TOOL_BETA_INVITES[toolName],
+      beta: withJoin(PER_TOOL_BETA_INVITES[toolName], join),
     };
   }
   return {
-    free_tool: PER_TOOL_FREE_TOOL_BARE[toolName],
+    free_tool: withJoin(PER_TOOL_FREE_TOOL_BARE[toolName], join),
     also_run: related,
   };
 }
