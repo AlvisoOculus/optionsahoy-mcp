@@ -209,8 +209,10 @@ describe('A2A JSON-RPC and CORS', () => {
   });
 
   it('rejects an unknown method with -32601', async () => {
+    // tasks/get and tasks/send are now handled (legacy 0.2 task lifecycle),
+    // so a genuinely unsupported method stands in here.
     const res = await a2aHandler({
-      request: rpcReq({ jsonrpc: '2.0', id: 3, method: 'tasks/get', params: {} }),
+      request: rpcReq({ jsonrpc: '2.0', id: 3, method: 'message/stream', params: {} }),
     });
     const body = (await res.json()) as { error: { code: number; message: string } };
     expect(body.error.code).toBe(-32601);
@@ -343,5 +345,83 @@ describe('A2A result next-step line', () => {
     const text = h.message.parts[0].text ?? '';
     expect(text).toContain('optionsahoy.com/tools/rsu-lot-order?src=a2a_rsu_lot_order');
     expect(text).toContain('optionsahoy.com/beta?src=a2a');
+  });
+});
+
+describe('A2A legacy task lifecycle (0.2-era clients, seen in captured samples)', () => {
+  it('tasks/send runs the calculator and returns a completed Task shape', async () => {
+    const res = await a2aHandler({
+      request: new Request('http://localhost/a2a', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          id: 7,
+          method: 'tasks/send',
+          params: { id: 'task-abc', message: { parts: [{ kind: 'data', data: LOT_CALL }] } },
+        }),
+      }),
+    });
+    const body = (await res.json()) as {
+      result: { id: string; status: { state: string }; artifacts: Array<{ parts: Array<{ kind: string }> }> };
+    };
+    expect(body.result.id).toBe('task-abc');
+    expect(body.result.status.state).toBe('completed');
+    const kinds = body.result.artifacts[0].parts.map((p) => p.kind);
+    expect(kinds).toContain('text');
+    expect(kinds).toContain('data');
+  });
+
+  it('tasks/get returns -32001 Task not found with guidance (nothing is persisted)', async () => {
+    const res = await a2aHandler({
+      request: new Request('http://localhost/a2a', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ jsonrpc: '2.0', id: 8, method: 'tasks/get', params: { id: 'task-abc' } }),
+      }),
+    });
+    const body = (await res.json()) as { error: { code: number; message: string } };
+    expect(body.error.code).toBe(-32001);
+    expect(body.error.message).toContain('synchronously');
+  });
+});
+
+describe('A2A conversational fallback', () => {
+  it('a greeting gets a capabilities reply, logged as a non-error', () => {
+    const h = handleMessage([{ kind: 'text', text: 'Hello OptionsAhoy Equity Planner! I analyzed your agent profile and would love to collaborate.' }]);
+    expect(h.isError).toBe(false);
+    expect(h.detail).toContain('conversational');
+    expect(h.message.parts[0].text).toContain('deterministic calculator agent');
+    expect(h.message.parts[0].text).toContain('andrew@alphalatitude.com');
+  });
+
+  it('a greeting that also names a calculator topic still routes to the calculator', () => {
+    const h = handleMessage([{ kind: 'text', text: 'Hi there! Should I sell my RSUs at vest?' }]);
+    expect(h.detail).toContain('rsu_sell_vs_hold');
+  });
+
+  it('non-conversational gibberish still counts as unrouted (error stays honest)', () => {
+    const h = handleMessage([{ kind: 'text', text: 'what is the weather today' }]);
+    expect(h.isError).toBe(true);
+    expect(h.detail).toBe('unrouted free text');
+  });
+});
+
+describe('A2A legacy tasks/send failure mapping', () => {
+  it('an invalid input surfaces as a failed task, not a completed one', async () => {
+    const res = await a2aHandler({
+      request: new Request('http://localhost/a2a', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          jsonrpc: '2.0',
+          id: 9,
+          method: 'tasks/send',
+          params: { id: 't2', message: { parts: [{ kind: 'data', data: { skill: 'qsbs_check', input: {} } }] } },
+        }),
+      }),
+    });
+    const body = (await res.json()) as { result: { status: { state: string } } };
+    expect(body.result.status.state).toBe('failed');
   });
 });

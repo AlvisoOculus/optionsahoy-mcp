@@ -61,16 +61,31 @@ export const onRequest: PagesFunction = async (context: PagesContext): Promise<R
     return rpcError(body?.id, -32600, 'Invalid Request: expected a JSON-RPC 2.0 object.');
   }
 
-  if (body.method !== 'message/send') {
+  // Every call completes synchronously (deterministic calculators, no queue),
+  // so tasks/get has nothing to look up: per the A2A spec, unknown task id is
+  // error -32001. Captured samples showed real 0.2-era clients calling the
+  // task lifecycle and bouncing off method-not-found.
+  if (body.method === 'tasks/get' || body.method === 'tasks/cancel') {
+    logCall(context, { endpoint: 'a2a', isError: false, errorMsg: `legacy ${String(body.method)}` });
+    return rpcError(
+      body.id,
+      -32001,
+      'Task not found: this agent completes every call synchronously and does not persist tasks. ' +
+        'Send "message/send" (or legacy "tasks/send") and read the result directly.',
+    );
+  }
+
+  const isLegacyTaskSend = body.method === 'tasks/send';
+  if (body.method !== 'message/send' && !isLegacyTaskSend) {
     logCall(context, { endpoint: 'a2a', isError: true, errorMsg: `method ${String(body.method)}` });
     return rpcError(
       body.id,
       -32601,
-      `Method not found: ${String(body.method)}. This agent supports "message/send".`,
+      `Method not found: ${String(body.method)}. This agent supports "message/send" (and legacy "tasks/send").`,
     );
   }
 
-  const params = body.params as { message?: { parts?: unknown } } | undefined;
+  const params = body.params as { id?: unknown; message?: { parts?: unknown } } | undefined;
   const parts = params?.message?.parts;
   if (!Array.isArray(parts)) {
     return rpcError(body.id, -32602, 'Invalid params: expected params.message.parts to be an array.');
@@ -98,5 +113,17 @@ export const onRequest: PagesFunction = async (context: PagesContext): Promise<R
       .map((p) => p.text)
       .join(' '),
   });
+  // Legacy tasks/send expects a Task object (id, terminal status, artifacts),
+  // not a bare Message. Wrap the same reply: the task completes immediately.
+  if (isLegacyTaskSend) {
+    const taskId = typeof params?.id === 'string' ? params.id : crypto.randomUUID();
+    return rpcResult(body.id, {
+      id: taskId,
+      // A real failure (unknown skill, invalid input, unrouted text) is a
+      // failed task, not a completed one - the reply text says why.
+      status: { state: handled.isError ? 'failed' : 'completed', timestamp: new Date().toISOString() },
+      artifacts: [{ name: 'result', parts: handled.message.parts }],
+    });
+  }
   return rpcResult(body.id, handled.message);
 };

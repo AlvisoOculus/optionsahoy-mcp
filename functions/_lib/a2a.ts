@@ -268,9 +268,16 @@ function norm(s: string): string {
     .trim()} `;
 }
 
-// Normalized once at module load; keywords in SKILLS stay human-readable for
-// the agent card while matching runs against these.
+// Normalized once at module load so matching never recomputes them.
 const ROUTES = SKILLS.map((s) => ({ skill: s, keys: s.keywords.map(norm) }));
+
+// Conversational (non-calculator) message markers, matched against norm()ed
+// text AFTER skill routing has failed - so a greeting that also names a
+// calculator topic still routes to the calculator first. Sourced from the
+// actual captured A2A samples (agent greetings, capability and partnership
+// inquiries).
+const CONVERSATIONAL_RE =
+  / hello | hi | hey | greetings | thanks | thank you | who are you | what can you | capabilities | agent card | agent profile | your agent | integration | partnership | collaborat/;
 
 export function routeByKeyword(text: string): Skill | null {
   const t = norm(text);
@@ -363,6 +370,26 @@ export function handleMessage(parts: A2APart[]): HandledMessage {
       // admin dashboard's endpoint drill-down.
       isError: false,
       detail: `text routed to ${matched.id}, no data part`,
+      query: text,
+    };
+  }
+
+  // Conversational messages (greetings, thanks, capability/partnership
+  // inquiries from other agents) are a real traffic class the sample capture
+  // surfaced, not routing failures. Answer in kind - deterministically, no
+  // model - and log them as non-errors so the routed rate stays honest.
+  if (text && CONVERSATIONAL_RE.test(norm(text))) {
+    return {
+      message: agentMessage(
+        `Hello from OptionsAhoy. This is a deterministic calculator agent for US equity-compensation ` +
+          `tax planning - it runs computations, it does not hold conversations. To use it, send a data ` +
+          `part {"skill":"<id>","input":{...}} for one of: ${skillList()}. Input schemas: ` +
+          `https://optionsahoy.com/openapi.json. For partnerships or integration questions, email ` +
+          `andrew@alphalatitude.com. ${VERIFY_NOTE}`,
+      ),
+      skill: null,
+      isError: false,
+      detail: 'conversational message, capabilities reply sent',
       query: text,
     };
   }
