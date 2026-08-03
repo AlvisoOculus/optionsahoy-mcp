@@ -112,8 +112,10 @@ const SQL_COUNTRIES = 'SELECT country, COUNT(*) AS n FROM mcp_calls WHERE ts >= 
 // ISO timestamp rather than the ms epoch the mcp_calls queries use. Only
 // meaningful after 2026-08-03 (before the session-id fix the server never
 // issued ids and this table had 9 rows ever).
-const SQL_SESSIONS_DAILY = "SELECT date(first_seen) AS day, COUNT(*) AS n, SUM(tool_call_count) AS calls FROM mcp_sessions WHERE first_seen >= ? GROUP BY day ORDER BY day DESC";
-const SQL_SESSION_DEPTH = 'SELECT tool_call_count AS depth, COUNT(*) AS n FROM mcp_sessions WHERE first_seen >= ? GROUP BY depth ORDER BY depth';
+// e2e smoke runs supply their own 'e2e-<ts>' session ids (scripts/e2e-live.mjs)
+// and would otherwise read as organic sessions in the funnel rollups.
+const SQL_SESSIONS_DAILY = "SELECT date(first_seen) AS day, COUNT(*) AS n, SUM(tool_call_count) AS calls FROM mcp_sessions WHERE session_id NOT LIKE 'e2e-%' AND first_seen >= ? GROUP BY day ORDER BY day DESC";
+const SQL_SESSION_DEPTH = "SELECT tool_call_count AS depth, COUNT(*) AS n FROM mcp_sessions WHERE session_id NOT LIKE 'e2e-%' AND first_seen >= ? GROUP BY depth ORDER BY depth";
 const SQL_REST_NET = "SELECT COALESCE(as_org, '(unknown)') AS as_org, COALESCE(city, '') AS city, COALESCE(region, '') AS region, COALESCE(country, '') AS country, COUNT(*) AS n FROM mcp_calls WHERE endpoint LIKE 'rest:%' AND ts >= ? GROUP BY as_org, city, region, country ORDER BY n DESC LIMIT 40";
 
 async function q<T>(db: D1Database, sql: string, sinceMs: number): Promise<T[]> {
