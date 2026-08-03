@@ -77,3 +77,28 @@ describe('per-tool surfaces cover every tool', () => {
     expect(ids).toEqual([...NAMES].sort());
   });
 });
+
+describe('the related-tool graph has no dead ends', () => {
+  // nso_calculate shipped with ZERO inbound edges: it advertised two tools and
+  // was advertised by none, so an NSO holder was only ever reached by typing
+  // "NSO". rsu_lot_optimize (the newest tool) had one. The nudge text is prose,
+  // so the compiler cannot see the graph; this parses it.
+  it('every tool is advertised by at least one other tool', () => {
+    for (const target of NAMES) {
+      const inbound = NAMES.filter(
+        (from) => from !== target && PER_TOOL_RELATED[from].includes(target),
+      );
+      expect(inbound.length, `${target} has no inbound also_run edge`).toBeGreaterThanOrEqual(1);
+    }
+  });
+
+  it('every advertised name is a real tool (no typos in the prose)', () => {
+    // Any snake_case token in the prose that LOOKS like a tool name must BE one.
+    for (const from of NAMES) {
+      const tokens = PER_TOOL_RELATED[from].match(/[a-z]+(?:_[a-z]+)+/g) ?? [];
+      for (const t of tokens) {
+        expect(isToolName(t), `${from} advertises unknown tool "${t}"`).toBe(true);
+      }
+    }
+  });
+});
