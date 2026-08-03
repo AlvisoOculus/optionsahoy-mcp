@@ -17,7 +17,8 @@ import { logCalls, logSamples, type CallFields, type SampleFields, type D1Databa
 import { TOOLS } from './_lib/mcp-tools';
 import { RESOURCES } from './_lib/mcp-resources';
 import { PROMPTS } from './_lib/mcp-prompts';
-import { bumpSessionCallCount, nextStepsFor } from './_lib/sessions';
+import { BARE_CALL_COUNT, bumpSessionCallCount, nextStepsFor } from './_lib/sessions';
+import { isInfraClient } from './_lib/classify';
 import { SERVER_VERSION } from './_lib/version';
 import { SERVER_INSTRUCTIONS } from './_lib/mcp-instructions';
 import { coveredTickers } from '../lib/data/trailing-returns';
@@ -109,14 +110,16 @@ function isParams(v: unknown): v is Record<string, unknown> {
 // actionable signal). The caller flushes `logs` to D1 in one batch.
 //
 // `sessionDeps` carries the Mcp-Session-Id + MCP_STATS binding so that
-// tools/call can dedupe its injected beta-access pitch per session. Pass
-// `undefined` to skip injection entirely (e.g. when the binding is
-// missing or no session header was sent).
+// tools/call can dedupe its injected beta-access pitch per session.
+// `injectSessionless` covers the much larger population that never echoes a
+// session id (MCP SDK integrations calling tools/call directly): they get the
+// bare, un-deduped form. Both undefined/false = no injection at all.
 async function handle(
   req: JsonRpcRequest,
   logs: CallFields[],
   samples: SampleFields[],
   sessionDeps: { sessionId: string; db: D1Database } | undefined,
+  injectSessionless: boolean,
 ): Promise<JsonRpcResponse | null> {
   const id = req.id ?? null;
   const isNotification = req.id === undefined;
@@ -176,17 +179,29 @@ async function handle(
         // the first tools/call per session; later calls get the bare
         // free-tool URL via nextStepsFor() so a multi-tool query doesn't read
         // as repeated pitches.
-        if (sessionDeps) {
-          try {
+        // Sessionless callers get the same block in its bare, un-deduped form
+        // (BARE_CALL_COUNT): no session means no way to dedupe, so they never
+        // get the once-per-session beta pitch and never a join token. This
+        // path exists because production disproved the original assumption
+        // that sessionless traffic is all scanners: in a 7-day window 928 of
+        // 942 valid tool calls arrived without a session, and the non-infra
+        // sample of those is entirely MCP SDK integrations (python-httpx,
+        // node). Infra callers are filtered out by the caller, so registry
+        // probes still get clean, unmarketed responses.
+        try {
+          let next: ReturnType<typeof nextStepsFor>;
+          if (sessionDeps) {
             const count = await bumpSessionCallCount(sessionDeps.db, sessionDeps.sessionId);
-            const next = nextStepsFor(name, count, sessionDeps.sessionId);
-            if (next) {
-              const existingMeta = isParams(result._meta) ? result._meta : {};
-              result._meta = { ...existingMeta, optionsahoy: next };
-            }
-          } catch {
-            // Session tracking failure must never break the tool response.
+            next = nextStepsFor(name, count, sessionDeps.sessionId);
+          } else if (injectSessionless) {
+            next = nextStepsFor(name, BARE_CALL_COUNT);
           }
+          if (next) {
+            const existingMeta = isParams(result._meta) ? result._meta : {};
+            result._meta = { ...existingMeta, optionsahoy: next };
+          }
+        } catch {
+          // Session tracking failure must never break the tool response.
         }
         // Per MCP spec, tools that declare an outputSchema return the result
         // object as `structuredContent` plus a backwards-compatible
@@ -263,6 +278,11 @@ export const onRequest: PagesFunction = async (ctx) => {
   const sessionId = request.headers.get('Mcp-Session-Id');
   const db = ctx.env?.MCP_STATS;
   const sessionDeps = sessionId && db ? { sessionId, db } : undefined;
+  // Sessionless tool calls still get the bare next-steps block unless the
+  // caller is infrastructure (registry probes, scanners, our own smoke) -
+  // the same classifier the example capture and stats use.
+  const injectSessionless =
+    !sessionDeps && !isInfraClient(request.headers.get('user-agent'), 'mcp');
 
   if (request.method === 'OPTIONS') {
     return new Response(null, { status: 204, headers: CORS });
@@ -341,7 +361,7 @@ export const onRequest: PagesFunction = async (ctx) => {
       responses.push(err(null, -32600, 'Invalid Request'));
       continue;
     }
-    const out = await handle(r as JsonRpcRequest, logs, samples, sessionDeps);
+    const out = await handle(r as JsonRpcRequest, logs, samples, sessionDeps, injectSessionless);
     if (out !== null) responses.push(out);
   }
 

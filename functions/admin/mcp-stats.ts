@@ -41,6 +41,7 @@ interface DayRow { day: string; n: number }
 interface ToolRow { tool: string; n: number; errors: number }
 interface ErrorRow { endpoint: string; tool: string | null; error_msg: string; n: number }
 interface ClientRow { client_name: string; n: number }
+interface InitClientRow { client_name: string | null; n: number }
 interface CountryRow { country: string | null; n: number }
 interface ErrFieldRow { error_msg: string; endpoint: string; client: string | null; n: number }
 interface SampleRow { ts: number; surface: string; tool: string | null; client_name: string | null; query: string | null; answer: string | null; country: string | null; region: string | null; city: string | null; as_org: string | null; asn: number | null }
@@ -102,6 +103,10 @@ const SQL_ERR_FIELDS = "SELECT error_msg, endpoint, COALESCE(client_name, ua) AS
 // Clients come from MCP `initialize` handshakes, plus Poe requests (which have
 // no handshake: each poe:* row carries client_name 'poe').
 const SQL_CLIENTS = "SELECT client_name, COUNT(*) AS n FROM mcp_calls WHERE client_name IS NOT NULL AND (endpoint = 'mcp:initialize' OR endpoint LIKE 'poe:%') AND ts >= ? GROUP BY client_name ORDER BY n DESC";
+// Initializes grouped by the client's self-reported name, so the funnel can
+// separate real connects from the registry-probe swarm (~80% of handshakes)
+// using this repo's own classifier rather than a re-invented regex elsewhere.
+const SQL_INIT_CLIENTS = "SELECT client_name, COUNT(*) AS n FROM mcp_calls WHERE endpoint = 'mcp:initialize' GROUP BY client_name";
 const SQL_COUNTRIES = 'SELECT country, COUNT(*) AS n FROM mcp_calls WHERE ts >= ? GROUP BY country ORDER BY n DESC LIMIT 20';
 // REST/direct callers by originating network + coarse location. This is where
 // the datacenter-vs-residential bot signal is meaningful (MCP is excluded: its
@@ -139,7 +144,13 @@ function emptyIfUnmigrated(e: unknown): never[] {
 export const onRequest: PagesFunction = async (ctx) => {
   const { request, env } = ctx;
   const url = new URL(request.url);
-  const token = url.searchParams.get('token');
+  // Accept the token as a Bearer header as well as the ?token= query param.
+  // The query form stays for the bookmarkable browser view; machine callers
+  // (the web project's /admin/funnel) use the header so the secret does not
+  // land in this project's request logs or ride through redirects.
+  const auth = request.headers.get('authorization');
+  const bearer = auth?.startsWith('Bearer ') ? auth.slice('Bearer '.length) : null;
+  const token = bearer ?? url.searchParams.get('token');
   const expected = env?.ADMIN_TOKEN;
 
   if (!expected) {
@@ -158,7 +169,7 @@ export const onRequest: PagesFunction = async (ctx) => {
   const days = Number.isFinite(daysParam) && daysParam > 0 && daysParam <= MAX_DAYS ? daysParam : DEFAULT_DAYS;
   const sinceMs = Date.now() - days * 86_400_000;
 
-  const [endpoints, daily, dailyRest, dailyMcp, tools, errors, clients, countries, restNet, errFieldRaw, sessionsDaily, sessionDepth] = await Promise.all([
+  const [endpoints, daily, dailyRest, dailyMcp, tools, errors, clients, countries, restNet, errFieldRaw, sessionsDaily, sessionDepth, initClients] = await Promise.all([
     q<EndpointRow>(db, SQL_ENDPOINTS, sinceMs),
     q<DayRow>(db, SQL_DAILY, sinceMs),
     q<DayRow>(db, SQL_DAILY_REST, sinceMs),
@@ -173,7 +184,19 @@ export const onRequest: PagesFunction = async (ctx) => {
     q<ErrFieldRow>(db, SQL_ERR_FIELDS, sinceMs),
     q<SessionDayRow>(db, SQL_SESSIONS_DAILY, new Date(sinceMs).toISOString()).catch(emptyIfUnmigrated),
     q<SessionDepthRow>(db, SQL_SESSION_DEPTH, new Date(sinceMs).toISOString()).catch(emptyIfUnmigrated),
+    q<InitClientRow>(db, SQL_INIT_CLIENTS, sinceMs),
   ]);
+
+  // A real connect = a person in an AI client, or a programmatic agent
+  // framework. Crawlers, scanners, our own smoke, bare scripts and unnamed
+  // callers are not. Same classifier as the example capture, so "real" means
+  // one thing across the whole dashboard.
+  const initializesReal = initClients
+    .filter((r) => {
+      const kind = classifyClient(r.client_name, 'mcp').kind;
+      return kind === 'human' || kind === 'agent';
+    })
+    .reduce((acc, r) => acc + r.n, 0);
 
   // Rank the fields callers most often omit or botch, dropping infrastructure
   // noise (our smoke suite + scanners) where the client is identifiable (see
@@ -233,7 +256,7 @@ export const onRequest: PagesFunction = async (ctx) => {
   ).slice(0, 50);
 
   if (url.searchParams.get('format') === 'json') {
-    const body = JSON.stringify({ days, endpoints, daily, dailyRest, dailyMcp, tools, errors, topErrorFields, clients, countries, restNet, sessionsDaily, sessionDepth, endpointErrors, samples: classified, sampleCounts });
+    const body = JSON.stringify({ days, endpoints, daily, dailyRest, dailyMcp, tools, errors, topErrorFields, clients, countries, restNet, sessionsDaily, sessionDepth, initializesReal, endpointErrors, samples: classified, sampleCounts });
     return new Response(body, {
       status: 200,
       headers: {
@@ -243,7 +266,7 @@ export const onRequest: PagesFunction = async (ctx) => {
     });
   }
 
-  const html = renderHtml({ days, endpoints, daily, dailyRest, dailyMcp, tools, errors, topErrorFields, clients, countries, restNet, sessionsDaily, sessionDepth, samples: shownSamples, sampleCounts, kindFilter, token, surface: surfaceParam });
+  const html = renderHtml({ days, endpoints, daily, dailyRest, dailyMcp, tools, errors, topErrorFields, clients, countries, restNet, sessionsDaily, sessionDepth, initializesReal, samples: shownSamples, sampleCounts, kindFilter, token, surface: surfaceParam });
   return new Response(html, {
     status: 200,
     headers: {
@@ -269,6 +292,7 @@ interface RenderInput {
   restNet: RestNetRow[];
   sessionsDaily: SessionDayRow[];
   sessionDepth: SessionDepthRow[];
+  initializesReal: number;
   samples: ClassifiedSample[];
   sampleCounts: Partial<Record<ClientKind, number>>;
   kindFilter: string[];
@@ -386,6 +410,10 @@ ${table(
   ['Tool', 'Calls', 'Errors'],
   d.tools.map((r) => [esc(r.tool), `<span class="num">${r.n.toLocaleString()}</span>`, `<span class="num">${r.errors.toLocaleString()}</span>`]),
 )}
+
+<h2>Real connects (initialize, crawlers/scanners/scripts excluded)</h2>
+<p class="legend">Classifier kinds human + agent only. The raw initialize count in the endpoint table is dominated by registry probes and is not an adoption number.</p>
+<p><b>${d.initializesReal.toLocaleString()}</b></p>
 
 <h2>By client (from initialize)</h2>
 ${table(

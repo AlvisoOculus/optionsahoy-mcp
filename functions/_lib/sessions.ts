@@ -170,6 +170,10 @@ export function sessionJoinToken(sessionId: string | undefined): string | null {
 // related-tools advertisement appear on every call; only the beta pitch is
 // deduped to the first call per session, and the free-tool line collapses to
 // its bare URL after the first call.
+// Any count > 1 selects the bare, no-beta form. Named so the sessionless
+// caller in mcp.ts states its intent instead of passing a magic 2.
+export const BARE_CALL_COUNT = 2;
+
 export function nextStepsFor(
   toolName: string,
   sessionCallCount: number,

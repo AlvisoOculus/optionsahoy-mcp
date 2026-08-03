@@ -239,3 +239,23 @@ describe('admin /mcp-stats', () => {
     expect(body.restNet).toHaveLength(2);
   });
 });
+
+describe('admin /mcp-stats auth accepts a Bearer header (machine callers)', () => {
+  it('authorizes with Authorization: Bearer, so the token need not ride in the URL', async () => {
+    const request = new Request('http://localhost/admin/mcp-stats?days=7', {
+      method: 'GET',
+      headers: { authorization: 'Bearer right' },
+    });
+    const res = await onRequest(ctx({ ADMIN_TOKEN: 'right', MCP_STATS: mockDb(SAMPLE_ROWS) }, request));
+    expect(res.status).toBe(200);
+  });
+
+  it('still rejects a wrong Bearer token', async () => {
+    const request = new Request('http://localhost/admin/mcp-stats', {
+      method: 'GET',
+      headers: { authorization: 'Bearer nope' },
+    });
+    const res = await onRequest(ctx({ ADMIN_TOKEN: 'right', MCP_STATS: mockDb(SAMPLE_ROWS) }, request));
+    expect(res.status).toBe(401);
+  });
+});

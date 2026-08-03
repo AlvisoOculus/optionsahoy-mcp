@@ -173,9 +173,19 @@ describe('POST /mcp — tools/call dispatches to the right calc', () => {
       grantDate: new Date('2024-05-20'),
       terminationDate: null,
     } as Parameters<typeof computeAmtIso>[0]);
-    expect(text).toEqual(JSON.stringify(reference));
-    // structuredContent is the same result object the text block serializes.
-    expect(json.result.structuredContent).toEqual(JSON.parse(text));
+    // The calc payload must be byte-identical to the in-process result. Since
+    // 2026-08-03 non-infra callers also get the next-steps block at
+    // `_meta.optionsahoy` (deliberately INSIDE the result so the nudge rides
+    // the text block the model actually reads; the output schemas do not set
+    // additionalProperties, so this stays schema-valid). Strip that one key
+    // and everything else must match exactly - and it must be the ONLY
+    // addition, so a future injection cannot quietly alter calc output.
+    const parsed = JSON.parse(text) as Record<string, unknown>;
+    const { _meta, ...calcFields } = parsed;
+    expect(JSON.stringify(calcFields)).toEqual(JSON.stringify(reference));
+    expect(Object.keys(_meta as object)).toEqual(['optionsahoy']);
+    // structuredContent is the same object the text block serializes.
+    expect(json.result.structuredContent).toEqual(parsed);
   });
 
   it('qsbs_check matches in-process evaluateQsbs', async () => {
@@ -194,7 +204,11 @@ describe('POST /mcp — tools/call dispatches to the right calc', () => {
       acquisitionDate: new Date('2020-03-01'),
       saleDate: new Date('2026-03-15'),
     } as Parameters<typeof evaluateQsbs>[0]);
-    expect(text).toEqual(JSON.stringify(reference));
+    // Same contract as the amt_iso case above: calc fields byte-identical,
+    // `_meta` the only permitted addition.
+    const { _meta, ...calcFields } = JSON.parse(text) as Record<string, unknown>;
+    expect(JSON.stringify(calcFields)).toEqual(JSON.stringify(reference));
+    expect(Object.keys(_meta as object)).toEqual(['optionsahoy']);
     expect(json.result.structuredContent).toEqual(JSON.parse(text));
   });
 
