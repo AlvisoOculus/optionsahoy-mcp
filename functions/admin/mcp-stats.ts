@@ -106,7 +106,7 @@ const SQL_CLIENTS = "SELECT client_name, COUNT(*) AS n FROM mcp_calls WHERE clie
 // Initializes grouped by the client's self-reported name, so the funnel can
 // separate real connects from the registry-probe swarm (~80% of handshakes)
 // using this repo's own classifier rather than a re-invented regex elsewhere.
-const SQL_INIT_CLIENTS = "SELECT client_name, COUNT(*) AS n FROM mcp_calls WHERE endpoint = 'mcp:initialize' GROUP BY client_name";
+const SQL_INIT_CLIENTS = "SELECT client_name, COUNT(*) AS n FROM mcp_calls WHERE endpoint = 'mcp:initialize' AND ts >= ? GROUP BY client_name";
 const SQL_COUNTRIES = 'SELECT country, COUNT(*) AS n FROM mcp_calls WHERE ts >= ? GROUP BY country ORDER BY n DESC LIMIT 20';
 // REST/direct callers by originating network + coarse location. This is where
 // the datacenter-vs-residential bot signal is meaningful (MCP is excluded: its
