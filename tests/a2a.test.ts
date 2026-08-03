@@ -246,3 +246,89 @@ describe('A2A handleMessage helper', () => {
     expect(unmatched.skill).toBeNull();
   });
 });
+
+describe('A2A free-text routing: punctuation and phrasing coverage', () => {
+  // The production 30-day window showed 75% of message/send calls failing to
+  // route, with zero visibility into why. The router now normalizes
+  // punctuation on both sides; these lock in phrasings that used to fall
+  // through to the generic fallback.
+  const cases: Array<[string, string]> = [
+    ['Should I exercise my ISOs? Worried about AMT.', 'amt_iso_optimize'],
+    ['I have incentive stock options at a startup', 'amt_iso_optimize'],
+    ['Tax on my NSOs?', 'nso_calculate'],
+    ['My non-qualified options vest next month', 'nso_calculate'],
+    ['Sell my RSUs?', 'rsu_sell_vs_hold'],
+    ['I get restricted stock from my employer', 'rsu_sell_vs_hold'],
+    ['Is this small business stock under 1202?', 'qsbs_check'],
+    ['I need cash for tuition next fall', 'equity_funding_plan'],
+    ['Selling to buy a house in two years', 'equity_funding_plan'],
+    ['Better than FIFO for selling my company shares?', 'rsu_lot_optimize'],
+  ];
+  for (const [text, expected] of cases) {
+    it(`routes "${text}" -> ${expected}`, () => {
+      expect(routeByKeyword(text)?.id).toBe(expected);
+    });
+  }
+
+  it('still returns null on unrelated text', () => {
+    expect(routeByKeyword('what is the weather today')).toBeNull();
+    expect(routeByKeyword('')).toBeNull();
+  });
+
+  it('every skill remains reachable by at least one of its own keywords (order sanity)', () => {
+    // First-match-wins across SKILLS: adding a broad keyword to an early
+    // skill must never shadow every path to a later one.
+    for (const s of SKILLS) {
+      const reachable = s.keywords.some((k) => routeByKeyword(k)?.id === s.id);
+      expect(reachable, `${s.id} unreachable: all its keywords route elsewhere`).toBe(true);
+    }
+  });
+});
+
+describe('A2A telemetry semantics (isError / errorMsg / query)', () => {
+  it('a routed free-text pointer is NOT an error (working as designed)', () => {
+    const h = handleMessage([{ kind: 'text', text: 'Should I sell my RSUs?' }]);
+    expect(h.skill).toBeNull();
+    expect(h.isError).toBe(false);
+    expect(h.errorMsg).toContain('rsu_sell_vs_hold');
+    expect(h.query).toContain('RSUs');
+  });
+
+  it('unrouted free text is an error with the text captured', () => {
+    const h = handleMessage([{ kind: 'text', text: 'what is the weather today' }]);
+    expect(h.isError).toBe(true);
+    expect(h.errorMsg).toBe('unrouted free text');
+    expect(h.query).toBe('what is the weather today');
+  });
+
+  it('an unknown skill id names the id in errorMsg', () => {
+    const h = handleMessage([{ kind: 'data', data: { skill: 'not_a_skill', input: {} } }]);
+    expect(h.isError).toBe(true);
+    expect(h.errorMsg).toBe('unknown skill: not_a_skill');
+  });
+
+  it('a calculator input failure carries the skill id and the parse message', () => {
+    const h = handleMessage([{ kind: 'data', data: { skill: 'qsbs_check', input: {} } }]);
+    expect(h.isError).toBe(true);
+    expect(h.errorMsg).toMatch(/^qsbs_check: /);
+  });
+
+  it('a successful data call is not an error and echoes the input as query', () => {
+    const input = {
+      skill: 'rsu_lot_optimize',
+      input: {
+        lots: [{ vestDate: '2022-08-15', shares: 120, costBasisPerShare: 95 }],
+        currentPrice: 180,
+        divestFraction: 0.5,
+        horizonYears: 1,
+        ordinaryIncome: 200000,
+        filingStatus: 'single',
+        stateCode: 'CA',
+      },
+    };
+    const h = handleMessage([{ kind: 'data', data: input }]);
+    expect(h.isError).toBe(false);
+    expect(h.skill).toBe('rsu_lot_optimize');
+    expect(h.query).toBe(JSON.stringify(input));
+  });
+});

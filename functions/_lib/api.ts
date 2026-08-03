@@ -135,7 +135,16 @@ function checkBounds(k: string, v: number, b?: Bounds): number {
 
 export const p = {
   num(o: Obj, k: string, b?: Bounds): number {
-    const v = o[k];
+    let v = o[k];
+    // Tolerant reader: LLM callers routinely quote numbers ("150000",
+    // "$150,000"). "must be a finite number" was the single largest real
+    // input-error class across MCP + REST (admin stats, 30d), and every such
+    // string is unambiguous, so coerce instead of bouncing the call. Only a
+    // string that is EXACTLY one plain number (optional $, thousands commas)
+    // coerces; "150k", "1e5 shares", "" still throw.
+    if (typeof v === 'string' && /^\s*\$?-?[0-9][0-9,]*(\.[0-9]+)?\s*$/.test(v)) {
+      v = Number(v.replace(/[$,\s]/g, ''));
+    }
     if (typeof v !== 'number' || !Number.isFinite(v)) {
       throw new Error(`field "${k}" must be a finite number`);
     }
@@ -158,9 +167,12 @@ export const p = {
   },
   date(o: Obj, k: string): Date {
     const v = o[k];
-    if (typeof v !== 'string') throw new Error(`field "${k}" must be an ISO date string`);
+    // Name the expected format in both error paths: a model that gets the
+    // bare "not a valid date" tends to retry with another bad guess, while
+    // an example self-corrects in one round trip.
+    if (typeof v !== 'string') throw new Error(`field "${k}" must be an ISO date string like "2028-06-30"`);
     const d = new Date(v);
-    if (Number.isNaN(d.getTime())) throw new Error(`field "${k}" is not a valid date`);
+    if (Number.isNaN(d.getTime())) throw new Error(`field "${k}" is not a valid date; use ISO format like "2028-06-30"`);
     return d;
   },
   optDate(o: Obj, k: string): Date | null {

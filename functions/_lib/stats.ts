@@ -156,7 +156,7 @@ const SAMPLE_INSERT_SQL =
 const SAMPLE_PRUNE_SQL = 'DELETE FROM mcp_samples WHERE ts < ?';
 
 export interface SampleFields {
-  surface: string; // poe | mcp | rest
+  surface: string; // poe | mcp | rest | a2a
   tool?: string;
   clientName?: string;
   query?: string;

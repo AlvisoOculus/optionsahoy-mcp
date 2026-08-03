@@ -969,7 +969,7 @@
           "targetDate": {
             "type": "string",
             "format": "date",
-            "description": "Date by which the user needs the net cash (YYYY-MM-DD). Bounds the planning horizon. Sales in non-target years happen on Dec 31; the target year's sale happens on this exact date."
+            "description": "Date by which the user needs the net cash (YYYY-MM-DD). Bounds the planning horizon. Sales in non-target years happen on Dec 31; the target year's sale happens on this exact date. Must come from the user."
           },
           "stacks": {
             "type": "array",
@@ -989,7 +989,7 @@
                 "currentPrice": {
                   "type": "number",
                   "minimum": 0,
-                  "description": "$/share today for this stack. Anchors the projected-price compounding for every future candidate sale date in this stack."
+                  "description": "$/share today for this stack. Anchors the projected-price compounding for every future candidate sale date in this stack. Must come from the user."
                 },
                 "expectedAnnualGrowth": {
                   "type": [

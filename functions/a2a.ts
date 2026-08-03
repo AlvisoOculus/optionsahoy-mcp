@@ -9,7 +9,7 @@
 // location is the static /.well-known/agent-card.json).
 
 import { CORS_HEADERS as BASE_CORS, type PagesContext, type PagesFunction } from './_lib/api';
-import { logCall } from './_lib/stats';
+import { logCall, logSample } from './_lib/stats';
 import { buildAgentCard, handleMessage, type A2APart } from './_lib/a2a';
 
 // Same shared CORS base as the REST endpoints; this one also serves GET (the
@@ -76,7 +76,24 @@ export const onRequest: PagesFunction = async (context: PagesContext): Promise<R
     return rpcError(body.id, -32602, 'Invalid params: expected params.message.parts to be an array.');
   }
 
-  const { message, skill } = handleMessage(parts as A2APart[]);
-  logCall(context, { endpoint: 'a2a', tool: skill ?? undefined, isError: skill === null });
-  return rpcResult(body.id, message);
+  const handled = handleMessage(parts as A2APart[]);
+  logCall(context, {
+    endpoint: 'a2a',
+    tool: handled.skill ?? undefined,
+    isError: handled.isError,
+    errorMsg: handled.errorMsg,
+  });
+  // Example capture (7-day rolling, admin-gated, infra-filtered in logSample):
+  // this surface ran 30 days at a 75% no-route rate with zero captured
+  // examples, so there was no way to see WHAT failed to route.
+  logSample(context, {
+    surface: 'a2a',
+    tool: handled.skill ?? undefined,
+    query: handled.query,
+    answer: handled.message.parts
+      .filter((p): p is A2APart & { text: string } => p.kind === 'text' && typeof p.text === 'string')
+      .map((p) => p.text)
+      .join(' '),
+  });
+  return rpcResult(body.id, handled.message);
 };
