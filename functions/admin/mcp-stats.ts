@@ -192,9 +192,13 @@ export const onRequest: PagesFunction = async (ctx) => {
   // framework (isRealClient). Note this is NARROWER than the injection gate
   // in mcp.ts, which only excludes infra: an SDK caller reporting itself as a
   // bare script is worth a free-tool link but is not a named client connect.
-  const initializesReal = initClients
+  const realInitClients = initClients
     .filter((r) => isRealClient(r.client_name, 'mcp'))
-    .reduce((acc, r) => acc + r.n, 0);
+    .sort((a, b) => b.n - a.n);
+  const initializesReal = realInitClients.reduce((acc, r) => acc + r.n, 0);
+  // Shipped alongside the total so consumers (the web funnel page) can render
+  // a probe-free client list without re-implementing the classifier.
+  const realClients = realInitClients.map((r) => ({ client_name: r.client_name ?? '(unnamed)', n: r.n }));
 
   // Rank the fields callers most often omit or botch, dropping infrastructure
   // noise (our smoke suite + scanners) where the client is identifiable (see
@@ -254,7 +258,7 @@ export const onRequest: PagesFunction = async (ctx) => {
   ).slice(0, 50);
 
   if (url.searchParams.get('format') === 'json') {
-    const body = JSON.stringify({ days, endpoints, daily, dailyRest, dailyMcp, tools, errors, topErrorFields, clients, countries, restNet, sessionsDaily, sessionDepth, initializesReal, endpointErrors, samples: classified, sampleCounts });
+    const body = JSON.stringify({ days, endpoints, daily, dailyRest, dailyMcp, tools, errors, topErrorFields, clients, countries, restNet, sessionsDaily, sessionDepth, initializesReal, realClients, endpointErrors, samples: classified, sampleCounts });
     return new Response(body, {
       status: 200,
       headers: {

@@ -10,7 +10,7 @@
 
 import { CORS_HEADERS as BASE_CORS, type PagesContext, type PagesFunction } from './_lib/api';
 import { logCall, logSample } from './_lib/stats';
-import { buildAgentCard, handleMessage, type A2APart } from './_lib/a2a';
+import { AGENT_VERSION, buildAgentCard, handleMessage, type A2APart } from './_lib/a2a';
 
 // Same shared CORS base as the REST endpoints; this one also serves GET (the
 // Agent Card), so it overrides only the allowed-methods line.
@@ -75,8 +75,36 @@ export const onRequest: PagesFunction = async (context: PagesContext): Promise<R
     );
   }
 
-  const isLegacyTaskSend = body.method === 'tasks/send';
-  if (body.method !== 'message/send' && !isLegacyTaskSend) {
+  // Observed in production (7d): rpc.discover x4, SendMessage x1,
+  // agent/getAuthenticatedExtendedCard x1. All are real client conventions,
+  // not junk, and all were counted as errors.
+  if (body.method === 'agent/getAuthenticatedExtendedCard' || body.method === 'agent/getExtendedCard') {
+    // We serve one public card and require no auth, so the extended card is
+    // the same card.
+    logCall(context, { endpoint: 'a2a', isError: false, errorMsg: `card via ${String(body.method)}` });
+    return rpcResult(body.id, buildAgentCard());
+  }
+  if (body.method === 'rpc.discover') {
+    // OpenRPC service discovery: answer with the methods we actually support
+    // rather than a method-not-found.
+    logCall(context, { endpoint: 'a2a', isError: false, errorMsg: 'rpc.discover' });
+    return rpcResult(body.id, {
+      openrpc: '1.2.6',
+      info: { title: 'OptionsAhoy Equity Planner (A2A)', version: AGENT_VERSION },
+      methods: [
+        { name: 'message/send', summary: 'Run a calculator from a data part, or keyword-route free text.' },
+        { name: 'tasks/send', summary: 'Legacy alias of message/send; returns a completed Task.' },
+        { name: 'tasks/get', summary: 'Not supported: every call completes synchronously.' },
+        { name: 'agent/getAuthenticatedExtendedCard', summary: 'Returns the public Agent Card (no auth required).' },
+      ],
+    });
+  }
+
+  // Some clients send the method in PascalCase. Accept it rather than
+  // bouncing a caller that is otherwise correct.
+  const method = body.method === 'SendMessage' ? 'message/send' : body.method;
+  const isLegacyTaskSend = method === 'tasks/send';
+  if (method !== 'message/send' && !isLegacyTaskSend) {
     logCall(context, { endpoint: 'a2a', isError: true, errorMsg: `method ${String(body.method)}` });
     return rpcError(
       body.id,

@@ -425,3 +425,45 @@ describe('A2A legacy tasks/send failure mapping', () => {
     expect(body.result.status.state).toBe('failed');
   });
 });
+
+describe('A2A methods real clients actually call (from the production error log)', () => {
+  // 7-day production breakdown showed these arriving and being counted as
+  // errors: rpc.discover x4, SendMessage x1, agent/getAuthenticatedExtendedCard
+  // x1. None are junk; all are real client conventions.
+  const call = (method: string, params: unknown = {}) =>
+    a2aHandler({ request: rpcReq({ jsonrpc: '2.0', id: 1, method, params }) });
+
+  it('agent/getAuthenticatedExtendedCard returns the public card (we require no auth)', async () => {
+    const body = (await (await call('agent/getAuthenticatedExtendedCard')).json()) as { result?: { skills?: unknown[] }; error?: unknown };
+    expect(body.error).toBeUndefined();
+    expect((body.result?.skills as unknown[])?.length).toBe(8);
+  });
+
+  it('rpc.discover advertises the methods we support instead of erroring', async () => {
+    const body = (await (await call('rpc.discover')).json()) as {
+      result?: { openrpc: string; methods: Array<{ name: string }> };
+    };
+    const names = body.result?.methods.map((m) => m.name) ?? [];
+    expect(names).toContain('message/send');
+    expect(names).toContain('tasks/send');
+  });
+
+  it('PascalCase SendMessage is accepted as message/send', async () => {
+    const res = await a2aHandler({
+      request: rpcReq({
+        jsonrpc: '2.0',
+        id: 1,
+        method: 'SendMessage',
+        params: { message: { parts: [{ kind: 'data', data: { skill: 'qsbs_check', input: QSBS_INPUT } }] } },
+      }),
+    });
+    const body = (await res.json()) as { result?: { parts?: Array<{ kind: string }> }; error?: unknown };
+    expect(body.error).toBeUndefined();
+    expect(body.result?.parts?.some((p) => p.kind === 'data')).toBe(true);
+  });
+
+  it('a genuinely unsupported method still returns -32601', async () => {
+    const body = (await (await call('message/stream')).json()) as { error?: { code: number } };
+    expect(body.error?.code).toBe(-32601);
+  });
+});
