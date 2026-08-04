@@ -261,6 +261,13 @@ const SMOKE_UA = { 'user-agent': 'oa-e2e-live' };
 
   const convo = await a2a('message/send', { message: { parts: [{ kind: 'text', text: 'Hello! I would love to collaborate with your agent.' }] } });
   check('A2A: conversational message gets the capabilities reply', (convo.result?.parts?.[0]?.text ?? '').includes('deterministic calculator agent'));
+
+  const card = await a2a('agent/getAuthenticatedExtendedCard', {});
+  check('A2A: agent/getAuthenticatedExtendedCard returns the card', (card.result?.skills ?? []).length === 8, JSON.stringify(card.error ?? '').slice(0, 60));
+  const disc = await a2a('rpc.discover', {});
+  check('A2A: rpc.discover advertises supported methods', (disc.result?.methods ?? []).some((m) => m.name === 'message/send'));
+  const pascal = await a2a('SendMessage', { message: { parts: [{ kind: 'data', data: { skill: 'qsbs_check', input: CALLS.qsbs_check } }] } });
+  check('A2A: PascalCase SendMessage is accepted', !pascal.error && (pascal.result?.parts ?? []).some((p) => p.kind === 'data'));
 }
 
 console.log(failures === 0 ? '\nALL PASS' : `\n${failures} FAILURE(S)`);
