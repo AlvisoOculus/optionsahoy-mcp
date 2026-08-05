@@ -28,7 +28,11 @@ describe('REST next_steps envelope', () => {
       next_steps?: { web_tool: string; also_run: string[]; beta: string };
     };
     expect(body.ok).toBe(true);
-    expect(body.next_steps?.web_tool).toBe('https://optionsahoy.com/tools/amt-iso?src=rest_amt_iso');
+    // Phase 2 (2026-08-05): the web_tool link carries the caller's resolved
+    // scenario in a distinct `_sc` bucket.
+    expect(body.next_steps?.web_tool).toMatch(
+      /^https:\/\/optionsahoy\.com\/tools\/amt-iso\?src=rest_amt_iso_sc&mcp=[A-Za-z0-9_-]+$/,
+    );
     expect(body.next_steps?.also_run).toContain('/api/v1/qsbs');
     expect(body.next_steps?.beta).toContain('optionsahoy.com/beta?src=rest_amt_iso');
   });

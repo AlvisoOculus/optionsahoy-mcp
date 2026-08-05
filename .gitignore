@@ -9,3 +9,7 @@ dist/
 .env.local
 mcpb/server/
 *.mcpb
+
+# Internal documents - never commit (swept in once by git add -A, scrubbed 2026-08-05)
+assets/OptionsAhoy Action Plan.pdf
+public/.well-known/OptionsAhoy Action Plan.pdf
