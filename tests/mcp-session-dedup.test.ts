@@ -110,6 +110,15 @@ describe('bumpSessionCallCount', () => {
   });
 });
 
+
+// The scenario-carrying form of a next-steps line: the same line with its
+// src bucket suffixed `_sc`, a base64url payload, and (optionally) the join
+// token last. Byte-exact prefixes keep these as strict as the old equality.
+function scenarioForm(line: string, join?: string): RegExp {
+  const esc = line.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return new RegExp(`^${esc.replace(/src=([a-z_]+)$/, 'src=$1_sc')}&mcp=[A-Za-z0-9_-]+${join ? `&s=${join}` : ''}$`);
+}
+
 describe('nextStepsFor', () => {
   it('returns the full three-layer block on count=1', () => {
     const next = nextStepsFor('amt_iso_optimize', 1);
@@ -186,7 +195,11 @@ describe('POST /mcp tools/call next-step injection', () => {
       _meta?: { optionsahoy?: { free_tool?: string; also_run?: string; beta?: string } };
     };
     // The canonical lines plus the session join token (s=<8-char prefix>).
-    expect(inner._meta?.optionsahoy?.free_tool).toBe(`${PER_TOOL_FREE_TOOL.amt_iso_optimize}&s=sess-pit`);
+    // Phase 2: the endpoint call carries resolvable args, so the free-tool
+    // line gains its scenario (`_sc` bucket + payload) before the join token.
+    expect(inner._meta?.optionsahoy?.free_tool).toMatch(
+      scenarioForm(PER_TOOL_FREE_TOOL.amt_iso_optimize, 'sess-pit'),
+    );
     expect(inner._meta?.optionsahoy?.also_run).toBe(PER_TOOL_RELATED.amt_iso_optimize);
     expect(inner._meta?.optionsahoy?.beta).toBe(`${PER_TOOL_BETA_INVITES.amt_iso_optimize}&s=sess-pit`);
   });
@@ -207,7 +220,9 @@ describe('POST /mcp tools/call next-step injection', () => {
     const inner = JSON.parse(body.result.content[0].text) as {
       _meta?: { optionsahoy?: { free_tool?: string; also_run?: string; beta?: string } };
     };
-    expect(inner._meta?.optionsahoy?.free_tool).toBe(`${PER_TOOL_FREE_TOOL_BARE.amt_iso_optimize}&s=sess-pit`);
+    expect(inner._meta?.optionsahoy?.free_tool).toMatch(
+      scenarioForm(PER_TOOL_FREE_TOOL_BARE.amt_iso_optimize, 'sess-pit'),
+    );
     expect(inner._meta?.optionsahoy?.also_run).toBe(PER_TOOL_RELATED.amt_iso_optimize);
     expect(inner._meta?.optionsahoy?.beta).toBeUndefined();
   });
@@ -229,7 +244,7 @@ describe('POST /mcp tools/call next-step injection', () => {
     const oa = (JSON.parse(body.result.content[0].text) as {
       _meta?: { optionsahoy?: { free_tool?: string; beta?: string } };
     })._meta?.optionsahoy;
-    expect(oa?.free_tool).toBe(PER_TOOL_FREE_TOOL_BARE.amt_iso_optimize);
+    expect(oa?.free_tool).toMatch(scenarioForm(PER_TOOL_FREE_TOOL_BARE.amt_iso_optimize));
     expect(oa?.beta).toBeUndefined();
   });
 
@@ -247,7 +262,7 @@ describe('POST /mcp tools/call next-step injection', () => {
     const oa = (JSON.parse(body.result.content[0].text) as {
       _meta?: { optionsahoy?: { free_tool?: string; beta?: string } };
     })._meta?.optionsahoy;
-    expect(oa?.free_tool).toBe(PER_TOOL_FREE_TOOL_BARE.amt_iso_optimize);
+    expect(oa?.free_tool).toMatch(scenarioForm(PER_TOOL_FREE_TOOL_BARE.amt_iso_optimize));
     expect(oa?.beta).toBeUndefined();
   });
 });
@@ -402,7 +417,7 @@ describe('sessionless next-steps injection (the 98% of tool calls with no sessio
 
   it('an SDK caller with no session gets the bare free-tool + related block', async () => {
     const oa = await metaFor('python-httpx/0.28.1');
-    expect(oa?.free_tool).toBe(PER_TOOL_FREE_TOOL_BARE.amt_iso_optimize);
+    expect(oa?.free_tool).toMatch(scenarioForm(PER_TOOL_FREE_TOOL_BARE.amt_iso_optimize));
     expect(oa?.also_run).toBe(PER_TOOL_RELATED.amt_iso_optimize);
   });
 

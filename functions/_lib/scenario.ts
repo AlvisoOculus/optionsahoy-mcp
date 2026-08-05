@@ -15,14 +15,22 @@
 // use it without pulling mcp-tools.ts (and with it all eight calculators)
 // into every route bundle.
 
-import { parseNsoInput } from './calc-parsers';
+import {
+  parseAmtIsoInput,
+  parseConcentrationInput,
+  parseEquityFundingInput,
+  parseNsoInput,
+  parseQsbsInput,
+  parseRsuInput,
+  parseRsuLotOptimizeInput,
+} from './calc-parsers';
 
 // Calculator slugs whose page can rehydrate a scenario, mapped to the parser
 // that RESOLVES a caller's arguments into the exact input the calculation
-// ran on. Phase 1 is `nso` only: 59% of calculator completions (44 of 75 in
-// 30d), so it is both the biggest win and the cheapest evidence. A slug added
-// here without a matching mapper in the web repo would land users on defaults
-// carrying a mystery param, so the two must move together.
+// ran on. Phase 2 (2026-08-05): ALL EIGHT tools, now that the web repo ships
+// a mapper per calculator (web/lib/mcpScenario.ts) - a slug listed here
+// without a mapper there would land users on defaults carrying a mystery
+// param, so the two move together and the web side deploys FIRST.
 //
 // Forwarding the RESOLVED input rather than the raw arguments is the whole
 // correctness argument, and it was learned the hard way:
@@ -42,7 +50,23 @@ import { parseNsoInput } from './calc-parsers';
 //     into a URL handed to an agent. Parsers ignore unknown keys, so the raw
 //     body would have carried it verbatim.
 const RESOLVERS: Record<string, (raw: unknown) => unknown> = {
+  'amt-iso': parseAmtIsoInput,
   nso: parseNsoInput,
+  'rsu-sell-vs-hold': parseRsuInput,
+  concentration: parseConcentrationInput,
+  qsbs: parseQsbsInput,
+  // These two also resolve `today` from the server clock; the web mapper
+  // deliberately ignores it (P13/RT1: a page must never trust a caller's
+  // clock) and their lot arrays make them the only tools that can exceed
+  // MCP_SCENARIO_MAX_CHARS, in which case the bare link goes out instead.
+  'equity-funding': parseEquityFundingInput,
+  'rsu-lot-order': parseRsuLotOptimizeInput,
+  // protective-put is DELIBERATELY absent. Its production page is
+  // chain-driven: sector, volatility and expected return come from the
+  // selected ticker's live chain, not from URL state, so a carried scenario
+  // either cannot render (no ticker chosen) or - worse - gets priced against
+  // whatever ticker the visitor last used. Both violate the fail-safe rule;
+  // adversarial review 2026-08-05. Its links stay bare (src=mcp_protective_put).
 };
 
 export const SCENARIO_SLUGS: ReadonlySet<string> = new Set(Object.keys(RESOLVERS));
@@ -64,8 +88,8 @@ function base64url(json: string): string {
 // or useful to carry. Never throws: a scenario link is a nice-to-have, and
 // the bare link is always a correct answer.
 export function encodeScenario(slug: string, args: unknown): string | null {
-  // Gate first: seven of the eight tools cannot produce a scenario, and this
-  // runs on every tools/call and every REST response.
+  // Gate first: unknown slugs and the deliberately-excluded protective-put
+  // get the bare link, and this runs on every tools/call and REST response.
   const resolve = RESOLVERS[slug];
   if (!resolve) return null;
   if (!args || typeof args !== 'object' || Array.isArray(args)) return null;
@@ -73,9 +97,15 @@ export function encodeScenario(slug: string, args: unknown): string | null {
     // Re-parsing costs one pass over an object the caller already validated.
     // The alternative - threading the parsed input through two call sites in
     // two servers - buys microseconds and a way to pass the wrong object.
-    const json = JSON.stringify(resolve(args));
-    // Undefined (non-serializable) or an empty object carries no scenario.
-    if (!json || json === '{}') return null;
+    //
+    // The envelope names the tool ({t: slug, i: input}) so a payload can
+    // never apply on the WRONG calculator page. Without it, any tool whose
+    // resolved fields are a superset of another's (nso over rsu-sell-vs-hold)
+    // would silently re-interpret an exercise scenario as vesting math when
+    // an agent hands over the wrong link.
+    const resolved = resolve(args);
+    if (!resolved || typeof resolved !== 'object') return null;
+    const json = JSON.stringify({ t: slug, i: resolved });
     const encoded = base64url(json);
     return encoded.length > MCP_SCENARIO_MAX_CHARS ? null : encoded;
   } catch {
