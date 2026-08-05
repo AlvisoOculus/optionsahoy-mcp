@@ -10,7 +10,8 @@
 // arrival order.
 
 import type { D1Database } from './stats';
-import { isToolName, type ToolName } from './mcp-tools';
+import { isToolName, TOOL_SLUG, type ToolName } from './mcp-tools';
+import { encodeScenario, withScenario } from './scenario';
 
 const UPSERT_SQL = `
   INSERT INTO mcp_sessions (session_id, tool_call_count)
@@ -178,6 +179,7 @@ export function nextStepsFor(
   toolName: string,
   sessionCallCount: number,
   sessionId?: string,
+  args?: unknown,
 ): NextSteps | undefined {
   if (!isToolName(toolName)) return undefined;
   const related = PER_TOOL_RELATED[toolName];
@@ -185,15 +187,18 @@ export function nextStepsFor(
   // so the join param appends directly. also_run is prose, never a URL.
   const join = sessionJoinToken(sessionId);
   const suffix = join ? `&s=${join}` : '';
+  // Only the free tool is a calculator, so only it can use a scenario. The
+  // beta link is a signup page - inputs there would be exposure with no gain.
+  const scenario = encodeScenario(TOOL_SLUG[toolName], args);
   if (sessionCallCount === 1) {
     return {
-      free_tool: PER_TOOL_FREE_TOOL[toolName] + suffix,
+      free_tool: withScenario(PER_TOOL_FREE_TOOL[toolName], scenario) + suffix,
       also_run: related,
       beta: PER_TOOL_BETA_INVITES[toolName] + suffix,
     };
   }
   return {
-    free_tool: PER_TOOL_FREE_TOOL_BARE[toolName] + suffix,
+    free_tool: withScenario(PER_TOOL_FREE_TOOL_BARE[toolName], scenario) + suffix,
     also_run: related,
   };
 }

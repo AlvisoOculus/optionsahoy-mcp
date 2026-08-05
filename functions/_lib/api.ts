@@ -56,12 +56,15 @@ export function preflight(): Response {
 // a 400 with the error message if parsing / validation / the calc throws.
 // Logs one row to MCP_STATS per inbound POST (preflight OPTIONS skipped).
 import { logCall, logSample } from './stats';
+import { encodeScenario, withScenario } from './scenario';
 
 // Per-endpoint next-step block for REST responses. REST is the highest-volume
 // tool surface (roughly 10x MCP tools/call) and until now returned bare
 // {ok, result} - no free-tool link, no related endpoint, no beta pointer.
-// Constant and short by design: three strings per endpoint, same on every
-// call, so agents can cache or ignore it; nothing here varies with the input.
+// Short by design: three strings per endpoint, so agents can cache or ignore
+// it. The one input-dependent part is the scenario payload appended to
+// web_tool for scenario-capable calculators (see restNextSteps below); every
+// other field is the same on every call.
 // Slugs match functions/api/v1/<slug>.ts and the web calculator paths.
 export const REST_NEXT_STEPS: Record<string, { web_tool: string; also_run: string[]; beta: string }> = (() => {
   // Only the src abbreviation and the related-endpoint list are real data;
@@ -84,6 +87,20 @@ export const REST_NEXT_STEPS: Record<string, { web_tool: string; also_run: strin
     }]),
   );
 })();
+
+// The next-step block for one REST response. Identical to the constant above
+// except that a scenario-capable calculator gets the caller's own inputs
+// carried to the web tool (and its own `_sc` src bucket, so the funnel can
+// tell the two arrivals apart). REST bodies and MCP tool arguments are the
+// same shape - both surfaces feed the same parser - so one web-side mapper
+// serves both.
+function restNextSteps(slug: string, raw: unknown): (typeof REST_NEXT_STEPS)[string] | undefined {
+  const base = REST_NEXT_STEPS[slug];
+  if (!base) return undefined;
+  const scenario = encodeScenario(slug, raw);
+  if (!scenario) return base;
+  return { ...base, web_tool: withScenario(base.web_tool, scenario) };
+}
 
 export async function runCalc<I, O>(
   context: PagesContext,
@@ -122,7 +139,7 @@ export async function runCalc<I, O>(
       query: safeStringify(raw),
       answer: safeStringify(output),
     });
-    const nextSteps = REST_NEXT_STEPS[slug];
+    const nextSteps = restNextSteps(slug, raw);
     return jsonResponse(
       200,
       nextSteps ? { ok: true, result: output, next_steps: nextSteps } : { ok: true, result: output },
