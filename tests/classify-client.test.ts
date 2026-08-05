@@ -8,7 +8,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { classifyClient, networkKind, KIND_RANK, type ClientKind } from '../functions/admin/mcp-stats';
-import { isInfraClient } from '../functions/_lib/classify';
+import { isInfraClient, isRealClient } from '../functions/_lib/classify';
 
 const kind = (c: string | null | undefined, surface = 'rest'): ClientKind =>
   classifyClient(c, surface).kind;
@@ -58,6 +58,17 @@ describe('classifyClient — real-vs-bot of captured examples', () => {
       'see-registry-introspector', 'drio-upstream-discovery', 'chariot-verifier', 'sasame-audit']) {
       expect(kind(c, 'mcp')).toBe('crawler');
     }
+  });
+
+  it('a scanner named after its research topic is a crawler, not an agent (regression)', () => {
+    // Prod case: 'mcp-rugpull-research' (periodic tools/list differ, present in
+    // every stats snapshot) carried no scanner verb, so it fell through to the
+    // \bmcp- agent catch-all and inflated the funnel's real-client connects.
+    expect(kind('mcp-rugpull-research', 'mcp')).toBe('crawler');
+    expect(isRealClient('mcp-rugpull-research', 'mcp')).toBe(false);
+    // The mcp- catch-all still does its real job for genuine agent platforms.
+    expect(kind('retell-mcp-client', 'mcp')).toBe('agent');
+    expect(isRealClient('retell-mcp-client', 'mcp')).toBe(true);
   });
 
   it('real agent frameworks are NOT swept up by the probe patterns', () => {

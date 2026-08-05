@@ -31,8 +31,11 @@ export function classifyClient(
   // directory probes and registry crawlers that constantly re-introspect any
   // listed server (probe/scan/registry/inspect/discover/verify/audit/scoring).
   // Checked before the interactive list so 'claudebot' (Anthropic's crawler) is
-  // not confused with 'Claude-User' (a real person driving Claude).
-  if (/\b(bot|crawler|spider)\b|gptbot|oai-searchbot|claudebot|google-extended|googlebot|bingbot|applebot|slurp|duckduckbot|yandex|baiduspider|semrush|ahrefs|mj12|dotbot|petalbot|nuclei|zgrab|masscan|censys|shodan|nmap|sqlmap|probe|prober|scan|registr|inspect|introspect|discover|verif|audit|scoring/.test(c))
+  // not confused with 'Claude-User' (a real person driving Claude). Scanners
+  // that name themselves after their research TOPIC rather than a scanner verb
+  // (prod case: 'mcp-rugpull-research', a periodic tools/list differ) must be
+  // matched here explicitly, or the \bmcp- agent catch-all below adopts them.
+  if (/\b(bot|crawler|spider)\b|gptbot|oai-searchbot|claudebot|google-extended|googlebot|bingbot|applebot|slurp|duckduckbot|yandex|baiduspider|semrush|ahrefs|mj12|dotbot|petalbot|nuclei|zgrab|masscan|censys|shodan|nmap|sqlmap|probe|prober|scan|registr|inspect|introspect|discover|verif|audit|scoring|rug-?pull/.test(c))
     return { kind: 'crawler', label: 'crawler/scanner' };
   // Interactive AI clients: a real person is in the loop (chat UI, IDE,
   // desktop app). 'Claude-User' is the name Claude.ai sends for a
