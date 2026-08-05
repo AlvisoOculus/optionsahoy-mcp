@@ -66,6 +66,23 @@ export function isToolName(value: string): value is ToolName {
   return TOOL_NAMES.has(value);
 }
 
+// The calculator each tool corresponds to: its /tools/<slug> page on the web
+// side and its /api/v1/<slug> REST endpoint. Structured routing data,
+// declared once and pinned by test to the two places that already encode the
+// same adjacency by hand (a2a.ts SKILLS[].rest and the free-tool URLs in
+// sessions.ts). Kept out of McpTool itself so it never leaks into the
+// published toolspec.json, which is a public artifact.
+export const TOOL_SLUG: Record<ToolName, string> = {
+  amt_iso_optimize: 'amt-iso',
+  nso_calculate: 'nso',
+  rsu_sell_vs_hold: 'rsu-sell-vs-hold',
+  concentration_analyze: 'concentration',
+  protective_put_price: 'protective-put',
+  qsbs_check: 'qsbs',
+  equity_funding_plan: 'equity-funding',
+  rsu_lot_optimize: 'rsu-lot-order',
+};
+
 export type McpTool = {
   name: ToolName;
   description: string;

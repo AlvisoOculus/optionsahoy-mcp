@@ -195,7 +195,7 @@ async function handle(
             const count = sessionDeps
               ? await bumpSessionCallCount(sessionDeps.db, sessionDeps.sessionId)
               : BARE_CALL_COUNT;
-            const next = nextStepsFor(name, count, sessionDeps?.sessionId);
+            const next = nextStepsFor(name, count, sessionDeps?.sessionId, args);
             if (next) {
               const existingMeta = isParams(result._meta) ? result._meta : {};
               result._meta = { ...existingMeta, optionsahoy: next };
