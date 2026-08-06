@@ -35,7 +35,12 @@ export function classifyClient(
   // that name themselves after their research TOPIC rather than a scanner verb
   // (prod case: 'mcp-rugpull-research', a periodic tools/list differ) must be
   // matched here explicitly, or the \bmcp- agent catch-all below adopts them.
-  if (/\b(bot|crawler|spider)\b|gptbot|oai-searchbot|claudebot|google-extended|googlebot|bingbot|applebot|slurp|duckduckbot|yandex|baiduspider|semrush|ahrefs|mj12|dotbot|petalbot|nuclei|zgrab|masscan|censys|shodan|nmap|sqlmap|probe|prober|scan|registr|inspect|introspect|discover|verif|audit|scoring|rug-?pull/.test(c))
+  // The catalog/validator/monitor terms come from a 2026-08-06 audit of the
+  // 30-day realClients list: ~20% of "real" connects were mcp-* robots
+  // (prsm-mcp-graph, agentage-mcp-catalog-health, mcp-uptime, mcp-scraper,
+  // kimi-mcp-validator, ...). Deliberately ABSENT: bare 'graph' (LangGraph),
+  // bare 'index' (llama-index), bare 'health'/'test'/'client'.
+  if (/\b(bot|crawler|spider)\b|gptbot|oai-searchbot|claudebot|google-extended|googlebot|bingbot|applebot|slurp|duckduckbot|yandex|baiduspider|semrush|ahrefs|mj12|dotbot|petalbot|nuclei|zgrab|masscan|censys|shodan|nmap|sqlmap|probe|prober|scan|registr|inspect|introspect|discover|verif|audit|scoring|rug-?pull|catalog|uptime|indexer|scraper|validat|survey|spec-check|vouch|trust-index|detector|\bguard\b|prsm|prism/.test(c))
     return { kind: 'crawler', label: 'crawler/scanner' };
   // Interactive AI clients: a real person is in the loop (chat UI, IDE,
   // desktop app). 'Claude-User' is the name Claude.ai sends for a
@@ -44,7 +49,7 @@ export function classifyClient(
     return { kind: 'human', label: 'human (AI assistant)' };
   // Programmatic AI agent frameworks / SDKs: an automated caller that may have
   // no person watching the loop.
-  if (/langchain|llama-?index|crewai|fast-?agent|anthropic|openai|\bmcp-|autogpt|agno|smolagents|pydantic-ai|vercel-ai/.test(c))
+  if (/langchain|langgraph|llama-?index|crewai|fast-?agent|anthropic|openai|\bmcp-|autogpt|agno|smolagents|pydantic-ai|vercel-ai/.test(c))
     return { kind: 'agent', label: 'AI agent' };
   // Generic programmatic HTTP clients: a dev test or an unknown integration.
   if (c === '') return { kind: 'tool', label: 'no UA (script)' };
