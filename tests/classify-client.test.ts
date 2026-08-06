@@ -71,10 +71,26 @@ describe('classifyClient — real-vs-bot of captured examples', () => {
     expect(isRealClient('retell-mcp-client', 'mcp')).toBe(true);
   });
 
+  it('catalog/validator/monitor robots are crawlers, not agents (2026-08-06 audit)', () => {
+    // Every name below sat in the live realClients list riding the \bmcp-
+    // agent catch-all — together ~20% of the 30-day "real" connect count.
+    for (const c of ['prsm-mcp-graph', 'agentage-mcp-catalog-health', 'agentage-mcp-catalog',
+      'loop-mcp-catalog-fetch', 'mcp-indexer', 'mcp-trust-index', 'mcp-uptime', 'mcp-scraper',
+      'mcp-vouch', 'mcp-spec-check', 'mcp-version-survey', 'kimi-mcp-validator/1.0',
+      'mcp-apps-validator', 'mcp-server-validator', 'mcp-guard', 'mcp-prism',
+      'apps-atlas-openai-sdk-detector']) {
+      expect(kind(c, 'mcp')).toBe('crawler');
+      expect(isRealClient(c, 'mcp')).toBe(false);
+    }
+  });
+
   it('real agent frameworks are NOT swept up by the probe patterns', () => {
     // 'index' is deliberately absent from the crawler regex so llama-index
-    // stays an agent; python-httpx stays a tool.
+    // stays an agent; 'graph' is absent so LangGraph stays one; python-httpx
+    // stays a tool; guardrails is not caught by \bguard\b.
     expect(kind('llama-index', 'mcp')).toBe('agent');
+    expect(kind('langgraph', 'mcp')).toBe('agent');
+    expect(kind('guardrails-agent', 'mcp')).not.toBe('crawler');
     expect(kind('python-httpx/0.28.1', 'mcp')).toBe('tool');
   });
 
