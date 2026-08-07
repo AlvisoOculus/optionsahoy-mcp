@@ -2,7 +2,7 @@
 //
 // Scenario deep links: carry the caller's own arguments to the free web tool
 // so they land on their numbers instead of an empty form. Shared by the MCP
-// `next_steps.free_tool` link (functions/_lib/sessions.ts) and the REST
+// `next_steps.web_tool` link (functions/_lib/sessions.ts) and the REST
 // `next_steps.web_tool` link (functions/_lib/api.ts).
 //
 // This side forwards the calculation's own resolved input and knows nothing
