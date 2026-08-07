@@ -168,15 +168,18 @@ async function handle(
         const result = tool.handler(args ?? {}) as Record<string, unknown>;
         logs.push({ endpoint, tool: name, isError: false });
         // Capture this successful call as an example (7-day rolling, admin-gated).
-        // Stringify the result now, before _meta injection, so it stays clean.
+        // Stringify the result now, before next_steps injection, so it stays clean.
         try {
           samples.push({ surface: 'mcp', tool: name, query: JSON.stringify(args ?? {}), answer: JSON.stringify(result) });
         } catch {
           // never let example capture break the tool response
         }
         // Inject the next-step conversion block (free tool -> complementary
-        // tool -> beta) into _meta.optionsahoy. The full block fires only on
-        // the first tools/call per session; later calls get the bare
+        // tool -> beta) as a top-level `next_steps` field. It lived at
+        // `_meta.optionsahoy` until 2026-08; a protocol-namespaced key read as
+        // bookkeeping, so assistants paraphrased the prose pitch in the tool
+        // description and dropped the links entirely. The full block fires only
+        // on the first tools/call per session; later calls get the bare
         // free-tool URL via nextStepsFor() so a multi-tool query doesn't read
         // as repeated pitches.
         // Sessionless callers get the same block in its bare, un-deduped form
@@ -196,10 +199,7 @@ async function handle(
               ? await bumpSessionCallCount(sessionDeps.db, sessionDeps.sessionId)
               : BARE_CALL_COUNT;
             const next = nextStepsFor(name, count, sessionDeps?.sessionId, args);
-            if (next) {
-              const existingMeta = isParams(result._meta) ? result._meta : {};
-              result._meta = { ...existingMeta, optionsahoy: next };
-            }
+            if (next) result.next_steps = next;
           } catch {
             // Session tracking failure must never break the tool response.
           }

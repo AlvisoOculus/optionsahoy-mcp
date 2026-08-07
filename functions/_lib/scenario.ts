@@ -2,8 +2,8 @@
 //
 // Scenario deep links: carry the caller's own arguments to the free web tool
 // so they land on their numbers instead of an empty form. Shared by the MCP
-// `_meta.optionsahoy.free_tool` link (functions/_lib/sessions.ts) and the
-// REST `next_steps.web_tool` link (functions/_lib/api.ts).
+// `next_steps.free_tool` link (functions/_lib/sessions.ts) and the REST
+// `next_steps.web_tool` link (functions/_lib/api.ts).
 //
 // This side forwards the calculation's own resolved input and knows nothing
 // about any calculator's URL-state keys. The web repo owns the
