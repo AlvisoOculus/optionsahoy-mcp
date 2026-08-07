@@ -34,10 +34,6 @@ import { BARE_CALL_COUNT, nextStepsFor } from '../functions/_lib/sessions';
 
 const SERVER_INFO = { name: 'optionsahoy', version: SERVER_VERSION };
 
-function isPlainObject(v: unknown): v is Record<string, unknown> {
-  return typeof v === 'object' && v !== null && !Array.isArray(v);
-}
-
 // Precomputed list projections + name lookups, mirroring the precomputation
 // in functions/mcp.ts so list calls don't allocate on every request and
 // lookups are O(1).
@@ -92,7 +88,7 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
     // real install path with real weekly downloads) were the one tool
     // surface offering no way back to the web tools.
     const next = nextStepsFor(req.params.name, BARE_CALL_COUNT, undefined, req.params.arguments);
-    if (next) result._meta = { ...(isPlainObject(result._meta) ? result._meta : {}), optionsahoy: next };
+    if (next) result.next_steps = next;
     // Per MCP spec, tools that declare an outputSchema return the result
     // object as `structuredContent` plus a backwards-compatible serialized
     // text block. Error results stay text-only (no structuredContent).

@@ -78,3 +78,36 @@ describe('REST also_run graph stays consistent with the MCP related-tool graph',
     }
   });
 });
+
+// --- cross-surface field-name invariant -------------------------------------
+//
+// REST and MCP both emit a field called `next_steps`. They are built by
+// different modules (REST_NEXT_STEPS in _lib/api.ts, nextStepsFor in
+// _lib/sessions.ts) and their payloads are deliberately NOT identical: MCP's
+// `also_run` is prose for a model to read, REST's is an array of endpoint
+// paths for a program to iterate, and MCP's `beta` appears only on the first
+// call of a session. What must not drift is the NAME of the link field. They
+// were `web_tool` and `free_tool` until 2026-08, which meant one product spoke
+// two dialects of the same envelope for no reason.
+describe('next_steps field names agree across REST and MCP', () => {
+  it('both surfaces call the calculator link `web_tool`', async () => {
+    const { REST_NEXT_STEPS } = await import('../functions/_lib/api');
+    const { nextStepsFor } = await import('../functions/_lib/sessions');
+    const rest = REST_NEXT_STEPS['amt-iso'] as unknown as Record<string, unknown>;
+    const mcp = nextStepsFor('amt_iso_optimize', 1, undefined, undefined) as unknown as Record<string, unknown>;
+    expect(typeof rest.web_tool).toBe('string');
+    expect(typeof mcp.web_tool).toBe('string');
+    // The old MCP name must not come back on either side.
+    expect(rest).not.toHaveProperty('free_tool');
+    expect(mcp).not.toHaveProperty('free_tool');
+  });
+
+  it('pins the shape differences that ARE intended', async () => {
+    const { REST_NEXT_STEPS } = await import('../functions/_lib/api');
+    const { nextStepsFor } = await import('../functions/_lib/sessions');
+    // REST iterates, MCP reads. Changing either is a product decision, not a
+    // refactor, so pin both.
+    expect(Array.isArray(REST_NEXT_STEPS['amt-iso']!.also_run)).toBe(true);
+    expect(typeof nextStepsFor('amt_iso_optimize', 1, undefined, undefined)!.also_run).toBe('string');
+  });
+});

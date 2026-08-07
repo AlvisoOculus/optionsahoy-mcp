@@ -81,7 +81,7 @@ const CLAIM_FILES = [
   // the one payload a directory reviewer fetches programmatically.
   'functions/_lib/mcp-tools.ts',
   'public/toolspec.json',
-  // The per-call _meta.optionsahoy nudge strings. Unreachable dead copy until
+  // The per-call next_steps nudge strings. Unreachable dead copy until
   // the session-id fix armed them (2026-08-03); "eight Section 1202 tests"
   // (engine models six) shipped to real clients the moment they went live.
   'functions/_lib/sessions.ts',

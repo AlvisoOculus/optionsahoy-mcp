@@ -233,7 +233,7 @@ const VOLATILITY_SCHEMA = {
 //   - Infinity serializes to null (JSON has no Infinity), so ratio fields
 //     that can divide by zero are typed ['number', 'null'].
 //   - additionalProperties is left open (JSON Schema default) so the
-//     hosted server's optional `_meta` injection and future additive
+//     hosted server's optional `next_steps` injection and future additive
 //     fields never violate the schema.
 // ---------------------------------------------------------------------
 

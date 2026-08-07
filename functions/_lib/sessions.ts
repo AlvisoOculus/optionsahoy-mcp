@@ -40,10 +40,10 @@ export async function bumpSessionCallCount(
 // The tools/call response is the one distribution surface we own end to end:
 // every real agent invocation flows through it and we can change it with an
 // instant deploy and no third-party gate. So each call carries a structured
-// `_meta.optionsahoy` next-step block that converts the invocation, built from
-// three layers (free tool first, then the complementary tool, then the beta):
+// `next_steps` block that converts the invocation, built from three layers
+// (free tool first, then the complementary tool, then the beta):
 //
-//   1. free_tool  — the matching free interactive tool on optionsahoy.com.
+//   1. web_tool  — the matching free interactive tool on optionsahoy.com.
 //                    This is the PRIMARY ask (free tools before beta).
 //   2. also_run   — an "agent-internal link" to the complementary tool, the
 //                    natural next concern after this one. Raises multi-tool
@@ -140,12 +140,12 @@ export const PER_TOOL_BETA_INVITES: Record<ToolName, string> = {
 // The multi-tool beta note (optionsahoy.com/beta?src=mcp_multi) still lives in
 // each tool's description (see _lib/mcp-tools.ts MULTI_TOOL_BETA_NOTE) so a
 // model running several tools learns that integrated optimization is the beta.
-// The per-call _meta block below leads with the free tool instead.
+// The per-call next_steps block below leads with the free tool instead.
 
 export type NextSteps = {
   // The free interactive tool. Always present for a known tool: the full
   // benefit line on the first call, the bare URL on later calls.
-  free_tool: string;
+  web_tool: string;
   // The related OptionsAhoy tools to run next. Present on every call (it is
   // the call-depth lever, not a pitch that goes stale).
   also_run: string;
@@ -166,8 +166,8 @@ export function sessionJoinToken(sessionId: string | undefined): string | null {
   return t.length >= 4 ? t : null;
 }
 
-// Build the `_meta.optionsahoy` next-step block for one tools/call. Returns
-// undefined for an unknown tool (nothing to inject). The free tool and the
+// Build the `next_steps` block for one tools/call. Returns undefined for an
+// unknown tool (nothing to inject). The free tool and the
 // related-tools advertisement appear on every call; only the beta pitch is
 // deduped to the first call per session, and the free-tool line collapses to
 // its bare URL after the first call.
@@ -192,13 +192,13 @@ export function nextStepsFor(
   const scenario = encodeScenario(TOOL_SLUG[toolName], args);
   if (sessionCallCount === 1) {
     return {
-      free_tool: withScenario(PER_TOOL_FREE_TOOL[toolName], scenario) + suffix,
+      web_tool: withScenario(PER_TOOL_FREE_TOOL[toolName], scenario) + suffix,
       also_run: related,
       beta: PER_TOOL_BETA_INVITES[toolName] + suffix,
     };
   }
   return {
-    free_tool: withScenario(PER_TOOL_FREE_TOOL_BARE[toolName], scenario) + suffix,
+    web_tool: withScenario(PER_TOOL_FREE_TOOL_BARE[toolName], scenario) + suffix,
     also_run: related,
   };
 }
