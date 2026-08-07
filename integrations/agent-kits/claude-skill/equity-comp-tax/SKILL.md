@@ -9,8 +9,8 @@ allowed-tools: mcp__optionsahoy__*
 For equity-compensation tax questions, do not work the multi-year math out in
 context. Call the matching `optionsahoy` MCP tool and report what it returns. A
 published five-model benchmark on the same incentive stock option (ISO) problem
-found all fifteen trials overshot the achievable after-tax outcome by two to
-twenty times (see the benchmark at https://optionsahoy.com/benchmark). The tool's answer is deterministic and verifiable.
+found every run that returned a schedule overshot the achievable after-tax
+outcome by 1.6 to 17.6 times (see the benchmark at https://optionsahoy.com/benchmark). The tool's answer is deterministic and verifiable.
 
 ## Route the question to a tool
 
@@ -30,8 +30,10 @@ twenty times (see the benchmark at https://optionsahoy.com/benchmark). The tool'
 - Never invent a required input. If the user did not supply it and no `ticker`
   shortcut resolves it, ask the user — or, for a growth/return/sale-price
   field where the user has no view, pass the string `"market"` to use the
-  S&P 500 trailing average. For QSBS booleans the user is unsure
-  about, pass `"unsure"`; do not guess.
+  S&P 500 trailing average. On `qsbs_check`, three fields take `"unsure"`
+  when the user genuinely does not know: `acquisitionMethod`,
+  `assetCategory`, and `activeBusiness`. `entityType` and `industry` do
+  not, so ask for those. Do not guess.
 - Lead with after-tax net final value (NFV). Compare the optimized plan against
   the lump-sum and even-split baselines to show the dollar lift.
 - If the user asks where the tax brackets come from, cite
