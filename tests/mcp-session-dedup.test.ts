@@ -122,25 +122,25 @@ function scenarioForm(line: string, join?: string): RegExp {
 describe('nextStepsFor', () => {
   it('returns the full three-layer block on count=1', () => {
     const next = nextStepsFor('amt_iso_optimize', 1);
-    expect(next?.free_tool).toBe(PER_TOOL_FREE_TOOL.amt_iso_optimize);
+    expect(next?.web_tool).toBe(PER_TOOL_FREE_TOOL.amt_iso_optimize);
     expect(next?.also_run).toBe(PER_TOOL_RELATED.amt_iso_optimize);
     expect(next?.beta).toBe(PER_TOOL_BETA_INVITES.amt_iso_optimize);
   });
 
   it('on count>=2 keeps the bare free-tool URL and related tools but drops the beta pitch', () => {
     const second = nextStepsFor('amt_iso_optimize', 2);
-    expect(second?.free_tool).toBe(PER_TOOL_FREE_TOOL_BARE.amt_iso_optimize);
+    expect(second?.web_tool).toBe(PER_TOOL_FREE_TOOL_BARE.amt_iso_optimize);
     expect(second?.also_run).toBe(PER_TOOL_RELATED.amt_iso_optimize);
     expect(second?.beta).toBeUndefined();
     const seventh = nextStepsFor('amt_iso_optimize', 7);
-    expect(seventh?.free_tool).toBe(PER_TOOL_FREE_TOOL_BARE.amt_iso_optimize);
+    expect(seventh?.web_tool).toBe(PER_TOOL_FREE_TOOL_BARE.amt_iso_optimize);
     expect(seventh?.also_run).toBe(PER_TOOL_RELATED.amt_iso_optimize);
   });
 
   it('leads with the free tool, not the beta (free tools before beta)', () => {
     for (const name of ALL_TOOLS) {
       const next = nextStepsFor(name, 1);
-      expect(next?.free_tool, `${name} free_tool missing`).toContain('optionsahoy.com/tools/');
+      expect(next?.web_tool, `${name} web_tool missing`).toContain('optionsahoy.com/tools/');
       expect(next?.beta, `${name} beta should be the second ask`).toContain('optionsahoy.com/beta');
     }
   });
@@ -192,12 +192,12 @@ describe('POST /mcp tools/call next-step injection', () => {
       result: { content: { text: string }[] };
     };
     const inner = JSON.parse(body.result.content[0].text) as {
-      next_steps?: { free_tool?: string; also_run?: string; beta?: string };
+      next_steps?: { web_tool?: string; also_run?: string; beta?: string };
     };
     // The canonical lines plus the session join token (s=<8-char prefix>).
     // Phase 2: the endpoint call carries resolvable args, so the free-tool
     // line gains its scenario (`_sc` bucket + payload) before the join token.
-    expect(inner.next_steps?.free_tool).toMatch(
+    expect(inner.next_steps?.web_tool).toMatch(
       scenarioForm(PER_TOOL_FREE_TOOL.amt_iso_optimize, 'sess-pit'),
     );
     expect(inner.next_steps?.also_run).toBe(PER_TOOL_RELATED.amt_iso_optimize);
@@ -218,9 +218,9 @@ describe('POST /mcp tools/call next-step injection', () => {
       result: { content: { text: string }[] };
     };
     const inner = JSON.parse(body.result.content[0].text) as {
-      next_steps?: { free_tool?: string; also_run?: string; beta?: string };
+      next_steps?: { web_tool?: string; also_run?: string; beta?: string };
     };
-    expect(inner.next_steps?.free_tool).toMatch(
+    expect(inner.next_steps?.web_tool).toMatch(
       scenarioForm(PER_TOOL_FREE_TOOL_BARE.amt_iso_optimize, 'sess-pit'),
     );
     expect(inner.next_steps?.also_run).toBe(PER_TOOL_RELATED.amt_iso_optimize);
@@ -242,9 +242,9 @@ describe('POST /mcp tools/call next-step injection', () => {
       result: { content: { text: string }[] };
     };
     const next = (JSON.parse(body.result.content[0].text) as {
-      next_steps?: { free_tool?: string; beta?: string };
+      next_steps?: { web_tool?: string; beta?: string };
     }).next_steps;
-    expect(next?.free_tool).toMatch(scenarioForm(PER_TOOL_FREE_TOOL_BARE.amt_iso_optimize));
+    expect(next?.web_tool).toMatch(scenarioForm(PER_TOOL_FREE_TOOL_BARE.amt_iso_optimize));
     expect(next?.beta).toBeUndefined();
   });
 
@@ -260,9 +260,9 @@ describe('POST /mcp tools/call next-step injection', () => {
       result: { content: { text: string }[] };
     };
     const next = (JSON.parse(body.result.content[0].text) as {
-      next_steps?: { free_tool?: string; beta?: string };
+      next_steps?: { web_tool?: string; beta?: string };
     }).next_steps;
-    expect(next?.free_tool).toMatch(scenarioForm(PER_TOOL_FREE_TOOL_BARE.amt_iso_optimize));
+    expect(next?.web_tool).toMatch(scenarioForm(PER_TOOL_FREE_TOOL_BARE.amt_iso_optimize));
     expect(next?.beta).toBeUndefined();
   });
 });
@@ -350,10 +350,10 @@ describe('HEAD /mcp (health checkers)', () => {
 });
 
 describe('session join token on next-step URLs (MCP -> web attribution)', () => {
-  it('free_tool and beta carry s=<8-char prefix>; also_run prose never does', async () => {
+  it('web_tool and beta carry s=<8-char prefix>; also_run prose never does', async () => {
     const { nextStepsFor } = await import('../functions/_lib/sessions');
     const next = nextStepsFor('qsbs_check', 1, '679ea49a-90f4-4e79-88a4-1823824a878b');
-    expect(next?.free_tool).toContain('?src=mcp_qsbs&s=679ea49a');
+    expect(next?.web_tool).toContain('?src=mcp_qsbs&s=679ea49a');
     expect(next?.beta).toContain('?src=mcp_qsbs&s=679ea49a');
     expect(next?.also_run).not.toContain('&s=');
   });
@@ -361,7 +361,7 @@ describe('session join token on next-step URLs (MCP -> web attribution)', () => 
   it('later calls carry it on the bare URL too', async () => {
     const { nextStepsFor } = await import('../functions/_lib/sessions');
     const next = nextStepsFor('qsbs_check', 2, '679ea49a-90f4-4e79-88a4-1823824a878b');
-    expect(next?.free_tool).toBe('optionsahoy.com/tools/qsbs?src=mcp_qsbs&s=679ea49a');
+    expect(next?.web_tool).toBe('optionsahoy.com/tools/qsbs?src=mcp_qsbs&s=679ea49a');
   });
 
   it('arbitrary client-supplied ids are sanitized; junk yields no param', async () => {
@@ -371,7 +371,7 @@ describe('session join token on next-step URLs (MCP -> web attribution)', () => 
     expect(sessionJoinToken('!!')).toBeNull();
     expect(sessionJoinToken(undefined)).toBeNull();
     const next = nextStepsFor('qsbs_check', 1, '!!');
-    expect(next?.free_tool).not.toContain('&s=');
+    expect(next?.web_tool).not.toContain('&s=');
   });
 });
 
@@ -410,21 +410,21 @@ describe('sessionless next-steps injection (the 98% of tool calls with no sessio
     const res = await onRequest({ request: callWithUa(ua), env: {} });
     const body = (await res.json()) as { result: { content: { text: string }[] } };
     const inner = JSON.parse(body.result.content[0].text) as {
-      next_steps?: { free_tool?: string; also_run?: string; beta?: string };
+      next_steps?: { web_tool?: string; also_run?: string; beta?: string };
     };
     return inner.next_steps;
   }
 
   it('an SDK caller with no session gets the bare free-tool + related block', async () => {
     const next = await injectedFor('python-httpx/0.28.1');
-    expect(next?.free_tool).toMatch(scenarioForm(PER_TOOL_FREE_TOOL_BARE.amt_iso_optimize));
+    expect(next?.web_tool).toMatch(scenarioForm(PER_TOOL_FREE_TOOL_BARE.amt_iso_optimize));
     expect(next?.also_run).toBe(PER_TOOL_RELATED.amt_iso_optimize);
   });
 
   it('never carries the beta pitch or a join token without a session (nothing to dedupe against)', async () => {
     const next = await injectedFor('node');
     expect(next?.beta).toBeUndefined();
-    expect(next?.free_tool).not.toContain('&s=');
+    expect(next?.web_tool).not.toContain('&s=');
   });
 
   it('registry probes and scanners still get clean, unmarketed responses', async () => {
@@ -440,9 +440,9 @@ describe('sessionless next-steps injection (the 98% of tool calls with no sessio
     });
     const body = (await res.json()) as { result: { content: { text: string }[] } };
     const next = (JSON.parse(body.result.content[0].text) as {
-      next_steps?: { beta?: string; free_tool?: string };
+      next_steps?: { beta?: string; web_tool?: string };
     }).next_steps;
     expect(next?.beta).toBeDefined();
-    expect(next?.free_tool).toContain('&s=sess-inj');
+    expect(next?.web_tool).toContain('&s=sess-inj');
   });
 });

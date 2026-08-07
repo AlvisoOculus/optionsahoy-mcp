@@ -166,8 +166,8 @@ describe('withScenario', () => {
 describe('nextStepsFor with arguments', () => {
   it('carries the scenario on the free tool, in its own src bucket', () => {
     const next = nextStepsFor('nso_calculate', 1, undefined, NSO_ARGS)!;
-    expect(next.free_tool).toContain('optionsahoy.com/tools/nso?src=mcp_nso_sc&mcp=');
-    expect((decode(payloadOf(next.free_tool)!) as { i: unknown }).i).toEqual(
+    expect(next.web_tool).toContain('optionsahoy.com/tools/nso?src=mcp_nso_sc&mcp=');
+    expect((decode(payloadOf(next.web_tool)!) as { i: unknown }).i).toEqual(
       JSON.parse(JSON.stringify(parseNsoInput(NSO_ARGS))),
     );
   });
@@ -182,18 +182,18 @@ describe('nextStepsFor with arguments', () => {
 
   it('keeps the join token last, after the scenario', () => {
     const next = nextStepsFor('nso_calculate', 1, '679ea49a-90f4-4e79-88a4-1823824a878b', NSO_ARGS)!;
-    expect(next.free_tool).toMatch(/\?src=mcp_nso_sc&mcp=[A-Za-z0-9_-]+&s=679ea49a$/);
+    expect(next.web_tool).toMatch(/\?src=mcp_nso_sc&mcp=[A-Za-z0-9_-]+&s=679ea49a$/);
   });
 
   it('carries the scenario on later calls too, where the link is bare', () => {
     const next = nextStepsFor('nso_calculate', 2, undefined, NSO_ARGS)!;
-    expect(next.free_tool).toMatch(/^optionsahoy\.com\/tools\/nso\?src=mcp_nso_sc&mcp=[A-Za-z0-9_-]+$/);
+    expect(next.web_tool).toMatch(/^optionsahoy\.com\/tools\/nso\?src=mcp_nso_sc&mcp=[A-Za-z0-9_-]+$/);
   });
 
   it('is unchanged when no args are passed, or when args do not resolve', () => {
-    expect(nextStepsFor('nso_calculate', 2)!.free_tool).toBe(PER_TOOL_FREE_TOOL_BARE.nso_calculate);
+    expect(nextStepsFor('nso_calculate', 2)!.web_tool).toBe(PER_TOOL_FREE_TOOL_BARE.nso_calculate);
     // Unresolvable args on any tool degrade to the bare link.
-    expect(nextStepsFor('qsbs_check', 1, undefined, { shares: 1 })!.free_tool).toMatch(/\?src=mcp_qsbs$/);
+    expect(nextStepsFor('qsbs_check', 1, undefined, { shares: 1 })!.web_tool).toMatch(/\?src=mcp_qsbs$/);
   });
 });
 
@@ -353,10 +353,10 @@ describe('phase 2 - every tool emits, and the payload cap holds where it must', 
       const next = nextStepsFor(toolName, 2, undefined, args);
       expect(next, toolName).toBeDefined();
       if (toolName === 'protective_put_price') {
-        expect(next!.free_tool, 'protective-put must keep the bare link').toMatch(/\?src=mcp_protective_put$/);
+        expect(next!.web_tool, 'protective-put must keep the bare link').toMatch(/\?src=mcp_protective_put$/);
       } else {
         expect(
-          next!.free_tool,
+          next!.web_tool,
           `${toolName} should emit a scenario link`,
         ).toMatch(new RegExp(`/tools/${slug}\\?src=mcp_[a-z_]+_sc&mcp=[A-Za-z0-9_-]+$`));
       }
@@ -374,7 +374,7 @@ describe('phase 2 - every tool emits, and the payload cap holds where it must', 
     expect(() => parseRsuLotOptimizeInput(args)).not.toThrow();
     expect(encodeScenario('rsu-lot-order', args)).toBeNull();
     const next = nextStepsFor('rsu_lot_optimize', 2, undefined, args)!;
-    expect(next.free_tool).toMatch(/\?src=mcp_rsu_lot_order$/);
+    expect(next.web_tool).toMatch(/\?src=mcp_rsu_lot_order$/);
   });
 
   it('a typical multi-stack equity_funding_plan stays under the cap', () => {

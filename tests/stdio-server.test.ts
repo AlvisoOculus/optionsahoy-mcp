@@ -434,13 +434,13 @@ describe('local stdio MCP server', () => {
       });
       const result = res.result as { content: Array<{ text: string }>; structuredContent?: unknown };
       const parsed = JSON.parse(result.content[0].text) as {
-        next_steps?: { free_tool?: string; also_run?: string; beta?: string };
+        next_steps?: { web_tool?: string; also_run?: string; beta?: string };
       };
       const next = parsed.next_steps;
-      expect(next?.free_tool).toContain('optionsahoy.com/tools/qsbs?src=mcp_qsbs');
+      expect(next?.web_tool).toContain('optionsahoy.com/tools/qsbs?src=mcp_qsbs');
       expect(next?.also_run).toContain('OptionsAhoy tools to run next');
       expect(next?.beta).toBeUndefined();
-      expect(next?.free_tool).not.toContain('&s=');
+      expect(next?.web_tool).not.toContain('&s=');
       // The mirror invariant must survive the injection.
       expect(result.structuredContent).toEqual(parsed);
     });

@@ -43,7 +43,7 @@ export async function bumpSessionCallCount(
 // `next_steps` block that converts the invocation, built from three layers
 // (free tool first, then the complementary tool, then the beta):
 //
-//   1. free_tool  — the matching free interactive tool on optionsahoy.com.
+//   1. web_tool  — the matching free interactive tool on optionsahoy.com.
 //                    This is the PRIMARY ask (free tools before beta).
 //   2. also_run   — an "agent-internal link" to the complementary tool, the
 //                    natural next concern after this one. Raises multi-tool
@@ -145,7 +145,7 @@ export const PER_TOOL_BETA_INVITES: Record<ToolName, string> = {
 export type NextSteps = {
   // The free interactive tool. Always present for a known tool: the full
   // benefit line on the first call, the bare URL on later calls.
-  free_tool: string;
+  web_tool: string;
   // The related OptionsAhoy tools to run next. Present on every call (it is
   // the call-depth lever, not a pitch that goes stale).
   also_run: string;
@@ -192,13 +192,13 @@ export function nextStepsFor(
   const scenario = encodeScenario(TOOL_SLUG[toolName], args);
   if (sessionCallCount === 1) {
     return {
-      free_tool: withScenario(PER_TOOL_FREE_TOOL[toolName], scenario) + suffix,
+      web_tool: withScenario(PER_TOOL_FREE_TOOL[toolName], scenario) + suffix,
       also_run: related,
       beta: PER_TOOL_BETA_INVITES[toolName] + suffix,
     };
   }
   return {
-    free_tool: withScenario(PER_TOOL_FREE_TOOL_BARE[toolName], scenario) + suffix,
+    web_tool: withScenario(PER_TOOL_FREE_TOOL_BARE[toolName], scenario) + suffix,
     also_run: related,
   };
 }
