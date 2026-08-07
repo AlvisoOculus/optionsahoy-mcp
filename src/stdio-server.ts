@@ -92,7 +92,7 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
     // real install path with real weekly downloads) were the one tool
     // surface offering no way back to the web tools.
     const next = nextStepsFor(req.params.name, BARE_CALL_COUNT, undefined, req.params.arguments);
-    if (next) result._meta = { ...(isPlainObject(result._meta) ? result._meta : {}), optionsahoy: next };
+    if (next) result.next_steps = next;
     // Per MCP spec, tools that declare an outputSchema return the result
     // object as `structuredContent` plus a backwards-compatible serialized
     // text block. Error results stay text-only (no structuredContent).

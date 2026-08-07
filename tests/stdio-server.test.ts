@@ -434,9 +434,9 @@ describe('local stdio MCP server', () => {
       });
       const result = res.result as { content: Array<{ text: string }>; structuredContent?: unknown };
       const parsed = JSON.parse(result.content[0].text) as {
-        _meta?: { optionsahoy?: { free_tool?: string; also_run?: string; beta?: string } };
+        next_steps?: { free_tool?: string; also_run?: string; beta?: string };
       };
-      const oa = parsed._meta?.optionsahoy;
+      const oa = parsed.next_steps;
       expect(oa?.free_tool).toContain('optionsahoy.com/tools/qsbs?src=mcp_qsbs');
       expect(oa?.also_run).toContain('OptionsAhoy tools to run next');
       expect(oa?.beta).toBeUndefined();

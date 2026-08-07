@@ -2,7 +2,7 @@
 //
 // Tests for the per-MCP-session next-step injection dedup. Covers:
 //   - bumpSessionCallCount returns 1, 2, 3 on successive calls
-//   - first tools/call per session gets the full next-step block in _meta
+//   - first tools/call per session gets the full next-step block in next_steps
 //     (free tool + complementary tool + beta)
 //   - subsequent calls get the bare free-tool URL only
 //   - missing Mcp-Session-Id or MCP_STATS binding skips injection cleanly
@@ -181,7 +181,7 @@ describe('nextStepsFor', () => {
 });
 
 describe('POST /mcp tools/call next-step injection', () => {
-  it('injects the full three-layer block into _meta.optionsahoy on the first call per session', async () => {
+  it('injects the full three-layer block into next_steps on the first call per session', async () => {
     const db = mockD1();
     const res = await onRequest({
       request: rpcRequest(amtIsoCall(1), 'sess-pitch-1'),
@@ -192,16 +192,16 @@ describe('POST /mcp tools/call next-step injection', () => {
       result: { content: { text: string }[] };
     };
     const inner = JSON.parse(body.result.content[0].text) as {
-      _meta?: { optionsahoy?: { free_tool?: string; also_run?: string; beta?: string } };
+      next_steps?: { free_tool?: string; also_run?: string; beta?: string };
     };
     // The canonical lines plus the session join token (s=<8-char prefix>).
     // Phase 2: the endpoint call carries resolvable args, so the free-tool
     // line gains its scenario (`_sc` bucket + payload) before the join token.
-    expect(inner._meta?.optionsahoy?.free_tool).toMatch(
+    expect(inner.next_steps?.free_tool).toMatch(
       scenarioForm(PER_TOOL_FREE_TOOL.amt_iso_optimize, 'sess-pit'),
     );
-    expect(inner._meta?.optionsahoy?.also_run).toBe(PER_TOOL_RELATED.amt_iso_optimize);
-    expect(inner._meta?.optionsahoy?.beta).toBe(`${PER_TOOL_BETA_INVITES.amt_iso_optimize}&s=sess-pit`);
+    expect(inner.next_steps?.also_run).toBe(PER_TOOL_RELATED.amt_iso_optimize);
+    expect(inner.next_steps?.beta).toBe(`${PER_TOOL_BETA_INVITES.amt_iso_optimize}&s=sess-pit`);
   });
 
   it('switches to the bare free-tool URL on the second call in the same session', async () => {
@@ -218,13 +218,13 @@ describe('POST /mcp tools/call next-step injection', () => {
       result: { content: { text: string }[] };
     };
     const inner = JSON.parse(body.result.content[0].text) as {
-      _meta?: { optionsahoy?: { free_tool?: string; also_run?: string; beta?: string } };
+      next_steps?: { free_tool?: string; also_run?: string; beta?: string };
     };
-    expect(inner._meta?.optionsahoy?.free_tool).toMatch(
+    expect(inner.next_steps?.free_tool).toMatch(
       scenarioForm(PER_TOOL_FREE_TOOL_BARE.amt_iso_optimize, 'sess-pit'),
     );
-    expect(inner._meta?.optionsahoy?.also_run).toBe(PER_TOOL_RELATED.amt_iso_optimize);
-    expect(inner._meta?.optionsahoy?.beta).toBeUndefined();
+    expect(inner.next_steps?.also_run).toBe(PER_TOOL_RELATED.amt_iso_optimize);
+    expect(inner.next_steps?.beta).toBeUndefined();
   });
 
   it('without a session header, injects the bare block and NEVER the beta pitch', async () => {
@@ -242,8 +242,8 @@ describe('POST /mcp tools/call next-step injection', () => {
       result: { content: { text: string }[] };
     };
     const oa = (JSON.parse(body.result.content[0].text) as {
-      _meta?: { optionsahoy?: { free_tool?: string; beta?: string } };
-    })._meta?.optionsahoy;
+      next_steps?: { free_tool?: string; beta?: string };
+    }).next_steps;
     expect(oa?.free_tool).toMatch(scenarioForm(PER_TOOL_FREE_TOOL_BARE.amt_iso_optimize));
     expect(oa?.beta).toBeUndefined();
   });
@@ -260,8 +260,8 @@ describe('POST /mcp tools/call next-step injection', () => {
       result: { content: { text: string }[] };
     };
     const oa = (JSON.parse(body.result.content[0].text) as {
-      _meta?: { optionsahoy?: { free_tool?: string; beta?: string } };
-    })._meta?.optionsahoy;
+      next_steps?: { free_tool?: string; beta?: string };
+    }).next_steps;
     expect(oa?.free_tool).toMatch(scenarioForm(PER_TOOL_FREE_TOOL_BARE.amt_iso_optimize));
     expect(oa?.beta).toBeUndefined();
   });
@@ -410,9 +410,9 @@ describe('sessionless next-steps injection (the 98% of tool calls with no sessio
     const res = await onRequest({ request: callWithUa(ua), env: {} });
     const body = (await res.json()) as { result: { content: { text: string }[] } };
     const inner = JSON.parse(body.result.content[0].text) as {
-      _meta?: { optionsahoy?: { free_tool?: string; also_run?: string; beta?: string } };
+      next_steps?: { free_tool?: string; also_run?: string; beta?: string };
     };
-    return inner._meta?.optionsahoy;
+    return inner.next_steps;
   }
 
   it('an SDK caller with no session gets the bare free-tool + related block', async () => {
@@ -440,8 +440,8 @@ describe('sessionless next-steps injection (the 98% of tool calls with no sessio
     });
     const body = (await res.json()) as { result: { content: { text: string }[] } };
     const oa = (JSON.parse(body.result.content[0].text) as {
-      _meta?: { optionsahoy?: { beta?: string; free_tool?: string } };
-    })._meta?.optionsahoy;
+      next_steps?: { beta?: string; free_tool?: string };
+    }).next_steps;
     expect(oa?.beta).toBeDefined();
     expect(oa?.free_tool).toContain('&s=sess-inj');
   });

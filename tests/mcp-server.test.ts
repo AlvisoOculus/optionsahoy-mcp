@@ -175,15 +175,15 @@ describe('POST /mcp — tools/call dispatches to the right calc', () => {
     } as Parameters<typeof computeAmtIso>[0]);
     // The calc payload must be byte-identical to the in-process result. Since
     // 2026-08-03 non-infra callers also get the next-steps block at
-    // `_meta.optionsahoy` (deliberately INSIDE the result so the nudge rides
-    // the text block the model actually reads; the output schemas do not set
+    // a top-level `next_steps` field (INSIDE the result so it rides the text
+    // block the model actually reads; the output schemas do not set
     // additionalProperties, so this stays schema-valid). Strip that one key
     // and everything else must match exactly - and it must be the ONLY
     // addition, so a future injection cannot quietly alter calc output.
     const parsed = JSON.parse(text) as Record<string, unknown>;
-    const { _meta, ...calcFields } = parsed;
+    const { next_steps, ...calcFields } = parsed;
     expect(JSON.stringify(calcFields)).toEqual(JSON.stringify(reference));
-    expect(Object.keys(_meta as object)).toEqual(['optionsahoy']);
+    expect(next_steps).toBeTruthy();
     // structuredContent is the same object the text block serializes.
     expect(json.result.structuredContent).toEqual(parsed);
   });
@@ -205,10 +205,10 @@ describe('POST /mcp — tools/call dispatches to the right calc', () => {
       saleDate: new Date('2026-03-15'),
     } as Parameters<typeof evaluateQsbs>[0]);
     // Same contract as the amt_iso case above: calc fields byte-identical,
-    // `_meta` the only permitted addition.
-    const { _meta, ...calcFields } = JSON.parse(text) as Record<string, unknown>;
+    // `next_steps` the only permitted addition.
+    const { next_steps, ...calcFields } = JSON.parse(text) as Record<string, unknown>;
     expect(JSON.stringify(calcFields)).toEqual(JSON.stringify(reference));
-    expect(Object.keys(_meta as object)).toEqual(['optionsahoy']);
+    expect(next_steps).toBeTruthy();
     expect(json.result.structuredContent).toEqual(JSON.parse(text));
   });
 
