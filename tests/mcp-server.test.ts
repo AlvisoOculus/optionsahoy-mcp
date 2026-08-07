@@ -174,9 +174,9 @@ describe('POST /mcp — tools/call dispatches to the right calc', () => {
       terminationDate: null,
     } as Parameters<typeof computeAmtIso>[0]);
     // The calc payload must be byte-identical to the in-process result. Since
-    // 2026-08-03 non-infra callers also get the next-steps block at
-    // a top-level `next_steps` field (INSIDE the result so it rides the text
-    // block the model actually reads; the output schemas do not set
+    // 2026-08-03 non-infra callers also get the next-steps block as a
+    // top-level `next_steps` field, inside the result so it rides the text
+    // block the model actually reads (the output schemas do not set
     // additionalProperties, so this stays schema-valid). Strip that one key
     // and everything else must match exactly - and it must be the ONLY
     // addition, so a future injection cannot quietly alter calc output.

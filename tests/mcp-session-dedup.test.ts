@@ -241,11 +241,11 @@ describe('POST /mcp tools/call next-step injection', () => {
     const body = (await res.json()) as {
       result: { content: { text: string }[] };
     };
-    const oa = (JSON.parse(body.result.content[0].text) as {
+    const next = (JSON.parse(body.result.content[0].text) as {
       next_steps?: { free_tool?: string; beta?: string };
     }).next_steps;
-    expect(oa?.free_tool).toMatch(scenarioForm(PER_TOOL_FREE_TOOL_BARE.amt_iso_optimize));
-    expect(oa?.beta).toBeUndefined();
+    expect(next?.free_tool).toMatch(scenarioForm(PER_TOOL_FREE_TOOL_BARE.amt_iso_optimize));
+    expect(next?.beta).toBeUndefined();
   });
 
   it('with a session header but no MCP_STATS binding, degrades to the bare block (cannot dedupe)', async () => {
@@ -259,11 +259,11 @@ describe('POST /mcp tools/call next-step injection', () => {
     const body = (await res.json()) as {
       result: { content: { text: string }[] };
     };
-    const oa = (JSON.parse(body.result.content[0].text) as {
+    const next = (JSON.parse(body.result.content[0].text) as {
       next_steps?: { free_tool?: string; beta?: string };
     }).next_steps;
-    expect(oa?.free_tool).toMatch(scenarioForm(PER_TOOL_FREE_TOOL_BARE.amt_iso_optimize));
-    expect(oa?.beta).toBeUndefined();
+    expect(next?.free_tool).toMatch(scenarioForm(PER_TOOL_FREE_TOOL_BARE.amt_iso_optimize));
+    expect(next?.beta).toBeUndefined();
   });
 });
 
@@ -406,7 +406,7 @@ describe('sessionless next-steps injection (the 98% of tool calls with no sessio
     });
   }
 
-  async function metaFor(ua: string | undefined) {
+  async function injectedFor(ua: string | undefined) {
     const res = await onRequest({ request: callWithUa(ua), env: {} });
     const body = (await res.json()) as { result: { content: { text: string }[] } };
     const inner = JSON.parse(body.result.content[0].text) as {
@@ -416,20 +416,20 @@ describe('sessionless next-steps injection (the 98% of tool calls with no sessio
   }
 
   it('an SDK caller with no session gets the bare free-tool + related block', async () => {
-    const oa = await metaFor('python-httpx/0.28.1');
-    expect(oa?.free_tool).toMatch(scenarioForm(PER_TOOL_FREE_TOOL_BARE.amt_iso_optimize));
-    expect(oa?.also_run).toBe(PER_TOOL_RELATED.amt_iso_optimize);
+    const next = await injectedFor('python-httpx/0.28.1');
+    expect(next?.free_tool).toMatch(scenarioForm(PER_TOOL_FREE_TOOL_BARE.amt_iso_optimize));
+    expect(next?.also_run).toBe(PER_TOOL_RELATED.amt_iso_optimize);
   });
 
   it('never carries the beta pitch or a join token without a session (nothing to dedupe against)', async () => {
-    const oa = await metaFor('node');
-    expect(oa?.beta).toBeUndefined();
-    expect(oa?.free_tool).not.toContain('&s=');
+    const next = await injectedFor('node');
+    expect(next?.beta).toBeUndefined();
+    expect(next?.free_tool).not.toContain('&s=');
   });
 
   it('registry probes and scanners still get clean, unmarketed responses', async () => {
     for (const ua of ['mcpregistry/1.0', 'smithery-probe', 'oa-e2e-live', 'Googlebot/2.1']) {
-      expect(await metaFor(ua), `${ua} must not be marketed to`).toBeUndefined();
+      expect(await injectedFor(ua), `${ua} must not be marketed to`).toBeUndefined();
     }
   });
 
@@ -439,10 +439,10 @@ describe('sessionless next-steps injection (the 98% of tool calls with no sessio
       env: { MCP_STATS: mockD1() },
     });
     const body = (await res.json()) as { result: { content: { text: string }[] } };
-    const oa = (JSON.parse(body.result.content[0].text) as {
+    const next = (JSON.parse(body.result.content[0].text) as {
       next_steps?: { beta?: string; free_tool?: string };
     }).next_steps;
-    expect(oa?.beta).toBeDefined();
-    expect(oa?.free_tool).toContain('&s=sess-inj');
+    expect(next?.beta).toBeDefined();
+    expect(next?.free_tool).toContain('&s=sess-inj');
   });
 });

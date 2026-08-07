@@ -34,10 +34,6 @@ import { BARE_CALL_COUNT, nextStepsFor } from '../functions/_lib/sessions';
 
 const SERVER_INFO = { name: 'optionsahoy', version: SERVER_VERSION };
 
-function isPlainObject(v: unknown): v is Record<string, unknown> {
-  return typeof v === 'object' && v !== null && !Array.isArray(v);
-}
-
 // Precomputed list projections + name lookups, mirroring the precomputation
 // in functions/mcp.ts so list calls don't allocate on every request and
 // lookups are O(1).

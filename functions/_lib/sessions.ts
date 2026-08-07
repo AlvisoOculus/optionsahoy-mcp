@@ -40,8 +40,8 @@ export async function bumpSessionCallCount(
 // The tools/call response is the one distribution surface we own end to end:
 // every real agent invocation flows through it and we can change it with an
 // instant deploy and no third-party gate. So each call carries a structured
-// `next_steps` block that converts the invocation, built from
-// three layers (free tool first, then the complementary tool, then the beta):
+// `next_steps` block that converts the invocation, built from three layers
+// (free tool first, then the complementary tool, then the beta):
 //
 //   1. free_tool  — the matching free interactive tool on optionsahoy.com.
 //                    This is the PRIMARY ask (free tools before beta).
@@ -166,8 +166,8 @@ export function sessionJoinToken(sessionId: string | undefined): string | null {
   return t.length >= 4 ? t : null;
 }
 
-// Build the `next_steps` block for one tools/call. Returns
-// undefined for an unknown tool (nothing to inject). The free tool and the
+// Build the `next_steps` block for one tools/call. Returns undefined for an
+// unknown tool (nothing to inject). The free tool and the
 // related-tools advertisement appear on every call; only the beta pitch is
 // deduped to the first call per session, and the free-tool line collapses to
 // its bare URL after the first call.

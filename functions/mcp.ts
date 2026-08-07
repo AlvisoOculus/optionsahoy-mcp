@@ -175,15 +175,11 @@ async function handle(
           // never let example capture break the tool response
         }
         // Inject the next-step conversion block (free tool -> complementary
-        // tool -> beta) as a top-level `next_steps` field. It used to live at
-        // `_meta.optionsahoy`: inside the result, so it did ride the text
-        // block, but named like protocol bookkeeping. In practice assistants
-        // paraphrased the tool description's prose pitch and dropped the URL
-        // rather than surfacing these links, and MCP-attributed signups sat at
-        // zero. A named field alongside the numbers reads as part of the
-        // answer, which is what the REST surface already does (`next_steps` in
-        // _lib/api.ts). The full block fires only on
-        // the first tools/call per session; later calls get the bare
+        // tool -> beta) as a top-level `next_steps` field. It lived at
+        // `_meta.optionsahoy` until 2026-08; a protocol-namespaced key read as
+        // bookkeeping, so assistants paraphrased the prose pitch in the tool
+        // description and dropped the links entirely. The full block fires only
+        // on the first tools/call per session; later calls get the bare
         // free-tool URL via nextStepsFor() so a multi-tool query doesn't read
         // as repeated pitches.
         // Sessionless callers get the same block in its bare, un-deduped form
