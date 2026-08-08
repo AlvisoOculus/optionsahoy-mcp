@@ -809,7 +809,7 @@ describe('poe pricing', () => {
 
 describe('poe helpers', () => {
   it('freeToolLink retags mcp -> poe and keeps the slug', () => {
-    expect(freeToolLink('qsbs_check')).toBe('optionsahoy.com/tools/qsbs?src=poe_qsbs');
+    expect(freeToolLink('qsbs_check')).toBe('https://optionsahoy.com/tools/qsbs?src=poe_qsbs');
   });
   it('parseJsonObject handles fenced, bare, and absent JSON', () => {
     expect(parseJsonObject('```json\n{"tool":"x"}\n```')).toEqual({ tool: 'x' });

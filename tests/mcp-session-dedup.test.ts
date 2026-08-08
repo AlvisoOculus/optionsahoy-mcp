@@ -361,7 +361,7 @@ describe('session join token on next-step URLs (MCP -> web attribution)', () => 
   it('later calls carry it on the bare URL too', async () => {
     const { nextStepsFor } = await import('../functions/_lib/sessions');
     const next = nextStepsFor('qsbs_check', 2, '679ea49a-90f4-4e79-88a4-1823824a878b');
-    expect(next?.web_tool).toBe('optionsahoy.com/tools/qsbs?src=mcp_qsbs&s=679ea49a');
+    expect(next?.web_tool).toBe('https://optionsahoy.com/tools/qsbs?src=mcp_qsbs&s=679ea49a');
   });
 
   it('arbitrary client-supplied ids are sanitized; junk yields no param', async () => {
