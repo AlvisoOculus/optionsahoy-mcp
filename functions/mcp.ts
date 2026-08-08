@@ -207,8 +207,23 @@ async function handle(
         // Per MCP spec, tools that declare an outputSchema return the result
         // object as `structuredContent` plus a backwards-compatible
         // serialized text block.
+        //
+        // The next-step lines ALSO go out as their own plain-prose text
+        // block. Chat hosts hand the model JSON as data and prose as words,
+        // and models relay words: the _meta era proved a link buried in a
+        // JSON field gets paraphrased away (a ChatGPT run surfaced a
+        // link-less beta pitch, mcp-attributed signups 0/30d), and promoting
+        // the field (#206) still left ChatGPT rendering no link at all.
+        // Agents parsing content[0] as JSON are unaffected.
+        const next = (result as { next_steps?: { web_tool?: string; also_run?: string; beta?: string } }).next_steps;
+        const prose = next
+          ? [next.web_tool, next.also_run, next.beta].filter(Boolean).join('\n\n')
+          : '';
         return ok(id, {
-          content: [{ type: 'text', text: JSON.stringify(result) }],
+          content: [
+            { type: 'text', text: JSON.stringify(result) },
+            ...(prose ? [{ type: 'text', text: prose }] : []),
+          ],
           structuredContent: result,
         });
       } catch (e) {

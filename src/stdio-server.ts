@@ -92,8 +92,14 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
     // Per MCP spec, tools that declare an outputSchema return the result
     // object as `structuredContent` plus a backwards-compatible serialized
     // text block. Error results stay text-only (no structuredContent).
+    // Same prose block the hosted server emits: chat hosts relay words,
+    // not JSON fields (see functions/mcp.ts).
+    const prose = next ? [next.web_tool, next.also_run, next.beta].filter(Boolean).join('\n\n') : '';
     return {
-      content: [{ type: 'text', text: JSON.stringify(result) }],
+      content: [
+        { type: 'text', text: JSON.stringify(result) },
+        ...(prose ? [{ type: 'text', text: prose }] : []),
+      ],
       structuredContent: result,
     };
   } catch (err) {
