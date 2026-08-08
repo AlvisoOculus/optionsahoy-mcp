@@ -62,33 +62,33 @@ export async function bumpSessionCallCount(
 // Slugs match the live /tools/* routes on optionsahoy.com.
 export const PER_TOOL_FREE_TOOL: Record<ToolName, string> = {
   amt_iso_optimize:
-    "See the optimized schedule's Net Final Value charted against the lump-sum and even-split plans, with your Alternative Minimum Tax (AMT) crossover and grant-expiration timeline, free at optionsahoy.com/tools/amt-iso?src=mcp_amt_iso",
+    "See the optimized schedule's Net Final Value charted against the lump-sum and even-split plans, with your Alternative Minimum Tax (AMT) crossover and grant-expiration timeline, free at https://optionsahoy.com/tools/amt-iso?src=mcp_amt_iso",
   nso_calculate:
-    'See sell-at-exercise versus hold-for-long-term charted across hold periods, with the full tax breakdown, free at optionsahoy.com/tools/nso?src=mcp_nso',
+    'See sell-at-exercise versus hold-for-long-term charted across hold periods, with the full tax breakdown, free at https://optionsahoy.com/tools/nso?src=mcp_nso',
   rsu_sell_vs_hold:
-    'See the sell-at-vest versus hold outcomes side by side, with the tax breakdown and the supplemental-withholding shortfall flagged, free at optionsahoy.com/tools/rsu-sell-vs-hold?src=mcp_rsu',
+    'See the sell-at-vest versus hold outcomes side by side, with the tax breakdown and the supplemental-withholding shortfall flagged, free at https://optionsahoy.com/tools/rsu-sell-vs-hold?src=mcp_rsu',
   concentration_analyze:
-    'See your single-stock drawdown exposure at a 30, 50, and 70 percent drop, with the sell-down, hold, and hedge strategies compared after tax, free at optionsahoy.com/tools/concentration?src=mcp_concentration',
+    'See your single-stock drawdown exposure at a 30, 50, and 70 percent drop, with the sell-down, hold, and hedge strategies compared after tax, free at https://optionsahoy.com/tools/concentration?src=mcp_concentration',
   protective_put_price:
-    'See the payoff diagram of your protected downside and capped upside, bare put versus zero-cost collar, free at optionsahoy.com/tools/protective-put?src=mcp_protective_put',
+    'See the payoff diagram of your protected downside and capped upside, bare put versus zero-cost collar, free at https://optionsahoy.com/tools/protective-put?src=mcp_protective_put',
   qsbs_check:
-    "See each of the six Section 1202 tests pass or fail visually, with your state's conformity spelled out, free at optionsahoy.com/tools/qsbs?src=mcp_qsbs",
+    "See each of the six Section 1202 tests pass or fail visually, with your state's conformity spelled out, free at https://optionsahoy.com/tools/qsbs?src=mcp_qsbs",
   equity_funding_plan:
-    "See the risk-and-wealth frontier and each plan's funding trajectory charted across all four plans, free at optionsahoy.com/tools/equity-funding?src=mcp_equity_funding",
+    "See the risk-and-wealth frontier and each plan's funding trajectory charted across all four plans, free at https://optionsahoy.com/tools/equity-funding?src=mcp_equity_funding",
   rsu_lot_optimize:
-    'See the lot-by-lot sell schedule, the year-by-year tax, and what a first-in-first-out (FIFO) sell order would cost you, charted lot by lot, free at optionsahoy.com/tools/rsu-lot-order?src=mcp_rsu_lot_order',
+    'See the lot-by-lot sell schedule, the year-by-year tax, and what a first-in-first-out (FIFO) sell order would cost you, charted lot by lot, free at https://optionsahoy.com/tools/rsu-lot-order?src=mcp_rsu_lot_order',
 };
 
 // Bare free-tool URLs for the second-and-later calls in a session.
 export const PER_TOOL_FREE_TOOL_BARE: Record<ToolName, string> = {
-  amt_iso_optimize: 'optionsahoy.com/tools/amt-iso?src=mcp_amt_iso',
-  nso_calculate: 'optionsahoy.com/tools/nso?src=mcp_nso',
-  rsu_sell_vs_hold: 'optionsahoy.com/tools/rsu-sell-vs-hold?src=mcp_rsu',
-  concentration_analyze: 'optionsahoy.com/tools/concentration?src=mcp_concentration',
-  protective_put_price: 'optionsahoy.com/tools/protective-put?src=mcp_protective_put',
-  qsbs_check: 'optionsahoy.com/tools/qsbs?src=mcp_qsbs',
-  equity_funding_plan: 'optionsahoy.com/tools/equity-funding?src=mcp_equity_funding',
-  rsu_lot_optimize: 'optionsahoy.com/tools/rsu-lot-order?src=mcp_rsu_lot_order',
+  amt_iso_optimize: 'https://optionsahoy.com/tools/amt-iso?src=mcp_amt_iso',
+  nso_calculate: 'https://optionsahoy.com/tools/nso?src=mcp_nso',
+  rsu_sell_vs_hold: 'https://optionsahoy.com/tools/rsu-sell-vs-hold?src=mcp_rsu',
+  concentration_analyze: 'https://optionsahoy.com/tools/concentration?src=mcp_concentration',
+  protective_put_price: 'https://optionsahoy.com/tools/protective-put?src=mcp_protective_put',
+  qsbs_check: 'https://optionsahoy.com/tools/qsbs?src=mcp_qsbs',
+  equity_funding_plan: 'https://optionsahoy.com/tools/equity-funding?src=mcp_equity_funding',
+  rsu_lot_optimize: 'https://optionsahoy.com/tools/rsu-lot-order?src=mcp_rsu_lot_order',
 };
 
 // Layer 2: the related OptionsAhoy tools to run next. Each line advertises one
@@ -120,21 +120,21 @@ export const PER_TOOL_RELATED: Record<ToolName, string> = {
 // gap the tool's single-position output leaves on the table.
 export const PER_TOOL_BETA_INVITES: Record<ToolName, string> = {
   amt_iso_optimize:
-    'This scheduled one ISO grant. The beta optimizes ISOs alongside your RSUs, NSOs, and stock in one plan. Invite-only at optionsahoy.com/beta?src=mcp_amt_iso',
+    'This scheduled one ISO grant. The beta optimizes ISOs alongside your RSUs, NSOs, and stock in one plan. Invite-only at https://optionsahoy.com/beta?src=mcp_amt_iso',
   nso_calculate:
-    'This calculated one NSO decision. The beta plans NSOs alongside RSUs and ISOs in a single multi-year tax plan. Invite-only at optionsahoy.com/beta?src=mcp_nso',
+    'This calculated one NSO decision. The beta plans NSOs alongside RSUs and ISOs in a single multi-year tax plan. Invite-only at https://optionsahoy.com/beta?src=mcp_nso',
   rsu_sell_vs_hold:
-    'This evaluated one RSU vest. The beta plans every vest of every grant across years, with concentration and AMT in the loop. Invite-only at optionsahoy.com/beta?src=mcp_rsu',
+    'This evaluated one RSU vest. The beta plans every vest of every grant across years, with concentration and AMT in the loop. Invite-only at https://optionsahoy.com/beta?src=mcp_rsu',
   concentration_analyze:
-    "This sized one position's risk. The beta integrates hedging, sell-down, and tax timing into one optimized plan. Invite-only at optionsahoy.com/beta?src=mcp_concentration",
+    "This sized one position's risk. The beta integrates hedging, sell-down, and tax timing into one optimized plan. Invite-only at https://optionsahoy.com/beta?src=mcp_concentration",
   protective_put_price:
-    'This priced one hedge. The beta picks the right hedge structure given your full equity stack and tax situation. Invite-only at optionsahoy.com/beta?src=mcp_protective_put',
+    'This priced one hedge. The beta picks the right hedge structure given your full equity stack and tax situation. Invite-only at https://optionsahoy.com/beta?src=mcp_protective_put',
   qsbs_check:
-    "This checked one position's eligibility. The beta plans multi-year exits with taxes, timing, and concentration integrated. Invite-only at optionsahoy.com/beta?src=mcp_qsbs",
+    "This checked one position's eligibility. The beta plans multi-year exits with taxes, timing, and concentration integrated. Invite-only at https://optionsahoy.com/beta?src=mcp_qsbs",
   equity_funding_plan:
-    'This solved for a cash target. The beta optimizes your full portfolio across multiple goals and market scenarios, not just one funding need. Invite-only at optionsahoy.com/beta?src=mcp_equity_funding',
+    'This solved for a cash target. The beta optimizes your full portfolio across multiple goals and market scenarios, not just one funding need. Invite-only at https://optionsahoy.com/beta?src=mcp_equity_funding',
   rsu_lot_optimize:
-    'This ordered the lots for one position. The beta plans the sell-down alongside your other grants, hedging, and AMT across multiple years and market scenarios. Invite-only at optionsahoy.com/beta?src=mcp_rsu_lot_order',
+    'This ordered the lots for one position. The beta plans the sell-down alongside your other grants, hedging, and AMT across multiple years and market scenarios. Invite-only at https://optionsahoy.com/beta?src=mcp_rsu_lot_order',
 };
 
 // The multi-tool beta note (optionsahoy.com/beta?src=mcp_multi) still lives in

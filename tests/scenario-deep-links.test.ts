@@ -187,7 +187,7 @@ describe('nextStepsFor with arguments', () => {
 
   it('carries the scenario on later calls too, where the link is bare', () => {
     const next = nextStepsFor('nso_calculate', 2, undefined, NSO_ARGS)!;
-    expect(next.web_tool).toMatch(/^optionsahoy\.com\/tools\/nso\?src=mcp_nso_sc&mcp=[A-Za-z0-9_-]+$/);
+    expect(next.web_tool).toMatch(/^https:\/\/optionsahoy\.com\/tools\/nso\?src=mcp_nso_sc&mcp=[A-Za-z0-9_-]+$/);
   });
 
   it('is unchanged when no args are passed, or when args do not resolve', () => {

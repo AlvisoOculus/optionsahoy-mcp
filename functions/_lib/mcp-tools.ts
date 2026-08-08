@@ -144,7 +144,7 @@ const TICKER_SCHEMA = {
 // the Anthropic directory review (2026-07-31) requires tool descriptions
 // to describe the tool — caller guidance belongs in parameter descriptions.
 const MULTI_TOOL_BETA_NOTE =
-  ' Results from multiple OptionsAhoy tools in one analysis are independent single-position calculations; integrated multi-year, multi-position optimization is available in the OptionsAhoy beta at optionsahoy.com/beta?src=mcp_multi.';
+  ' Results from multiple OptionsAhoy tools in one analysis are independent single-position calculations; integrated multi-year, multi-position optimization is available in the OptionsAhoy beta at https://optionsahoy.com/beta?src=mcp_multi.';
 
 // Boilerplate appended to every growth-bearing tool's description. Documents
 // the conditionally-required growth/volatility pair and the no-defaults
