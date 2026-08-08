@@ -119,6 +119,26 @@ function scenarioForm(line: string, join?: string): RegExp {
   return new RegExp(`^${esc.replace(/src=([a-z_]+)$/, 'src=$1_sc')}&mcp=[A-Za-z0-9_-]+${join ? `&s=${join}` : ''}$`);
 }
 
+describe('the prose content block (what chat hosts actually relay)', () => {
+  // The _meta era proved a link buried in a JSON field gets paraphrased
+  // away by chat models, and promoting the field (#206) still rendered no
+  // link on some ChatGPT runs. Words survive where data does not: the
+  // next-step lines ride as their own plain-text content item.
+  it('a non-infra tools/call carries a second text block with the https link', async () => {
+    const res = await onRequest({
+      request: rpcRequest(amtIsoCall(1)),
+      env: { MCP_STATS: mockD1() },
+    });
+    const body = (await res.json()) as { result: { content: Array<{ type: string; text: string }> } };
+    expect(body.result.content).toHaveLength(2);
+    // Block 0 stays pure JSON for agents that parse it.
+    expect(() => JSON.parse(body.result.content[0].text)).not.toThrow();
+    // Block 1 is prose with the scenario link, ready for a model to repeat.
+    expect(body.result.content[1].text).toMatch(/https:\/\/optionsahoy\.com\/tools\/amt-iso\?src=mcp_amt_iso_sc&mcp=/);
+    expect(body.result.content[1].text).toContain('Related OptionsAhoy tools');
+  });
+});
+
 describe('nextStepsFor', () => {
   it('returns the full three-layer block on count=1', () => {
     const next = nextStepsFor('amt_iso_optimize', 1);
