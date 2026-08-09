@@ -306,8 +306,11 @@ describe('POST /mcp — resources', () => {
       id: 10,
       method: 'resources/list',
     });
-    expect(json.result.resources).toHaveLength(8);
-    for (const r of json.result.resources) {
+    // The list also carries the ChatGPT ui:// widget template (see
+    // _lib/mcp-widget.ts); this test owns the DOCUMENT corpus.
+    const docs = json.result.resources.filter((r) => !r.uri.startsWith('ui://'));
+    expect(docs).toHaveLength(8);
+    for (const r of docs) {
       expect(r.uri).toMatch(/^https:\/\/optionsahoy\.com\/(learn|tools)\//);
       expect(r.name.length).toBeGreaterThan(10);
       expect(r.description.length).toBeGreaterThan(20);

@@ -80,17 +80,33 @@ describe('non-interference (every other client)', () => {
     // The prose block still carries the full URL for clients with no widget.
     expect(r.content[1].text).toMatch(/https:\/\/optionsahoy\.com\/tools\/amt-iso\?src=mcp_amt_iso_sc&mcp=[A-Za-z0-9_-]+/);
     expect(r.content[1].text).toContain('You MUST share the link below');
-    // No openai/* key anywhere in what a non-ChatGPT client consumes.
-    expect(JSON.stringify(r)).not.toContain('openai/');
-    expect(JSON.stringify(r)).not.toContain('ui://');
+    // The MODEL-VISIBLE surface is what must not change: per OpenAI's
+    // reference, `content` and `structuredContent` are surfaced to the model
+    // while result `_meta` is not. So assert those two carry no host-specific
+    // keys - the protocol-level `_meta` pointer is allowed, and every client
+    // ignores unknown `_meta` by spec.
+    expect(JSON.stringify(r.content)).not.toContain('openai/');
+    expect(JSON.stringify(r.content)).not.toContain('ui://');
+    expect(JSON.stringify(r.structuredContent)).not.toContain('openai/');
+    expect(JSON.stringify(r.structuredContent)).not.toContain('ui://');
   });
 
-  it('resources/list stays a list of documents - no ui:// template', async () => {
+  it('resources/list keeps every document intact, plus the labelled template', async () => {
+    // The widget IS listed: ChatGPT's detection wants the tool's
+    // openai/outputTemplate and the corresponding ui:// resource, and hiding
+    // it made the widget silently undiscoverable. What must not change is
+    // the document set other clients actually read.
     const res = await onRequest({ request: rpc({ jsonrpc: '2.0', id: 1, method: 'resources/list' }), env: {} });
-    const list = ((await res.json()) as { result: { resources: Array<{ uri: string; mimeType: string }> } }).result.resources;
-    expect(list).toHaveLength(RESOURCES.length);
-    expect(list.some((r) => r.uri.startsWith('ui://'))).toBe(false);
-    for (const r of list) expect(r.mimeType).toBe('text/markdown');
+    const list = ((await res.json()) as { result: { resources: Array<{ uri: string; name: string; mimeType: string }> } }).result.resources;
+    const docs = list.filter((r) => !r.uri.startsWith('ui://'));
+    expect(docs).toHaveLength(RESOURCES.length);
+    for (const r of docs) expect(r.mimeType).toBe('text/markdown');
+    const widgets = list.filter((r) => r.uri.startsWith('ui://'));
+    expect(widgets).toHaveLength(1);
+    // Labelled so a human browsing another client's resource picker can see
+    // at a glance that it is not a document.
+    expect(widgets[0].name).toMatch(/widget/i);
+    expect(widgets[0].mimeType).toBe('text/html+skybridge');
   });
 
   it('the published toolspec.json carries no host-specific metadata', () => {
@@ -122,9 +138,10 @@ describe('non-interference (every other client)', () => {
     expect(src).not.toContain('SCENARIO_WIDGET');
   });
 
-  it('the widget resource is not reachable through the document list path', () => {
-    // Belt and braces: RESOURCES is what resources/list projects, and the
-    // widget must never be in it.
+  it('the widget is not mixed into the markdown document set', () => {
+    // RESOURCES is the document corpus; the widget is appended at projection
+    // time, so nothing that iterates documents picks up a UI template.
     expect(RESOURCES.some((r) => r.uri === SCENARIO_WIDGET_RESOURCE.uri)).toBe(false);
+    expect(RESOURCES.every((r) => r.mimeType === 'text/markdown')).toBe(true);
   });
 });
