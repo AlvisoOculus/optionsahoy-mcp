@@ -133,8 +133,11 @@ describe('the prose content block (what chat hosts actually relay)', () => {
     expect(body.result.content).toHaveLength(2);
     // Block 0 stays pure JSON for agents that parse it.
     expect(() => JSON.parse(body.result.content[0].text)).not.toThrow();
-    // Block 1 is prose with the scenario link, ready for a model to repeat.
+    // Block 1 is prose with the scenario link, ready for a model to repeat,
+    // plus the fidelity instruction explaining WHY it must survive verbatim.
     expect(body.result.content[1].text).toMatch(/https:\/\/optionsahoy\.com\/tools\/amt-iso\?src=mcp_amt_iso_sc&mcp=/);
+    expect(body.result.content[1].text).toContain('reproduce it EXACTLY');
+    expect(body.result.content[1].text).toContain('pre-filled');
     expect(body.result.content[1].text).toContain('Related OptionsAhoy tools');
   });
 });

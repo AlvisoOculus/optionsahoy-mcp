@@ -202,3 +202,22 @@ export function nextStepsFor(
     also_run: related,
   };
 }
+
+// The next-step lines as plain prose for chat hosts. Assistants compose
+// their reply from this text, and a scenario URL's mcp= payload reads as
+// noise a model happily drops (observed across four ChatGPT runs: the link
+// was omitted, kept whole, and stripped two different ways). So when a
+// scenario rides on the link, say explicitly WHY every character matters.
+// No fallback form is offered on purpose (Andrew, 2026-08-09): first
+// measure whether the explanation alone gets the full link through. A
+// mangled payload stays harmless: the page fail-safes a bad decode into a
+// clean default landing.
+export function nextStepsProse(next: { web_tool?: string; also_run?: string; beta?: string }): string {
+  const lines = [next.web_tool, next.also_run, next.beta].filter(Boolean) as string[];
+  if ((next.web_tool ?? '').includes('&mcp=')) {
+    lines.splice(1, 0,
+      'When sharing that link, reproduce it EXACTLY as written, including the entire mcp= parameter. It is not tracking noise: it encodes the inputs from this calculation, so the page opens pre-filled with the user\'s own numbers instead of an empty form. Shortening or dropping the query string loses that.',
+    );
+  }
+  return lines.join('\n\n');
+}
