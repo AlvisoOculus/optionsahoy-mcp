@@ -103,10 +103,21 @@ function err(id: Id, code: number, message: string, data?: unknown): JsonRpcErro
     : { jsonrpc: '2.0', id, error: { code, message, data } };
 }
 
+// Every /mcp response is per-request state: tool results computed from the
+// caller's arguments, a tools/list that changes when we deploy, session
+// headers. Nothing here is ever reusable, and until 2026-08-09 we said so
+// NOWHERE - no Cache-Control at all on POST or GET. Cloudflare does not cache
+// POSTs by default, but a directive-less response invites heuristic caching
+// from any intermediary in the chain (proxies, and an assistant host's own
+// fetch layer), which would pin a client to a stale tool list across a
+// deploy - exactly the failure that is hard to tell apart from "the host
+// ignored our new metadata".
+const NO_STORE = { 'cache-control': 'no-store, no-cache, must-revalidate' } as const;
+
 function jsonResponse(body: unknown, status = 200, extraHeaders?: Record<string, string>): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { 'content-type': 'application/json', ...CORS, ...extraHeaders },
+    headers: { 'content-type': 'application/json', ...CORS, ...NO_STORE, ...extraHeaders },
   });
 }
 
@@ -325,7 +336,7 @@ export const onRequest: PagesFunction = async (ctx) => {
     logs.push({ endpoint: 'mcp:GET', isError: false });
     logCalls(ctx, logs);
     return new Response(GET_DESCRIPTOR_JSON, {
-      headers: { 'content-type': 'application/json', ...CORS },
+      headers: { 'content-type': 'application/json', ...CORS, ...NO_STORE },
     });
   }
   if (request.method === 'HEAD') {
@@ -335,7 +346,7 @@ export const onRequest: PagesFunction = async (ctx) => {
     logs.push({ endpoint: 'mcp:HEAD', isError: false });
     logCalls(ctx, logs);
     return new Response(null, {
-      headers: { 'content-type': 'application/json', ...CORS },
+      headers: { 'content-type': 'application/json', ...CORS, ...NO_STORE },
     });
   }
   if (request.method === 'DELETE') {
