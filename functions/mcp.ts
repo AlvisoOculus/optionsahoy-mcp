@@ -21,7 +21,7 @@ import { BARE_CALL_COUNT, bumpSessionCallCount, nextStepsFor, nextStepsProse } f
 import { isInfraClient } from './_lib/classify';
 import { SERVER_VERSION } from './_lib/version';
 import { SERVER_INSTRUCTIONS } from './_lib/mcp-instructions';
-import { SCENARIO_WIDGET_RESOURCE, SCENARIO_WIDGET_URI } from './_lib/mcp-widget';
+import { SCENARIO_WIDGET_META, SCENARIO_WIDGET_RESOURCE, SCENARIO_WIDGET_URI } from './_lib/mcp-widget';
 import { coveredTickers } from '../lib/data/trailing-returns';
 
 const PROTOCOL_VERSION = '2024-11-05';
@@ -39,7 +39,12 @@ const TOOLS_LIST = TOOLS.map((t) => ({
   // from the published toolspec.json (see buildToolSpec).
   ...(t._meta ? { _meta: t._meta } : {}),
 }));
-const RESOURCES_LIST = RESOURCES.map((r) => ({
+// The ui:// widget template is listed alongside the markdown documents:
+// ChatGPT's detection looks for a tool's openai/outputTemplate AND the
+// corresponding ui:// resource, so hiding it (the first cut of this) makes
+// the widget silently undiscoverable. The cost to other clients is one
+// clearly-labelled extra entry they will never read.
+const RESOURCES_LIST = [...RESOURCES, SCENARIO_WIDGET_RESOURCE].map((r) => ({
   uri: r.uri,
   name: r.name,
   description: r.description,
@@ -227,6 +232,11 @@ async function handle(
             ...(prose ? [{ type: 'text', text: prose }] : []),
           ],
           structuredContent: result,
+          // Result-side template pointer. OpenAI's reference documents result
+          // `_meta` as model-hidden (it reaches the component, not the
+          // transcript), and working Apps SDK servers set it here as well as
+          // on the descriptor. Other clients ignore unknown _meta per spec.
+          _meta: SCENARIO_WIDGET_META,
         });
       } catch (e) {
         const message = e instanceof Error ? e.message : String(e);
