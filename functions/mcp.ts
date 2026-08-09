@@ -17,7 +17,7 @@ import { logCalls, logSamples, type CallFields, type SampleFields, type D1Databa
 import { TOOLS } from './_lib/mcp-tools';
 import { RESOURCES } from './_lib/mcp-resources';
 import { PROMPTS } from './_lib/mcp-prompts';
-import { BARE_CALL_COUNT, bumpSessionCallCount, nextStepsFor } from './_lib/sessions';
+import { BARE_CALL_COUNT, bumpSessionCallCount, nextStepsFor, nextStepsProse } from './_lib/sessions';
 import { isInfraClient } from './_lib/classify';
 import { SERVER_VERSION } from './_lib/version';
 import { SERVER_INSTRUCTIONS } from './_lib/mcp-instructions';
@@ -216,9 +216,7 @@ async function handle(
         // the field (#206) still left ChatGPT rendering no link at all.
         // Agents parsing content[0] as JSON are unaffected.
         const next = (result as { next_steps?: { web_tool?: string; also_run?: string; beta?: string } }).next_steps;
-        const prose = next
-          ? [next.web_tool, next.also_run, next.beta].filter(Boolean).join('\n\n')
-          : '';
+        const prose = next ? nextStepsProse(next) : '';
         return ok(id, {
           content: [
             { type: 'text', text: JSON.stringify(result) },

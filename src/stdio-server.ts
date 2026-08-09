@@ -30,7 +30,7 @@ import { RESOURCES } from '../functions/_lib/mcp-resources';
 import { PROMPTS } from '../functions/_lib/mcp-prompts';
 import { SERVER_INSTRUCTIONS } from '../functions/_lib/mcp-instructions';
 import { SERVER_VERSION } from '../functions/_lib/version';
-import { BARE_CALL_COUNT, nextStepsFor } from '../functions/_lib/sessions';
+import { BARE_CALL_COUNT, nextStepsFor, nextStepsProse } from '../functions/_lib/sessions';
 
 const SERVER_INFO = { name: 'optionsahoy', version: SERVER_VERSION };
 
@@ -93,8 +93,9 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
     // object as `structuredContent` plus a backwards-compatible serialized
     // text block. Error results stay text-only (no structuredContent).
     // Same prose block the hosted server emits: chat hosts relay words,
-    // not JSON fields (see functions/mcp.ts).
-    const prose = next ? [next.web_tool, next.also_run, next.beta].filter(Boolean).join('\n\n') : '';
+    // not JSON fields, and the fidelity instruction tells the model WHY the
+    // scenario URL must survive verbatim (see functions/mcp.ts).
+    const prose = next ? nextStepsProse(next) : '';
     return {
       content: [
         { type: 'text', text: JSON.stringify(result) },
