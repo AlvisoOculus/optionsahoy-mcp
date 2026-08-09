@@ -21,6 +21,7 @@ import { BARE_CALL_COUNT, bumpSessionCallCount, nextStepsFor, nextStepsProse } f
 import { isInfraClient } from './_lib/classify';
 import { SERVER_VERSION } from './_lib/version';
 import { SERVER_INSTRUCTIONS } from './_lib/mcp-instructions';
+import { SCENARIO_WIDGET_RESOURCE, SCENARIO_WIDGET_URI } from './_lib/mcp-widget';
 import { coveredTickers } from '../lib/data/trailing-returns';
 
 const PROTOCOL_VERSION = '2024-11-05';
@@ -34,6 +35,9 @@ const TOOLS_LIST = TOOLS.map((t) => ({
   inputSchema: t.inputSchema,
   outputSchema: t.outputSchema,
   annotations: t.annotations,
+  // ChatGPT's widget pointer. Spec-ignored by every other client, and absent
+  // from the published toolspec.json (see buildToolSpec).
+  ...(t._meta ? { _meta: t._meta } : {}),
 }));
 const RESOURCES_LIST = RESOURCES.map((r) => ({
   uri: r.uri,
@@ -242,7 +246,9 @@ async function handle(
       if (!isParams(req.params)) return logErr(-32602, 'Invalid params');
       const { uri } = req.params as { uri?: unknown };
       if (typeof uri !== 'string') return logErr(-32602, 'Invalid params: uri must be a string', 'uri not a string');
-      const resource = RESOURCES.find((r) => r.uri === uri);
+      const resource = uri === SCENARIO_WIDGET_URI
+        ? SCENARIO_WIDGET_RESOURCE
+        : RESOURCES.find((r) => r.uri === uri);
       if (!resource) return logErr(-32602, `Unknown resource: ${uri}`, 'unknown resource', uri);
       logs.push({ endpoint, tool: uri, isError: false });
       return ok(id, {

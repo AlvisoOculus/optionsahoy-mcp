@@ -37,6 +37,11 @@ const SERVER_INFO = { name: 'optionsahoy', version: SERVER_VERSION };
 // Precomputed list projections + name lookups, mirroring the precomputation
 // in functions/mcp.ts so list calls don't allocate on every request and
 // lookups are O(1).
+// `_meta` is deliberately NOT projected here. It carries only the ChatGPT
+// Apps SDK widget pointer (functions/_lib/mcp-widget.ts), and this transport
+// serves npx/MCPB installs - Claude Desktop, Cursor, custom SDK clients -
+// none of which render Apps SDK widgets. They get the prose block with the
+// full link, exactly as before.
 const TOOLS_LIST = TOOLS.map((t) => ({
   name: t.name,
   description: t.description,
