@@ -298,6 +298,26 @@ describe('POST /mcp — tools/call dispatches to the right calc', () => {
   });
 });
 
+describe('caching', () => {
+  // Every response is per-request state (tool results, a tools/list that
+  // changes on deploy, session headers). Saying nothing invites heuristic
+  // caching from any intermediary - which pins a client to a stale tool list
+  // across a deploy and is hard to distinguish from "the host ignored our
+  // new metadata".
+  it('no-stores every JSON-RPC response', async () => {
+    const res = await onRequest({ request: rpc({ jsonrpc: '2.0', id: 1, method: 'tools/list' }) });
+    expect(res.headers.get('cache-control')).toMatch(/no-store/);
+  });
+
+  it('no-stores the GET descriptor too', async () => {
+    const res = await onRequest({
+      request: new Request('https://optionsahoy.com/mcp', { method: 'GET' }),
+      env: {},
+    });
+    expect(res.headers.get('cache-control')).toMatch(/no-store/);
+  });
+});
+
 describe('POST /mcp — resources', () => {
   it('resources/list returns 8 article resources with markdown mime type', async () => {
     type ResourceListItem = { uri: string; name: string; description: string; mimeType: string };
