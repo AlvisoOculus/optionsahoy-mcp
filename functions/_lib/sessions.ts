@@ -204,20 +204,39 @@ export function nextStepsFor(
 }
 
 // The next-step lines as plain prose for chat hosts. Assistants compose
-// their reply from this text, and a scenario URL's mcp= payload reads as
-// noise a model happily drops (observed across four ChatGPT runs: the link
-// was omitted, kept whole, and stripped two different ways). So when a
-// scenario rides on the link, say explicitly WHY every character matters.
-// No fallback form is offered on purpose (Andrew, 2026-08-09): first
-// measure whether the explanation alone gets the full link through. A
-// mangled payload stays harmless: the page fail-safes a bad decode into a
-// clean default landing.
+// their reply from this text, and six observed ChatGPT runs of one question
+// produced five link treatments: omitted twice, kept whole, src-only, and
+// twice stripped to the bare path + ChatGPT's own utm stamp. Two levers,
+// iterated with Andrew (2026-08-09):
+//
+//   1. MANDATORY, duty-to-the-user phrasing. A polite explanation did not
+//      survive two runs; "you must, so the user can see their exact
+//      question" is the frame assistant models are tuned to honour.
+//   2. The scenario link goes out PRE-WRAPPED as a markdown hyperlink. The
+//      likeliest reason a model strips the mcp= payload is aesthetics - a
+//      400-char base64 wall looks like junk in a chat reply - and anchor
+//      text lets it paste the whole token run without ever showing the
+//      ugliness. Hosts that render plain text degrade gracefully.
+//
+// Still no fallback short form on purpose: measure these levers first. A
+// mangled payload stays harmless (bad decode fail-safes to a clean default
+// landing; an _sc src without its blob demotes to the bare bucket).
 export function nextStepsProse(next: { web_tool?: string; also_run?: string; beta?: string }): string {
-  const lines = [next.web_tool, next.also_run, next.beta].filter(Boolean) as string[];
-  if ((next.web_tool ?? '').includes('&mcp=')) {
-    lines.splice(1, 0,
-      'When sharing that link, reproduce it EXACTLY as written, including the entire mcp= parameter. It is not tracking noise: it encodes the inputs from this calculation, so the page opens pre-filled with the user\'s own numbers instead of an empty form. Shortening or dropping the query string loses that.',
-    );
+  const url = next.web_tool ?? '';
+  if (url.includes('&mcp=')) {
+    // First-call web_tool lines are prose ending in the URL; bare later-call
+    // lines are the URL alone. Either way the URL is the tail (invariant-
+    // tested), so split it off and keep any leading prose.
+    const at = url.indexOf('https://');
+    const lead = at > 0 ? url.slice(0, at).trim() : '';
+    const href = url.slice(Math.max(at, 0));
+    return [
+      lead,
+      'You MUST share the link below with the user, in its exact shape - do not shorten it, do not strip the mcp= parameter, do not retype it. It opens the calculator pre-filled with the numbers from THIS calculation, so the user can see and adjust their exact question on the tool page. Without the full link they land on an empty form:',
+      `[Open this scenario pre-filled on OptionsAhoy](${href})`,
+      next.also_run,
+      next.beta,
+    ].filter(Boolean).join('\n\n');
   }
-  return lines.join('\n\n');
+  return [next.web_tool, next.also_run, next.beta].filter(Boolean).join('\n\n');
 }
