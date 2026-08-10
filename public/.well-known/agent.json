@@ -4,7 +4,7 @@
   "description": "Answers equity-compensation planning questions by calling the OptionsAhoy calculators: incentive stock option and alternative minimum tax (AMT) exercise timing, non-qualified stock options, restricted stock unit sell-versus-hold, qualified small business stock (QSBS), single-stock concentration, protective-put hedging, funding a cash goal from equity, and choosing which vested RSU lots to sell first. The financial math is deterministic and verifiable (https://optionsahoy.com/verification); OptionsAhoy's API is keyless. Send a message with a data part {\"skill\":\"<id>\",\"input\":{...}} to run a calculator.",
   "url": "https://optionsahoy.com/a2a",
   "preferredTransport": "JSONRPC",
-  "version": "0.1.0",
+  "version": "1.10.1",
   "provider": {
     "organization": "AlphaLatitude Inc.",
     "url": "https://optionsahoy.com"
