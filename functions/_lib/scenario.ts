@@ -87,6 +87,32 @@ function base64url(json: string): string {
 // The encoded `mcp=` value for one call, or null when there is nothing safe
 // or useful to carry. Never throws: a scenario link is a nice-to-have, and
 // the bare link is always a correct answer.
+// The resolved input deliberately has NO `ticker`: it is a resolver INPUT,
+// consumed to derive expectedSalePrice / haircut / volatility, so by the time
+// the calculation runs it has done its job and the parser drops it. But it is
+// also the user's word for WHICH COMPANY this is, and every scenario-carrying
+// page except qsbs has a ticker field.
+//
+// Dropping it was a real bug (observed 2026-08-10): a GOOGL scenario rendered
+// with AMZN in the ticker box, because the page's restoration precedence is
+// URL > cross-tool shared > per-tool stored, and an empty URL slot fell
+// through to whatever symbol that browser last used on ANY tool. The numbers
+// held - they are URL-pinned - so it mislabelled rather than miscalculated,
+// but the pins release on the visitor's first edit, at which point the stale
+// symbol can re-seed price and growth.
+//
+// Carried ALONGSIDE `i` and never inside it, so the "declared resolved fields
+// and nothing else" rule - the thing that stops a caller's stray `clientEmail`
+// riding into a URL handed to an agent - still holds exactly as before.
+const TICKER_RE = /^[A-Z0-9.-]{1,8}$/;
+
+function labelTicker(args: object): string | undefined {
+  const raw = (args as { ticker?: unknown }).ticker;
+  if (typeof raw !== 'string') return undefined;
+  const up = raw.trim().toUpperCase();
+  return TICKER_RE.test(up) ? up : undefined;
+}
+
 export function encodeScenario(slug: string, args: unknown): string | null {
   // Gate first: unknown slugs and the deliberately-excluded protective-put
   // get the bare link, and this runs on every tools/call and REST response.
@@ -105,7 +131,11 @@ export function encodeScenario(slug: string, args: unknown): string | null {
     // an agent hands over the wrong link.
     const resolved = resolve(args);
     if (!resolved || typeof resolved !== 'object') return null;
-    const json = JSON.stringify({ t: slug, i: resolved });
+    // `k` is omitted entirely when the caller gave no ticker, so existing
+    // payloads keep their exact bytes and an older web build simply ignores
+    // a key it does not read.
+    const label = labelTicker(args);
+    const json = JSON.stringify(label ? { t: slug, i: resolved, k: label } : { t: slug, i: resolved });
     const encoded = base64url(json);
     return encoded.length > MCP_SCENARIO_MAX_CHARS ? null : encoded;
   } catch {

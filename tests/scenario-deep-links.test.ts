@@ -385,3 +385,48 @@ describe('phase 2 - every tool emits, and the payload cap holds where it must', 
     expect(payload!.length).toBeLessThan(MCP_SCENARIO_MAX_CHARS);
   });
 });
+
+describe('the ticker label rides beside the resolved input', () => {
+  // `ticker` is a RESOLVER input: the parsers consume it to derive
+  // expectedSalePrice / haircut / volatility and then drop it, so it is
+  // correctly absent from the resolved shape. But it is also the user's word
+  // for which company this is, and the page has a ticker field whose
+  // precedence is URL > cross-tool shared > per-tool stored - so leaving the
+  // URL slot empty made a GOOGL scenario render as AMZN for any visitor whose
+  // browser had touched AMZN on any other tool (observed 2026-08-10).
+  const RSU = {
+    shares: 300, currentPrice: 350, ordinaryIncome: 300000, filingStatus: 'married_joint',
+    stateCode: 'NY', stillEmployed: true, holdYears: 2, strike: 0, holdFunding: 'cash',
+    volatility: 0.3, expectedSalePrice: 546.98, expectedMarketReturn: 0.1256,
+  };
+  const decode = (args: unknown) => {
+    const e = encodeScenario('rsu-sell-vs-hold', args);
+    return e ? (JSON.parse(Buffer.from(e, 'base64url').toString()) as Record<string, unknown>) : null;
+  };
+
+  it('carries a supplied ticker as `k`, upper-cased', () => {
+    expect(decode({ ...RSU, ticker: 'googl' })?.k).toBe('GOOGL');
+  });
+
+  it('never puts it inside `i`, so the resolved-fields-only rule still holds', () => {
+    // That rule is what stops a caller's stray key (clientEmail, say) riding
+    // into a URL handed to an agent - `k` must not become a loophole.
+    const i = decode({ ...RSU, ticker: 'GOOGL' })?.i as Record<string, unknown>;
+    expect('ticker' in i).toBe(false);
+  });
+
+  it('omits `k` entirely when no ticker was supplied', () => {
+    expect(Object.keys(decode(RSU) ?? {})).toEqual(['t', 'i']);
+  });
+
+  it('drops a label that is not a plausible ticker', () => {
+    for (const junk of ['<img src=x>', 'WAYTOOLONG', 'a b', '']) {
+      expect(Object.keys(decode({ ...RSU, ticker: junk }) ?? {}), junk).toEqual(['t', 'i']);
+    }
+  });
+
+  it('leaves the resolved input byte-identical to a call without a ticker', () => {
+    // A label must not perturb the numbers it travels with.
+    expect(JSON.stringify(decode({ ...RSU, ticker: 'GOOGL' })?.i)).toBe(JSON.stringify(decode(RSU)?.i));
+  });
+});
