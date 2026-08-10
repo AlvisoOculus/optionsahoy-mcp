@@ -59,29 +59,40 @@ const WIDGET_HTML = `<!doctype html>
 </div>
 <script>
 (function () {
+  // IDEMPOTENT BY CONSTRUCTION. The host re-fires openai:set_globals for
+  // theme, display-mode and globals changes, so render() runs many times per
+  // mount. The first cut APPENDED the related-tools line each time and
+  // ChatGPT showed it a dozen times over (2026-08-10). Every write below
+  // either sets a property or rebuilds a container it just cleared.
   function render() {
     try {
       var out = (window.openai && window.openai.toolOutput) || null;
       var next = out && out.next_steps;
-      if (!next) return;
+      var card = document.getElementById('oa');
+      if (!next) { card.hidden = true; return; }
+
       var href = typeof next.web_tool === 'string' ? next.web_tool : '';
-      // The line may be prose ending in the URL; take the URL itself.
       var at = href.indexOf('https://');
       href = at >= 0 ? href.slice(at) : '';
-      if (!/^https:\\/\\/optionsahoy\\.com\\//.test(href)) return;
+      if (!/^https:\\/\\/optionsahoy\\.com\\//.test(href)) { card.hidden = true; return; }
+
       var cta = document.getElementById('oa-cta');
       cta.setAttribute('href', href);
-      if (href.indexOf('&mcp=') === -1) {
-        document.getElementById('oa-sub').textContent =
-          'Open the free calculator to work this through interactively.';
-        cta.textContent = 'Open calculator';
-      }
+      var prefilled = href.indexOf('&mcp=') !== -1;
+      cta.textContent = prefilled ? 'Open pre-filled calculator' : 'Open calculator';
+      document.getElementById('oa-sub').textContent = prefilled
+        ? 'The free calculator, pre-filled with the numbers from this calculation - adjust anything and see it update.'
+        : 'Open the free calculator to work this through interactively.';
+
+      // Rebuilt, never appended.
+      var more = document.getElementById('oa-more');
+      more.textContent = '';
       if (typeof next.also_run === 'string' && next.also_run) {
         var li = document.createElement('li');
         li.textContent = next.also_run;
-        document.getElementById('oa-more').appendChild(li);
+        more.appendChild(li);
       }
-      document.getElementById('oa').hidden = false;
+      card.hidden = false;
     } catch (e) { /* never break the host's rendering */ }
   }
   render();
