@@ -59,22 +59,33 @@ const WIDGET_HTML = `<!doctype html>
 </div>
 <script>
 (function () {
-  // IDEMPOTENT BY CONSTRUCTION. The host re-fires openai:set_globals for
-  // theme, display-mode and globals changes, so render() runs many times per
-  // mount. The first cut APPENDED the related-tools line each time and
-  // ChatGPT showed it a dozen times over (2026-08-10). Every write below
-  // either sets a property or rebuilds a container it just cleared.
+  // IDEMPOTENT BY CONSTRUCTION, AND CHEAP WHEN NOTHING CHANGED.
+  //
+  // The host re-fires openai:set_globals for theme, display-mode and globals
+  // changes - observed "more than 12" times for a single answer, so treat the
+  // rate as unbounded. The first cut APPENDED the related-tools line per
+  // render and ChatGPT stacked it up (2026-08-10).
+  //
+  // Two independent protections, because either alone is fragile: every write
+  // below sets or rebuilds (never accumulates), AND a signature check skips
+  // the DOM entirely when the derived content is unchanged, so a high-rate
+  // event stream costs one string compare instead of a teardown per frame.
+  var lastSig = null;
   function render() {
     try {
       var out = (window.openai && window.openai.toolOutput) || null;
       var next = out && out.next_steps;
       var card = document.getElementById('oa');
-      if (!next) { card.hidden = true; return; }
+      if (!next) { lastSig = null; card.hidden = true; return; }
 
       var href = typeof next.web_tool === 'string' ? next.web_tool : '';
       var at = href.indexOf('https://');
       href = at >= 0 ? href.slice(at) : '';
-      if (!/^https:\\/\\/optionsahoy\\.com\\//.test(href)) { card.hidden = true; return; }
+      if (!/^https:\\/\\/optionsahoy\\.com\\//.test(href)) { lastSig = null; card.hidden = true; return; }
+
+      var sig = href + '|' + (next.also_run || '');
+      if (sig === lastSig) return;
+      lastSig = sig;
 
       var cta = document.getElementById('oa-cta');
       cta.setAttribute('href', href);
