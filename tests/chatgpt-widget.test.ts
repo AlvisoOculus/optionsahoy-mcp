@@ -94,6 +94,18 @@ describe('the widget script is idempotent (ChatGPT re-fires set_globals)', () =>
     expect(html.match(/createElement/g)).toHaveLength(1);
   });
 
+  it('skips the DOM entirely when the derived content is unchanged', () => {
+    // Andrew observed "more than 12" fires for one answer, so treat the rate
+    // as unbounded: a signature compare short-circuits before any write, and
+    // the failure paths reset it so a later valid payload still renders.
+    // (Browser-verified: 500 events -> 5 DOM mutations, 1 copy.)
+    expect(html).toContain('var lastSig = null;');
+    expect(html).toContain('if (sig === lastSig) return;');
+    expect(html.match(/lastSig = null/g)?.length).toBeGreaterThanOrEqual(3);
+    // The guard must sit before the first write, or it guards nothing.
+    expect(html.indexOf('if (sig === lastSig) return;')).toBeLessThan(html.indexOf('cta.setAttribute'));
+  });
+
   it('hides the card on every failure path instead of leaving a stale one', () => {
     // Three guards: no next_steps, non-optionsahoy href, and the catch.
     expect(html.match(/card\.hidden = true/g)?.length).toBeGreaterThanOrEqual(2);
