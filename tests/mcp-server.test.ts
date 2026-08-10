@@ -482,8 +482,16 @@ describe('POST /mcp — error paths', () => {
     const json = (await res.json()) as { name: string; tools: string[]; resources: string[]; prompts: string[] };
     expect(json.name).toMatch(/OptionsAhoy/);
     expect(json.tools.length).toBe(8);
-    expect(json.resources.length).toBe(8);
     expect(json.prompts.length).toBe(8);
+    // The descriptor and resources/list are two discovery surfaces for the
+    // same set, so assert they agree rather than pinning a count in two
+    // places: they silently disagreed once, when the widget template was
+    // added to resources/list but not here.
+    const listRes = await onRequest({
+      request: rpc({ jsonrpc: '2.0', id: 1, method: 'resources/list' }),
+    });
+    const listed = (await listRes.json()) as { result: { resources: Array<{ uri: string }> } };
+    expect(json.resources).toEqual(listed.result.resources.map((r) => r.uri));
   });
 });
 
