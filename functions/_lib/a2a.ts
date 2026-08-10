@@ -38,12 +38,19 @@ import { computeLotDivestPlan } from '../../lib/calc/lotDivest';
 import type { ToolName } from './mcp-tools';
 import { PER_TOOL_FREE_TOOL_BARE } from './sessions';
 
+import { SERVER_VERSION } from './version';
+
 // The public endpoint advertised in the Agent Card. The card is served at
 // optionsahoy.com/.well-known/agent-card.json and the JSON-RPC endpoint at
 // optionsahoy.com/a2a (both reach this Pages project through the edge proxy).
 export const AGENT_URL = 'https://optionsahoy.com/a2a';
 export const PROTOCOL_VERSION = '0.3.0';
-export const AGENT_VERSION = '0.1.0';
+// Tracks the package version, same source the MCP serverInfo uses. It was
+// pinned at '0.1.0' through every release since, so a registry or crawler
+// comparing card versions was told nothing had changed here. The committed
+// static cards are drift-guarded against buildAgentCard() below, so this
+// single constant keeps all three surfaces honest.
+export const AGENT_VERSION = SERVER_VERSION;
 
 // One skill per calculator. `id` matches the MCP tool name exactly (and is the
 // `skill` value an A2A caller sends), so a capability discovered via MCP
