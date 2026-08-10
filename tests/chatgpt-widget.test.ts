@@ -69,47 +69,202 @@ describe('widget wiring (what ChatGPT needs)', () => {
   });
 });
 
-describe('the widget script is idempotent (ChatGPT re-fires set_globals)', () => {
-  // Shipped 2026-08-09 with an append-per-render bug: ChatGPT re-fires
-  // openai:set_globals for theme/display/globals changes, and the card showed
-  // the related-tools line a dozen times over. These assert on the emitted
-  // script, since a DOM run needs a browser (covered by the manual harness).
+// Executes the emitted script against a fake DOM. Every assertion below runs
+// the real code rather than grepping the source, because the failure mode this
+// file exists to prevent is behavioural - a render loop that accumulates, or a
+// stale card left visible - and source-text assertions could not see any of
+// it. A syntax error in the emitted JS also used to ship fully green, since
+// nothing ever parsed it; `new Function` now catches that at test time. One
+// did occur while this was being written: a stray backtick in a comment closed
+// the enclosing TS template literal.
+function runWidget() {
   const html = SCENARIO_WIDGET_RESOURCE.contents;
+  const body = html.slice(html.indexOf('<script>') + 8, html.lastIndexOf('</script>'));
+  const els: Record<string, Record<string, unknown>> = {};
+  for (const id of ['oa', 'oa-title', 'oa-sub', 'oa-cta', 'oa-url']) {
+    // Seed each element with the STATIC text the browser would have parsed
+    // from the markup. Defaulting these to '' made assertions about
+    // re-labelling vacuous - "the headline no longer says scenario" passed
+    // against an empty string even when the code never touched the headline.
+    const staticText = new RegExp(`id="${id}"[^>]*>([^<]*)<`).exec(html)?.[1] ?? '';
+    els[id] = {
+      hidden: id === 'oa',
+      textContent: staticText,
+      attrs: {} as Record<string, string>,
+      setAttribute(this: { attrs: Record<string, string> }, k: string, v: string) {
+        this.attrs[k] = v;
+      },
+    };
+  }
+  const listeners: Array<() => void> = [];
+  const win = {
+    openai: undefined as unknown,
+    addEventListener: (_e: string, fn: () => void) => listeners.push(fn),
+  };
+  let missing: string | null = null;
+  const doc = { getElementById: (id: string) => (id === missing ? null : (els[id] ?? null)) };
+  // Throws at parse time if the emitted JS is malformed.
+  new Function('window', 'document', body)(win, doc);
+  return {
+    els,
+    fire: () => listeners.forEach((fn) => fn()),
+    setOutput: (next: unknown) => {
+      win.openai = { toolOutput: next === null ? null : { next_steps: next } };
+    },
+    breakDom: (id: string | null) => {
+      missing = id;
+    },
+  };
+}
 
-  it('rebuilds the related-tools list instead of appending to it', () => {
-    // The clear MUST precede the append, or repeated renders stack up.
-    const clearAt = html.indexOf("more.textContent = ''");
-    const appendAt = html.indexOf('more.appendChild');
-    expect(clearAt).toBeGreaterThan(-1);
-    expect(appendAt).toBeGreaterThan(clearAt);
-    // Exactly one appendChild in the whole script - any other is a new leak.
-    expect(html.match(/appendChild/g)).toHaveLength(1);
+const LINK = 'https://optionsahoy.com/tools/rsu-sell-vs-hold?src=mcp_rsu_sc&mcp=AAA';
+
+describe('the widget script runs correctly (ChatGPT re-fires set_globals)', () => {
+  it('parses and renders a valid payload', () => {
+    const w = runWidget();
+    w.setOutput({ web_tool: LINK });
+    w.fire();
+    expect(w.els.oa.hidden).toBe(false);
+    expect((w.els['oa-cta'].attrs as Record<string, string>).href).toBe(LINK);
+    expect(w.els['oa-cta'].textContent).toBe('Open pre-filled calculator');
   });
 
-  it('sets every other field rather than accumulating', () => {
-    // textContent/setAttribute overwrite; insertAdjacentHTML/innerHTML +=
-    // and createElement outside the rebuilt list would not.
-    expect(html).not.toContain('insertAdjacentHTML');
-    expect(html).not.toMatch(/innerHTML\s*\+=/);
-    expect(html.match(/createElement/g)).toHaveLength(1);
+  it('does no DOM work when the payload is unchanged', () => {
+    // Shipped 2026-08-09 with an append-per-render bug: Andrew saw the
+    // related-tools line "more than 12" times for one answer. ChatGPT re-fires
+    // set_globals for theme and display changes, so treat the rate as
+    // unbounded and require the repeat path to touch nothing at all.
+    const w = runWidget();
+    w.setOutput({ web_tool: LINK });
+    let writes = 0;
+    Object.defineProperty(w.els['oa-cta'], 'textContent', {
+      set() {
+        writes++;
+      },
+      get: () => '',
+    });
+    for (let i = 0; i < 500; i++) w.fire();
+    expect(writes).toBe(1);
   });
 
-  it('skips the DOM entirely when the derived content is unchanged', () => {
-    // Andrew observed "more than 12" fires for one answer, so treat the rate
-    // as unbounded: a signature compare short-circuits before any write, and
-    // the failure paths reset it so a later valid payload still renders.
-    // (Browser-verified: 500 events -> 5 DOM mutations, 1 copy.)
-    expect(html).toContain('var lastSig = null;');
-    expect(html).toContain('if (sig === lastSig) return;');
-    expect(html.match(/lastSig = null/g)?.length).toBeGreaterThanOrEqual(3);
-    // The guard must sit before the first write, or it guards nothing.
-    expect(html.indexOf('if (sig === lastSig) return;')).toBeLessThan(html.indexOf('cta.setAttribute'));
+  it('re-renders when the payload changes to another tool', () => {
+    // All 8 tools share one template URI, so a second call can land on an
+    // already-mounted widget.
+    const w = runWidget();
+    w.setOutput({ web_tool: LINK });
+    w.fire();
+    const other = 'https://optionsahoy.com/tools/amt-iso?src=mcp_amt_sc&mcp=BBB';
+    w.setOutput({ web_tool: other });
+    w.fire();
+    expect((w.els['oa-cta'].attrs as Record<string, string>).href).toBe(other);
   });
 
-  it('hides the card on every failure path instead of leaving a stale one', () => {
-    // Three guards: no next_steps, non-optionsahoy href, and the catch.
-    expect(html.match(/card\.hidden = true/g)?.length).toBeGreaterThanOrEqual(2);
-    expect(html).toContain('catch (e)');
+  it('never leaves a stale card visible when a render throws mid-way', () => {
+    // The regression this guards: committing the signature BEFORE the DOM
+    // writes meant one throw pinned tool A's link on screen permanently while
+    // the reply described tool B - a confidently wrong link, worse than none.
+    const w = runWidget();
+    w.setOutput({ web_tool: LINK });
+    w.fire();
+    const other = 'https://optionsahoy.com/tools/amt-iso?src=mcp_amt_sc&mcp=BBB';
+    w.breakDom('oa-cta');
+    w.setOutput({ web_tool: other });
+    w.fire();
+    expect(w.els.oa.hidden).toBe(true);
+    w.breakDom(null);
+    w.fire();
+    expect(w.els.oa.hidden).toBe(false);
+    expect((w.els['oa-cta'].attrs as Record<string, string>).href).toBe(other);
+  });
+
+  it('renders the scenario headline when the link does carry one', () => {
+    // Pairs with the de-scope test below: without this, a mutation that drops
+    // the headline swap entirely still passes, because the static markup
+    // already says "scenario" and nothing would notice it never changed.
+    const w = runWidget();
+    w.setOutput({ web_tool: 'https://optionsahoy.com/tools/protective-put?src=mcp_protective_put' });
+    w.fire();
+    expect(String(w.els['oa-title'].textContent)).not.toContain('scenario');
+    w.setOutput({ web_tool: LINK });
+    w.fire();
+    expect(String(w.els['oa-title'].textContent)).toContain('scenario');
+  });
+
+  it('hides the card when the payload goes away, and recovers after', () => {
+    const w = runWidget();
+    w.setOutput({ web_tool: LINK });
+    w.fire();
+    w.setOutput(null);
+    w.fire();
+    expect(w.els.oa.hidden).toBe(true);
+    w.setOutput({ web_tool: LINK });
+    w.fire();
+    expect(w.els.oa.hidden).toBe(false);
+  });
+
+  it('de-scopes the headline when the link carries no scenario', () => {
+    // protective_put_price has no scenario resolver, so 100% of its calls take
+    // this path; the card must not offer to open "this scenario" above a link
+    // that opens an empty form.
+    const w = runWidget();
+    w.setOutput({ web_tool: 'https://optionsahoy.com/tools/protective-put?src=mcp_protective_put' });
+    w.fire();
+    expect(w.els.oa.hidden).toBe(false);
+    expect(String(w.els['oa-title'].textContent)).not.toContain('scenario');
+    expect(w.els['oa-cta'].textContent).toBe('Open calculator');
+  });
+
+  it('rejects every off-origin and non-https href', () => {
+    // The origin regex is the security control, so exercise its behaviour
+    // rather than grepping for its source text: "tidying" \\. to . silently
+    // turns the dot into a wildcard and nothing else would notice.
+    const w = runWidget();
+    for (const bad of [
+      'https://optionsahoy.com.evil.com/tools/x',
+      'https://optionsahoy.com@evil.com/tools/x',
+      'https://evil.com/?u=https://optionsahoy.com/',
+      'https://optionsahoyxcom/tools/x',
+      'http://optionsahoy.com/tools/x',
+      'https://optionsahoy.com',
+      '',
+    ]) {
+      w.setOutput({ web_tool: bad });
+      w.fire();
+      expect(w.els.oa.hidden, bad).toBe(true);
+    }
+    // A scheme prefixed onto our own URL is not hidden, it is DEFANGED: the
+    // href is sliced from the first `https://`, so the scheme the browser
+    // sees is always https and the leading `javascript:`/`data:` payload is
+    // discarded rather than navigated to. Assert the invariant that matters -
+    // whatever renders points at our origin - rather than the hide.
+    for (const prefixed of [
+      'javascript:alert(1)//https://optionsahoy.com/tools/x',
+      'data:text/html,<b>x</b>https://optionsahoy.com/tools/x',
+    ]) {
+      w.setOutput({ web_tool: prefixed });
+      w.fire();
+      const href = (w.els['oa-cta'].attrs as Record<string, string>).href;
+      expect(href, prefixed).toMatch(/^https:\/\/optionsahoy\.com\//);
+      expect(href, prefixed).not.toContain('javascript:');
+      expect(href, prefixed).not.toContain('data:');
+    }
+    // ...while our own origin renders, in either host case and with or
+    // without www., since neither changes the origin.
+    for (const ok of [
+      LINK,
+      LINK.replace('optionsahoy.com', 'www.optionsahoy.com'),
+      LINK.replace('optionsahoy.com', 'OptionsAhoy.com'),
+    ]) {
+      w.setOutput({ web_tool: ok });
+      w.fire();
+      expect(w.els.oa.hidden, ok).toBe(false);
+    }
+  });
+
+  it('makes no network calls of any kind', () => {
+    const html = SCENARIO_WIDGET_RESOURCE.contents;
+    expect(html).not.toMatch(/\bfetch\s*\(|XMLHttpRequest|WebSocket|\bimport\s*\(|sendBeacon/);
+    expect(html).not.toMatch(/<(object|embed|svg|form)\b|srcdoc/i);
   });
 });
 

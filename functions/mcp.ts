@@ -21,7 +21,7 @@ import { BARE_CALL_COUNT, bumpSessionCallCount, nextStepsFor, nextStepsProse } f
 import { isInfraClient } from './_lib/classify';
 import { SERVER_VERSION } from './_lib/version';
 import { SERVER_INSTRUCTIONS } from './_lib/mcp-instructions';
-import { SCENARIO_WIDGET_META, SCENARIO_WIDGET_RESOURCE, SCENARIO_WIDGET_URI } from './_lib/mcp-widget';
+import { SCENARIO_WIDGET_RESOURCE, SCENARIO_WIDGET_RESULT_META, SCENARIO_WIDGET_URI } from './_lib/mcp-widget';
 import { coveredTickers } from '../lib/data/trailing-returns';
 
 const PROTOCOL_VERSION = '2024-11-05';
@@ -61,7 +61,7 @@ const GET_DESCRIPTOR = {
   protocolVersion: PROTOCOL_VERSION,
   transport: 'http' as const,
   tools: TOOLS.map((t) => t.name),
-  resources: RESOURCES.map((r) => r.uri),
+  resources: RESOURCES_LIST.map((r) => r.uri),
   prompts: PROMPTS.map((p) => p.name),
   // The covered public symbols the `ticker` auto-fill resolves. Enumerable here
   // (not as an 8th resource) so agents/tooling can list the set without probing.
@@ -247,7 +247,7 @@ async function handle(
           // `_meta` as model-hidden (it reaches the component, not the
           // transcript), and working Apps SDK servers set it here as well as
           // on the descriptor. Other clients ignore unknown _meta per spec.
-          _meta: SCENARIO_WIDGET_META,
+          _meta: SCENARIO_WIDGET_RESULT_META,
         });
       } catch (e) {
         const message = e instanceof Error ? e.message : String(e);
@@ -327,7 +327,7 @@ export const onRequest: PagesFunction = async (ctx) => {
   const allowInjection = !isInfraClient(request.headers.get('user-agent'), 'mcp');
 
   if (request.method === 'OPTIONS') {
-    return new Response(null, { status: 204, headers: CORS });
+    return new Response(null, { status: 204, headers: { ...CORS, ...NO_STORE } });
   }
   if (request.method === 'GET') {
     // Some MCP clients GET /mcp first to discover capabilities. Return
@@ -357,7 +357,7 @@ export const onRequest: PagesFunction = async (ctx) => {
     // clean client shutdowns do not pollute the error stats.
     logs.push({ endpoint: 'mcp:session-delete', isError: false });
     logCalls(ctx, logs);
-    return new Response(null, { status: 405, headers: { allow: 'POST, OPTIONS', ...CORS } });
+    return new Response(null, { status: 405, headers: { allow: 'POST, OPTIONS', ...CORS, ...NO_STORE } });
   }
   if (request.method !== 'POST') {
     logs.push({ endpoint: 'mcp:bad-method', isError: true, errorMsg: request.method });
@@ -412,7 +412,7 @@ export const onRequest: PagesFunction = async (ctx) => {
 
   if (responses.length === 0) {
     // All-notifications batch. Per spec, return 204 No Content.
-    return new Response(null, { status: 204, headers: CORS });
+    return new Response(null, { status: 204, headers: { ...CORS, ...NO_STORE } });
   }
   return jsonResponse(Array.isArray(body) ? responses : responses[0], 200, sessionHeader);
 };

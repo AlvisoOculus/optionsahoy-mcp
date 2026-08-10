@@ -14,20 +14,31 @@
 // A widget is rendered by the CLIENT, not written by the model. An <a href>
 // here arrives exactly as sent.
 //
-// ADDITIVE BY DESIGN. Everything else is untouched: content[0] stays the JSON
-// result, content[1] stays the prose block carrying the same full URL, and
-// clients that do not implement `_meta["openai/outputTemplate"]` (Claude,
-// Cursor, npx/stdio, registries, plain SDK callers) see byte-identical
-// responses to before. Per MCP spec, unknown `_meta` keys are ignored.
+// ADDITIVE BY DESIGN. `content[0]` is still the JSON result and `content[1]`
+// still the prose block carrying the same full URL, so the MODEL-VISIBLE
+// surface is unchanged and clients that do not implement
+// `_meta["openai/outputTemplate"]` (Claude, Cursor, npx/stdio, registries,
+// plain SDK callers) behave exactly as before. What did change since the
+// first cut, and is asserted in tests/chatgpt-widget.test.ts: tools/list and
+// tool results carry `_meta`, resources/list carries the template, and every
+// response carries `cache-control`. Unknown `_meta` is ignored per MCP spec.
 
 /** Widget template URI, referenced from each tool's `_meta`. */
 export const SCENARIO_WIDGET_URI = 'ui://widget/optionsahoy-scenario.html';
 
-/** Tool-descriptor `_meta` that opts ChatGPT into the widget. */
+/** Tool-DESCRIPTOR `_meta`: template pointer plus the invocation status
+ *  labels, which are descriptor-level by definition. */
 export const SCENARIO_WIDGET_META = {
   'openai/outputTemplate': SCENARIO_WIDGET_URI,
   'openai/toolInvocation/invoking': 'Running the numbers',
   'openai/toolInvocation/invoked': 'Calculation complete',
+} as const;
+
+/** Tool-RESULT `_meta`: the pointer only. The invoking/invoked labels are
+ *  descriptor-level status text with no defined meaning on a result, and
+ *  every client receives this on every successful call. */
+export const SCENARIO_WIDGET_RESULT_META = {
+  'openai/outputTemplate': SCENARIO_WIDGET_URI,
 } as const;
 
 // Self-contained: no external scripts, styles, fonts or images, so no
@@ -48,63 +59,70 @@ const WIDGET_HTML = `<!doctype html>
   .oa p { margin: 0 0 12px; opacity: .75; }
   .oa a.cta { display: inline-block; text-decoration: none; font-weight: 600;
               border: 1px solid currentColor; border-radius: 8px; padding: 8px 14px; }
-  .oa ul { margin: 12px 0 0; padding-left: 18px; opacity: .75; }
-  .oa li { margin: 2px 0; }
+  .oa .url { margin: 10px 0 0; font-size: 11px; opacity: .5; word-break: break-all; }
 </style>
 <div class="oa" id="oa" hidden>
   <h3 id="oa-title">Open this scenario on OptionsAhoy</h3>
   <p id="oa-sub">The free calculator, pre-filled with the numbers from this calculation - adjust anything and see it update.</p>
-  <a class="cta" id="oa-cta" target="_blank" rel="noopener">Open pre-filled calculator</a>
-  <ul id="oa-more"></ul>
+  <a class="cta" id="oa-cta" target="_blank" rel="noopener noreferrer">Open pre-filled calculator</a>
+  <p class="url" id="oa-url"></p>
 </div>
 <script>
 (function () {
-  // IDEMPOTENT BY CONSTRUCTION, AND CHEAP WHEN NOTHING CHANGED.
+  // Only our own origin, host-case-insensitive per URL semantics, apex or www.
+  // Anchored so the authority cannot be extended (optionsahoy.com.evil.com,
+  // optionsahoy.com@evil.com both fail) and the href is guaranteed to start
+  // with https:// before it is tested, so javascript:/data: are unreachable.
+  var ORIGIN = /^https:\\/\\/(www\\.)?optionsahoy\\.com\\//i;
+
+  // The host re-fires openai:set_globals at an effectively unbounded rate
+  // ("more than 12" times for one answer, observed 2026-08-10), so this must
+  // be both idempotent and cheap. Two protections: every write sets a
+  // property (nothing accumulates - the first cut appended and stacked up),
+  // and lastHref short-circuits identical re-renders.
   //
-  // The host re-fires openai:set_globals for theme, display-mode and globals
-  // changes - observed "more than 12" times for a single answer, so treat the
-  // rate as unbounded. The first cut APPENDED the related-tools line per
-  // render and ChatGPT stacked it up (2026-08-10).
-  //
-  // Two independent protections, because either alone is fragile: every write
-  // below sets or rebuilds (never accumulates), AND a signature check skips
-  // the DOM entirely when the derived content is unchanged, so a high-rate
-  // event stream costs one string compare instead of a teardown per frame.
-  var lastSig = null;
+  // lastHref is committed only AFTER the card is shown. Committing it before
+  // the writes meant one mid-render throw pinned a stale card VISIBLE
+  // forever, advertising the previous tool's link while the reply described
+  // the new one - a confidently wrong link, worse than no link at all.
+  var lastHref = null;
+
   function render() {
+    var card = document.getElementById('oa');
     try {
       var out = (window.openai && window.openai.toolOutput) || null;
       var next = out && out.next_steps;
-      var card = document.getElementById('oa');
-      if (!next) { lastSig = null; card.hidden = true; return; }
+      if (!next) { lastHref = null; card.hidden = true; return; }
 
-      var href = typeof next.web_tool === 'string' ? next.web_tool : '';
-      var at = href.indexOf('https://');
-      href = at >= 0 ? href.slice(at) : '';
-      if (!/^https:\\/\\/optionsahoy\\.com\\//.test(href)) { lastSig = null; card.hidden = true; return; }
+      var raw = typeof next.web_tool === 'string' ? next.web_tool : '';
+      var at = raw.indexOf('https://');
+      var href = at >= 0 ? raw.slice(at) : '';
+      if (!ORIGIN.test(href)) { lastHref = null; card.hidden = true; return; }
+      if (href === lastHref) return;
 
-      var sig = href + '|' + (next.also_run || '');
-      if (sig === lastSig) return;
-      lastSig = sig;
-
-      var cta = document.getElementById('oa-cta');
-      cta.setAttribute('href', href);
       var prefilled = href.indexOf('&mcp=') !== -1;
-      cta.textContent = prefilled ? 'Open pre-filled calculator' : 'Open calculator';
+      document.getElementById('oa-title').textContent = prefilled
+        ? 'Open this scenario on OptionsAhoy'
+        : 'Open this calculator on OptionsAhoy';
       document.getElementById('oa-sub').textContent = prefilled
         ? 'The free calculator, pre-filled with the numbers from this calculation - adjust anything and see it update.'
-        : 'Open the free calculator to work this through interactively.';
+        : 'The free interactive calculator for this question.';
+      var cta = document.getElementById('oa-cta');
+      cta.setAttribute('href', href);
+      cta.textContent = prefilled ? 'Open pre-filled calculator' : 'Open calculator';
+      // Visible URL text: if the sandbox ever withholds allow-popups the
+      // button is inert with no symptom, and this is the only way the link
+      // survives that. Truncated because the payload is ~400 chars.
+      document.getElementById('oa-url').textContent =
+        href.length > 96 ? href.slice(0, 96) + '\\u2026' : href;
 
-      // Rebuilt, never appended.
-      var more = document.getElementById('oa-more');
-      more.textContent = '';
-      if (typeof next.also_run === 'string' && next.also_run) {
-        var li = document.createElement('li');
-        li.textContent = next.also_run;
-        more.appendChild(li);
-      }
       card.hidden = false;
-    } catch (e) { /* never break the host's rendering */ }
+      lastHref = href;
+    } catch (e) {
+      // A partial render must not be left on screen, and must not be pinned.
+      lastHref = null;
+      try { card.hidden = true; } catch (e2) { /* nothing further we can do */ }
+    }
   }
   render();
   window.addEventListener('openai:set_globals', render);
