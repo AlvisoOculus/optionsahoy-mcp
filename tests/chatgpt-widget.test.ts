@@ -69,6 +69,38 @@ describe('widget wiring (what ChatGPT needs)', () => {
   });
 });
 
+describe('the widget script is idempotent (ChatGPT re-fires set_globals)', () => {
+  // Shipped 2026-08-09 with an append-per-render bug: ChatGPT re-fires
+  // openai:set_globals for theme/display/globals changes, and the card showed
+  // the related-tools line a dozen times over. These assert on the emitted
+  // script, since a DOM run needs a browser (covered by the manual harness).
+  const html = SCENARIO_WIDGET_RESOURCE.contents;
+
+  it('rebuilds the related-tools list instead of appending to it', () => {
+    // The clear MUST precede the append, or repeated renders stack up.
+    const clearAt = html.indexOf("more.textContent = ''");
+    const appendAt = html.indexOf('more.appendChild');
+    expect(clearAt).toBeGreaterThan(-1);
+    expect(appendAt).toBeGreaterThan(clearAt);
+    // Exactly one appendChild in the whole script - any other is a new leak.
+    expect(html.match(/appendChild/g)).toHaveLength(1);
+  });
+
+  it('sets every other field rather than accumulating', () => {
+    // textContent/setAttribute overwrite; insertAdjacentHTML/innerHTML +=
+    // and createElement outside the rebuilt list would not.
+    expect(html).not.toContain('insertAdjacentHTML');
+    expect(html).not.toMatch(/innerHTML\s*\+=/);
+    expect(html.match(/createElement/g)).toHaveLength(1);
+  });
+
+  it('hides the card on every failure path instead of leaving a stale one', () => {
+    // Three guards: no next_steps, non-optionsahoy href, and the catch.
+    expect(html.match(/card\.hidden = true/g)?.length).toBeGreaterThanOrEqual(2);
+    expect(html).toContain('catch (e)');
+  });
+});
+
 describe('non-interference (every other client)', () => {
   it('a tools/call response is unchanged: JSON block, prose block, structuredContent', async () => {
     const res = await onRequest({ request: rpc(call('amt_iso_optimize', AMT_ARGS)), env: {} });
