@@ -73,14 +73,17 @@ jobs:
       - name: Conformance against the Pages origin
         run: node scripts/conformance-live.mjs https://optionsahoy-mcp.pages.dev
 
-      # Tier 4: the only check with a real model in the loop. Skips itself
-      # (exit 0) until OPENAI_API_KEY exists, so it is harmless until then.
-      # Reports link-survival as a RATE rather than failing on it: that is
-      # the model's behaviour, not ours, and the widget is the channel we
-      # control. It DOES fail if the model stops calling the tool at all,
-      # which would mean our own descriptions regressed.
-      - name: Model relay (skipped without a key)
+      # The only check with a real model in the loop. Drives the live server
+      # through OpenRouter - a full tool loop, so it sees the FINAL prose that
+      # eval-routing.mts (first tool call only) cannot. Reports link survival
+      # as a RATE rather than failing on it: that is the model's behaviour,
+      # not ours, and the widget is the channel we control. It DOES fail if no
+      # model calls the tool, which would mean our descriptions regressed.
+      #
+      # This is how the Anthropic top-level-anyOf rejection was found: every
+      # Claude run 400d while OpenAI and Gemini passed.
+      - name: Link survival across models (skipped without a key)
         if: github.event_name != 'push'
         env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-        run: node scripts/model-relay-live.mjs 3
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+        run: node scripts/link-survival.mjs 2

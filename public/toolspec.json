@@ -947,19 +947,6 @@
           "filingStatus",
           "stateCode"
         ],
-        "anyOf": [
-          {
-            "required": [
-              "stacks"
-            ]
-          },
-          {
-            "required": [
-              "lots",
-              "currentPrice"
-            ]
-          }
-        ],
         "properties": {
           "targetAfterTax": {
             "type": "number",

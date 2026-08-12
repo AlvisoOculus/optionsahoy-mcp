@@ -1618,10 +1618,19 @@ export const TOOLS: McpTool[] = [
     inputSchema: {
       type: 'object',
       required: ['targetAfterTax', 'targetDate', 'ordinaryIncome', 'filingStatus', 'stateCode'],
-      anyOf: [
-        { required: ['stacks'] },
-        { required: ['lots', 'currentPrice'] },
-      ],
+      // The "stacks OR (lots + currentPrice)" choice is enforced by
+      // parseEquityFundingInput, NOT by the schema. It used to be a top-level
+      // `anyOf`, which the Anthropic Messages API rejects outright:
+      //   tools.6.custom.input_schema: input_schema does not support oneOf,
+      //   allOf, or anyOf at the top level
+      // Anthropic validates the whole tools array, so one such schema 400s the
+      // ENTIRE request - all eight tools, not just this one. Any client that
+      // bridges MCP tool descriptors into that API (Claude Desktop, claude.ai
+      // connectors, plain SDK callers) is affected. Verified 2026-08-12: as
+      // shipped 400, with this removed 200.
+      // The requirement is stated in the description and returns a named-field
+      // error at call time, which is where every other conditional requirement
+      // in this suite is enforced too.
       properties: {
         targetAfterTax: {
           type: 'number',
