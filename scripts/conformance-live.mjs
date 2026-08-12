@@ -69,6 +69,19 @@ check('tools/list returns all 8 tools', tools.length === 8, `got ${tools.length}
 
 const { SCENARIO_WIDGET_URI } = await import('../functions/_lib/mcp-widget.ts').catch(() => ({}));
 const WIDGET_URI = SCENARIO_WIDGET_URI ?? 'ui://widget/optionsahoy-scenario.html';
+// The Anthropic Messages API rejects a top-level oneOf/allOf/anyOf and
+// validates the WHOLE tools array, so one bad schema 400s all eight for every
+// client that bridges MCP descriptors into it (Claude Desktop, claude.ai
+// connectors). equity_funding_plan shipped that way; this is the live guard.
+const combinator = tools
+  .filter((t) => ['oneOf', 'allOf', 'anyOf'].some((k) => k in (t.inputSchema ?? {})))
+  .map((t) => t.name);
+check(
+  'no tool schema has a top-level oneOf/allOf/anyOf (Anthropic rejects the whole array)',
+  combinator.length === 0,
+  combinator.join(', '),
+);
+
 const missingMeta = tools
   .filter((t) => t._meta?.['openai/outputTemplate'] !== WIDGET_URI)
   .map((t) => t.name);
