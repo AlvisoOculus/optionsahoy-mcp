@@ -1,0 +1,74 @@
+# AlphaLatitude Inc. © 2026
+#
+# Asserts the LIVE deployment is HEAD and the agent contract still holds.
+#
+# The schedule is the point. On 2026-08-10 the GitHub push event for a merge to
+# main was dropped: Cloudflare never created a production deployment AND the
+# post-deploy smoke workflow never ran, because both hang off that same event.
+# Nothing noticed for an hour and it was found by hand. Every other check here
+# is push-triggered, so a dropped event is invisible by construction. A
+# scheduled run cannot be starved that way - if main has been live-mismatched
+# for an hour, this says so.
+#
+# It also runs on push (after the Pages check goes green, same approach as
+# smoke.yml) to catch a bad deploy promptly, and on demand.
+
+name: Live conformance
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+  schedule:
+    - cron: "37 * * * *" # hourly, offset off the hour to dodge scheduler peaks
+
+permissions:
+  contents: read
+  checks: read
+
+concurrency:
+  # Do NOT cancel in progress: a superseded run still carries the only signal
+  # that its own commit reached production.
+  group: conformance-${{ github.ref }}-${{ github.sha }}
+  cancel-in-progress: false
+
+jobs:
+  conformance:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "20"
+
+      # On push, give the deploy a chance to land before comparing - otherwise
+      # every merge fails for the two minutes Cloudflare takes to build. On a
+      # schedule we skip this: a mismatch is exactly what we want to hear about.
+      - name: Wait for the Cloudflare Pages deploy of this commit
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          sha="${{ github.sha }}"
+          for i in $(seq 1 60); do   # up to ~20 min at 20s intervals
+            line=$(gh api "repos/${{ github.repository }}/commits/$sha/check-runs" 2>/dev/null \
+              | jq -r '.check_runs[] | select(.name=="Cloudflare Pages") | "\(.status) \(.conclusion)"' | head -1)
+            echo "  [$i] Cloudflare Pages: ${line:-<not posted yet>}"
+            case "$line" in
+              "completed success") echo "Deploy succeeded; letting it settle."; sleep 25; exit 0 ;;
+              "completed "*) echo "::error::Cloudflare Pages deploy did not succeed ($line)"; exit 1 ;;
+            esac
+            sleep 20
+          done
+          echo "::error::Timed out waiting for the Cloudflare Pages deploy - it may never have been created (see 2026-08-10)"
+          exit 1
+
+      - name: Conformance against the apex
+        run: node scripts/conformance-live.mjs https://optionsahoy.com
+
+      # The apex reaches this project through the edge proxy. Checking the
+      # Pages origin too separates "the deploy is stale" from "the proxy or an
+      # edge cache is serving something old", which cost an hour to tell apart
+      # by hand.
+      - name: Conformance against the Pages origin
+        run: node scripts/conformance-live.mjs https://optionsahoy-mcp.pages.dev
