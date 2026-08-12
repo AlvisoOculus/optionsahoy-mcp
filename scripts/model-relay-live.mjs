@@ -55,8 +55,15 @@ async function once(i) {
 
   const calledTool = /rsu_sell_vs_hold/.test(text);
   // The whole question: did the payload survive the model's recomposition?
-  const withPayload = /optionsahoy\.com\/tools\/rsu-sell-vs-hold\?[^"'\s]*mcp=[A-Za-z0-9_-]{20,}/.exec(text);
-  const bareLink = /optionsahoy\.com\/tools\/[a-z-]+/.test(text);
+  //
+  // The `https://` prefix is REQUIRED, not decoration. Matching the bare host
+  // would count `https://evil.com/?u=https://optionsahoy.com/tools/...` as our
+  // link surviving, and CodeQL flags exactly that (js/regex/missing-regexp-anchor).
+  // With the scheme pinned immediately before the host, the authority cannot be
+  // extended: `optionsahoy.com.evil.com/` and `optionsahoy.com@evil.com/` both
+  // fail, because what follows the host must be `/tools/`.
+  const withPayload = /https:\/\/optionsahoy\.com\/tools\/rsu-sell-vs-hold\?[^"'\s]*mcp=[A-Za-z0-9_-]{20,}/.exec(text);
+  const bareLink = /https:\/\/optionsahoy\.com\/tools\/[a-z-]+/.test(text);
 
   console.log(
     `  run ${i}: tool=${calledTool ? 'yes' : 'NO'} link=${withPayload ? 'with payload' : bareLink ? 'bare (payload stripped)' : 'none'}`,
