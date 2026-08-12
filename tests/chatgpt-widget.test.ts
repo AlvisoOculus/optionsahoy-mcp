@@ -15,6 +15,9 @@ import { onRequest } from '../functions/mcp';
 import { TOOLS, buildToolSpec } from '../functions/_lib/mcp-tools';
 import { RESOURCES } from '../functions/_lib/mcp-resources';
 import { SCENARIO_WIDGET_URI, SCENARIO_WIDGET_RESOURCE } from '../functions/_lib/mcp-widget';
+// eslint-disable-next-line @typescript-eslint/ban-ts-comment
+// @ts-expect-error - plain-JS helper shared with scripts/conformance-live.mjs
+import { runWidget as runWidgetHost } from '../scripts/lib/widget-host.mjs';
 
 function rpc(body: unknown, headers: Record<string, string> = {}): Request {
   return new Request('https://optionsahoy.com/mcp', {
@@ -69,52 +72,18 @@ describe('widget wiring (what ChatGPT needs)', () => {
   });
 });
 
-// Executes the emitted script against a fake DOM. Every assertion below runs
-// the real code rather than grepping the source, because the failure mode this
-// file exists to prevent is behavioural - a render loop that accumulates, or a
-// stale card left visible - and source-text assertions could not see any of
-// it. A syntax error in the emitted JS also used to ship fully green, since
-// nothing ever parsed it; `new Function` now catches that at test time. One
-// did occur while this was being written: a stray backtick in a comment closed
-// the enclosing TS template literal.
+// The host emulator lives in scripts/lib/widget-host.mjs because
+// scripts/conformance-live.mjs runs the SAME harness against whatever the
+// live deployment serves. Behaviour asserted here is therefore asserted about
+// production too, not just about the file in git.
+//
+// It executes the emitted script rather than grepping its source: the failure
+// mode this file exists to prevent is behavioural, and a syntax error in the
+// emitted JS used to ship fully green because nothing ever parsed it. One
+// occurred while this was being written - a stray backtick in a comment that
+// closed the enclosing TS template literal.
 function runWidget() {
-  const html = SCENARIO_WIDGET_RESOURCE.contents;
-  const body = html.slice(html.indexOf('<script>') + 8, html.lastIndexOf('</script>'));
-  const els: Record<string, Record<string, unknown>> = {};
-  for (const id of ['oa', 'oa-title', 'oa-sub', 'oa-cta', 'oa-url']) {
-    // Seed each element with the STATIC text the browser would have parsed
-    // from the markup. Defaulting these to '' made assertions about
-    // re-labelling vacuous - "the headline no longer says scenario" passed
-    // against an empty string even when the code never touched the headline.
-    const staticText = new RegExp(`id="${id}"[^>]*>([^<]*)<`).exec(html)?.[1] ?? '';
-    els[id] = {
-      hidden: id === 'oa',
-      textContent: staticText,
-      attrs: {} as Record<string, string>,
-      setAttribute(this: { attrs: Record<string, string> }, k: string, v: string) {
-        this.attrs[k] = v;
-      },
-    };
-  }
-  const listeners: Array<() => void> = [];
-  const win = {
-    openai: undefined as unknown,
-    addEventListener: (_e: string, fn: () => void) => listeners.push(fn),
-  };
-  let missing: string | null = null;
-  const doc = { getElementById: (id: string) => (id === missing ? null : (els[id] ?? null)) };
-  // Throws at parse time if the emitted JS is malformed.
-  new Function('window', 'document', body)(win, doc);
-  return {
-    els,
-    fire: () => listeners.forEach((fn) => fn()),
-    setOutput: (next: unknown) => {
-      win.openai = { toolOutput: next === null ? null : { next_steps: next } };
-    },
-    breakDom: (id: string | null) => {
-      missing = id;
-    },
-  };
+  return runWidgetHost(SCENARIO_WIDGET_RESOURCE.contents);
 }
 
 const LINK = 'https://optionsahoy.com/tools/rsu-sell-vs-hold?src=mcp_rsu_sc&mcp=AAA';
