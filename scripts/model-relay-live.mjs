@@ -54,16 +54,18 @@ async function once(i) {
   const text = JSON.stringify(json);
 
   const calledTool = /rsu_sell_vs_hold/.test(text);
-  // The whole question: did the payload survive the model's recomposition?
-  //
-  // The `https://` prefix is REQUIRED, not decoration. Matching the bare host
-  // would count `https://evil.com/?u=https://optionsahoy.com/tools/...` as our
-  // link surviving, and CodeQL flags exactly that (js/regex/missing-regexp-anchor).
-  // With the scheme pinned immediately before the host, the authority cannot be
-  // extended: `optionsahoy.com.evil.com/` and `optionsahoy.com@evil.com/` both
-  // fail, because what follows the host must be `/tools/`.
-  const withPayload = /https:\/\/optionsahoy\.com\/tools\/rsu-sell-vs-hold\?[^"'\s]*mcp=[A-Za-z0-9_-]{20,}/.exec(text);
-  const bareLink = /https:\/\/optionsahoy\.com\/tools\/[a-z-]+/.test(text);
+
+  // Extract the URLs first, then test each one ANCHORED. Searching for a host
+  // pattern inside the blob cannot be anchored, so it matches anywhere and
+  // arbitrary hosts may sit on either side - `https://evil.com/?u=https://
+  // optionsahoy.com/tools/...` would have counted as our link surviving.
+  // CodeQL flags that as js/regex/missing-regexp-anchor, correctly. Splitting
+  // extraction from validation lets the check be both anchored and precise.
+  const urls = text.match(/https:\/\/[^"'\s\\]+/g) ?? [];
+  const PAYLOAD = /^https:\/\/optionsahoy\.com\/tools\/rsu-sell-vs-hold\?[^"']*mcp=[A-Za-z0-9_-]{20,}/;
+  const ANY_TOOL = /^https:\/\/optionsahoy\.com\/tools\/[a-z-]+/;
+  const withPayload = urls.some((u) => PAYLOAD.test(u));
+  const bareLink = urls.some((u) => ANY_TOOL.test(u));
 
   console.log(
     `  run ${i}: tool=${calledTool ? 'yes' : 'NO'} link=${withPayload ? 'with payload' : bareLink ? 'bare (payload stripped)' : 'none'}`,
