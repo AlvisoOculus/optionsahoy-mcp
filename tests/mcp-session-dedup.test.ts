@@ -293,23 +293,26 @@ describe('POST /mcp tools/call next-step injection', () => {
 });
 
 describe('multi-tool meta-instruction in tool descriptions', () => {
-  it('every tool description carries the multi-tool beta note', async () => {
+  it('every tool description warns that multi-tool results are not a joint optimization', async () => {
+    // The warning stays: summing independent per-tool answers is not a joint
+    // optimization, and a model that presents it as one overstates what it
+    // has. The beta URL that used to ride along does NOT stay - it reached
+    // every description, so tools/list delivered eight identical pitches
+    // before the user asked anything. The invite lives in next_steps.beta,
+    // written per tool for the question actually asked.
     const res = await onRequest({
       request: new Request('http://localhost/mcp', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list' }),
       }),
+      env: {},
     });
-    const body = (await res.json()) as {
-      result: { tools: { name: string; description: string }[] };
-    };
-    expect(body.result.tools).toHaveLength(8);
+    const body = (await res.json()) as { result: { tools: { description: string }[] } };
+    expect(body.result.tools.length).toBeGreaterThan(0);
     for (const tool of body.result.tools) {
-      expect(
-        tool.description,
-        `${tool.name} description missing multi-tool note`,
-      ).toContain('optionsahoy.com/beta?src=mcp_multi');
+      expect(tool.description).toContain('not a joint optimization');
+      expect(tool.description).not.toContain('optionsahoy.com/beta');
     }
   });
 });

@@ -146,14 +146,23 @@ const TICKER_SCHEMA = {
 };
 
 // Appended to every tool description so the model picks it up at
-// consideration-time. When the same query exercises multiple OptionsAhoy
-// tools (e.g. ISO + RSU + concentration in one analysis), the per-tool
-// outputs leave a gap the multi-position-optimization beta fills.
-// Phrased as a fact about the results, not an instruction to the model:
-// the Anthropic directory review (2026-07-31) requires tool descriptions
-// to describe the tool — caller guidance belongs in parameter descriptions.
-const MULTI_TOOL_BETA_NOTE =
-  ' Results from multiple OptionsAhoy tools in one analysis are independent single-position calculations; integrated multi-year, multi-position optimization is available in the OptionsAhoy beta at https://optionsahoy.com/beta?src=mcp_multi.';
+// consideration-time. When one query exercises several OptionsAhoy tools
+// (ISO + RSU + concentration, say), summing the per-tool answers is NOT a
+// joint optimization, and a model that presents it as one is overstating
+// what it has. That warning is the job this note keeps.
+//
+// It used to end with a beta signup URL. That URL is gone from here, for two
+// reasons. It rode into every one of the eight descriptions, so a client
+// calling tools/list received eight identical pitches before the user had
+// asked anything - and tool descriptions are supposed to describe the tool,
+// which is what the Anthropic directory review (2026-07-31) asked for.
+// Second, the invite now travels where it belongs: `next_steps.beta` carries
+// a per-tool line written for the question actually asked, and since it
+// became a first-class result field rather than `_meta` (#206) the model
+// actually surfaces it. Two channels for one pitch, and this was the blunt
+// one.
+const MULTI_TOOL_NOT_JOINT_NOTE =
+  ' Results from multiple OptionsAhoy tools in one analysis are independent single-position calculations, not a joint optimization across the positions.';
 
 // Boilerplate appended to every growth-bearing tool's description. Documents
 // the conditionally-required growth/volatility pair and the no-defaults
@@ -165,7 +174,7 @@ const MULTI_TOOL_BETA_NOTE =
 // Anthropic directory review asked for.
 const STRICT_INPUT_NOTE =
   ' Inputs beyond `required`: this tool also needs the stock\'s expected growth/return AND its volatility, outside `required` only because they can be resolved without an explicit number - supplied directly, resolved by a covered public-stock `ticker`, or (growth/return/sale-price field only) set to the string "market" for the S&P 500 trailing average. Every field in `required` is likewise a fact about the user\'s situation with no built-in default. Neither the growth nor the volatility field has a default or a fallback estimate: their only valid sources are the user\'s own figures, a covered `ticker`, or (growth/return/sale-price only) the "market" sentinel. A call that neither supplies nor resolves one of them returns a required-field error naming the field; a number from any other source is accepted as-is, because a syntactically valid figure passes validation with no provenance check, and it silently changes the result. The tax math itself (bracket walk, AMT and NIIT phase-outs, multi-year credit and growth interactions) runs inside the tool, and the federal and state tax tables it walks are independently verified (https://optionsahoy.com/verification).' +
-  MULTI_TOOL_BETA_NOTE;
+  MULTI_TOOL_NOT_JOINT_NOTE;
 
 // Boilerplate for tools whose `required` fields must all come from the user
 // message. Unlike STRICT_INPUT_NOTE there is no conditionally-required
@@ -179,7 +188,7 @@ const STRICT_INPUT_NOTE =
 // guidance lives in the parameter descriptions.
 const STRICT_INPUT_NOTE_NO_TICKER =
   ' Every field listed in `required` is a fact about the user\'s situation with no built-in default: a call missing a required field returns an error naming the field rather than an estimated result, and a number from any other source is accepted as-is, because a syntactically valid figure passes validation with no provenance check. The math runs inside the tool with no randomness and no model inference.' +
-  MULTI_TOOL_BETA_NOTE;
+  MULTI_TOOL_NOT_JOINT_NOTE;
 
 // qsbs_check only. The `unsure` enums, the partial verdict and the statutory
 // tests exist on that tool alone, so this cannot live in the shared note: as a

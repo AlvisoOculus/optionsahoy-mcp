@@ -9,6 +9,19 @@
 // Heuristic, NOT proof. The signal is client_name: the MCP handshake
 // clientInfo.name for mcp: calls, the literal 'poe' for Poe, or the raw
 // (spoofable) User-Agent for rest: calls.
+//
+// One caller does not fit that contract. functions/mcp.ts computes
+// allowInjection from the HTTP User-Agent with surface 'mcp', because a
+// sessionless tools/call carries no handshake at all: clientInfo.name is read
+// only on initialize. The crawler patterns below were tuned against handshake
+// NAMES (prsm-mcp-graph, mcp-uptime, kimi-mcp-validator), so on that path they
+// are matching against something they were not written for. A scanner built on
+// the MCP SDK arrives as `node` or `python-httpx` and is indistinguishable
+// from a real SDK integration, so it is classified as a tool and reaches the
+// next-steps injection. Accepted deliberately: the cost of marketing to a
+// crawler is a string it never reads, while the cost of suppressing a real
+// integration is the conversion surface itself. Tighten the patterns only
+// with that asymmetry in mind.
 
 export type ClientKind = 'human' | 'agent' | 'smoke' | 'tool' | 'crawler' | 'unknown';
 
