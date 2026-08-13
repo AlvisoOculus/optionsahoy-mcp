@@ -26,7 +26,7 @@
 //
 // Usage: node scripts/stdio-client-smoke.mjs
 
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import { mkdtempSync, writeFileSync, rmSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
@@ -40,6 +40,21 @@ for (const [label, p] of [['tsx', TSX], ['stdio-server.ts', SERVER]]) {
     console.error(`missing ${label}: ${p}${label === 'tsx' ? ' (run npm ci)' : ''}`);
     process.exit(1);
   }
+}
+
+// Wired into `npm run release:preflight`, which prepublishOnly runs - and
+// `npm publish` runs in GitHub Actions on release, where there is no
+// subscription auth and no `claude` binary. Skipping (exit 0) rather than
+// failing is what makes it safe to gate a release on locally while remaining
+// a no-op in CI. It protects the release that a human runs, which is the one
+// where the stdio server can actually be broken by a local change.
+if (process.env.CI) {
+  console.log('CI detected - skipping the stdio smoke (needs local Claude Code subscription auth).');
+  process.exit(0);
+}
+if (spawnSync('claude', ['--version'], { stdio: 'ignore' }).status !== 0) {
+  console.log('`claude` CLI not available - skipping the stdio smoke.');
+  process.exit(0);
 }
 
 const dir = mkdtempSync(path.join(tmpdir(), 'stdio-smoke-'));

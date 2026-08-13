@@ -60,9 +60,12 @@
     "verify:tax-tables": "node scripts/codegen/gen-federal-tax-tables.mjs --check",
     "gen:toolspec": "tsx scripts/codegen/gen-toolspec.mts",
     "verify:toolspec": "tsx scripts/codegen/gen-toolspec.mts --check",
+    "gen:wellknown": "tsx scripts/codegen/stamp-wellknown-version.mts",
+    "verify:wellknown": "tsx scripts/codegen/stamp-wellknown-version.mts --check",
+    "release:preflight": "npm run verify:toolspec && npm run verify:wellknown && node scripts/stdio-client-smoke.mjs",
     "gen:openapi": "tsx scripts/codegen/gen-openapi.mts",
     "verify:openapi": "tsx scripts/codegen/gen-openapi.mts --check",
-    "prepublishOnly": "npm run typecheck && npm test && npm run build",
+    "prepublishOnly": "npm run typecheck && npm test && npm run build && npm run release:preflight",
     "build:mcpb": "npm run build && node scripts/build-mcpb.mjs",
     "eval:routing": "tsx scripts/eval-routing.mts",
     "eval:discipline": "tsx scripts/eval-routing.mts --kinds input-discipline"
