@@ -10,7 +10,7 @@
 // version says "nothing has changed here" through every release.
 
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'fs';
+import { readFileSync, existsSync } from 'fs';
 
 const pkg = JSON.parse(readFileSync('package.json', 'utf8')) as { version: string };
 
@@ -18,12 +18,18 @@ const VERSIONED = [
   'public/.well-known/mcp.json',
   'public/.well-known/agent-card.json',
   'public/.well-known/agent.json',
+  // The copy served at optionsahoy.com/.well-known/mcp.json - the one agents
+  // actually read. It lives in the web repo, which releases separately, and
+  // had no guard at all: it sat at 1.9.8 while this repo reported 1.10.1.
+  // Skipped when the sibling checkout is absent (CI clones one repo).
+  '../optionsahoy_web/web/public/.well-known/mcp.json',
 ];
 
 describe('.well-known discovery files track the package version', () => {
   it.each(VERSIONED)('%s matches package.json', (file) => {
+    if (!existsSync(file)) return; // sibling repo not checked out
     const doc = JSON.parse(readFileSync(file, 'utf8')) as { version?: string };
-    expect(doc.version, `${file} is stale - bump it with the release`).toBe(pkg.version);
+    expect(doc.version, `${file} is stale - run npm run gen:wellknown`).toBe(pkg.version);
   });
 
   it('is the same version initialize reports, so discovery and handshake agree', async () => {
