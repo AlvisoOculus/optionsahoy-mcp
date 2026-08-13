@@ -17,7 +17,7 @@
 //
 //   npm run gen:wellknown      # write
 //   npm run verify:wellknown   # --check: exit 1 if any copy is stale
-import { writeFileSync, readFileSync, existsSync } from 'node:fs';
+import { writeFileSync, readFileSync } from 'node:fs';
 
 const { version } = JSON.parse(readFileSync('package.json', 'utf8')) as { version: string };
 
@@ -33,11 +33,20 @@ const check = process.argv.includes('--check');
 let stale = 0;
 
 for (const path of TARGETS) {
-  if (!existsSync(path)) {
-    console.log(`skip (absent): ${path}`);
-    continue;
+  // Read first and treat ENOENT as "absent", rather than existsSync-then-read.
+  // The check-then-use form is a TOCTOU race (CodeQL js/file-system-race) and
+  // is also one syscall more for no benefit: the sibling web checkout is
+  // routinely missing, which is a normal outcome here, not an error.
+  let current: string;
+  try {
+    current = readFileSync(path, 'utf8');
+  } catch (err) {
+    if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
+      console.log(`skip (absent): ${path}`);
+      continue;
+    }
+    throw err;
   }
-  const current = readFileSync(path, 'utf8');
   const parsed = JSON.parse(current) as { version?: string };
   if (parsed.version === version) {
     console.log(`ok: ${path} (${version})`);
