@@ -30,9 +30,14 @@ import { RESOURCES } from '../functions/_lib/mcp-resources';
 import { PROMPTS } from '../functions/_lib/mcp-prompts';
 import { SERVER_INSTRUCTIONS } from '../functions/_lib/mcp-instructions';
 import { SERVER_VERSION } from '../functions/_lib/version';
-import { BARE_CALL_COUNT, nextStepsFor, nextStepsProse } from '../functions/_lib/sessions';
+import { nextStepsFor, nextStepsProse } from '../functions/_lib/sessions';
 
 const SERVER_INFO = { name: 'optionsahoy', version: SERVER_VERSION };
+
+// Calls served by this process. One stdio process is bound to one client, so
+// this is that client's call count and drives the same once-per-client
+// next-steps dedup an HTTP session id provides.
+let toolCallCount = 0;
 
 // Precomputed list projections + name lookups, mirroring the precomputation
 // in functions/mcp.ts so list calls don't allocate on every request and
@@ -87,12 +92,16 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
   }
   try {
     const result = tool.handler(req.params.arguments) as Record<string, unknown>;
-    // Same next-steps block the hosted server injects, in its bare form:
-    // this process is local and stateless, so there is no session to dedupe
-    // a once-per-session pitch against. Without this, npx/MCPB installs (a
-    // real install path with real weekly downloads) were the one tool
-    // surface offering no way back to the web tools.
-    const next = nextStepsFor(req.params.name, BARE_CALL_COUNT, undefined, req.params.arguments);
+    // Same next-steps block the hosted server injects. There is no HTTP
+    // session here, but this process serves exactly one client for its whole
+    // lifetime, so a local counter dedupes as precisely as a session id would:
+    // the beta pitch lands once, on the first call, and never again. (An
+    // earlier version passed a fixed "not the first call" and claimed nothing
+    // could dedupe here, which would have repeated the pitch on every call for
+    // the life of the process - on the surface Claude Desktop installs.)
+    // No join token either way: that is a prefix of a session id, and there is
+    // no session row to join against.
+    const next = nextStepsFor(req.params.name, ++toolCallCount, undefined, req.params.arguments);
     if (next) result.next_steps = next;
     // Per MCP spec, tools that declare an outputSchema return the result
     // object as `structuredContent` plus a backwards-compatible serialized

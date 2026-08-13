@@ -141,7 +141,7 @@ const ORIGIN = new URL(BASE).origin;
 const SMOKE_UA = { 'user-agent': 'oa-e2e-live' };
 
 // Session issuance: the server MUST mint an id when none is supplied, and
-// echo a client-supplied one. This is what arms the _meta funnel.
+// echo a client-supplied one. This is what arms the next_steps funnel.
 {
   const res = await fetch(BASE, {
     method: 'POST',
@@ -165,7 +165,7 @@ const SMOKE_UA = { 'user-agent': 'oa-e2e-live' };
   check('HEAD /mcp returns 200', res.status === 200);
 }
 
-// _meta.optionsahoy funnel: full block + s= join token on the first call in a
+// next_steps funnel: full block + s= join token on the first call in a
 // fresh session, deduped bare form on the second. Session id keeps the e2e-
 // prefix so the funnel rollups exclude it as smoke.
 {
@@ -177,13 +177,13 @@ const SMOKE_UA = { 'user-agent': 'oa-e2e-live' };
       headers: { 'content-type': 'application/json', 'mcp-session-id': metaSession },
       body: JSON.stringify({ jsonrpc: '2.0', id: ++id, method: 'tools/call', params: { name: 'qsbs_check', arguments: CALLS.qsbs_check } }),
     });
-    return (await res.json()).result?.structuredContent?._meta?.optionsahoy;
+    return (await res.json()).result?.structuredContent?.next_steps;
   };
   const first = await callQsbs();
-  check('_meta funnel: first call carries free_tool + also_run + beta', !!first?.free_tool && !!first?.also_run && !!first?.beta, JSON.stringify(first ?? null)?.slice(0, 120));
-  check('_meta funnel: join token rides free_tool and beta', (first?.free_tool ?? '').endsWith(`&s=${joinPrefix}`) && (first?.beta ?? '').endsWith(`&s=${joinPrefix}`), `free_tool tail: ${(first?.free_tool ?? '').slice(-30)}`);
+  check('next_steps funnel: first call carries web_tool + also_run + beta', !!first?.web_tool && !!first?.also_run && !!first?.beta, JSON.stringify(first ?? null)?.slice(0, 120));
+  check('next_steps funnel: join token rides web_tool and beta', (first?.web_tool ?? '').endsWith(`&s=${joinPrefix}`) && (first?.beta ?? '').endsWith(`&s=${joinPrefix}`), `web_tool tail: ${(first?.web_tool ?? '').slice(-30)}`);
   const second = await callQsbs();
-  check('_meta funnel: second call in session dedupes the beta pitch', !!second?.free_tool && second?.beta === undefined, JSON.stringify(second ?? null)?.slice(0, 120));
+  check('next_steps funnel: second call in session dedupes the beta pitch', !!second?.web_tool && second?.beta === undefined, JSON.stringify(second ?? null)?.slice(0, 120));
 }
 
 // Sessionless next-steps: the ~98% of tool calls that never echo a session
@@ -196,11 +196,11 @@ const SMOKE_UA = { 'user-agent': 'oa-e2e-live' };
       headers: { 'content-type': 'application/json', 'user-agent': ua },
       body: JSON.stringify({ jsonrpc: '2.0', id: ++id, method: 'tools/call', params: { name: 'qsbs_check', arguments: CALLS.qsbs_check } }),
     });
-    return (await res.json()).result?.structuredContent?._meta?.optionsahoy;
+    return (await res.json()).result?.structuredContent?.next_steps;
   };
   const sdk = await sessionlessMeta('python-httpx/0.28.1');
-  check('sessionless: an SDK caller gets the bare free-tool + related block', !!sdk?.free_tool && !!sdk?.also_run, JSON.stringify(sdk ?? null)?.slice(0, 90));
-  check('sessionless: no beta pitch and no join token (nothing to dedupe)', sdk?.beta === undefined && !(sdk?.free_tool ?? '').includes('&s='));
+  check('sessionless: an SDK caller gets web_tool + related + the beta pitch', !!sdk?.web_tool && !!sdk?.also_run && !!sdk?.beta, JSON.stringify(sdk ?? null)?.slice(0, 90));
+  check('sessionless: no beta pitch and no join token (nothing to dedupe)', sdk?.beta === undefined && !(sdk?.web_tool ?? '').includes('&s='));
   const probe = await sessionlessMeta('mcpregistry/1.0');
   check('sessionless: registry probes still get a clean, unmarketed response', probe === undefined, JSON.stringify(probe ?? null));
 }

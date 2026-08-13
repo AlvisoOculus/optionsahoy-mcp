@@ -410,11 +410,16 @@ describe('local stdio MCP server', () => {
 
 
   describe('next-steps block (npx/MCPB installs)', () => {
-    // The local server has no D1 and no session, so it gets the same bare
-    // form sessionless hosted callers get: free tool + related tools, never
-    // the once-per-session beta pitch. Before this, npx users were the one
-    // tool surface with no route back to the web tools at all.
-    it('a successful call carries the bare block and no beta pitch', async () => {
+    // The local server has no D1 and no session id, but one stdio process
+    // serves one client for its lifetime, so it counts its own calls and
+    // dedupes exactly as a session does: the beta pitch on the first call,
+    // never again. Before any of this, npx users were the one tool surface
+    // with no route back to the web tools at all.
+    //
+    // `session` is shared across this file, so by the time these run it has
+    // already served calls. That is what makes them a real dedup assertion:
+    // a later call must NOT carry the pitch.
+    it('a later call carries the block but not a repeated beta pitch, and never a join token', async () => {
       const res = await session.request('tools/call', {
         name: 'qsbs_check',
         arguments: {
@@ -439,7 +444,10 @@ describe('local stdio MCP server', () => {
       const next = parsed.next_steps;
       expect(next?.web_tool).toContain('optionsahoy.com/tools/qsbs?src=mcp_qsbs');
       expect(next?.also_run).toContain('OptionsAhoy tools to run next');
+      // Already pitched earlier in this process, so it is suppressed here.
       expect(next?.beta).toBeUndefined();
+      // No join token either way: that is a prefix of a session id, and there
+      // is no session row to join against.
       expect(next?.web_tool).not.toContain('&s=');
       // The mirror invariant must survive the injection.
       expect(result.structuredContent).toEqual(parsed);
