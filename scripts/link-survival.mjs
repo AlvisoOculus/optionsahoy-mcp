@@ -32,7 +32,11 @@
 const KEY = process.env.OPENROUTER_API_KEY || process.env.OPENROUTER_KEY;
 const RUNS = Number(process.argv[2] ?? 2);
 const MCP_URL = process.env.MCP_URL ?? 'https://optionsahoy.com/mcp';
-const MODELS = (process.env.OR_MODELS ?? 'openai/gpt-5,anthropic/claude-sonnet-4.6').split(',');
+// Anthropic models are deliberately absent: they are reachable for free
+// through local Claude Code (scripts/stdio-client-smoke.mjs, subscription
+// auth), so paying OpenRouter per token for the same vendor is waste. Override
+// with OR_MODELS to include them.
+const MODELS = (process.env.OR_MODELS ?? 'openai/gpt-5.6-terra,google/gemini-3.6-flash').split(',');
 
 if (!KEY) {
   console.log('OPENROUTER_API_KEY not set - skipping the link-survival check.');
@@ -75,6 +79,15 @@ async function chat(model, messages) {
     },
     body: JSON.stringify({ model, messages, tools: TOOLS, tool_choice: 'auto' }),
   });
+  if (res.status === 402) {
+    // Payment Required - the balance cannot cover max_tokens for this request.
+    // Distinguished from every other failure because "no model called the
+    // tool" is this script's ONLY hard failure, and a drained balance would
+    // otherwise report a routing regression that did not happen.
+    const e = new Error('OPENROUTER_CREDITS');
+    e.credits = true;
+    throw e;
+  }
   if (!res.ok) throw new Error(`OpenRouter ${res.status}: ${(await res.text()).slice(0, 180)}`);
   const json = await res.json();
   const msg = json?.choices?.[0]?.message;
@@ -124,6 +137,7 @@ console.log(`\n== link survival, ${RUNS} run(s) x ${MODELS.length} model(s) agai
 console.log('(measures the MODEL, not ChatGPT\'s own pipeline - see the header)\n');
 
 const rows = [];
+let creditsExhausted = false;
 for (const model of MODELS) {
   const tally = { intact: 0, stripped: 0, absent: 0, other: 0, routed: 0 };
   for (let i = 1; i <= RUNS; i++) {
@@ -134,6 +148,11 @@ for (const model of MODELS) {
       if (!(verdict in tally)) tally.other++;
       console.log(`  ${model} run ${i}: tool=${called ?? 'NONE'} link=${verdict}`);
     } catch (e) {
+      if (e.credits) {
+        console.log(`  ${model} run ${i}: SKIPPED - OpenRouter balance cannot cover this request`);
+        creditsExhausted = true;
+        break;
+      }
       tally.other++;
       console.log(`  ${model} run ${i}: ERROR ${String(e.message).slice(0, 140)}`);
     }
@@ -152,6 +171,11 @@ for (const r of rows) {
 // Routing is OUR contract: if no model calls the tool, our descriptions
 // regressed. Link survival is the model's behaviour and is reported only -
 // failing on it would make red the normal state and teach us to ignore it.
+if (creditsExhausted) {
+  console.log('\nOpenRouter balance exhausted - reporting no verdict rather than a false regression.');
+  console.log('Top up, or lower max_tokens, to re-enable. Exiting 0 deliberately.');
+  process.exit(0);
+}
 const anyRouted = rows.some((r) => r.routed > 0);
 if (!anyRouted) {
   console.error('\nFAIL: no model called the tool. Check tool descriptions and routing instructions.');
