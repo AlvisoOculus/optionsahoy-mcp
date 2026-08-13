@@ -10,6 +10,7 @@
 import { describe, it, expect } from 'vitest';
 import { onRequest } from '../functions/mcp';
 import {
+  CALL_COUNT_UNKNOWN,
   bumpSessionCallCount,
   nextStepsFor,
   PER_TOOL_FREE_TOOL,
@@ -152,14 +153,36 @@ describe('nextStepsFor', () => {
     expect(next?.beta).toBe(PER_TOOL_BETA_INVITES.amt_iso_optimize);
   });
 
-  it('on count>=2 keeps the bare free-tool URL and related tools but drops the beta pitch', () => {
-    const second = nextStepsFor('amt_iso_optimize', 2);
-    expect(second?.web_tool).toBe(PER_TOOL_FREE_TOOL_BARE.amt_iso_optimize);
+  it('on a later call OF A SESSION keeps the bare URL and drops the beta pitch', () => {
+    // A session id is what makes dedup possible, so it is what earns
+    // suppression. Passing one here is the point of the test, not incidental.
+    const second = nextStepsFor('amt_iso_optimize', 2, 'sess-abcd');
+    expect(second?.web_tool).toBe(PER_TOOL_FREE_TOOL_BARE.amt_iso_optimize + '&s=sess-abc');
     expect(second?.also_run).toBe(PER_TOOL_RELATED.amt_iso_optimize);
     expect(second?.beta).toBeUndefined();
-    const seventh = nextStepsFor('amt_iso_optimize', 7);
-    expect(seventh?.web_tool).toBe(PER_TOOL_FREE_TOOL_BARE.amt_iso_optimize);
-    expect(seventh?.also_run).toBe(PER_TOOL_RELATED.amt_iso_optimize);
+    const seventh = nextStepsFor('amt_iso_optimize', 7, 'sess-abcd');
+    expect(seventh?.web_tool).toBe(PER_TOOL_FREE_TOOL_BARE.amt_iso_optimize + '&s=sess-abc');
+    expect(seventh?.beta).toBeUndefined();
+  });
+
+  it('pitches once to a counting caller with no session id (the stdio process)', () => {
+    // A stdio process has no session id but counts its own calls, so it must
+    // dedupe like a session: pitch on 1, silent after.
+    expect(nextStepsFor('amt_iso_optimize', 1)?.beta).toBe(PER_TOOL_BETA_INVITES.amt_iso_optimize);
+    expect(nextStepsFor('amt_iso_optimize', 2)?.beta).toBeUndefined();
+    expect(nextStepsFor('amt_iso_optimize', 9)?.beta).toBeUndefined();
+  });
+
+  it('gives a caller with an UNKNOWN call count the beta pitch', () => {
+    // The population this matters for is ~98% of real tool calls, ChatGPT
+    // among them. Suppressing the pitch here made it dark for nearly every
+    // real user. A repeat within one query is the accepted cost.
+    // An unknown count is the HTTP-sessionless case: nothing proves the
+    // client already saw the pitch, so it is shown.
+    const next = nextStepsFor('amt_iso_optimize', CALL_COUNT_UNKNOWN);
+    expect(next?.beta).toBe(PER_TOOL_BETA_INVITES.amt_iso_optimize);
+    // Still no join token: there is no session to join to.
+    expect(next?.web_tool).not.toContain('&s=');
   });
 
   it('leads with the free tool, not the beta (free tools before beta)', () => {
@@ -252,12 +275,14 @@ describe('POST /mcp tools/call next-step injection', () => {
     expect(inner.next_steps?.beta).toBeUndefined();
   });
 
-  it('without a session header, injects the bare block and NEVER the beta pitch', async () => {
-    // Changed 2026-08-03: sessionless calls used to get nothing. Production
-    // showed ~98% of valid tool calls are sessionless and non-infra ones are
-    // real SDK integrations, so they now get the bare form. The invariant
-    // that survives: no session means no once-per-session pitch and no join
-    // token, because there is nothing to dedupe against.
+  it('without a session header, injects the block WITH the beta pitch but no join token', async () => {
+    // Changed 2026-08-03: sessionless calls used to get nothing, then got the
+    // bare form. Changed again 2026-08-08: they now get the beta pitch too.
+    // Suppressing it assumed sessionless traffic was scanners; production says
+    // ~98% of valid tool calls are sessionless and the non-infra remainder is
+    // real SDK and assistant integrations, ChatGPT included. The invariant
+    // that survives: no session means no JOIN TOKEN, because there is no
+    // session row to join to.
     const db = mockD1();
     const res = await onRequest({
       request: rpcRequest(amtIsoCall(1)),
@@ -270,13 +295,15 @@ describe('POST /mcp tools/call next-step injection', () => {
       next_steps?: { web_tool?: string; beta?: string };
     }).next_steps;
     expect(next?.web_tool).toMatch(scenarioForm(PER_TOOL_FREE_TOOL_BARE.amt_iso_optimize));
-    expect(next?.beta).toBeUndefined();
+    expect(next?.beta).toBe(PER_TOOL_BETA_INVITES.amt_iso_optimize);
   });
 
   it('with a session header but no MCP_STATS binding, degrades to the bare block (cannot dedupe)', async () => {
     // No binding means no call-count row, so the once-per-session pitch
-    // cannot be deduped - fall back to the same bare form sessionless
-    // callers get rather than dropping the conversion surface entirely.
+    // cannot be deduped. Same situation as sessionless, so it takes the same
+    // answer: show the pitch rather than drop the conversion surface. The
+    // header cannot produce a join token either, since without the binding
+    // there is no session row for it to join to.
     const res = await onRequest({
       request: rpcRequest(amtIsoCall(1), 'sess-no-binding'),
       env: {},
@@ -288,7 +315,7 @@ describe('POST /mcp tools/call next-step injection', () => {
       next_steps?: { web_tool?: string; beta?: string };
     }).next_steps;
     expect(next?.web_tool).toMatch(scenarioForm(PER_TOOL_FREE_TOOL_BARE.amt_iso_optimize));
-    expect(next?.beta).toBeUndefined();
+    expect(next?.beta).toBe(PER_TOOL_BETA_INVITES.amt_iso_optimize);
   });
 });
 
@@ -446,9 +473,12 @@ describe('sessionless next-steps injection (the 98% of tool calls with no sessio
     expect(next?.also_run).toBe(PER_TOOL_RELATED.amt_iso_optimize);
   });
 
-  it('never carries the beta pitch or a join token without a session (nothing to dedupe against)', async () => {
+  it('carries the beta pitch but never a join token without a session', async () => {
+    // The pitch is shown because nothing can dedupe it and this is the
+    // population that matters. The join token is still withheld: it is a
+    // prefix of a session id, and there is no session row to join against.
     const next = await injectedFor('node');
-    expect(next?.beta).toBeUndefined();
+    expect(next?.beta).toBe(PER_TOOL_BETA_INVITES.amt_iso_optimize);
     expect(next?.web_tool).not.toContain('&s=');
   });
 

@@ -17,7 +17,7 @@ import { logCalls, logSamples, type CallFields, type SampleFields, type D1Databa
 import { TOOLS } from './_lib/mcp-tools';
 import { RESOURCES } from './_lib/mcp-resources';
 import { PROMPTS } from './_lib/mcp-prompts';
-import { BARE_CALL_COUNT, bumpSessionCallCount, nextStepsFor, nextStepsProse } from './_lib/sessions';
+import { CALL_COUNT_UNKNOWN, bumpSessionCallCount, nextStepsFor, nextStepsProse } from './_lib/sessions';
 import { isInfraClient } from './_lib/classify';
 import { SERVER_VERSION } from './_lib/version';
 import { SERVER_INSTRUCTIONS } from './_lib/mcp-instructions';
@@ -132,8 +132,9 @@ function isParams(v: unknown): v is Record<string, unknown> {
 // `sessionDeps` carries the Mcp-Session-Id + MCP_STATS binding so that
 // tools/call can dedupe its injected beta-access pitch per session.
 // `injectSessionless` covers the much larger population that never echoes a
-// session id (MCP SDK integrations calling tools/call directly): they get the
-// bare, un-deduped form. Both undefined/false = no injection at all.
+// session id (MCP SDK integrations calling tools/call directly): their calls
+// cannot be counted, so the pitch is not suppressed for them. Both
+// undefined/false = no injection at all.
 async function handle(
   req: JsonRpcRequest,
   logs: CallFields[],
@@ -202,9 +203,10 @@ async function handle(
         // on the first tools/call per session; later calls get the bare
         // free-tool URL via nextStepsFor() so a multi-tool query doesn't read
         // as repeated pitches.
-        // Sessionless callers get the same block in its bare, un-deduped form
-        // (BARE_CALL_COUNT): no session means no way to dedupe, so they never
-        // get the once-per-session beta pitch and never a join token. This
+        // Sessionless callers pass CALL_COUNT_UNKNOWN: nothing here can count
+        // their calls, so nothing proves they already saw the beta pitch and
+        // it is shown (see nextStepsFor for the rule and its cost). They get
+        // no join token, which needs a session row to join against. This
         // path exists because production disproved the original assumption
         // that sessionless traffic is all scanners: in a 7-day window 928 of
         // 942 valid tool calls arrived without a session, and the non-infra
@@ -217,7 +219,7 @@ async function handle(
             // bare count and nothing here throws.
             const count = sessionDeps
               ? await bumpSessionCallCount(sessionDeps.db, sessionDeps.sessionId)
-              : BARE_CALL_COUNT;
+              : CALL_COUNT_UNKNOWN;
             const next = nextStepsFor(name, count, sessionDeps?.sessionId, args);
             if (next) result.next_steps = next;
           } catch {
