@@ -7,7 +7,7 @@
 //
 //   npm run gen:toolspec      # write the files
 //   npm run verify:toolspec   # --check: exit 1 if any on-disk copy is stale
-import { writeFileSync, readFileSync, existsSync } from 'node:fs';
+import { writeFileSync, readFileSync } from 'node:fs';
 import { buildToolSpec } from '../../functions/_lib/mcp-tools';
 
 const TARGETS = [
@@ -19,13 +19,24 @@ const spec = buildToolSpec();
 const json = JSON.stringify(spec, null, 2) + '\n';
 const check = process.argv.includes('--check');
 
+const isAbsent = (err: unknown) => (err as NodeJS.ErrnoException)?.code === 'ENOENT';
+
 let stale = 0;
 for (const path of TARGETS) {
-  if (!existsSync(path)) {
-    console.log(`skip (absent): ${path}`);
-    continue;
+  // Read directly and treat a missing file as "skip" - checking existsSync
+  // first is a time-of-check/time-of-use race (js/file-system-race), and the
+  // sibling web checkout being absent is a NORMAL outcome here rather than an
+  // error worth a separate probe. Same idiom as gen-openapi.mts.
+  let current: string;
+  try {
+    current = readFileSync(path, 'utf8');
+  } catch (err) {
+    if (isAbsent(err)) {
+      console.log(`skip (absent): ${path}`);
+      continue;
+    }
+    throw err;
   }
-  const current = readFileSync(path, 'utf8');
   // Compare parsed content (format-insensitive) so a re-minified copy that is
   // semantically identical is not flagged; --check still rewrites format drift.
   const same = JSON.stringify(JSON.parse(current)) === JSON.stringify(spec);
