@@ -71,7 +71,7 @@
     "eval:discipline": "tsx scripts/eval-routing.mts --kinds input-discipline"
   },
   "devDependencies": {
-    "@anthropic-ai/sdk": "^0.112.3",
+    "@anthropic-ai/sdk": "^0.116.0",
     "@modelcontextprotocol/sdk": "^1.29.0",
     "@types/node": "^26.0.0",
     "esbuild": "^0.28.1",
