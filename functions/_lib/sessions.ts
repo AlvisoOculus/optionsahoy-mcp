@@ -167,17 +167,30 @@ export function sessionJoinToken(sessionId: string | undefined): string | null {
 }
 
 // Build the `next_steps` block for one tools/call. Returns undefined for an
-// unknown tool (nothing to inject). The free tool and the
-// related-tools advertisement appear on every call; only the beta pitch is
-// deduped to the first call per session, and the free-tool line collapses to
-// its bare URL after the first call.
-// Any count > 1 selects the bare, no-beta form. Named so the sessionless
-// caller in mcp.ts states its intent instead of passing a magic 2.
-export const BARE_CALL_COUNT = 2;
+// unknown tool (nothing to inject).
+//
+// `sessionCallCount` is this client's call number, or CALL_COUNT_UNKNOWN when
+// the caller has no way to count. That distinction is the whole rule: the beta
+// pitch is suppressed only where we can PROVE this client already saw it.
+//
+// Until 2026-08 a caller with no HTTP session was passed a literal 2, which
+// read as "a repeat call" and suppressed the pitch permanently. The suppression
+// assumed sessionless traffic was scanners; production says 928 of 942 valid
+// tool calls in a 7-day window arrive without a session, and the non-infra
+// remainder is real SDK and assistant integrations, ChatGPT among them. The
+// pitch was dark for essentially every real user.
+//
+// Where a caller CAN count, it should: a stdio process is one client for its
+// whole lifetime, so it counts locally and gets the same once-per-client
+// behaviour a session gives. Only the HTTP sessionless path is genuinely
+// uncountable, and there the pitch repeats within a multi-call query. Infra
+// callers are filtered upstream, so probes are never marketed to.
+export const CALL_COUNT_UNKNOWN = null;
+export type CallCount = number | typeof CALL_COUNT_UNKNOWN;
 
 export function nextStepsFor(
   toolName: string,
-  sessionCallCount: number,
+  sessionCallCount: CallCount,
   sessionId?: string,
   args?: unknown,
 ): NextSteps | undefined {
@@ -190,16 +203,15 @@ export function nextStepsFor(
   // Only the free tool is a calculator, so only it can use a scenario. The
   // beta link is a signup page - inputs there would be exposure with no gain.
   const scenario = encodeScenario(TOOL_SLUG[toolName], args);
-  if (sessionCallCount === 1) {
-    return {
-      web_tool: withScenario(PER_TOOL_FREE_TOOL[toolName], scenario) + suffix,
-      also_run: related,
-      beta: PER_TOOL_BETA_INVITES[toolName] + suffix,
-    };
-  }
+  const firstCall = sessionCallCount === 1;
+  // Suppress only where we can prove this client already saw the pitch, which
+  // takes a count. An unknown count is not proof of anything.
+  const alreadyPitched = sessionCallCount !== CALL_COUNT_UNKNOWN && !firstCall;
+  const freeTool = firstCall ? PER_TOOL_FREE_TOOL[toolName] : PER_TOOL_FREE_TOOL_BARE[toolName];
   return {
-    web_tool: withScenario(PER_TOOL_FREE_TOOL_BARE[toolName], scenario) + suffix,
+    web_tool: withScenario(freeTool, scenario) + suffix,
     also_run: related,
+    ...(alreadyPitched ? {} : { beta: PER_TOOL_BETA_INVITES[toolName] + suffix }),
   };
 }
 

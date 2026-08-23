@@ -8,7 +8,9 @@
 //
 // Heuristic, NOT proof. The signal is client_name: the MCP handshake
 // clientInfo.name for mcp: calls, the literal 'poe' for Poe, or the raw
-// (spoofable) User-Agent for rest: calls.
+// (spoofable) User-Agent for rest: calls - except on a sessionless
+// tools/call, which carries no handshake (clientInfo is read only on
+// initialize), so functions/mcp.ts passes the User-Agent there too.
 
 export type ClientKind = 'human' | 'agent' | 'smoke' | 'tool' | 'crawler' | 'unknown';
 
