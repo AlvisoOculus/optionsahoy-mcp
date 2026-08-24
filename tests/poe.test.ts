@@ -204,6 +204,14 @@ describe('poe answers carry web-grade detail', () => {
     expect(text).toMatch(/chance the stock runs past that cap/);
   });
 
+  it('protective put with a ticker: discloses chain-implied vol, not sector history', async () => {
+    const a: any = { ...VALID_ARGS.protective_put_price, ticker: 'NVDA', currentPrice: 200 };
+    delete a.volatility;
+    const text = await ask('protective_put_price', a); // seeded vols resolve NVDA's implied vol
+    expect(text).toContain("implied volatility from NVDA's option chain as of the last close");
+    expect(text).not.toContain("sector's history");
+  });
+
   it('equity_funding: lists every sale date and shares, not a summary', async () => {
     const args = {
       targetAfterTax: 400000, targetDate: '2027-07-01',

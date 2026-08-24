@@ -637,7 +637,12 @@ function assumptionsLine(tool: string, a: Record<string, any>): string {
       break;
     }
     case 'protective_put_price': {
-      parts.push(typeof a.volatility === 'number' ? `${a.volatility} volatility` : "volatility from the sector's history");
+      // Provenance mirrors calc-parsers resolveProtectivePutSigma: explicit
+      // number > live implied vol for the ticker (chain-skew priced when the
+      // chain is available) > sector default.
+      if (typeof a.volatility === 'number') parts.push(`${a.volatility} volatility`);
+      else if (tk) parts.push(`implied volatility from ${tk}'s option chain as of the last close`);
+      else parts.push("volatility from the sector's history");
       if (typeof a.tenorYears === 'number') parts.push(`a ${a.tenorYears}-year tenor`);
       break;
     }
