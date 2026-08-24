@@ -1,0 +1,32 @@
+{
+  "tool": "prompts/get optimize-iso-exercise",
+  "endpoint": "https://optionsahoy.com/mcp",
+  "capturedAt": "2026-08-24",
+  "request": {
+    "method": "prompts/get",
+    "params": {
+      "name": "optimize-iso-exercise",
+      "arguments": {
+        "shares": "50000",
+        "strike": "4",
+        "fmv": "90",
+        "expectedGrowth": "0.1",
+        "volatility": "0.5",
+        "state": "CA",
+        "ordinaryIncome": "300000"
+      }
+    }
+  },
+  "response": {
+    "description": "Plan a multi-year Incentive Stock Option (ISO) exercise schedule that maximizes after-tax Net Final Value (NFV) at the planning horizon, accounting for AMT, AMT credit recovery, and stock-price drag from volatility. Uses the amt_iso_optimize tool.",
+    "messages": [
+      {
+        "role": "user",
+        "content": {
+          "type": "text",
+          "text": "I have 50000 Incentive Stock Options (ISOs) with a strike of $4 per share and current fair market value of $90 per share. Annualized volatility on the stock is 0.5. Expected annual stock growth is 0.1. I live in CA. My annual ordinary income is $300000. Plan an exercise schedule across the next several years that maximizes my after-tax Net Final Value (NFV) at the planning horizon. Use the amt_iso_optimize tool: if I gave a ticker, pass it so volatility and expected growth resolve automatically; otherwise pass the volatility AND expected growth I provided and do not compute drag or the growth path yourself. If neither a covered ticker nor an explicit volatility-and-growth pair is available, ask me for both the volatility and the expected annual growth first. If you need expected annual stock growth (unless a covered ticker is given), planning horizon, filing status, state, ordinary income, grant date, idle-cash after-tax return rate, or post-termination status, ask me one short follow-up question before invoking the tool. Report the optimized schedule's after-tax NFV vs the lump-sum and even-split alternatives, the recommended per-year share count, and the AMT credit carryforward at horizon."
+        }
+      }
+    ]
+  }
+}
