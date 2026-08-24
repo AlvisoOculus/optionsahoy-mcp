@@ -17,10 +17,22 @@ import { SECTOR_STATS, type SectorKey } from '@/lib/markets/sector-stats';
 // Drawdown the put protects against, as a fraction. UI clamps to [0.05, 0.50].
 export type ProtectionLevel = number;
 
+// Where the sigma actually priced came from. Set once, at the single point of
+// resolution (parseProtectivePutInput), and carried through the result's
+// `inputs` echo so a caller can tell a stock-specific price from a
+// sector-typical one. Never re-derive it downstream: a second guess at the
+// source is exactly how an echo starts lying about the number beside it.
+export type VolatilitySource = 'explicit' | 'ticker' | 'sector-default';
+
 export type ProtectivePutInputs = {
   positionValue: number;
   sector: SectorKey;
   volatility: number;
+  // Provenance of `volatility`, set by the parser alongside the value itself.
+  // Optional because direct (non-API) callers - the chain-driven UI, tests -
+  // build inputs by hand with a sigma they already own; every API surface
+  // parses its input, so the echo always carries it.
+  volatilitySource?: VolatilitySource;
   protectionLevel: ProtectionLevel;
   tenorYears: TenorYears;
   // When present, overrides SECTOR_STATS[sector].annualReturn as the long-run

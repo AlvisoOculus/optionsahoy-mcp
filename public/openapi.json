@@ -1601,6 +1601,7 @@
                   "positionValue": 400000,
                   "sector": "tech_software",
                   "volatility": 0.4,
+                  "volatilitySource": "explicit",
                   "protectionLevel": 0.1,
                   "tenorYears": 1,
                   "spreadRiskLevel": 0.1
@@ -4759,7 +4760,7 @@
         "properties": {
           "inputs": {
             "type": "object",
-            "description": "Echo of the resolved inputs actually priced: positionValue, sector, volatility (the sigma used after ticker/sector resolution), protectionLevel, tenorYears, plus expectedReturn, spreadRiskLevel, and tickerLabel when supplied.",
+            "description": "Echo of the resolved inputs actually priced: positionValue, sector, volatility (the sigma priced) and volatilitySource (where that sigma came from), protectionLevel, tenorYears, plus expectedReturn, spreadRiskLevel, and tickerLabel when supplied.",
             "properties": {
               "positionValue": {
                 "type": "number",
@@ -4772,6 +4773,15 @@
               "volatility": {
                 "type": "number",
                 "description": "Annualized sigma actually used in pricing, as a decimal."
+              },
+              "volatilitySource": {
+                "type": "string",
+                "enum": [
+                  "explicit",
+                  "ticker",
+                  "sector-default"
+                ],
+                "description": "Which source produced the sigma actually priced: \"explicit\" (caller-supplied), \"ticker\" (the stock's own implied vol as of the last close), or \"sector-default\" (feed unavailable or ticker uncovered; a sector-typical estimate - tell the user the price is not stock-specific)."
               },
               "protectionLevel": {
                 "type": "number",
@@ -4798,6 +4808,7 @@
               "positionValue",
               "sector",
               "volatility",
+              "volatilitySource",
               "protectionLevel",
               "tenorYears"
             ]

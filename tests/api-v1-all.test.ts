@@ -119,16 +119,44 @@ describe('POST /api/v1/concentration', () => {
 });
 
 describe('POST /api/v1/protective-put', () => {
+  const PP_BODY = {
+    positionValue: 500000,
+    sector: 'tech_software',
+    volatility: 0.35,
+    protectionLevel: 0.2,
+    tenorYears: 1,
+  };
+
   it('matches in-process calculateProtectivePut', async () => {
-    const body = {
-      positionValue: 500000,
-      sector: 'tech_software',
-      volatility: 0.35,
-      protectionLevel: 0.2,
-      tenorYears: 1,
+    const res = await ppHandler({ request: postReq('/api/v1/protective-put', PP_BODY) });
+    // The parser stamps volatilitySource onto the inputs it hands the calc, so
+    // the in-process reference has to carry it too (key order included: the
+    // comparison is on serialized bytes).
+    const reference = {
+      positionValue: PP_BODY.positionValue,
+      sector: PP_BODY.sector,
+      volatility: PP_BODY.volatility,
+      volatilitySource: 'explicit',
+      protectionLevel: PP_BODY.protectionLevel,
+      tenorYears: PP_BODY.tenorYears,
     };
-    const res = await ppHandler({ request: postReq('/api/v1/protective-put', body) });
-    await expectOkAndMatch(res, calculateProtectivePut(body as Parameters<typeof calculateProtectivePut>[0]));
+    await expectOkAndMatch(res, calculateProtectivePut(reference as Parameters<typeof calculateProtectivePut>[0]));
+  });
+
+  // Provenance on the WIRE, not just out of the parser: REST is one of the four
+  // surfaces that share the parser + compute, and the echo is where a caller
+  // learns whether the price it just got is stock-specific.
+  it('echoes volatilitySource in the response body', async () => {
+    const res = await ppHandler({ request: postReq('/api/v1/protective-put', PP_BODY) });
+    const json = (await res.json()) as { result: { inputs: Record<string, unknown> } };
+    expect(json.result.inputs).toHaveProperty('volatilitySource', 'explicit');
+  });
+
+  it('a sector-default price says so on the wire', async () => {
+    const { volatility: _v, ...noVol } = PP_BODY;
+    const res = await ppHandler({ request: postReq('/api/v1/protective-put', { ...noVol, ticker: 'BOGUS' }) });
+    const json = (await res.json()) as { result: { inputs: Record<string, unknown> } };
+    expect(json.result.inputs).toHaveProperty('volatilitySource', 'sector-default');
   });
 });
 
