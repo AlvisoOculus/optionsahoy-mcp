@@ -304,7 +304,7 @@ Typical pricing for a 1-year 10%-out-of-the-money (OTM) put on a 30% implied-vol
 
 ## What the protective_put_price tool computes
 
-The MCP tool \`protective_put_price\` prices all three structures - a protective put, a zero-cost collar, and a put spread - against cached implied volatility (a sector-typical volatility when no ticker is supplied). It accounts for:
+The MCP tool \`protective_put_price\` prices all three structures - a protective put, a zero-cost collar, and a put spread - against the ticker's implied volatility as of the last close (a sector-typical volatility when none resolves). It accounts for:
 
 - Strike (defined as percentage below current price)
 - Tenor (months to expiration)

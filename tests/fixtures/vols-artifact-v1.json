@@ -1,0 +1,38 @@
+{
+  "_note": [
+    "Documentation only - NOT part of contract v1. Strip this key when comparing",
+    "against producer output; the reader ignores unknown keys by design.",
+    "",
+    "CROSS-REPO GOLDEN for the published ATM 1y implied-vol artifact",
+    "(https://data.optionsahoy.com/chains/vols.json). The producer lives in",
+    "optionsahoy_web (workers, the vols artifact writer); the consumer is",
+    "optionsahoy-mcp lib/data/live-vols.ts. They ship on independent cadences and",
+    "never import each other, so EACH SIDE PINS THIS SHAPE from its own suite: a",
+    "producer change that would break the reader fails in the producer's repo",
+    "instead of silently blanking `ticker` volatility in production.",
+    "",
+    "Consumer-relevant fields: schemaV (must be 1); per entry atmIV1y (decimal",
+    "sigma in (0, 5]) and asOf (epoch SECONDS of the SOURCE CHAIN, not the",
+    "artifact build time). generatedAt and sourceCell are real wire fields the",
+    "reader deliberately does not model; they are here so this is the producer's",
+    "document, not the consumer's subset.",
+    "",
+    "Timestamps are fixed and exercised against an injected clock. NVDA is fresh",
+    "as of 2026-08-19; AAPL is deliberately STALE, pinning the reject side too.",
+    "Do not refresh these values - that would delete the stale case."
+  ],
+  "schemaV": 1,
+  "generatedAt": "2026-08-19T02:05:11.402Z",
+  "vols": {
+    "NVDA": {
+      "atmIV1y": 0.4447,
+      "asOf": 1787084100,
+      "sourceCell": { "exp": "2027-08-20", "k": 182.5 }
+    },
+    "AAPL": {
+      "atmIV1y": 0.2731,
+      "asOf": 1786392900,
+      "sourceCell": { "exp": "2027-08-20", "k": 232.5 }
+    }
+  }
+}

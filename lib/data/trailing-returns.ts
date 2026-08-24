@@ -24,9 +24,15 @@ const TICKERS = data.tickers as Record<string, TrailingReturnEntry>;
 // Alphabet trades as GOOGL (class A, in the universe) and GOOG (class C);
 // the classes track within fractions of a percent, so GOOG resolves to
 // GOOGL's data rather than erroring as uncovered.
-const TICKER_ALIASES: Record<string, string> = { GOOG: 'GOOGL' };
+//
+// SINGLE SOURCE for the whole repo. ./live-vols imports `canonicalTicker`
+// from here rather than keeping its own copy: the growth shortcut and the
+// volatility shortcut are offered to callers as ONE `ticker` field, so a
+// symbol either surface accepts must be a symbol the other accepts too. Two
+// copies drifted apart silently the moment either list grew.
+export const TICKER_ALIASES: Record<string, string> = { GOOG: 'GOOGL' };
 
-function canonicalTicker(ticker: string): string {
+export function canonicalTicker(ticker: string): string {
   const t = ticker.toUpperCase();
   return TICKER_ALIASES[t] ?? t;
 }

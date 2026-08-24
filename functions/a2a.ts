@@ -10,7 +10,7 @@
 
 import { CORS_HEADERS as BASE_CORS, type PagesContext, type PagesFunction } from './_lib/api';
 import { logCall, logSample } from './_lib/stats';
-import { AGENT_VERSION, buildAgentCard, handleMessage, type A2APart } from './_lib/a2a';
+import { AGENT_VERSION, buildAgentCard, handleMessage, partsMayResolveVol, type A2APart } from './_lib/a2a';
 import { warmVolSnapshot } from '../lib/data/live-vols';
 
 // Same shared CORS base as the REST endpoints; this one also serves GET (the
@@ -122,8 +122,10 @@ export const onRequest: PagesFunction = async (context: PagesContext): Promise<R
 
   // Warm the published implied-vol artifact before the (synchronous) skill
   // runs; handleMessage shares the same parsers as REST and MCP. A failed warm
-  // degrades to the ordinary required-field error.
-  await warmVolSnapshot();
+  // degrades to the ordinary required-field error. Gated: free-text messages
+  // (the majority on this surface - it routes rather than computes) and skill
+  // calls that carry their own volatility never read the memo.
+  if (partsMayResolveVol(parts as A2APart[])) await warmVolSnapshot();
   const handled = handleMessage(parts as A2APart[]);
   logCall(context, {
     endpoint: 'a2a',

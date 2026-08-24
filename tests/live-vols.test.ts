@@ -17,14 +17,17 @@ import {
   VOLS_URL,
   VOLS_MEMO_TTL_MS,
   VOLS_FETCH_TIMEOUT_MS,
+  VOLS_FETCH_ATTEMPTS,
+  VOLS_TOTAL_BUDGET_MS,
   getLiveVol,
-  hasLiveVol,
   warmVolSnapshot,
   __setVolSnapshotForTests,
 } from '../lib/data/live-vols';
 import { lastTradingDay, lastTradingDayCutoffMs, isMarketClosed } from '../lib/data/market-calendar';
 import { parseAmtIsoInput, parseProtectivePutInput } from '../functions/_lib/calc-parsers';
 import { volsArtifact, cutoffSeconds } from './helpers/live-vols-fixture';
+import { TICKER_ALIASES, getTrailingReturn, isKnownTicker } from '../lib/data/trailing-returns';
+import golden from './fixtures/vols-artifact-v1.json';
 
 const DAY = 86_400;
 
@@ -114,7 +117,6 @@ describe('the freshness gate', () => {
   it('accepts an entry stamped exactly at the cutoff', () => {
     __setVolSnapshotForTests(volsArtifact(cutoffSeconds(WEDNESDAY)));
     expect(getLiveVol('NVDA', WEDNESDAY)).toBe(0.4447);
-    expect(hasLiveVol('NVDA', WEDNESDAY)).toBe(true);
   });
 
   it('accepts an entry stamped after the cutoff (today\'s own close)', () => {
@@ -218,8 +220,67 @@ describe('warmVolSnapshot — fetching', () => {
     const spy = stubFetch(() => Promise.reject(new Error('ECONNREFUSED')));
     await warmVolSnapshot();
     await warmVolSnapshot();
-    expect(spy).toHaveBeenCalledTimes(1);
+    // VOLS_FETCH_ATTEMPTS for the FIRST warm (the bounded retry), then zero for
+    // the second: the point is that the memoized failure stops the second warm
+    // from paying anything at all, not that the first tried only once.
+    expect(spy).toHaveBeenCalledTimes(VOLS_FETCH_ATTEMPTS);
     expect(getLiveVol('NVDA')).toBeNull();
+  });
+
+  // ── The bounded retry ───────────────────────────────────────────────────
+  // A single transient blip used to memoize failure for the whole 5-minute
+  // TTL: one 502 blanked `ticker` volatility for every caller for five
+  // minutes. Two attempts, a short fixed backoff, one hard overall budget.
+  it('retries a transient failure and populates the memo on the second attempt', async () => {
+    let calls = 0;
+    const spy = stubFetch(() => {
+      calls += 1;
+      return calls === 1
+        ? jsonResponse({ error: 'bad gateway' }, 502)
+        : jsonResponse(volsArtifact(cutoffSeconds()));
+    });
+    await warmVolSnapshot();
+    expect(spy).toHaveBeenCalledTimes(2);
+    expect(getLiveVol('NVDA')).toBe(0.4447);
+  });
+
+  it('retries a transport error too, not just a bad status', async () => {
+    let calls = 0;
+    const spy = stubFetch(() => {
+      calls += 1;
+      return calls === 1
+        ? Promise.reject(new DOMException('timed out', 'TimeoutError'))
+        : Promise.resolve(jsonResponse(volsArtifact(cutoffSeconds())));
+    });
+    await warmVolSnapshot();
+    expect(spy).toHaveBeenCalledTimes(2);
+    expect(getLiveVol('NVDA')).toBe(0.4447);
+  });
+
+  it('gives up after VOLS_FETCH_ATTEMPTS and memoizes null when both fail', async () => {
+    const spy = stubFetch(() => jsonResponse({ error: 'bad gateway' }, 502));
+    await warmVolSnapshot();
+    expect(spy).toHaveBeenCalledTimes(VOLS_FETCH_ATTEMPTS);
+    expect(getLiveVol('NVDA')).toBeNull();
+  });
+
+  it('does NOT retry a definitive answer: 404, or a 200 that fails the schema', async () => {
+    const missing = stubFetch(() => jsonResponse({ error: 'not found' }, 404));
+    await warmVolSnapshot();
+    expect(missing).toHaveBeenCalledTimes(1);
+
+    __setVolSnapshotForTests(undefined);
+    const wrongSchema = stubFetch(() => jsonResponse({ schemaV: 2, vols: {} }));
+    await warmVolSnapshot();
+    expect(wrongSchema).toHaveBeenCalledTimes(1);
+    expect(getLiveVol('NVDA')).toBeNull();
+  });
+
+  it('bounds the whole warm, retry included, by VOLS_TOTAL_BUDGET_MS', async () => {
+    stubFetch(() => Promise.reject(new Error('ECONNREFUSED')));
+    const started = Date.now();
+    await warmVolSnapshot();
+    expect(Date.now() - started).toBeLessThanOrEqual(VOLS_TOTAL_BUDGET_MS + 500);
   });
 
   it('never throws, whatever the transport does', async () => {
@@ -310,6 +371,100 @@ describe('failure degrades to the existing required-field error', () => {
     stubFetch(() => new Response('not found', { status: 404 }));
     await warmVolSnapshot();
     expect(() => parseAmtIsoInput({ ...AMT_NO_VOL, volatility: 0.42 })).not.toThrow();
+  });
+});
+
+// ── The cross-repo golden ────────────────────────────────────────────────
+// tests/fixtures/vols-artifact-v1.json is the frozen v1 document, pinned from
+// BOTH sides: the producer (optionsahoy_web workers) asserts it writes this
+// shape, this file asserts the reader accepts it. Two repos, two release
+// cadences, one contract - the only way a producer change that would blank
+// every `ticker` volatility fails somewhere other than production.
+//
+// asArtifact is module-private on purpose, so it is exercised the way
+// production reaches it: served over a stubbed fetch, through warmVolSnapshot.
+describe('contract v1 golden fixture', () => {
+  // Fixed timestamps in the fixture + an injected clock: the golden must not
+  // rot, and must keep exercising both sides of the gate forever.
+  const AS_OF_DAY = new Date('2026-08-19T14:00:00Z');
+
+  it('the reader accepts the producer document and resolves its FRESH entry', async () => {
+    stubFetch(() => jsonResponse(golden));
+    await warmVolSnapshot();
+    expect(getLiveVol('NVDA', AS_OF_DAY)).toBe(golden.vols.NVDA.atmIV1y);
+  });
+
+  it('the same document\'s STALE entry resolves nothing', async () => {
+    stubFetch(() => jsonResponse(golden));
+    await warmVolSnapshot();
+    // Same document, same fetch, same schema: only `asOf` differs. This is the
+    // per-ENTRY gate, which is why the artifact's own generatedAt cannot be
+    // what freshness is judged on.
+    expect(golden.vols.AAPL.asOf).toBeLessThan(golden.vols.NVDA.asOf);
+    expect(getLiveVol('AAPL', AS_OF_DAY)).toBeNull();
+  });
+
+  it('carries the fields the reader deliberately does not model', () => {
+    // If the producer ever drops these, nothing here breaks - that is the
+    // point of not modelling them. Asserted so the golden keeps documenting
+    // the full wire shape rather than drifting into the reader's subset.
+    expect(typeof golden.generatedAt).toBe('string');
+    expect(golden.vols.NVDA.sourceCell).toBeDefined();
+  });
+
+  it('is exactly schemaV 1 with two entries', () => {
+    expect(golden.schemaV).toBe(1);
+    expect(Object.keys(golden.vols)).toEqual(['NVDA', 'AAPL']);
+  });
+});
+
+// ── One alias map, two resolvers ─────────────────────────────────────────
+// `ticker` is a SINGLE user-facing field that feeds two lookups (trailing
+// growth, live vol). The GOOG -> GOOGL alias used to be declared twice, once
+// per reader, which meant the day either list grew the two shortcuts would
+// start accepting different symbols behind one field name.
+describe('share-class aliases are single-sourced', () => {
+  it('both resolvers accept the same alias set', () => {
+    __setVolSnapshotForTests(volsArtifact(cutoffSeconds(WEDNESDAY)));
+    for (const [alias, canonical] of Object.entries(TICKER_ALIASES)) {
+      expect(getLiveVol(alias, WEDNESDAY)).toBe(getLiveVol(canonical, WEDNESDAY));
+      expect(getTrailingReturn(alias, 3)).toBe(getTrailingReturn(canonical, 3));
+      expect(isKnownTicker(alias)).toBe(isKnownTicker(canonical));
+    }
+    expect(Object.keys(TICKER_ALIASES).length).toBeGreaterThan(0);
+  });
+
+  it('the vol reader case-folds aliases exactly as the growth reader does', () => {
+    __setVolSnapshotForTests(volsArtifact(cutoffSeconds(WEDNESDAY)));
+    expect(getLiveVol('goog', WEDNESDAY)).toBe(getLiveVol('GOOGL', WEDNESDAY));
+    expect(getTrailingReturn('goog', 3)).toBe(getTrailingReturn('GOOGL', 3));
+  });
+});
+
+// ── Operability: pointing the reader somewhere else ──────────────────────
+// The URL used to be a hardcoded literal, so a staging or preview deployment
+// had no way to read a staging artifact - it silently read production, or (if
+// production was fine and staging broken) looked healthy while testing
+// nothing. NEXT_PUBLIC_OA_DATA_BASE is the SAME knob lib/data/chains.ts reads
+// for its DATA_BASE, deliberately: one override moves every reader of the R2
+// root at once, instead of half of them.
+describe('VOLS_URL base is env-overridable', () => {
+  it('defaults to the public R2 root, byte-identical to the old literal', () => {
+    expect(VOLS_URL).toBe('https://data.optionsahoy.com/chains/vols.json');
+  });
+
+  it('follows NEXT_PUBLIC_OA_DATA_BASE when set', async () => {
+    const prev = process.env.NEXT_PUBLIC_OA_DATA_BASE;
+    vi.resetModules();
+    process.env.NEXT_PUBLIC_OA_DATA_BASE = 'https://staging-data.example.com';
+    try {
+      const staged = await import('../lib/data/live-vols');
+      expect(staged.VOLS_URL).toBe('https://staging-data.example.com/chains/vols.json');
+    } finally {
+      if (prev === undefined) delete process.env.NEXT_PUBLIC_OA_DATA_BASE;
+      else process.env.NEXT_PUBLIC_OA_DATA_BASE = prev;
+      vi.resetModules();
+    }
   });
 });
 

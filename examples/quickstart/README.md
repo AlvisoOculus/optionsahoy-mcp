@@ -33,7 +33,7 @@ Node 18+ required (uses the global `fetch`).
 ## What it does
 
 - **`list-tools.mjs`** — JSON-RPC `tools/list`, prints every tool name + first line of its description.
-- **`call-concentration.mjs`** — JSON-RPC `tools/call` to `concentration_analyze` with a ticker (`NVDA`). The server pulls cached implied-vol + trailing return so you don't pass them.
+- **`call-concentration.mjs`** — JSON-RPC `tools/call` to `concentration_analyze` with a ticker (`NVDA`). The server resolves implied vol as of the last close + a trailing return so you don't pass them.
 - **`call-amt-iso.mjs`** — JSON-RPC `tools/call` to `amt_iso_optimize`, prints the lump-sum vs optimized NFV and the optimizer's lift.
 
 Same endpoint Claude / Cursor / VS Code hit when they call OptionsAhoy as an MCP. Same response shape too — these scripts just skip the MCP client wrapper and POST JSON-RPC directly.

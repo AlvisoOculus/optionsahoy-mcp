@@ -33,9 +33,29 @@
 // warmed memo synchronously via `getLiveVol`.
 
 import { lastTradingDayCutoffMs } from './market-calendar';
+import { canonicalTicker } from './trailing-returns';
+
+/** Public R2 root the artifact is published under. Same override knob and same
+ *  default as ./chains.ts's DATA_BASE, so a staging/preview deployment points
+ *  BOTH readers at one origin instead of half of them. The `typeof process`
+ *  guard is the only difference: chains.ts is browser/Next-only, while this
+ *  module also loads inside a Cloudflare Pages Function, where a bare `process`
+ *  reference throws unless nodejs_compat is on. */
+const DATA_BASE =
+  (typeof process !== 'undefined' ? process.env?.NEXT_PUBLIC_OA_DATA_BASE : undefined) ??
+  'https://data.optionsahoy.com';
 
 /** Published by the chains worker; contract v1 is frozen (see below). */
-export const VOLS_URL = 'https://data.optionsahoy.com/chains/vols.json';
+export const VOLS_URL = `${DATA_BASE}/chains/vols.json`;
+
+/** WHY a ticker resolved no sigma, in the caller's words. Every failure mode
+ *  reaches the caller through this one phrase, because the caller cannot tell
+ *  them apart and MUST NOT be told a transient CDN failure means "we do not
+ *  cover your stock" — a model reading that relays it to the user as fact.
+ *  Exported so the parsers (and any future surface) interpolate one string
+ *  instead of re-describing the mechanism from memory. */
+export const VOL_UNRESOLVED_REASON =
+  'not covered, or the volatility feed is temporarily unavailable';
 
 /** The only artifact schema this reader accepts. A producer that bumps this
  *  has changed the meaning of a field; refusing the whole document is correct,
@@ -46,6 +66,22 @@ export const VOLS_SCHEMA_V = 1;
  *  is a normal outcome, not an exception — the caller just gets asked for the
  *  number. */
 export const VOLS_FETCH_TIMEOUT_MS = 3_000;
+
+/** ── Retry policy, and why it is NOT ./chains.ts's ────────────────────────
+ *  chains.ts retries three times with exponential backoff and jitter, because
+ *  its caller is a browser page that can show a spinner for two seconds and
+ *  the alternative is an empty chart. This reader's caller is a SYNCHRONOUS
+ *  parser inside one tool call: nothing downstream can wait, and every
+ *  millisecond spent here is a millisecond an agent sits blocked on a request
+ *  that will very likely succeed on the first try. So: same spirit (a lone
+ *  transient blip must not become five minutes of memoized failure — the memo
+ *  remembers failures, which is exactly what makes a single 502 expensive),
+ *  one tenth the patience. Two attempts, a fixed short backoff, and a hard
+ *  overall budget that the per-attempt timeout is clamped to, so warm can
+ *  never exceed VOLS_TOTAL_BUDGET_MS no matter how the attempts fall. */
+export const VOLS_FETCH_ATTEMPTS = 2;
+export const VOLS_RETRY_DELAY_MS = 250;
+export const VOLS_TOTAL_BUDGET_MS = 4_000;
 
 /** In-process memo lifetime. The artifact turns over once a trading day, so
  *  five minutes is far tighter than the data's own cadence while collapsing a
@@ -60,26 +96,21 @@ export const VOLS_MEMO_TTL_MS = 5 * 60_000;
 export type LiveVolEntry = {
   atmIV1y: number;
   asOf: number;
-  sourceCell?: unknown;
 };
 
 export type VolsArtifact = {
   schemaV: number;
-  generatedAt?: string;
   vols: Record<string, LiveVolEntry>;
 };
 
-// Share-class aliases: user-typed ticker -> the class the chain pipeline
-// tracks. Alphabet trades as GOOGL (class A, in the universe) and GOOG
-// (class C); the classes track within fractions of a percent, so GOOG resolves
-// to GOOGL's data rather than erroring as uncovered. Mirrors the same map in
-// ./trailing-returns so the growth and vol shortcuts accept the same symbols.
-const TICKER_ALIASES: Record<string, string> = { GOOG: 'GOOGL' };
-
-function canonicalTicker(ticker: string): string {
-  const t = ticker.toUpperCase();
-  return TICKER_ALIASES[t] ?? t;
-}
+// The wire document carries MORE than this: a top-level `generatedAt` and a
+// per-entry `sourceCell` provenance blob, at least. They are deliberately not
+// in the types above and not copied in asArtifact, because nothing here reads
+// them and a type that lists a field implies someone checks it. The producer
+// owns the full shape (optionsahoy_web/workers, the vols artifact writer); the
+// frozen v1 contract is pinned from both sides by
+// tests/fixtures/vols-artifact-v1.json. Extra keys are ignored, never
+// rejected, so the producer can add fields without a lockstep release.
 
 // `doc: null` is a remembered FAILURE, not an absent memo — see the TTL note.
 type Memo = { at: number; doc: VolsArtifact | null };
@@ -102,35 +133,79 @@ function asArtifact(raw: unknown): VolsArtifact | null {
   if (o.vols === null || typeof o.vols !== 'object' || Array.isArray(o.vols)) return null;
   return {
     schemaV: VOLS_SCHEMA_V,
-    generatedAt: typeof o.generatedAt === 'string' ? o.generatedAt : undefined,
     vols: o.vols as Record<string, LiveVolEntry>,
   };
+}
+
+/** Transient upstream signals worth a second try. Anything else (404, 403, a
+ *  200 whose body is not the v1 schema) is a deployment or contract fact that
+ *  a retry 250ms later cannot change. */
+function isRetryableStatus(status: number): boolean {
+  return status === 408 || status === 429 || (status >= 500 && status <= 504);
+}
+
+type Attempt = { doc: VolsArtifact | null; retryable: boolean };
+
+async function fetchVolsOnce(timeoutMs: number): Promise<Attempt> {
+  try {
+    const res = await fetch(VOLS_URL, {
+      signal: AbortSignal.timeout(timeoutMs),
+      headers: { accept: 'application/json' },
+    });
+    // A 200 that fails asArtifact is a CONTRACT miss, not a blip: retrying
+    // fetches the same bytes. Definitive.
+    if (res.ok) return { doc: asArtifact(await res.json()), retryable: false };
+    return { doc: null, retryable: isRetryableStatus(res.status) };
+  } catch {
+    // Network error, DNS failure, abort on timeout, or a truncated body that
+    // failed to parse as JSON. All plausibly transient.
+    return { doc: null, retryable: true };
+  }
 }
 
 /**
  * Populate the memo if it is cold or expired. NEVER throws and never rejects:
  * a failed warm is a memoized null, which every reader treats as "this ticker
  * resolves no volatility". Safe to await unconditionally at the top of a
- * request handler.
+ * request handler — and safe to START without awaiting, then await later
+ * (functions/poe.ts overlaps it with its billing round-trip).
  *
  * Concurrent callers share one in-flight fetch, so a burst of parallel tool
  * calls on a cold memo issues a single request.
+ *
+ * DEFERRED (recorded so it is not re-litigated): stale-while-revalidate — serve
+ * the expired memo immediately and refresh in the background — would take the
+ * refetch off the request path entirely. It needs a Workers `ctx.waitUntil`
+ * threaded from every handler down to here, which is a signature change on five
+ * surfaces plus a no-op shim for the Node stdio server. Deferred until the lazy
+ * warm gate (mayResolveVolFromTicker, see functions/_lib/calc-parsers.ts) is
+ * shown to be insufficient: it already removes this fetch from the majority of
+ * calls, which is the same latency win for none of the plumbing.
+ *
+ * ALSO DEFERRED: generalizing this file into a reusable "gated published
+ * artifact" reader (fetch + memo + schema gate + freshness gate, parameterized).
+ * There is exactly one artifact today. A second one (the growth table, when it
+ * stops being baked) is the trigger; abstracting ahead of it would be guessing
+ * at which parts are the varying parts.
  */
 export async function warmVolSnapshot(): Promise<void> {
   if (isFresh(memo, Date.now())) return;
   if (inflight) return inflight;
   inflight = (async () => {
+    const deadline = Date.now() + VOLS_TOTAL_BUDGET_MS;
     let doc: VolsArtifact | null = null;
-    try {
-      const res = await fetch(VOLS_URL, {
-        signal: AbortSignal.timeout(VOLS_FETCH_TIMEOUT_MS),
-        headers: { accept: 'application/json' },
-      });
-      if (res.ok) doc = asArtifact(await res.json());
-    } catch {
-      // Network error, DNS failure, abort on timeout, or a body that is not
-      // JSON. All the same outcome: no snapshot.
-      doc = null;
+    for (let attempt = 0; attempt < VOLS_FETCH_ATTEMPTS; attempt += 1) {
+      const remaining = deadline - Date.now();
+      if (remaining <= 0) break;
+      const got = await fetchVolsOnce(Math.min(VOLS_FETCH_TIMEOUT_MS, remaining));
+      if (got.doc !== null || !got.retryable) {
+        doc = got.doc;
+        break;
+      }
+      if (attempt === VOLS_FETCH_ATTEMPTS - 1) break;
+      const delay = Math.min(VOLS_RETRY_DELAY_MS, deadline - Date.now());
+      if (delay <= 0) break;
+      await new Promise((resolve) => setTimeout(resolve, delay));
     }
     memo = { at: Date.now(), doc };
   })();
@@ -182,12 +257,6 @@ export function getLiveVol(ticker: string, now: Date = new Date()): number | nul
   if (asOf * 1000 < lastTradingDayCutoffMs(now)) return null;
 
   return iv;
-}
-
-/** True when `ticker` resolves a fresh sigma right now. Kept as the single
- *  predicate any caller should ask, so nothing re-implements the gate. */
-export function hasLiveVol(ticker: string, now: Date = new Date()): boolean {
-  return getLiveVol(ticker, now) !== null;
 }
 
 /** Test seam. Tests inject a fixture document (or a remembered failure)

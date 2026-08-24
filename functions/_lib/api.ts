@@ -14,6 +14,7 @@
 // supplies both.
 import { type PagesContext } from './stats';
 import { warmVolSnapshot } from '../../lib/data/live-vols';
+import { mayResolveVolFromTicker } from './calc-parsers';
 export type PagesFunction = (context: PagesContext) => Promise<Response> | Response;
 export type { PagesContext } from './stats';
 
@@ -122,6 +123,7 @@ export async function runCalc<I, O>(
     logCall(context, { endpoint, isError: true, errorMsg: 'invalid json' });
     return jsonResponse(400, { error: 'Invalid JSON in request body.' });
   }
+  const slug = endpoint.startsWith('rest:') ? endpoint.slice(5) : endpoint;
   // Warm the published implied-vol artifact before parsing. The parsers are
   // synchronous (they are shared verbatim with the MCP, A2A and Poe surfaces),
   // so the async fetch has to happen here, at the request boundary, and the
@@ -129,7 +131,12 @@ export async function runCalc<I, O>(
   // `ticker` resolves no volatility, which is the ordinary required-field
   // error path. Memoized for VOLS_MEMO_TTL_MS, so this is a no-op on all but
   // the first call in each five-minute window.
-  await warmVolSnapshot();
+  //
+  // LAZY: skipped entirely when this request provably cannot read the memo -
+  // explicit `volatility`, no `ticker`, or a tool with no ticker→sigma path.
+  // Those requests were paying a cold-memo CDN round-trip for a value nothing
+  // would read. See mayResolveVolFromTicker for how the condition is derived.
+  if (mayResolveVolFromTicker(slug, raw)) await warmVolSnapshot();
   let input: I;
   try {
     input = parseInput(raw);
@@ -140,7 +147,6 @@ export async function runCalc<I, O>(
   }
   try {
     const output = compute(input);
-    const slug = endpoint.startsWith('rest:') ? endpoint.slice(5) : endpoint;
     logCall(context, { endpoint, isError: false });
     logSample(context, {
       surface: 'rest',

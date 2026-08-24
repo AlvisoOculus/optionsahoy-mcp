@@ -7,7 +7,9 @@
 // M1-M6, M9, M10 (Batch A).
 
 import { describe, it, expect } from 'vitest';
+import { readFileSync } from 'node:fs';
 import { TOOLS } from '../functions/_lib/mcp-tools';
+import { PROMPTS } from '../functions/_lib/mcp-prompts';
 import { QSBS_INDUSTRY_OPTIONS } from '../lib/calc/qsbs';
 import { evaluateQsbs, type QsbsInputs } from '@/lib/calc/qsbs';
 
@@ -194,4 +196,62 @@ describe('qsbs_check industry description matches the engine table', () => {
       expect(qualifyingList, `${v} is qualifies:false but sits in the qualifying list`).not.toContain(v);
     }
   });
+});
+
+// ── lhm.plugin.json is a HAND-MAINTAINED mirror ──────────────────────────
+// Unlike public/toolspec.json and public/openapi.json, this descriptor has no
+// generator in this repo (checked: scripts/, scripts/codegen/, package.json).
+// It is published to a third-party directory, so a stale copy is a stale claim
+// in front of real users - which is exactly how the "cached implied volatility"
+// wording outlived the cached table it described. Until it gains a generator,
+// this test IS the drift guard: edit mcp-prompts.ts, then mirror the same
+// strings here, and this fails until you do.
+describe('lhm.plugin.json mirrors the prompt source of truth', () => {
+  const plugin = JSON.parse(readFileSync('lhm.plugin.json', 'utf8')) as {
+    prompts: Array<{ name: string; description: string; arguments?: Array<{ name: string; description: string }> }>;
+  };
+  const byPromptName = new Map(plugin.prompts.map((p) => [p.name, p]));
+
+  for (const prompt of PROMPTS) {
+    it(`${prompt.name}: description and argument text match`, () => {
+      const mirrored = byPromptName.get(prompt.name);
+      expect(mirrored, `lhm.plugin.json is missing prompt "${prompt.name}"`).toBeDefined();
+      expect(mirrored!.description).toBe(prompt.description);
+      for (const arg of prompt.arguments ?? []) {
+        const mirroredArg = (mirrored!.arguments ?? []).find((a) => a.name === arg.name);
+        expect(mirroredArg, `missing argument "${arg.name}"`).toBeDefined();
+        expect(mirroredArg!.description).toBe(arg.description);
+      }
+    });
+  }
+});
+
+// The published surfaces must not describe the RETIRED mechanism. Volatility
+// stopped coming from a table baked into the package (lib/data/trailing-vols)
+// in 2026-08; it now resolves per call from a published feed behind a
+// last-close freshness gate. A surface still saying "cached implied vol" tells
+// a model, and through it a user, something false about where the number came
+// from and how current it is.
+describe('no surface still claims a cached implied-vol table', () => {
+  const SURFACES = [
+    'AGENTS.md',
+    'GEMINI.md',
+    'README.md',
+    'lhm.plugin.json',
+    'public/toolspec.json',
+    'functions/_lib/mcp-tools.ts',
+    'functions/_lib/mcp-prompts.ts',
+    'functions/_lib/mcp-resources.ts',
+    'functions/_lib/calc-parsers.ts',
+    'integrations/aci/optionsahoy/functions.json',
+    'examples/quickstart/README.md',
+    'examples/quickstart/call-concentration.mjs',
+    'integrations/recipes/price_protective_put_or_collar.py',
+  ];
+  const STALE = /cached implied[- ]vol|implied[- ]vol(atility)? table|cached vol/i;
+  for (const path of SURFACES) {
+    it(`${path}`, () => {
+      expect(readFileSync(path, 'utf8')).not.toMatch(STALE);
+    });
+  }
 });

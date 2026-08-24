@@ -22,7 +22,7 @@ import type { LotDivestInput, LotDivestLot } from '../../lib/calc/lotDivest';
 import { asObject, p, FILING_STATUSES, type Obj } from './api';
 import { STATE_CODES } from '../../lib/tax/state-tax';
 import { getTrailingReturn, hasTrailingReturn, isKnownTicker } from '../../lib/data/trailing-returns';
-import { getLiveVol } from '../../lib/data/live-vols';
+import { getLiveVol, VOL_UNRESOLVED_REASON } from '../../lib/data/live-vols';
 import { SECTOR_STATS, type SectorKey } from '../../lib/markets/sector-stats';
 import { HORIZON_YEARS as CONCENTRATION_HORIZON_YEARS, IV_OVER_RV_MULTIPLIER } from '../../lib/calc/concentration';
 import { lognormalHaircut } from '../../lib/calc/volatility-drag';
@@ -118,13 +118,91 @@ function resolveDragFromVolatility(o: Obj, dragField: string, horizonYears: numb
   if (o.ticker !== undefined) {
     const sigma = resolveSigmaFromTicker(o);
     if (sigma !== null) return lognormalHaircut(sigma, horizonYears);
+    // WHAT THIS MUST NOT SAY: "that ticker is not in our table". Five of the
+    // six ways this branch is reached (CDN timeout, non-200, unparseable body,
+    // wrong schemaV, entry older than the last close) have nothing to do with
+    // coverage, and an LLM handed a coverage claim relays it to the user as
+    // one - telling someone their perfectly ordinary stock is unsupported
+    // because a CDN blipped. The reason phrase is owned by the reader that
+    // knows the failure modes (VOL_UNRESOLVED_REASON in lib/data/live-vols).
     throw new Error(
-      `field "volatility" required: ticker "${p.str(o, 'ticker')}" is not in our cached implied-vol table. Pass "volatility" explicitly (annualized sigma, e.g. 0.30 for 30%) or use a covered public-stock symbol. ${ASK_USER_HINT}`,
+      `field "volatility" required: could not resolve a current implied volatility for ticker "${p.str(o, 'ticker')}" (${VOL_UNRESOLVED_REASON}). Pass "volatility" explicitly (annualized sigma, e.g. 0.30 for 30%) - do not invent one. ${ASK_USER_HINT}`,
     );
   }
   throw new Error(
-    `field "volatility" required: annualized sigma of the stock as a decimal (e.g. 0.30 for 30%). Or set "ticker" to a covered public-stock symbol (e.g. "NVDA") to derive from the cached implied-vol table. ${ASK_USER_HINT}`,
+    `field "volatility" required: annualized sigma of the stock as a decimal (e.g. 0.30 for 30%). Or set "ticker" to a public-stock symbol to resolve its implied volatility as of the last market close. ${ASK_USER_HINT}`,
   );
+}
+
+// ── The lazy-warm predicate ──────────────────────────────────────────────
+// Every request handler used to `await warmVolSnapshot()` unconditionally,
+// paying a cold-memo CDN fetch (up to the full timeout) on requests that
+// provably cannot read the memo. This is the gate: true only when parsing
+// `rawArgs` for `toolOrSlug` can actually REACH getLiveVol.
+//
+// Derived from the parsers above, not from intuition. The complete set of
+// getLiveVol call sites in this file is resolveSigmaFromTicker, and it is
+// called from exactly three places:
+//
+//   1. resolveDragFromVolatility - reached only when the tool's own drag field
+//      is absent AND `volatility` is absent AND `ticker` is present.
+//   2. parseConcentrationInput's hedge-pricing sigma - `volatility` absent AND
+//      `ticker` present. NOT guarded by volatilityDrag: it is a second,
+//      independent read, which is why concentration maps to `null` below.
+//   3. parseProtectivePutInput's volatility - same condition as (2), with a
+//      sector-typical fallback instead of a throw.
+//
+// So the gate is: a tool in the table, `ticker` present, `volatility` absent,
+// and (where one exists) the tool's drag short-circuit absent.
+//
+// Tools deliberately ABSENT, each because no parser path reaches getLiveVol:
+//   qsbs_check          - takes no volatility, drag or ticker field at all.
+//   rsu_lot_optimize    - lot-level divest ordering; no forward projection.
+//   equity_funding_plan - per-stack `ticker` resolves GROWTH only, off the
+//                         baked trailing-returns table (no network, no memo).
+// A tool not in the table returns false, which is the correct default: a new
+// tool that wants the shortcut has to opt in here, and the behaviour test in
+// tests/lazy-vol-warm.test.ts fails the day one forgets.
+//
+// Keys are BOTH the MCP tool name and the REST slug, because REST dispatches
+// on `rest:<slug>` and A2A/Poe/stdio dispatch on the tool name.
+//
+// Value = the field whose presence short-circuits every ticker→sigma path in
+// that parser (beyond `volatility`, which short-circuits all of them), or null
+// when no such field exists.
+const VOL_TICKER_SHORTCIRCUIT: Record<string, string | null> = {
+  amt_iso_optimize: 'volatilityDrag',
+  'amt-iso': 'volatilityDrag',
+  nso_calculate: 'haircut',
+  nso: 'haircut',
+  rsu_sell_vs_hold: 'haircut',
+  'rsu-sell-vs-hold': 'haircut',
+  concentration_analyze: null,
+  concentration: null,
+  protective_put_price: null,
+  'protective-put': null,
+};
+
+/**
+ * True when parsing `rawArgs` for `toolOrSlug` could read the volatility memo,
+ * i.e. when warming it can change the outcome. Handlers gate their
+ * `await warmVolSnapshot()` on this.
+ *
+ * SAFE DIRECTION: over-approximating (returning true when the lookup would not
+ * actually happen) costs a fetch. Under-approximating changes an answer. Every
+ * uncertain case above therefore resolves to true, and malformed input resolves
+ * to true as well when a ticker is present - the parser throws identically with
+ * a cold or warm memo, so the extra warm is merely wasted, never wrong.
+ */
+export function mayResolveVolFromTicker(toolOrSlug: string, rawArgs: unknown): boolean {
+  if (!Object.hasOwn(VOL_TICKER_SHORTCIRCUIT, toolOrSlug)) return false;
+  if (rawArgs === null || typeof rawArgs !== 'object' || Array.isArray(rawArgs)) return false;
+  const o = rawArgs as Record<string, unknown>;
+  // No ticker: nothing to look up. Explicit volatility: it wins on every path.
+  if (o.ticker === undefined) return false;
+  if (o.volatility !== undefined) return false;
+  const shortCircuit = VOL_TICKER_SHORTCIRCUIT[toolOrSlug];
+  return shortCircuit === null || o[shortCircuit] === undefined;
 }
 
 // One resolution ladder for every growth/return field: "market" sentinel →
@@ -327,6 +405,17 @@ export function parseProtectivePutInput(raw: unknown): ProtectivePutInputs {
   const o = asObject(raw);
   const sector = p.enum(o, 'sector', SECTORS) as SectorKey;
   const sectorDefault = SECTOR_STATS[sector].annualVol * IV_OVER_RV_MULTIPLIER;
+  // WHY THIS ONE FALLS BACK AND THE DRAG-BEARING PARSERS THROW: `sector` is
+  // REQUIRED here, so an unresolved ticker still leaves a defensible, disclosed
+  // sector-typical IV, and hedge pricing degrades to "roughly what a name like
+  // this costs to hedge" rather than to nothing. The drag parsers have no such
+  // input and would have to invent one. DEFERRED BY DESIGN: when the fallback
+  // fires because the FEED was down (rather than because the symbol is
+  // uncovered), the response says only that a sector default was used - it does
+  // not distinguish the two. Disclosing outage-triggered provenance to the
+  // caller is an open PRODUCT decision (it trades an honest caveat against
+  // teaching agents to treat a normal answer as degraded), not an oversight;
+  // do not "fix" it here without settling that.
   const volatility =
     o.volatility !== undefined
       ? p.num(o, 'volatility', SIGMA_BOUNDS)

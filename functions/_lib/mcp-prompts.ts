@@ -181,13 +181,13 @@ export const PROMPTS: McpPrompt[] = [
   {
     name: 'price-protective-put',
     description:
-      'Price a protective put, zero-cost collar, or put spread on a single-stock position against cached implied volatility (sector-typical fallback). Uses the protective_put_price tool.',
+      'Price a protective put, zero-cost collar, or put spread on a single-stock position against last-close implied vol (sector-typical fallback). Uses the protective_put_price tool.',
     arguments: [
       { name: 'positionValue', description: 'Current market value of the position, USD', required: true },
       { name: 'protectionLevel', description: 'Strike as a percentage below current price (e.g. 0.10 for 10% OTM)', required: false },
       { name: 'tenorYears', description: 'Years to expiration (e.g. 1 for 12-month)', required: false },
       { name: 'sector', description: 'Sector tag for the default volatility (always needed; it drives the volatility fallback)', required: false },
-      { name: 'ticker', description: 'Covered public-stock symbol (e.g. NVDA) whose cached implied volatility is used instead of the sector default', required: false },
+      { name: 'ticker', description: 'Public-stock symbol (e.g. NVDA) whose implied vol as of the last close is used instead of the sector default', required: false },
       { name: 'volatility', description: 'Explicit annualized implied volatility (sigma) as a decimal (e.g. 0.4 for 40%); overrides the ticker and sector default', required: false },
       { name: 'spreadRiskLevel', description: "Put spread's floor breach risk: probability the stock ends below the short strike (e.g. 0.10 for 1 in 10)", required: false },
     ],
