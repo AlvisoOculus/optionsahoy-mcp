@@ -25,7 +25,14 @@ export function cutoffSeconds(now: Date = new Date()): number {
   return Math.floor(lastTradingDayCutoffMs(now) / 1000);
 }
 
-/** Build a v1 artifact whose every entry carries `asOf`. */
+/** Build a v1 artifact whose every entry carries `asOf`.
+ *
+ *  Deliberately includes the wire fields the READER does not model -
+ *  `generatedAt` on the document and `sourceCell` on each entry - so the
+ *  fixture is the producer's shape, not the consumer's subset, and every test
+ *  that uses it also proves the reader ignores extra keys instead of choking
+ *  on them. The cast is what lets the fixture carry more than VolsArtifact
+ *  declares; see the wire-shape note in lib/data/live-vols.ts. */
 export function volsArtifact(asOf: number, vols: Record<string, number> = FIXTURE_VOLS): VolsArtifact {
   return {
     schemaV: 1,
@@ -33,7 +40,7 @@ export function volsArtifact(asOf: number, vols: Record<string, number> = FIXTUR
     vols: Object.fromEntries(
       Object.entries(vols).map(([t, atmIV1y]) => [t, { atmIV1y, asOf, sourceCell: {} }]),
     ),
-  };
+  } as VolsArtifact;
 }
 
 /** Seed the reader with a fresh artifact (asOf exactly at the cutoff, the

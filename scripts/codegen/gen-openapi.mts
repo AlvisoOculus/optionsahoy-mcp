@@ -80,9 +80,10 @@ function withFrozenClock<T>(fn: () => T): T {
 // <Prefix>Input request schemas, so the response schema reads <Prefix>Result),
 // plus a canonical request example and how to run it. The examples are
 // ticker-less on purpose: passing explicit volatility / expected-return beliefs
-// makes the parsers skip the cached implied-vol and trailing-return tables, so a
-// daily ETL refresh of that bundled data cannot silently change the committed
-// example. `run` mirrors the REST handler pipeline: parse the public JSON, then
+// makes the parsers skip BOTH ticker lookups - the trailing-return table and the
+// published volatility feed - so neither a daily ETL refresh nor the feed's
+// last-close freshness gate (nor the feed being down) can change the committed
+// example, or make generating it depend on the network. `run` mirrors the REST handler pipeline: parse the public JSON, then
 // compute (see functions/api/v1/<slug>.ts).
 type ToolEntry = {
   name: ToolName;

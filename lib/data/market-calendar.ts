@@ -154,8 +154,14 @@ export function isMarketClosed(day: Date): boolean {
 export function lastTradingDay(now: Date): string {
   const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()) - MS_PER_DAY);
   // Longest real closure run is Christmas/New Year plus flanking weekends;
-  // 14 steps is generous headroom and makes a calendar bug terminate loudly
-  // (a wrong-but-bounded date) rather than hang a request.
+  // 14 steps is generous headroom. Note what exhausting it actually does: the
+  // loop stops and RETURNS the closed day it landed on, silently. Nothing logs
+  // and nothing throws — a bounded-wrong cutoff, not a loud failure. That is
+  // the deliberate trade (a hung request is worse, and a throw here would turn
+  // a calendar bug into a 500 on every call), but it is only safe because the
+  // wrongness is bounded and one-directional: an over-long walk lands EARLIER,
+  // which loosens the freshness gate rather than rejecting good data. If this
+  // is ever reachable in practice the bound is the bug, not the silence.
   for (let i = 0; i < 14 && isMarketClosed(d); i += 1) {
     d.setUTCDate(d.getUTCDate() - 1);
   }

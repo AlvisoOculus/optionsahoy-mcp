@@ -32,6 +32,7 @@ import { SERVER_INSTRUCTIONS } from '../functions/_lib/mcp-instructions';
 import { SERVER_VERSION } from '../functions/_lib/version';
 import { nextStepsFor, nextStepsProse } from '../functions/_lib/sessions';
 import { warmVolSnapshot } from '../lib/data/live-vols';
+import { mayResolveVolFromTicker } from '../functions/_lib/calc-parsers';
 
 const SERVER_INFO = { name: 'optionsahoy', version: SERVER_VERSION };
 
@@ -97,7 +98,13 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
   // to the ordinary "field volatility required" error, never to a stale or
   // estimated number. This is why the npm package no longer ships a baked
   // vol snapshot that ages with the release.
-  await warmVolSnapshot();
+  //
+  // Gated on the same predicate the hosted surfaces use: a call that cannot
+  // read the memo does not pay for filling it. This matters MORE here than in
+  // a Worker - a desktop client on hotel wifi eats the whole timeout inline.
+  if (mayResolveVolFromTicker(req.params.name, req.params.arguments ?? {})) {
+    await warmVolSnapshot();
+  }
   try {
     const result = tool.handler(req.params.arguments) as Record<string, unknown>;
     // Same next-steps block the hosted server injects. There is no HTTP

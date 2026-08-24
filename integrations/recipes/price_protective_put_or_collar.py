@@ -31,7 +31,7 @@ def price_protective_put(
     sector: str = "semiconductors",
     protection_level: float = 0.10,  # downside protected, 0.05 to 0.50 (here 10%)
     tenor_years: float = 1.0,
-    ticker_label: str = "NVDA",  # resolves implied volatility from a cached table
+    ticker_label: str = "NVDA",  # display label only; echoed back in the result
     spread_risk_level: float = None,  # put-spread short-strike risk: 0.20, 0.10, 0.05, 0.01
 ) -> dict:
     """Return protective-put, zero-cost-collar, and put-spread pricing for the position."""

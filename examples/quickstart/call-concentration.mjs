@@ -2,7 +2,8 @@
 //
 // Run a single-stock concentration analysis via the MCP. Demonstrates
 // the ticker-based input path: pass `ticker: "NVDA"` and the optimizer
-// pulls the cached implied-vol and trailing return for you.
+// resolves the implied vol (as of the last market close) and the trailing
+// return for you.
 //
 //   node call-concentration.mjs
 

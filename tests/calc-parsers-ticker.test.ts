@@ -25,6 +25,7 @@ import {
 import { getTrailingReturn, hasTrailingReturn, isKnownTicker } from '../lib/data/trailing-returns';
 import returnsData from '../lib/data/trailing-returns.json';
 import { FIXTURE_VOLS, clearVols, seedFreshVols } from './helpers/live-vols-fixture';
+import { VOL_UNRESOLVED_REASON } from '../lib/data/live-vols';
 import { SECTOR_STATS } from '../lib/markets/sector-stats';
 import { lognormalHaircut } from '@/lib/calc/volatility-drag';
 
@@ -219,9 +220,13 @@ describe('parseAmtIsoInput — volatility -> drag derivation', () => {
 
   it('throws when volatility is missing', () => {
     const { volatility: _v, ...NO_VOL } = AMT_ISO_BASE;
-    expect(() => parseAmtIsoInput({ ...NO_VOL, expectedGrowth: 0.17 })).toThrow(
-      /volatility.*required/i,
-    );
+    const call = () => parseAmtIsoInput({ ...NO_VOL, expectedGrowth: 0.17 });
+    expect(call).toThrow(/volatility.*required/i);
+    // Same sweep as the ticker branch: the no-ticker error used to advertise
+    // deriving the sigma "from the cached implied-vol table", which no longer
+    // exists. It must describe the live, last-close mechanism instead.
+    expect(call).toThrow(/as of the last market close/);
+    expect(call).not.toThrow(/cached/i);
   });
 });
 
@@ -286,11 +291,25 @@ describe('parseAmtIsoInput — ticker → sigma resolution', () => {
     expect(out.volatilityDrag).toBeCloseTo(lognormalHaircut(0.99, AMT_ISO_BASE.horizon), 10);
   });
 
-  it('throws when ticker is set but unknown', () => {
+  // PINNED MESSAGE. The pin exists to stop drift, and it was re-aimed on
+  // purpose in 2026-08: the old text asserted the ticker "is not in our cached
+  // implied-vol table", a coverage claim that is FALSE in five of the six ways
+  // this branch is reached (fetch timeout, non-200, unparseable body, wrong
+  // schemaV, entry older than the last close). An LLM relays that to the user
+  // as fact. The replacement names one outcome and two possible causes, and
+  // the negative assertions below are the real guard - they fail if anyone
+  // reintroduces a coverage-only claim.
+  it('throws when ticker is set but unknown, without claiming the ticker is uncovered', () => {
     const { volatility: _v, ...NO_VOL } = AMT_ISO_BASE;
-    expect(() => parseAmtIsoInput({ ...NO_VOL, expectedGrowth: 0.17, ticker: 'BOGUS' })).toThrow(
-      /implied-vol table.*MUST NOT invent/i,
+    const call = () => parseAmtIsoInput({ ...NO_VOL, expectedGrowth: 0.17, ticker: 'BOGUS' });
+    expect(call).toThrow(
+      /field "volatility" required: could not resolve a current implied volatility for ticker "BOGUS"/,
     );
+    expect(call).toThrow(new RegExp(VOL_UNRESOLVED_REASON.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+    expect(call).toThrow(/MUST NOT invent/i);
+    // The claims that must never come back.
+    expect(call).not.toThrow(/cached/i);
+    expect(call).not.toThrow(/not in our/i);
   });
 });
 

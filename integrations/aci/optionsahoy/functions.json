@@ -53,7 +53,7 @@
             },
             "ticker": {
               "type": "string",
-              "description": "Optional public-stock symbol (e.g. \"NVDA\"). When set, substitutes a cached trailing return for any unsupplied expected-return field and a cached implied vol for any unsupplied volatility. Unknown tickers fall through to required-field errors."
+              "description": "Optional public-stock symbol (e.g. \"NVDA\"). When set, substitutes a cached trailing return for any unsupplied expected-return field and the last-close implied vol for any unsupplied volatility. A field it cannot resolve errors on that field."
             },
             "volatility": {
               "type": "number",

@@ -26,6 +26,7 @@ import {
   parseQsbsInput,
   parseEquityFundingInput,
   parseRsuLotOptimizeInput,
+  mayResolveVolFromTicker,
 } from './calc-parsers';
 import { computeAmtIso } from '../../lib/calc/amtIso';
 import { computeNsoResult } from '../../lib/calc/nso';
@@ -313,6 +314,26 @@ export interface HandledMessage {
   isError: boolean;
   detail?: string;
   query: string;
+}
+
+/**
+ * True when handleMessage on these parts could reach the ticker→sigma lookup,
+ * so the transport knows whether warming the vol memo can change the answer.
+ *
+ * Lives here, next to handleMessage, because it has to agree with it on where
+ * the skill id and the input live in the envelope - the two would drift the
+ * moment that shape were re-derived in functions/a2a.ts. A message with NO data
+ * part never runs a parser at all: it is keyword-routed to a "call it like
+ * this" pointer, so it is always false. Skill ids are the MCP tool names, which
+ * is what mayResolveVolFromTicker keys on.
+ */
+export function partsMayResolveVol(parts: A2APart[]): boolean {
+  const dataPart = parts.find(
+    (p) => p.kind === 'data' && p.data !== null && typeof p.data === 'object',
+  );
+  if (!dataPart) return false;
+  const data = dataPart.data as Record<string, unknown>;
+  return typeof data.skill === 'string' && mayResolveVolFromTicker(data.skill, data.input);
 }
 
 export function handleMessage(parts: A2APart[]): HandledMessage {

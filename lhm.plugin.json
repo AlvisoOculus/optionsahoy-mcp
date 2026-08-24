@@ -173,7 +173,7 @@
     },
     {
       "name": "price-protective-put",
-      "description": "Price a protective put, zero-cost collar, or put spread on a single-stock position against cached implied volatility (sector-typical fallback). Uses the protective_put_price tool.",
+      "description": "Price a protective put, zero-cost collar, or put spread on a single-stock position against last-close implied vol (sector-typical fallback). Uses the protective_put_price tool.",
       "arguments": [
         {
           "name": "positionValue",
@@ -197,7 +197,7 @@
         },
         {
           "name": "ticker",
-          "description": "Covered public-stock symbol (e.g. NVDA) whose cached implied volatility is used instead of the sector default",
+          "description": "Public-stock symbol (e.g. NVDA) whose implied vol as of the last close is used instead of the sector default",
           "required": false
         },
         {
