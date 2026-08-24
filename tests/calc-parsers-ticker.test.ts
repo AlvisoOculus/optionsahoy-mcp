@@ -14,7 +14,7 @@
 //   5. expectedMarketReturn defaults to SPY trailing CAGR for the
 //      relevant horizon even without a ticker.
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach, afterAll } from 'vitest';
 import {
   parseAmtIsoInput,
   parseConcentrationInput,
@@ -24,7 +24,7 @@ import {
 } from '../functions/_lib/calc-parsers';
 import { getTrailingReturn, hasTrailingReturn, isKnownTicker } from '../lib/data/trailing-returns';
 import returnsData from '../lib/data/trailing-returns.json';
-import { getTrailingVol } from '../lib/data/trailing-vols';
+import { FIXTURE_VOLS, clearVols, seedFreshVols } from './helpers/live-vols-fixture';
 import { SECTOR_STATS } from '../lib/markets/sector-stats';
 import { lognormalHaircut } from '@/lib/calc/volatility-drag';
 
@@ -81,6 +81,15 @@ const RSU_BASE = {
   holdYears: 2,
   volatility: 0.3,
 };
+
+// Volatility now resolves from the PUBLISHED artifact under a last-close
+// freshness gate, not from a table bundled with the package. Seed a fixture
+// document before every test so these stay hermetic: the suite must pass
+// before the producer is deployed, and must never assert against whatever the
+// live CDN happens to be serving. The dedicated gate/fetch behaviour lives in
+// live-vols.test.ts; here we only need a covered symbol to exist.
+beforeEach(() => seedFreshVols());
+afterAll(() => clearVols());
 
 describe('parseConcentrationInput — ticker lookup', () => {
   it('resolves expectedPositionReturn from a covered ticker', () => {
@@ -263,7 +272,7 @@ describe('parseAmtIsoInput — ticker → sigma resolution', () => {
   it('substitutes the ticker\'s ATM 1y IV when volatility is omitted', () => {
     const { volatility: _v, ...NO_VOL } = AMT_ISO_BASE;
     const out = parseAmtIsoInput({ ...NO_VOL, expectedGrowth: 0.17, ticker: 'NVDA' });
-    const sigma = getTrailingVol('NVDA')!;
+    const sigma = FIXTURE_VOLS.NVDA;
     expect(out.volatilityDrag).toBeCloseTo(lognormalHaircut(sigma, AMT_ISO_BASE.horizon), 10);
   });
 
@@ -293,7 +302,7 @@ describe('parseConcentrationInput — ticker → sigma resolution', () => {
       expectedPositionReturn: 0.10,
       ticker: 'NVDA',
     });
-    const sigma = getTrailingVol('NVDA')!;
+    const sigma = FIXTURE_VOLS.NVDA;
     expect(out.volatility).toBe(sigma);
   });
 });
@@ -302,14 +311,14 @@ describe('parseNsoInput / parseRsuInput — ticker → sigma resolution', () => 
   it('NSO substitutes the ticker IV when volatility is omitted', () => {
     const { volatility: _v, ...NO_VOL } = NSO_BASE;
     const out = parseNsoInput({ ...NO_VOL, ticker: 'AAPL', expectedSalePrice: 80 });
-    const sigma = getTrailingVol('AAPL')!;
+    const sigma = FIXTURE_VOLS.AAPL;
     expect(out.haircut).toBeCloseTo(lognormalHaircut(sigma, NSO_BASE.holdYears), 10);
   });
 
   it('RSU substitutes the ticker IV when volatility is omitted', () => {
     const { volatility: _v, ...NO_VOL } = RSU_BASE;
     const out = parseRsuInput({ ...NO_VOL, ticker: 'MSFT', expectedSalePrice: 100 });
-    const sigma = getTrailingVol('MSFT')!;
+    const sigma = FIXTURE_VOLS.MSFT;
     expect(out.haircut).toBeCloseTo(lognormalHaircut(sigma, RSU_BASE.holdYears), 10);
   });
 });
@@ -324,7 +333,7 @@ describe('parseProtectivePutInput — ticker → sigma resolution', () => {
 
   it('uses the ticker IV when volatility is omitted', () => {
     const out = parseProtectivePutInput({ ...PUT_BASE, ticker: 'NVDA' });
-    const sigma = getTrailingVol('NVDA')!;
+    const sigma = FIXTURE_VOLS.NVDA;
     expect(out.volatility).toBe(sigma);
   });
 

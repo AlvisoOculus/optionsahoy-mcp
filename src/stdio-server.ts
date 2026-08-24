@@ -31,6 +31,7 @@ import { PROMPTS } from '../functions/_lib/mcp-prompts';
 import { SERVER_INSTRUCTIONS } from '../functions/_lib/mcp-instructions';
 import { SERVER_VERSION } from '../functions/_lib/version';
 import { nextStepsFor, nextStepsProse } from '../functions/_lib/sessions';
+import { warmVolSnapshot } from '../lib/data/live-vols';
 
 const SERVER_INFO = { name: 'optionsahoy', version: SERVER_VERSION };
 
@@ -90,6 +91,13 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
       isError: true,
     };
   }
+  // Warm the published implied-vol artifact before the (synchronous) handler
+  // runs, so a `ticker` resolves a sigma as of the last market close. Same
+  // memo and same short timeout as the hosted server; a failed warm degrades
+  // to the ordinary "field volatility required" error, never to a stale or
+  // estimated number. This is why the npm package no longer ships a baked
+  // vol snapshot that ages with the release.
+  await warmVolSnapshot();
   try {
     const result = tool.handler(req.params.arguments) as Record<string, unknown>;
     // Same next-steps block the hosted server injects. There is no HTTP

@@ -43,7 +43,7 @@ export const sector = z
 const ticker = z
   .string()
   .describe(
-    'Optional covered public-stock symbol (e.g. "NVDA", "AAPL"). When set, the API substitutes a cached trailing return for any unsupplied expected-return / sale-price field, and a cached implied volatility for any unsupplied volatility.',
+    'Optional covered public-stock symbol (e.g. "NVDA", "AAPL"). When set, the API substitutes a cached trailing return for any unsupplied expected-return / sale-price field, and the implied volatility as of the last close for any unsupplied volatility.',
   );
 
 const isoDate = (what: string) => z.string().describe(`${what} ISO-8601 date (YYYY-MM-DD).`);

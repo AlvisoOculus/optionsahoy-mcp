@@ -13,6 +13,7 @@
 // drive handlers with `{ request }` alone; in production CF always
 // supplies both.
 import { type PagesContext } from './stats';
+import { warmVolSnapshot } from '../../lib/data/live-vols';
 export type PagesFunction = (context: PagesContext) => Promise<Response> | Response;
 export type { PagesContext } from './stats';
 
@@ -121,6 +122,14 @@ export async function runCalc<I, O>(
     logCall(context, { endpoint, isError: true, errorMsg: 'invalid json' });
     return jsonResponse(400, { error: 'Invalid JSON in request body.' });
   }
+  // Warm the published implied-vol artifact before parsing. The parsers are
+  // synchronous (they are shared verbatim with the MCP, A2A and Poe surfaces),
+  // so the async fetch has to happen here, at the request boundary, and the
+  // parser reads the warmed memo. Never throws: a failed warm just means a
+  // `ticker` resolves no volatility, which is the ordinary required-field
+  // error path. Memoized for VOLS_MEMO_TTL_MS, so this is a no-op on all but
+  // the first call in each five-minute window.
+  await warmVolSnapshot();
   let input: I;
   try {
     input = parseInput(raw);

@@ -23,6 +23,7 @@ import { SERVER_VERSION } from './_lib/version';
 import { SERVER_INSTRUCTIONS } from './_lib/mcp-instructions';
 import { SCENARIO_WIDGET_RESOURCE, SCENARIO_WIDGET_RESULT_META, SCENARIO_WIDGET_URI } from './_lib/mcp-widget';
 import { coveredTickers } from '../lib/data/trailing-returns';
+import { warmVolSnapshot } from '../lib/data/live-vols';
 
 const PROTOCOL_VERSION = '2024-11-05';
 
@@ -185,6 +186,11 @@ async function handle(
       if (typeof name !== 'string') return logErr(-32602, 'Invalid params: name must be a string', 'name not a string');
       const tool = TOOLS.find((t) => t.name === name);
       if (!tool) return logErr(-32602, `Unknown tool: ${name}`, 'unknown tool', name);
+      // Warm the published implied-vol artifact before the (synchronous)
+      // handler runs, so a `ticker` can resolve a sigma as of the last market
+      // close. Never throws and never blocks past its own short timeout; a
+      // failed warm degrades to the ordinary "field volatility required" error.
+      await warmVolSnapshot();
       try {
         const result = tool.handler(args ?? {}) as Record<string, unknown>;
         logs.push({ endpoint, tool: name, isError: false });

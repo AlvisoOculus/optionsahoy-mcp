@@ -22,17 +22,24 @@ export type McpResource = {
 const ARTICLE_BASE = 'https://optionsahoy.com/learn';
 
 // The covered-tickers resource is generated at module load from the actual
-// resolvability of the bundled snapshots (see lib/data/ticker-coverage), NOT
-// from coveredTickers() membership: that array lists every trailing-returns
-// key, including recent IPOs that resolve no growth. Enumerating by bucket
-// here gives agents the accurate, in-band answer to "which symbols can I pass,
-// and what does each resolve" so they stop trusting the looser descriptor list.
+// resolvability of the bundled trailing-returns snapshot (see
+// lib/data/ticker-coverage), NOT from coveredTickers() membership: that array
+// lists every table key, including recent IPOs that resolve no growth.
+// Enumerating what actually resolves gives agents the accurate, in-band answer
+// to "which symbols can I pass" so they stop trusting the looser descriptor
+// list.
+//
+// VOLATILITY IS NOT LISTED, on purpose. It resolves from the daily published
+// implied-vol artifact under a last-market-close freshness gate (see
+// lib/data/live-vols), so the answer is per-call and per-symbol and cannot be
+// enumerated at module load. Describing the mechanism is the honest version;
+// printing a roster here would be a list that is wrong the day it is written.
 const COVERED_TICKERS_URI = 'https://optionsahoy.com/tools/covered-tickers';
 const COVERED_TICKERS_DESC =
-  'The public-stock symbols the optional `ticker` shortcut resolves, split by whether each resolves expected growth, volatility, or both. Symbols outside these lists need the numeric fields supplied directly.';
+  'The public-stock symbols whose expected growth the optional `ticker` shortcut resolves, plus how the same shortcut resolves volatility. Symbols outside the list need the numeric fields supplied directly.';
 
 function buildCoveredTickersResource(): McpResource {
-  // Built at module load from the bundled snapshots. A malformed ETL snapshot
+  // Built at module load from the bundled snapshot. A malformed ETL snapshot
   // must not throw out of the RESOURCES initializer and black out resources/list
   // for every resource, so fall back to a static pointer on any failure.
   let c: ReturnType<typeof tickerCoverage>;
@@ -44,12 +51,10 @@ function buildCoveredTickersResource(): McpResource {
       name: 'Covered tickers for the optional ticker shortcut (growth and volatility)',
       description: COVERED_TICKERS_DESC,
       mimeType: 'text/markdown',
-      contents: `# Covered tickers for the ticker shortcut\n\nThe per-symbol coverage list is temporarily unavailable. Pass a covered public-stock symbol and the growth tools resolve expected growth and volatility from bundled data; an uncovered symbol returns a required-field error naming the field to supply.\n`,
+      contents: `# Covered tickers for the ticker shortcut\n\nThe per-symbol coverage list is temporarily unavailable. Pass a public-stock symbol and the growth tools resolve expected growth from bundled data and volatility from the daily options-chain publication; a symbol either source cannot resolve returns a required-field error naming the field to supply.\n`,
     };
   }
   const list = (xs: string[]) => (xs.length ? xs.join(', ') : '(none)');
-  const growthTotal = c.growthAndVol.length + c.growthOnly.length;
-  const volTotal = c.growthAndVol.length + c.volOnly.length;
   return {
     uri: COVERED_TICKERS_URI,
     name: 'Covered tickers for the optional ticker shortcut (growth and volatility)',
@@ -57,29 +62,25 @@ function buildCoveredTickersResource(): McpResource {
     mimeType: 'text/markdown',
     contents: `# Covered tickers for the ticker shortcut
 
-The growth-bearing tools (amt_iso_optimize, nso_calculate, rsu_sell_vs_hold, concentration_analyze) and protective_put_price accept an optional \`ticker\`. When it is a covered symbol, the tool resolves expected growth from a bundled trailing-return snapshot and volatility from a bundled implied-volatility snapshot, so you do not have to supply those numbers. equity_funding_plan also accepts a per-stack \`ticker\`, which resolves that stack's expected growth the same way (it does not resolve volatility from the ticker). A symbol a given tool cannot resolve for the field it needs returns a required-field error naming that field; pass the field explicitly in that case.
+The growth-bearing tools (amt_iso_optimize, nso_calculate, rsu_sell_vs_hold, concentration_analyze) and protective_put_price accept an optional \`ticker\`. When it is a covered symbol, the tool resolves expected growth from a bundled trailing-return snapshot and volatility from the daily options-chain publication, so you do not have to supply those numbers. equity_funding_plan also accepts a per-stack \`ticker\`, which resolves that stack's expected growth the same way (it does not resolve volatility from the ticker). A symbol a given tool cannot resolve for the field it needs returns a required-field error naming that field; pass the field explicitly in that case.
 
-Two independent snapshots back the shortcut, so coverage differs by field: ${growthTotal} symbols resolve expected growth, ${volTotal} resolve volatility, and ${c.growthAndVol.length} resolve both. The lists below are generated from the bundled data and can change between deploys, so treat them as the current set rather than a fixed roster.
+The two sides of the shortcut are backed differently, so read them differently.
 
-## Resolves both growth and volatility (${c.growthAndVol.length})
+## Resolves expected growth (${c.growth.length})
 
-Pass \`ticker\` alone; no growth or volatility number is needed.
+A bundled trailing-CAGR snapshot, refreshed on deploy. This list is exact: every symbol here resolves a growth/return/sale-price field from the ticker alone.
 
-${list(c.growthAndVol)}
+${list(c.growth)}
 
-## Resolves growth only (${c.growthOnly.length})
+Share-class aliases resolve to their listed class (for example GOOG resolves as GOOGL). Any symbol not listed above resolves no growth: pass the growth/return/sale-price field directly, or pass the string \`"market"\` for the S&P 500 trailing average. The GET https://optionsahoy.com/mcp descriptor also carries a \`coveredTickers\` array, but it is a looser superset that includes those aliases and symbols resolving no growth, so prefer this list.
 
-These resolve expected growth but not volatility. Supply \`volatility\` if a growth tool returns a required-field error naming it. protective_put_price is unaffected: it falls back to a sector-typical volatility.
+## Resolves volatility (no fixed list)
 
-${list(c.growthOnly)}
+Volatility is not served from a bundled table and has no roster to publish. Each call reads the daily options-chain publication and accepts a symbol's implied volatility only when that entry is stamped at or after the last market close. So coverage is per-call: a symbol resolves volatility when the current publication carries it and that entry is current, and resolves nothing when the publication is unreachable, does not carry the symbol, or carries an entry older than the last close.
 
-## Resolves volatility only (${c.volOnly.length})
+There is no fallback to an older number. When volatility does not resolve, the growth-bearing tools return a required-field error naming \`volatility\`, and you pass an annualized sigma as a decimal (0.30 for 30%), which must come from the user. protective_put_price is the one exception: it falls back to a sector-typical implied volatility, as its \`sector\` field documents.
 
-Useful for protective_put_price on ticker alone; on the growth tools, supply the expected-return or sale-price field yourself.
-
-${list(c.volOnly)}
-
-Any symbol not listed above is not covered: pass the numeric growth and volatility fields directly instead of a ticker. Share-class aliases resolve to their listed class (for example GOOG resolves as GOOGL). The GET https://optionsahoy.com/mcp descriptor also carries a \`coveredTickers\` array, but it is a looser superset that includes those aliases and symbols resolving neither field, so prefer the buckets here.
+The practical guidance is to pass the ticker and handle the required-field error if it comes, rather than trying to pre-check a roster that does not exist.
 `,
   };
 }

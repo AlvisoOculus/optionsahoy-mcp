@@ -84,9 +84,9 @@ export function trailingReturnsCoverage(): { total: number; refreshedAt: string 
 // the parser actually accepts. Live from the bundled ETL snapshot, so it tracks
 // the deployed data (no hand-maintained list to drift). Note: this returns every
 // table key, so a few recent-IPO symbols here have null 5y AND 10y returns and
-// resolve NO growth yet, and volatility comes from a separate smaller table
-// (trailing-vols). For the accurate per-field partition, see tickerCoverage()
-// in ./ticker-coverage and the covered-tickers MCP resource built from it.
+// resolve NO growth yet, and volatility comes from a separate live publication
+// (./live-vols) with no fixed roster. For the accurate growth partition, see
+// tickerCoverage() in ./ticker-coverage and the covered-tickers MCP resource.
 export function coveredTickers(): string[] {
   return [...Object.keys(TICKERS), ...Object.keys(TICKER_ALIASES)].sort();
 }
