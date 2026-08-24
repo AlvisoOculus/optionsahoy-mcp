@@ -45,6 +45,109 @@ Full install matrix (Gemini CLI extension, config-file JSON, REST API, Google Cl
 
 The ISO optimizer searches its full discretized candidate space and refines share by share, matching a brute-force maximum to the cent on a published tractable case ([see the proof](https://optionsahoy.com/verification)); the planners run deterministic bracket-aware searches and the calculators return exact results. Deterministic computation, not a language-model guess. Coverage spans the relevant federal tax code (ordinary brackets, long-term capital gains, AMT with credit recovery, FICA, NIIT) plus all 50 states and DC (state ordinary brackets, LTCG treatment, state AMT for CA, CO, CT, MN). Same engine as the in-browser calculators at [optionsahoy.com/tools](https://optionsahoy.com/tools); the API response carries the same computed figures as clicking through the tool.
 
+## What a call looks like (all eight tools)
+
+One real call per tool, captured from `https://optionsahoy.com/mcp` and committed under [`docs/examples/`](docs/examples), so every figure below is auditable against the response it came from. The inputs are deliberately explicit (no `ticker`, every date pinned), so re-running [`scripts/capture-readme-examples.mts`](scripts/capture-readme-examples.mts) reproduces the same numbers. Each block shows the ask, the arguments that carry the scenario, and what came back.
+
+### `amt_iso_optimize`
+
+***"I have 50,000 vested ISOs at a $4 strike and the stock is at $90. Married filing jointly, $300,000 of income, California. Should I exercise the whole block now or spread it out?"***
+
+```json
+{"shares": 50000, "strike": 4, "fmv": 90, "horizon": 4, "filingStatus": "married_joint",
+ "ordinaryIncome": 300000, "stateCode": "CA", "grantDate": "2023-03-15",
+ "expectedGrowth": 0.1, "volatilityDrag": 0.2, "cashReturnRate": 0.05, …}
+```
+
+The optimized schedule exercises 1,401 / 1,339 / 1,280 / 45,980 shares across the four years and ends at a net final value of $1,623,234, against $1,565,849 for exercising the whole block today. The AMT crossover sits at 699 shares: the first $60,185 of bargain element costs no AMT at all. ([raw](docs/examples/amt_iso_optimize.json); the same position as the site's [published worked example](https://optionsahoy.com/learn/amt-crossover#worked-example), priced with the explicit growth and drag above)
+
+### `nso_calculate`
+
+***"5,000 NSOs at an $8 strike, stock at $75. Do I sell at exercise or hold a year for long-term gains? Single, $250,000 income, California."***
+
+```json
+{"shares": 5000, "strike": 8, "currentPrice": 75, "expectedSalePrice": 90, "holdYears": 1,
+ "holdFunding": "sell-to-cover", "volatility": 0.3, "ordinaryIncome": 250000,
+ "filingStatus": "single", "stateCode": "CA", …}
+```
+
+The exercise itself is a $335,000 bargain element taxed $159,618, leaving $175,382 if you sell everything on the spot. Holding a year with a sell-to-cover projects $193,943 against $184,209 for selling now and investing the proceeds, a $9,734 edge for holding. ([raw](docs/examples/nso_calculate.json))
+
+### `rsu_sell_vs_hold`
+
+***"1,000 RSUs vesting at $200. Sell at vest or hold another year and a half? Married filing jointly, $300,000 income, New York."***
+
+```json
+{"shares": 1000, "currentPrice": 200, "expectedSalePrice": 220, "holdYears": 1.5,
+ "volatility": 0.25, "ordinaryIncome": 300000, "filingStatus": "married_joint",
+ "stateCode": "NY", "stillEmployed": true, …}
+```
+
+The vest costs $73,896 in total tax, of which $55,716 is federal against only $44,000 withheld at the flat supplemental rate: that gap is the April bill people do not see coming. Selling at vest and investing projects $136,247 at the end of that hold versus $130,817 for holding, so holding loses $5,430 here. ([raw](docs/examples/rsu_sell_vs_hold.json))
+
+### `concentration_analyze`
+
+***"$750,000 of my $2.25M is in one tech stock I bought in 2022 for $150,000. How exposed am I, and what does selling down cost?"***
+
+```json
+{"positionValue": 750000, "costBasis": 150000, "acquisitionDate": "2022-01-15",
+ "sector": "tech_software", "totalAssets": 2250000, "expectedPositionReturn": 0.12,
+ "volatility": 0.35, "ordinaryIncome": 350000, "filingStatus": "single", "stateCode": "CA", …}
+```
+
+The position is 33% of net worth, which the tool bands as "Concentrated", and a 50% drawdown in that one name would cost $375,000. Selling it down over three years pays $196,709 in tax against $208,368 for selling in a single year. ([raw](docs/examples/concentration_analyze.json))
+
+### `protective_put_price`
+
+***"I want downside protection on a $500,000 tech position for a year, with a floor about 20% below spot. Put, collar, or put spread?"***
+
+```json
+{"positionValue": 500000, "sector": "tech_software", "volatility": 0.35,
+ "protectionLevel": 0.2, "tenorYears": 1, "spreadRiskLevel": 0.1, "expectedReturn": 0.08}
+```
+
+A bare put struck at $400,000 costs $19,348 a year, 3.87% of the position. The zero-cost collar buys the same floor for a net premium of roughly zero by capping upside at $724,518, which it puts a 15.7% chance on reaching, and that is the structure it recommends. ([raw](docs/examples/protective_put_price.json))
+
+### `qsbs_check`
+
+***"I bought founder stock in March 2020 and I am selling in March 2026 for a $5M gain. Is it QSBS, and how much is tax-free?"***
+
+```json
+{"acquisitionDate": "2020-03-01", "saleDate": "2026-03-15", "entityType": "us-c-corp",
+ "acquisitionMethod": "original-issuance", "assetCategory": "under-50m",
+ "industry": "tech-software", "adjustedBasis": 50000, "expectedGain": 5000000, …}
+```
+
+Verdict `qualifies`: all six statutory tests pass at 6.0 years held, so 100% of the $5,000,000 gain is excludable under the $10,000,000 per-issuer cap, worth $1,190,000 in federal tax. California does not conform, so the same gain is fully taxable by the state. ([raw](docs/examples/qsbs_check.json))
+
+### `equity_funding_plan`
+
+***"I need $400,000 after tax by June 2029 for a house. I hold 3,500 shares at $120 across two lots. What do I sell, and when?"***
+
+```json
+{"targetAfterTax": 400000, "targetDate": "2029-06-30", "stacks": [{"currentPrice": 120,
+ "expectedAnnualGrowth": 0.08, "lots": [{"shares": 2000, "costBasisPerShare": 50,
+ "acquisitionDate": "2022-01-15"}, …]}], "ordinaryIncome": 350000, "stateCode": "CA", …}
+```
+
+Selling everything today falls short: it nets $391,574 against the $400,000 goal. The recommended staged plan sells 3,314 of the 3,500 shares over the years to the deadline, lands at $400,075 after tax with $63,740 of tax paid, and beats a single sale in the target year by $12,976. ([raw](docs/examples/equity_funding_plan.json))
+
+### `rsu_lot_optimize`
+
+***"I hold 3,000 vested RSU shares from three vests, the stock is at $180, and I want to cut the position in half over the next two years. Which lots go?"***
+
+```json
+{"lots": [{"vestDate": "2022-08-15", "shares": 1200, "costBasisPerShare": 95},
+ {"vestDate": "2024-02-15", "shares": 1000, "costBasisPerShare": 130}, …],
+ "currentPrice": 180, "divestFraction": 0.5, "horizonYears": 2, "ordinaryIncome": 200000, …}
+```
+
+To divest 1,500 of the 3,000 shares it pairs the underwater newest lot against long-term gains from an older one, so the whole divestment costs $2,935 in tax and keeps $267,065 after tax, $29,942 more than selling the same fraction in FIFO order. ([raw](docs/examples/rsu_lot_optimize.json))
+
+Every example above passes volatility and growth explicitly. In a real call you can instead pass `ticker`: volatility resolves from the published implied-vol snapshot as of the last market close, and growth from the cached trailing-CAGR snapshot. If either cannot be resolved the call returns an error naming the exact field rather than a guessed number, and `protective_put_price` echoes `volatilitySource` (`explicit`, `ticker`, or `sector-default`) so you always know which sigma was priced.
+
+These captures ran in the 2026 tax year. Figures move in a later tax year for the three tools whose schedules run forward from today's date (`amt_iso_optimize`, `equity_funding_plan`, `rsu_lot_optimize`); everything else is pinned by the dates in the arguments.
+
 ## Use it in your agent framework (Python)
 
 If you build agents in Python rather than calling the MCP endpoint directly, OptionsAhoy ships installable tool packages for the major agent frameworks. Each one wraps the same calculators behind the framework's native tool interface. All are published on PyPI and all are keyless: no OptionsAhoy account, no API key.
@@ -107,6 +210,7 @@ Eight markdown resources under `resources/list` give an LLM enough grounding to 
 | `https://optionsahoy.com/learn/zero-cost-collars` | Protective puts, zero-cost collars, and put spreads | `protective_put_price` |
 | `https://optionsahoy.com/learn/qsbs` | QSBS qualification and five ways to lose the exclusion | `qsbs_check` |
 | `https://optionsahoy.com/tools/equity-funding` | Selling equity to fund a cash goal by a deadline | `equity_funding_plan` |
+| `https://optionsahoy.com/tools/covered-tickers` | Which symbols the optional `ticker` shortcut resolves | any tool taking `ticker` |
 
 ## MCP prompts (workflow scaffolds)
 
@@ -121,6 +225,17 @@ Eight prompts under `prompts/list` scaffold typical user questions and route to 
 | `price-protective-put` | `protective_put_price` |
 | `check-qsbs-eligibility` | `qsbs_check` |
 | `plan-equity-funding` | `equity_funding_plan` |
+| `plan-equity-portfolio` | several tools, reconciled into one plan |
+
+A `prompts/get` invocation, arguments as strings:
+
+```json
+{"name": "optimize-iso-exercise",
+ "arguments": {"shares": "50000", "strike": "4", "fmv": "90", "expectedGrowth": "0.1",
+               "volatility": "0.5", "state": "CA", "ordinaryIncome": "300000"}}
+```
+
+It returns one templated user message ("I have 50000 Incentive Stock Options (ISOs) with a strike of $4 per share ...") that already tells the model to call `amt_iso_optimize` with those values, to ask for any missing required field rather than assume it, and to report the optimized schedule against the lump-sum and even-split alternatives ([raw](docs/examples/prompts_get_optimize-iso-exercise.json)).
 
 ## Install details
 
@@ -179,13 +294,16 @@ The local server returns the same computed figures as the hosted endpoint at `ht
 # List endpoints
 curl https://optionsahoy.com/api/v1
 
-# Run an optimization
+# Run an optimization (the 50,000-ISO example from "What a call looks like")
 curl -X POST https://optionsahoy.com/api/v1/amt-iso \
   -H "content-type: application/json" \
-  -d @input.json
+  -d '{"shares":50000,"strike":4,"fmv":90,"horizon":4,"filingStatus":"married_joint",
+       "ordinaryIncome":300000,"stateCode":"CA","grantDate":"2023-03-15",
+       "hasLeftCompany":false,"expectedGrowth":0.1,"volatilityDrag":0.2,
+       "carryforwardCredit":0,"cashReturnRate":0.05}'
 ```
 
-Request body shapes are documented in [`public/openapi.json`](public/openapi.json).
+That returns the same `result.schedules.optimized.nfv` as the MCP call above ([raw](docs/examples/amt_iso_optimize.json)). Request body shapes for the other seven endpoints are documented in [`public/openapi.json`](public/openapi.json).
 
 ## Repository layout
 

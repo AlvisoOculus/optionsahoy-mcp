@@ -1,0 +1,188 @@
+{
+  "tool": "protective_put_price",
+  "endpoint": "https://optionsahoy.com/mcp",
+  "capturedAt": "2026-08-24",
+  "request": {
+    "method": "tools/call",
+    "params": {
+      "name": "protective_put_price",
+      "arguments": {
+        "positionValue": 500000,
+        "sector": "tech_software",
+        "volatility": 0.35,
+        "protectionLevel": 0.2,
+        "tenorYears": 1,
+        "spreadRiskLevel": 0.1,
+        "expectedReturn": 0.08
+      }
+    }
+  },
+  "response": {
+    "content": [
+      {
+        "type": "text",
+        "text": "{\"inputs\":{\"positionValue\":500000,\"sector\":\"tech_software\",\"volatility\":0.35,\"volatilitySource\":\"explicit\",\"protectionLevel\":0.2,\"tenorYears\":1,\"expectedReturn\":0.08,\"spreadRiskLevel\":0.1},\"riskFreeRate\":0.045,\"realWorldDrift\":0.08,\"barePut\":{\"strike\":400000,\"premium\":19347.800331295817,\"annualCost\":19347.800331295817,\"annualCostPct\":0.03869560066259163,\"maxLoss\":119347.80033129582,\"badYearPrice\":325321.86642572994,\"badYearDropPct\":0.3493562671485401,\"coveredLossAtBadYear\":74678.13357427006,\"premiumToCoveredRatio\":0.25908253735417397,\"expectedProfit\":40000,\"premiumToExpectedProfitRatio\":0.4836950082823954},\"collar\":{\"putStrike\":400000,\"callStrike\":724517.822265625,\"netPremium\":0.5602056700154208,\"annualCost\":0.5602056700154208,\"annualCostPct\":0.0000011204113400308415,\"maxLoss\":100000.56020567002,\"upsideCap\":224517.822265625,\"upsideCapPct\":0.44903564453125,\"isZeroCost\":true,\"capProbability\":0.15717463379888152},\"putSpread\":{\"available\":true,\"unavailableReason\":null,\"longStrike\":400000,\"longPremium\":19347.800331295817,\"shortStrike\":325321.86642572994,\"shortPremium\":5505.705702492945,\"shortSigma\":0.35,\"netPremium\":13842.094628802872,\"annualCost\":13842.094628802872,\"annualCostPct\":0.027684189257605744,\"maxLossInBand\":113842.09462880288,\"bandWidth\":74678.13357427006,\"shortStrikeDropPct\":0.3493562671485401,\"breachProbability\":0.10000006859614774,\"riskLevel\":0.1,\"savingsPct\":0.2845649432089318,\"coveredLossAtBadYear\":74678.13357427006},\"payoffTable\":[{\"drawdownPct\":-0.5,\"barePutPnl\":-119347.80033129582,\"collarPnl\":-100000.56020567002,\"spreadPnl\":-189163.96105453282,\"unhedgedPnl\":-250000},{\"drawdownPct\":-0.4,\"barePutPnl\":-119347.80033129582,\"collarPnl\":-100000.56020567002,\"spreadPnl\":-139163.96105453282,\"unhedgedPnl\":-200000},{\"drawdownPct\":-0.3,\"barePutPnl\":-119347.80033129582,\"collarPnl\":-100000.56020567002,\"spreadPnl\":-113842.09462880288,\"unhedgedPnl\":-150000},{\"drawdownPct\":-0.2,\"barePutPnl\":-119347.80033129582,\"collarPnl\":-100000.56020567002,\"spreadPnl\":-113842.09462880288,\"unhedgedPnl\":-100000},{\"drawdownPct\":-0.1,\"barePutPnl\":-69347.80033129582,\"collarPnl\":-50000.560205670015,\"spreadPnl\":-63842.09462880287,\"unhedgedPnl\":-50000},{\"drawdownPct\":0,\"barePutPnl\":-19347.800331295817,\"collarPnl\":-0.5602056700154208,\"spreadPnl\":-13842.094628802872,\"unhedgedPnl\":0},{\"drawdownPct\":0.1,\"barePutPnl\":30652.199668704183,\"collarPnl\":49999.439794329985,\"spreadPnl\":36157.90537119713,\"unhedgedPnl\":50000},{\"drawdownPct\":0.2,\"barePutPnl\":80652.19966870418,\"collarPnl\":99999.43979432998,\"spreadPnl\":86157.90537119712,\"unhedgedPnl\":100000},{\"drawdownPct\":0.3,\"barePutPnl\":130652.19966870418,\"collarPnl\":149999.43979432998,\"spreadPnl\":136157.90537119712,\"unhedgedPnl\":150000},{\"drawdownPct\":0.4,\"barePutPnl\":180652.19966870418,\"collarPnl\":199999.43979432998,\"spreadPnl\":186157.90537119712,\"unhedgedPnl\":200000},{\"drawdownPct\":0.5,\"barePutPnl\":230652.19966870418,\"collarPnl\":224517.26205995498,\"spreadPnl\":236157.90537119712,\"unhedgedPnl\":250000},{\"drawdownPct\":0.6,\"barePutPnl\":280652.1996687042,\"collarPnl\":224517.26205995498,\"spreadPnl\":286157.90537119715,\"unhedgedPnl\":300000}],\"payoffRange\":{\"lowerPct\":-0.5,\"upperPct\":0.6},\"recommended\":\"collar\",\"next_steps\":{\"web_tool\":\"https://optionsahoy.com/tools/protective-put?src=mcp_protective_put&s=13c3de3c\",\"also_run\":\"Related OptionsAhoy tools to run next: concentration_analyze to compare this hedge against selling down or simply holding the position.\"}}"
+      },
+      {
+        "type": "text",
+        "text": "https://optionsahoy.com/tools/protective-put?src=mcp_protective_put&s=13c3de3c\n\nRelated OptionsAhoy tools to run next: concentration_analyze to compare this hedge against selling down or simply holding the position."
+      }
+    ],
+    "structuredContent": {
+      "inputs": {
+        "positionValue": 500000,
+        "sector": "tech_software",
+        "volatility": 0.35,
+        "volatilitySource": "explicit",
+        "protectionLevel": 0.2,
+        "tenorYears": 1,
+        "expectedReturn": 0.08,
+        "spreadRiskLevel": 0.1
+      },
+      "riskFreeRate": 0.045,
+      "realWorldDrift": 0.08,
+      "barePut": {
+        "strike": 400000,
+        "premium": 19347.800331295817,
+        "annualCost": 19347.800331295817,
+        "annualCostPct": 0.03869560066259163,
+        "maxLoss": 119347.80033129582,
+        "badYearPrice": 325321.86642572994,
+        "badYearDropPct": 0.3493562671485401,
+        "coveredLossAtBadYear": 74678.13357427006,
+        "premiumToCoveredRatio": 0.25908253735417397,
+        "expectedProfit": 40000,
+        "premiumToExpectedProfitRatio": 0.4836950082823954
+      },
+      "collar": {
+        "putStrike": 400000,
+        "callStrike": 724517.822265625,
+        "netPremium": 0.5602056700154208,
+        "annualCost": 0.5602056700154208,
+        "annualCostPct": 0.0000011204113400308415,
+        "maxLoss": 100000.56020567002,
+        "upsideCap": 224517.822265625,
+        "upsideCapPct": 0.44903564453125,
+        "isZeroCost": true,
+        "capProbability": 0.15717463379888152
+      },
+      "putSpread": {
+        "available": true,
+        "unavailableReason": null,
+        "longStrike": 400000,
+        "longPremium": 19347.800331295817,
+        "shortStrike": 325321.86642572994,
+        "shortPremium": 5505.705702492945,
+        "shortSigma": 0.35,
+        "netPremium": 13842.094628802872,
+        "annualCost": 13842.094628802872,
+        "annualCostPct": 0.027684189257605744,
+        "maxLossInBand": 113842.09462880288,
+        "bandWidth": 74678.13357427006,
+        "shortStrikeDropPct": 0.3493562671485401,
+        "breachProbability": 0.10000006859614774,
+        "riskLevel": 0.1,
+        "savingsPct": 0.2845649432089318,
+        "coveredLossAtBadYear": 74678.13357427006
+      },
+      "payoffTable": [
+        {
+          "drawdownPct": -0.5,
+          "barePutPnl": -119347.80033129582,
+          "collarPnl": -100000.56020567002,
+          "spreadPnl": -189163.96105453282,
+          "unhedgedPnl": -250000
+        },
+        {
+          "drawdownPct": -0.4,
+          "barePutPnl": -119347.80033129582,
+          "collarPnl": -100000.56020567002,
+          "spreadPnl": -139163.96105453282,
+          "unhedgedPnl": -200000
+        },
+        {
+          "drawdownPct": -0.3,
+          "barePutPnl": -119347.80033129582,
+          "collarPnl": -100000.56020567002,
+          "spreadPnl": -113842.09462880288,
+          "unhedgedPnl": -150000
+        },
+        {
+          "drawdownPct": -0.2,
+          "barePutPnl": -119347.80033129582,
+          "collarPnl": -100000.56020567002,
+          "spreadPnl": -113842.09462880288,
+          "unhedgedPnl": -100000
+        },
+        {
+          "drawdownPct": -0.1,
+          "barePutPnl": -69347.80033129582,
+          "collarPnl": -50000.560205670015,
+          "spreadPnl": -63842.09462880287,
+          "unhedgedPnl": -50000
+        },
+        {
+          "drawdownPct": 0,
+          "barePutPnl": -19347.800331295817,
+          "collarPnl": -0.5602056700154208,
+          "spreadPnl": -13842.094628802872,
+          "unhedgedPnl": 0
+        },
+        {
+          "drawdownPct": 0.1,
+          "barePutPnl": 30652.199668704183,
+          "collarPnl": 49999.439794329985,
+          "spreadPnl": 36157.90537119713,
+          "unhedgedPnl": 50000
+        },
+        {
+          "drawdownPct": 0.2,
+          "barePutPnl": 80652.19966870418,
+          "collarPnl": 99999.43979432998,
+          "spreadPnl": 86157.90537119712,
+          "unhedgedPnl": 100000
+        },
+        {
+          "drawdownPct": 0.3,
+          "barePutPnl": 130652.19966870418,
+          "collarPnl": 149999.43979432998,
+          "spreadPnl": 136157.90537119712,
+          "unhedgedPnl": 150000
+        },
+        {
+          "drawdownPct": 0.4,
+          "barePutPnl": 180652.19966870418,
+          "collarPnl": 199999.43979432998,
+          "spreadPnl": 186157.90537119712,
+          "unhedgedPnl": 200000
+        },
+        {
+          "drawdownPct": 0.5,
+          "barePutPnl": 230652.19966870418,
+          "collarPnl": 224517.26205995498,
+          "spreadPnl": 236157.90537119712,
+          "unhedgedPnl": 250000
+        },
+        {
+          "drawdownPct": 0.6,
+          "barePutPnl": 280652.1996687042,
+          "collarPnl": 224517.26205995498,
+          "spreadPnl": 286157.90537119715,
+          "unhedgedPnl": 300000
+        }
+      ],
+      "payoffRange": {
+        "lowerPct": -0.5,
+        "upperPct": 0.6
+      },
+      "recommended": "collar",
+      "next_steps": {
+        "web_tool": "https://optionsahoy.com/tools/protective-put?src=mcp_protective_put&s=13c3de3c",
+        "also_run": "Related OptionsAhoy tools to run next: concentration_analyze to compare this hedge against selling down or simply holding the position."
+      }
+    },
+    "_meta": {
+      "openai/outputTemplate": "ui://widget/optionsahoy-scenario.html"
+    }
+  }
+}
