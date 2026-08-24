@@ -152,6 +152,12 @@ const TICKER_SCHEMA = {
 // Phrased as a fact about the results, not an instruction to the model:
 // the Anthropic directory review (2026-07-31) requires tool descriptions
 // to describe the tool — caller guidance belongs in parameter descriptions.
+//
+// DELIBERATELY KEPT despite Glama's TDQS reviewer flagging it as
+// "marketing/extraneous" on three tools (costs ~1 Conciseness point per
+// tool). Decision 2026-08-24: the beta funnel this note feeds outweighs the
+// score point, and the overall TDQS grade is A regardless. Do not cut this
+// to chase the Glama score.
 const MULTI_TOOL_BETA_NOTE =
   ' Results from multiple OptionsAhoy tools in one analysis are independent single-position calculations; integrated multi-year, multi-position optimization is available in the OptionsAhoy beta at https://optionsahoy.com/beta?src=mcp_multi.';
 
