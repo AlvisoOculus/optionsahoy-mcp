@@ -22,7 +22,16 @@ export type ProtectionLevel = number;
 // `inputs` echo so a caller can tell a stock-specific price from a
 // sector-typical one. Never re-derive it downstream: a second guess at the
 // source is exactly how an echo starts lying about the number beside it.
-export type VolatilitySource = 'explicit' | 'ticker' | 'sector-default';
+export type VolatilitySource = 'explicit' | 'ticker' | 'sector-default' | 'chain';
+
+// How the legs were priced. "chain-skew": each leg is priced at the implied
+// volatility of its own strike, read off the stock's live option chain, so the
+// floor put carries the market's downside skew and the spread's short leg
+// carries its own. "flat": every leg is priced at the single `volatility`
+// above, which understates what OTM protection costs and overstates the rebate
+// a deep short leg earns. Set once, beside volatilitySource, at the single
+// point of resolution (parseProtectivePutInput); never re-derived downstream.
+export type PricingMode = 'chain-skew' | 'flat';
 
 export type ProtectivePutInputs = {
   positionValue: number;
@@ -33,6 +42,11 @@ export type ProtectivePutInputs = {
   // build inputs by hand with a sigma they already own; every API surface
   // parses its input, so the echo always carries it.
   volatilitySource?: VolatilitySource;
+  // Provenance of the PRICING, set beside volatilitySource by the same
+  // resolution point. Optional for the same reason: direct callers build inputs
+  // by hand. A caller that supplies ivAtStrike is in chain mode whether or not
+  // it labels itself; the label is what an API response can be read off.
+  pricingMode?: PricingMode;
   protectionLevel: ProtectionLevel;
   tenorYears: TenorYears;
   // When present, overrides SECTOR_STATS[sector].annualReturn as the long-run

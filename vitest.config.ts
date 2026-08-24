@@ -10,8 +10,8 @@ export default defineConfig({
   },
   test: {
     include: ['tests/**/*.test.ts'],
-    // Seeds the published implied-vol artifact before every test so nothing in
-    // the suite reaches the network for it. See tests/setup-live-vols.ts.
-    setupFiles: ['tests/setup-live-vols.ts'],
+    // Blocks the network and seeds both market-data readers before every test.
+    // See tests/setup-market-data.ts.
+    setupFiles: ['tests/setup-market-data.ts'],
   },
 });

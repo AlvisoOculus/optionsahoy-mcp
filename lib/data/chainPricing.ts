@@ -56,6 +56,36 @@ interface ExpRow {
   cells: IvCell[];   // sorted by k ascending
 }
 
+// Surface cache: building the IV surface is the expensive step (one
+// bisection implied-vol solve per chain cell), and callers invoke
+// chainImpliedVol repeatedly for the same chain inside render-path useMemos
+// (per slider tick, and several times per calc for the put-spread solve).
+// Keyed weakly by the ChainSide object; the inner key pins spot, option
+// type, and the calendar date `today` falls on (tenors drift by <1/365
+// within a day — far below the interpolation's own precision). Tests that
+// pass distinct fixed dates get distinct entries.
+const surfaceCache = new WeakMap<ChainSide, Map<string, ExpRow[]>>();
+
+function ivSurfaceFor(
+  side: ChainSide,
+  spot: number,
+  today: Date,
+  optionType: 'call' | 'put',
+): ExpRow[] {
+  const key = `${spot}|${today.toISOString().slice(0, 10)}|${optionType}`;
+  let bySide = surfaceCache.get(side);
+  if (!bySide) {
+    bySide = new Map();
+    surfaceCache.set(side, bySide);
+  }
+  let surface = bySide.get(key);
+  if (!surface) {
+    surface = buildIvSurface(side, spot, today, optionType);
+    bySide.set(key, surface);
+  }
+  return surface;
+}
+
 function buildIvSurface(
   side: ChainSide,
   spot: number,
@@ -132,7 +162,7 @@ export function chainImpliedVol(
   today: Date = new Date(),
 ): ChainImpliedVolResult | null {
   const sideArr: ChainSide = side === 'C' ? chain.calls : chain.puts;
-  const surface = buildIvSurface(
+  const surface = ivSurfaceFor(
     sideArr,
     chain.spot,
     today,

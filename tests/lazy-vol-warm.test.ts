@@ -35,7 +35,7 @@ import {
   parseRsuInput,
   parseRsuLotOptimizeInput,
 } from '../functions/_lib/calc-parsers';
-import { partsMayResolveVol, type A2APart } from '../functions/_lib/a2a';
+import { warmForParts, type A2APart } from '../functions/_lib/a2a';
 import { clearVols, seedFreshVols } from './helpers/live-vols-fixture';
 
 // Two parsers stamp the SERVER CLOCK into their resolved input (`today`), at
@@ -256,26 +256,34 @@ describe('the gate actually says false where the win is', () => {
   });
 });
 
-describe('A2A: partsMayResolveVol', () => {
+// The A2A transport asks the same question through the envelope: warmForParts
+// returns a handle when this message needs market data fetched, and null when
+// it does not. Asserted on null-ness, because "did we start a fetch" is the
+// whole behaviour - which one is the business of warmForCall, tested above.
+describe('A2A: warmForParts', () => {
   const dataPart = (data: unknown): A2APart[] => [{ kind: 'data', data }];
 
-  it('is true for a skill call that needs the lookup', () => {
-    expect(partsMayResolveVol(dataPart({ skill: 'amt_iso_optimize', input: { ...AMT, ticker: 'NVDA' } }))).toBe(true);
+  it('warms for a skill call that needs the lookup', () => {
+    expect(warmForParts(dataPart({ skill: 'amt_iso_optimize', input: { ...AMT, ticker: 'NVDA' } }))).not.toBeNull();
   });
 
-  it('is false for free text: it routes to a pointer and never parses', () => {
-    expect(partsMayResolveVol([{ kind: 'text', text: 'should I exercise my ISOs on NVDA?' }])).toBe(false);
+  it('warms for a protective-put skill call, which also wants the chain', () => {
+    expect(warmForParts(dataPart({ skill: 'protective_put_price', input: { ...PUT, ticker: 'NVDA' } }))).not.toBeNull();
   });
 
-  it('is false for an unknown or missing skill, and for a non-vol skill', () => {
-    expect(partsMayResolveVol(dataPart({ input: { ticker: 'NVDA' } }))).toBe(false);
-    expect(partsMayResolveVol(dataPart({ skill: 'nope', input: { ticker: 'NVDA' } }))).toBe(false);
-    expect(partsMayResolveVol(dataPart({ skill: 'qsbs_check', input: { ...QSBS, ticker: 'NVDA' } }))).toBe(false);
+  it('does not warm for free text: it routes to a pointer and never parses', () => {
+    expect(warmForParts([{ kind: 'text', text: 'should I exercise my ISOs on NVDA?' }])).toBeNull();
   });
 
-  it('is false when the skill call carries its own volatility', () => {
+  it('does not warm for an unknown or missing skill, or a skill with no lookup', () => {
+    expect(warmForParts(dataPart({ input: { ticker: 'NVDA' } }))).toBeNull();
+    expect(warmForParts(dataPart({ skill: 'nope', input: { ticker: 'NVDA' } }))).toBeNull();
+    expect(warmForParts(dataPart({ skill: 'qsbs_check', input: { ...QSBS, ticker: 'NVDA' } }))).toBeNull();
+  });
+
+  it('does not warm when the skill call carries its own volatility', () => {
     expect(
-      partsMayResolveVol(dataPart({ skill: 'amt_iso_optimize', input: { ...AMT, ticker: 'NVDA', volatility: 0.5 } })),
-    ).toBe(false);
+      warmForParts(dataPart({ skill: 'amt_iso_optimize', input: { ...AMT, ticker: 'NVDA', volatility: 0.5 } })),
+    ).toBeNull();
   });
 });

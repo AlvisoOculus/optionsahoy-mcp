@@ -23,8 +23,7 @@ import { SERVER_VERSION } from './_lib/version';
 import { SERVER_INSTRUCTIONS } from './_lib/mcp-instructions';
 import { SCENARIO_WIDGET_RESOURCE, SCENARIO_WIDGET_RESULT_META, SCENARIO_WIDGET_URI } from './_lib/mcp-widget';
 import { coveredTickers } from '../lib/data/trailing-returns';
-import { warmVolSnapshot } from '../lib/data/live-vols';
-import { mayResolveVolFromTicker } from './_lib/calc-parsers';
+import { warmForCall } from './_lib/calc-parsers';
 
 const PROTOCOL_VERSION = '2024-11-05';
 
@@ -187,13 +186,15 @@ async function handle(
       if (typeof name !== 'string') return logErr(-32602, 'Invalid params: name must be a string', 'name not a string');
       const tool = TOOLS.find((t) => t.name === name);
       if (!tool) return logErr(-32602, `Unknown tool: ${name}`, 'unknown tool', name);
-      // Warm the published implied-vol artifact before the (synchronous)
-      // handler runs, so a `ticker` can resolve a sigma as of the last market
-      // close. Never throws and never blocks past its own short timeout; a
-      // failed warm degrades to the ordinary "field volatility required" error.
-      // Gated: skipped when this call provably cannot read the memo, which is
-      // most of them (see mayResolveVolFromTicker).
-      if (mayResolveVolFromTicker(name, args ?? {})) await warmVolSnapshot();
+      // Warm the published market data this call can read before the
+      // (synchronous) handler runs: the implied-vol artifact, so a `ticker`
+      // resolves a sigma as of the last market close, and that ticker's option
+      // chain when the tool prices per strike. Never throws and never blocks
+      // past its own short timeout; a failed warm degrades to the ordinary
+      // "field volatility required" error or to flat pricing, never to a stale
+      // number. Gated: null for calls that provably read neither, which is most
+      // of them (see warmForCall).
+      await warmForCall(name, args ?? {});
       try {
         const result = tool.handler(args ?? {}) as Record<string, unknown>;
         logs.push({ endpoint, tool: name, isError: false });
@@ -405,6 +406,21 @@ export const onRequest: PagesFunction = async (ctx) => {
   );
   const issuedSessionId = hasInitialize ? (sessionId ?? crypto.randomUUID()) : undefined;
   const sessionHeader = issuedSessionId ? { 'mcp-session-id': issuedSessionId } : undefined;
+
+  // Start every request's market-data warm BEFORE the serial loop below. The
+  // loop awaits each request in turn, and each tools/call awaits its own warm;
+  // with a single global vols document that cost nothing (requests 2..N hit a
+  // warm memo), but a chain is per ticker, so a batch naming N symbols would
+  // pay N SEQUENTIAL round-trips inside one HTTP request. Started here they
+  // overlap, and the in-loop await collapses to a memo hit. Neither warm ever
+  // rejects, so these handles need no catch and no await here.
+  for (const r of requests) {
+    if (!r || typeof r !== 'object') continue;
+    const { method, params } = r as { method?: unknown; params?: unknown };
+    if (method !== 'tools/call' || params === null || typeof params !== 'object') continue;
+    const { name, arguments: args } = params as { name?: unknown; arguments?: unknown };
+    if (typeof name === 'string') warmForCall(name, args ?? {});
+  }
 
   const responses: JsonRpcResponse[] = [];
   const samples: SampleFields[] = [];

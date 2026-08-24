@@ -106,7 +106,7 @@ The position is 33% of net worth, which the tool bands as "Concentrated", and a 
  "protectionLevel": 0.2, "tenorYears": 1, "spreadRiskLevel": 0.1, "expectedReturn": 0.08}
 ```
 
-A bare put struck at $400,000 costs $19,348 a year, 3.87% of the position. The zero-cost collar buys the same floor for a net premium of roughly zero by capping upside at $724,518, which it puts a 15.7% chance on reaching, and that is the structure it recommends. ([raw](docs/examples/protective_put_price.json))
+A bare put struck at $400,000 costs $19,348 a year, 3.87% of the position. The zero-cost collar buys the same floor for a net premium of roughly zero by capping upside at $724,518, which it puts a 15.7% chance on reaching, and that is the structure it recommends. ([raw](docs/examples/protective_put_price.json)) This call passes an explicit sigma, so every leg prices at that one number; pass a `ticker` instead and each leg prices at its own strike's implied volatility off that stock's live option chain, which costs more for a floor this far out of the money.
 
 ### `qsbs_check`
 
@@ -144,7 +144,7 @@ Selling everything today falls short: it nets $391,574 against the $400,000 goal
 
 To divest 1,500 of the 3,000 shares it pairs the underwater newest lot against long-term gains from an older one, so the whole divestment costs $2,935 in tax and keeps $267,065 after tax, $29,942 more than selling the same fraction in FIFO order. ([raw](docs/examples/rsu_lot_optimize.json))
 
-Every example above passes volatility and growth explicitly. In a real call you can instead pass `ticker`: volatility resolves from the published implied-vol snapshot as of the last market close, and growth from the cached trailing-CAGR snapshot. If either cannot be resolved the call returns an error naming the exact field rather than a guessed number, and `protective_put_price` echoes `volatilitySource` (`explicit`, `ticker`, or `sector-default`) so you always know which sigma was priced.
+Every example above passes volatility and growth explicitly. In a real call you can instead pass `ticker`: volatility resolves from the published implied-vol snapshot as of the last market close, and growth from the cached trailing-CAGR snapshot. If either cannot be resolved the call returns an error naming the exact field rather than a guessed number, and `protective_put_price` echoes `volatilitySource` (`explicit`, `chain`, `ticker`, or `sector-default`) plus `pricingMode` (`chain-skew` or `flat`) so you always know which sigma was priced and whether the legs were priced at their own strikes.
 
 These captures ran in the 2026 tax year. Figures move in a later tax year for the three tools whose schedules run forward from today's date (`amt_iso_optimize`, `equity_funding_plan`, `rsu_lot_optimize`); everything else is pinned by the dates in the arguments.
 
@@ -317,7 +317,7 @@ lib/               Optimizer + tax-code logic
   tax/             Federal + 50-state + DC bracket data, AMT, FICA, NIIT
   markets/         Sector statistics
   options/         Black-Scholes, risk-free rates
-  data/            Type definitions for option-chain data
+  data/            Option-chain types, and the readers for the live vol and chain feeds
 public/            Static assets: OpenAPI spec, llms.txt, discovery manifests
 tests/             Vitest suites (an extensive test suite including byte-identity assertions)
 ```
@@ -403,7 +403,7 @@ Email andrew@alphalatitude.com with: the exact JSON-RPC request body, the respon
 
 Full policy: [optionsahoy.com/privacy](https://optionsahoy.com/privacy).
 
-In short: no account is required and no personally identifiable information is stored — no name, email, IP address, or login. Tool inputs and outputs are retained briefly (about seven days) for debugging and product improvement, alongside aggregate usage metadata (tool, timestamp, coarse location, client type) used to understand usage and detect abuse. The local stdio server and the Claude Desktop extension compute everything on your machine; the only network request is an option-chain lookup (ticker symbol only) for `protective_put_price`.
+In short: no account is required and no personally identifiable information is stored — no name, email, IP address, or login. Tool inputs and outputs are retained briefly (about seven days) for debugging and product improvement, alongside aggregate usage metadata (tool, timestamp, coarse location, client type) used to understand usage and detect abuse. The local stdio server and the Claude Desktop extension compute everything on your machine. They make exactly two kinds of network request, both only when you pass a `ticker` without the number it would resolve: the published implied-volatility file, which is one fixed URL carrying no ticker at all, and, for `protective_put_price`, that stock's option chain, whose URL contains the symbol. Nothing else about the call leaves the machine.
 
 ## License
 

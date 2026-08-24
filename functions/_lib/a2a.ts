@@ -26,7 +26,7 @@ import {
   parseQsbsInput,
   parseEquityFundingInput,
   parseRsuLotOptimizeInput,
-  mayResolveVolFromTicker,
+  warmForCall,
 } from './calc-parsers';
 import { computeAmtIso } from '../../lib/calc/amtIso';
 import { computeNsoResult } from '../../lib/calc/nso';
@@ -316,24 +316,31 @@ export interface HandledMessage {
   query: string;
 }
 
-/**
- * True when handleMessage on these parts could reach the ticker→sigma lookup,
- * so the transport knows whether warming the vol memo can change the answer.
- *
- * Lives here, next to handleMessage, because it has to agree with it on where
- * the skill id and the input live in the envelope - the two would drift the
- * moment that shape were re-derived in functions/a2a.ts. A message with NO data
- * part never runs a parser at all: it is keyword-routed to a "call it like
- * this" pointer, so it is always false. Skill ids are the MCP tool names, which
- * is what mayResolveVolFromTicker keys on.
- */
-export function partsMayResolveVol(parts: A2APart[]): boolean {
+// The (skill, input) pair an A2A envelope carries, or null when it carries
+// none. Read out ONCE, here next to handleMessage, because both warm gates and
+// the handler itself have to agree on where the two live in the envelope - and
+// they would drift the moment that shape were re-derived in functions/a2a.ts.
+// A message with NO data part never runs a parser at all: it is keyword-routed
+// to a "call it like this" pointer. Skill ids are the MCP tool names, which is
+// what the gates key on.
+function skillCall(parts: A2APart[]): { skill: string; input: unknown } | null {
   const dataPart = parts.find(
     (p) => p.kind === 'data' && p.data !== null && typeof p.data === 'object',
   );
-  if (!dataPart) return false;
+  if (!dataPart) return null;
   const data = dataPart.data as Record<string, unknown>;
-  return typeof data.skill === 'string' && mayResolveVolFromTicker(data.skill, data.input);
+  return typeof data.skill === 'string' ? { skill: data.skill, input: data.input } : null;
+}
+
+/**
+ * Everything these parts need fetched before the (synchronous) skill runs, or
+ * null when they need nothing - which is the majority on this surface, where
+ * free text routes to a pointer without ever running a parser. The transport
+ * awaits it; see warmForCall for how the condition is derived.
+ */
+export function warmForParts(parts: A2APart[]): Promise<void> | null {
+  const call = skillCall(parts);
+  return call === null ? null : warmForCall(call.skill, call.input);
 }
 
 export function handleMessage(parts: A2APart[]): HandledMessage {

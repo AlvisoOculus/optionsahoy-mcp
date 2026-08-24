@@ -10,8 +10,7 @@
 
 import { CORS_HEADERS as BASE_CORS, type PagesContext, type PagesFunction } from './_lib/api';
 import { logCall, logSample } from './_lib/stats';
-import { AGENT_VERSION, buildAgentCard, handleMessage, partsMayResolveVol, type A2APart } from './_lib/a2a';
-import { warmVolSnapshot } from '../lib/data/live-vols';
+import { AGENT_VERSION, buildAgentCard, handleMessage, warmForParts, type A2APart } from './_lib/a2a';
 
 // Same shared CORS base as the REST endpoints; this one also serves GET (the
 // Agent Card), so it overrides only the allowed-methods line.
@@ -120,12 +119,13 @@ export const onRequest: PagesFunction = async (context: PagesContext): Promise<R
     return rpcError(body.id, -32602, 'Invalid params: expected params.message.parts to be an array.');
   }
 
-  // Warm the published implied-vol artifact before the (synchronous) skill
-  // runs; handleMessage shares the same parsers as REST and MCP. A failed warm
-  // degrades to the ordinary required-field error. Gated: free-text messages
-  // (the majority on this surface - it routes rather than computes) and skill
-  // calls that carry their own volatility never read the memo.
-  if (partsMayResolveVol(parts as A2APart[])) await warmVolSnapshot();
+  // Warm the published market data before the (synchronous) skill runs;
+  // handleMessage shares the same parsers as REST and MCP. A failed warm
+  // degrades to the ordinary required-field error, or to flat pricing. Gated:
+  // free-text messages (the majority on this surface - it routes rather than
+  // computes) and skill calls that carry their own volatility read neither
+  // memo.
+  await warmForParts(parts as A2APart[]);
   const handled = handleMessage(parts as A2APart[]);
   logCall(context, {
     endpoint: 'a2a',

@@ -10,7 +10,7 @@ import type { AmtIsoInput } from '../../lib/calc/amtIso';
 import type { NsoInput } from '../../lib/calc/nso';
 import type { RsuInput } from '../../lib/calc/rsu';
 import type { ConcentrationInputs } from '../../lib/calc/concentration';
-import type { ProtectivePutInputs, VolatilitySource } from '../../lib/calc/protectivePut';
+import type { PricingMode, ProtectivePutInputs, VolatilitySource } from '../../lib/calc/protectivePut';
 import type { QsbsInputs } from '../../lib/calc/qsbs';
 import type {
   EquityFundingComparisonInput,
@@ -22,7 +22,9 @@ import type { LotDivestInput, LotDivestLot } from '../../lib/calc/lotDivest';
 import { asObject, p, FILING_STATUSES, type Obj } from './api';
 import { STATE_CODES } from '../../lib/tax/state-tax';
 import { getTrailingReturn, hasTrailingReturn, isKnownTicker } from '../../lib/data/trailing-returns';
-import { getLiveVol, VOL_UNRESOLVED_REASON } from '../../lib/data/live-vols';
+import { getLiveVol, VOL_UNRESOLVED_REASON, warmVolSnapshot } from '../../lib/data/live-vols';
+import { getLiveChain, warmChain } from '../../lib/data/live-chain';
+import { chainHedgePricing, type ChainHedgePricing } from '../../lib/data/chain-hedge-inputs';
 import { SECTOR_STATS, type SectorKey } from '../../lib/markets/sector-stats';
 import { HORIZON_YEARS as CONCENTRATION_HORIZON_YEARS, IV_OVER_RV_MULTIPLIER } from '../../lib/calc/concentration';
 import { lognormalHaircut } from '../../lib/calc/volatility-drag';
@@ -138,11 +140,11 @@ function resolveDragFromVolatility(o: Obj, dragField: string, horizonYears: numb
   );
 }
 
-// ── The lazy-warm predicate ──────────────────────────────────────────────
+// ── The lazy-warm registry ───────────────────────────────────────────────
 // Every request handler used to `await warmVolSnapshot()` unconditionally,
 // paying a cold-memo CDN fetch (up to the full timeout) on requests that
-// provably cannot read the memo. This is the gate: true only when parsing
-// `rawArgs` for `toolOrSlug` can actually REACH getLiveVol.
+// provably cannot read the memo. This is the gate: warm only what parsing
+// `rawArgs` for `toolOrSlug` can actually REACH.
 //
 // Derived from the parsers above, not from intuition. The complete set of
 // getLiveVol call sites in this file is resolveSigmaFromTicker, and it is
@@ -164,28 +166,53 @@ function resolveDragFromVolatility(o: Obj, dragField: string, horizonYears: numb
 //   rsu_lot_optimize    - lot-level divest ordering; no forward projection.
 //   equity_funding_plan - per-stack `ticker` resolves GROWTH only, off the
 //                         baked trailing-returns table (no network, no memo).
-// A tool not in the table returns false, which is the correct default: a new
-// tool that wants the shortcut has to opt in here, and the behaviour test in
+// A tool not in the table warms nothing, which is the correct default: a new
+// tool that wants a shortcut has to opt in here, and the behaviour test in
 // tests/lazy-vol-warm.test.ts fails the day one forgets.
 //
 // Keys are BOTH the MCP tool name and the REST slug, because REST dispatches
 // on `rest:<slug>` and A2A/Poe/stdio dispatch on the tool name.
 //
-// Value = the field whose presence short-circuits every ticker→sigma path in
-// that parser (beyond `volatility`, which short-circuits all of them), or null
-// when no such field exists.
-const VOL_TICKER_SHORTCIRCUIT: Record<string, string | null> = {
-  amt_iso_optimize: 'volatilityDrag',
-  'amt-iso': 'volatilityDrag',
-  nso_calculate: 'haircut',
-  nso: 'haircut',
-  rsu_sell_vs_hold: 'haircut',
-  'rsu-sell-vs-hold': 'haircut',
-  concentration_analyze: null,
-  concentration: null,
-  protective_put_price: null,
-  'protective-put': null,
+// ONE registry for BOTH warms, because both key that same dual space and a
+// tool that gains a lookup should be one edit, in one shape, in one place. The
+// chain gate arrived as a separate table and immediately listed
+// protective_put_price / 'protective-put' a second time.
+//
+//   volShortCircuit = the field whose presence short-circuits every
+//                     ticker→sigma path in that parser (beyond `volatility`,
+//                     which short-circuits all of them), or null when the
+//                     parser has no such field.
+//   chain           = the parser reads that ticker's option CHAIN, priced per
+//                     strike. True for protective_put_price alone: every other
+//                     tool prices at a single sigma by construction, so a chain
+//                     would buy it nothing and cost its every ticker call a
+//                     second round-trip.
+type TickerLookups = { volShortCircuit: string | null; chain: boolean };
+
+const TICKER_LOOKUPS: Record<string, TickerLookups> = {
+  amt_iso_optimize: { volShortCircuit: 'volatilityDrag', chain: false },
+  'amt-iso': { volShortCircuit: 'volatilityDrag', chain: false },
+  nso_calculate: { volShortCircuit: 'haircut', chain: false },
+  nso: { volShortCircuit: 'haircut', chain: false },
+  rsu_sell_vs_hold: { volShortCircuit: 'haircut', chain: false },
+  'rsu-sell-vs-hold': { volShortCircuit: 'haircut', chain: false },
+  concentration_analyze: { volShortCircuit: null, chain: false },
+  concentration: { volShortCircuit: null, chain: false },
+  protective_put_price: { volShortCircuit: null, chain: true },
+  'protective-put': { volShortCircuit: null, chain: true },
 };
+
+// Both gates below start here: a registered tool, a plain-object argument bag,
+// a `ticker` to look up, and no explicit `volatility` (which wins on every
+// path in every parser). Returns the arguments when all four hold.
+function tickerLookupArgs(toolOrSlug: string, rawArgs: unknown): Record<string, unknown> | null {
+  if (!Object.hasOwn(TICKER_LOOKUPS, toolOrSlug)) return null;
+  if (rawArgs === null || typeof rawArgs !== 'object' || Array.isArray(rawArgs)) return null;
+  const o = rawArgs as Record<string, unknown>;
+  if (o.ticker === undefined) return null;
+  if (o.volatility !== undefined) return null;
+  return o;
+}
 
 /**
  * True when parsing `rawArgs` for `toolOrSlug` could read the volatility memo,
@@ -199,14 +226,56 @@ const VOL_TICKER_SHORTCIRCUIT: Record<string, string | null> = {
  * a cold or warm memo, so the extra warm is merely wasted, never wrong.
  */
 export function mayResolveVolFromTicker(toolOrSlug: string, rawArgs: unknown): boolean {
-  if (!Object.hasOwn(VOL_TICKER_SHORTCIRCUIT, toolOrSlug)) return false;
-  if (rawArgs === null || typeof rawArgs !== 'object' || Array.isArray(rawArgs)) return false;
-  const o = rawArgs as Record<string, unknown>;
-  // No ticker: nothing to look up. Explicit volatility: it wins on every path.
-  if (o.ticker === undefined) return false;
-  if (o.volatility !== undefined) return false;
-  const shortCircuit = VOL_TICKER_SHORTCIRCUIT[toolOrSlug];
+  const o = tickerLookupArgs(toolOrSlug, rawArgs);
+  if (o === null) return false;
+  const shortCircuit = TICKER_LOOKUPS[toolOrSlug]!.volShortCircuit;
   return shortCircuit === null || o[shortCircuit] === undefined;
+}
+
+/**
+ * The symbol whose CHAIN would change `toolOrSlug`'s answer for `rawArgs`, or
+ * null when no chain is worth fetching. Handlers gate `warmChain` on this.
+ *
+ * The vols artifact is one document for every ticker, so warming it is a
+ * yes/no question; a chain is per ticker, so this gate has to name the symbol.
+ *
+ * Same safe direction as mayResolveVolFromTicker: over-approximating costs a
+ * fetch, under-approximating changes an answer. A ticker that is not a string
+ * resolves to null rather than to a fetch, because the reader would refuse it
+ * anyway.
+ */
+export function chainTickerFor(toolOrSlug: string, rawArgs: unknown): string | null {
+  const o = tickerLookupArgs(toolOrSlug, rawArgs);
+  if (o === null || !TICKER_LOOKUPS[toolOrSlug]!.chain) return null;
+  const ticker = o.ticker;
+  if (typeof ticker !== 'string' || ticker.trim() === '') return null;
+  return ticker.trim();
+}
+
+/**
+ * Everything one call needs fetched before its (synchronous) parser runs, or
+ * null when it needs nothing. Both warms are started together and awaited as
+ * one, so a protective_put_price call carrying a ticker pays the LONGER of the
+ * two round-trips rather than their sum. Neither warm ever rejects, so this
+ * never rejects.
+ *
+ * Both are warmed even though a resolved chain makes the vols sigma redundant:
+ * the chain is the one that can fail, and the ladder underneath it (published
+ * sigma, then sector-typical) has to be ready when it does.
+ *
+ * Returns null rather than a resolved promise so ONE caller can tell "nothing
+ * to warm" from "warm already started": functions/poe.ts kicks this off before
+ * its billing round-trip and needs to know whether it holds a handle. Every
+ * other transport just awaits the result, null included.
+ */
+export function warmForCall(toolOrSlug: string, rawArgs: unknown): Promise<void> | null {
+  const chainTicker = chainTickerFor(toolOrSlug, rawArgs);
+  const needsVol = mayResolveVolFromTicker(toolOrSlug, rawArgs);
+  if (!needsVol && chainTicker === null) return null;
+  const pending: Promise<void>[] = [];
+  if (needsVol) pending.push(warmVolSnapshot());
+  if (chainTicker !== null) pending.push(warmChain(chainTicker));
+  return Promise.all(pending).then(() => undefined);
 }
 
 // One resolution ladder for every growth/return field: "market" sentinel →
@@ -405,11 +474,37 @@ export function parseConcentrationInput(raw: unknown): ConcentrationInputs {
   return base;
 }
 
+// What the caller's `ticker` bought them, beyond a number: when its live chain
+// resolves, every leg is priced at the implied volatility of ITS OWN strike.
+// The chain-to-inputs mapping is a port of what the web calculator hands the
+// same engine and lives beside the interpolator it ports (lib/data/chain-hedge
+// -inputs.ts), pinned by the same cross-repo goldens. This function is only the
+// lookup: does this call name a ticker, and do we hold a current chain for it.
+//
+// Null is the ONLY fallback path, and every failure reaches it: no ticker, a
+// fetch that failed or timed out, a stale chain the freshness gate refused, a
+// schema we do not read, and a surface too sparse to price the floor put. They
+// all mean the same thing to a caller (this quote is not strike-aware), and
+// none of them should cost them an answer.
+function resolveChainPricing(
+  o: Obj,
+  protectionLevel: number,
+  tenorYears: number,
+  positionValue: number,
+): ChainHedgePricing | null {
+  if (o.ticker === undefined) return null;
+  const chain = getLiveChain(p.str(o, 'ticker'));
+  if (chain === null) return null;
+  return chainHedgePricing(chain, { protectionLevel, tenorYears, positionValue });
+}
+
 // THE single point of sigma resolution for protective_put_price. Returns the
 // value AND its provenance as one object so the two cannot be set apart: any
 // caller that takes the number takes the label with it, and a downstream
 // re-derivation (the way an echo starts mislabeling a sector default as the
-// stock's own vol) has nothing to re-derive from.
+// stock's own vol) has nothing to re-derive from. `pricingMode` is set HERE for
+// the same reason and never recomputed: it is a statement about which branch
+// below ran.
 //
 // WHY THIS ONE FALLS BACK AND THE DRAG-BEARING PARSERS THROW: `sector` is
 // REQUIRED here, so an unresolved ticker still leaves a defensible, disclosed
@@ -427,30 +522,76 @@ export function parseConcentrationInput(raw: unknown): ConcentrationInputs {
 // the caller holding a non-stock-specific price, which is the fact that changes
 // what they should say, and the split would only invite agents to editorialize
 // about our uptime (VOL_UNRESOLVED_REASON already owns that phrasing).
+//
+// The ladder, widest source first:
+//   explicit volatility  -> flat, and nothing else is consulted. The caller
+//                           gave us a number; pricing half the structure off a
+//                           chain would quietly blend two sources into one
+//                           quote, and the short leg could come back at a
+//                           sigma the caller never chose.
+//   live chain           -> chain-skew. `volatility` is the sigma at the FLOOR
+//                           strike (not at the money), because that is the put
+//                           this tool prices; the spread's deeper short leg
+//                           gets its own sigma through ivAtStrike.
+//   published ATM sigma  -> flat, at the stock's own at-the-money vol.
+//   sector table         -> flat, at a sector-typical vol.
 function resolveProtectivePutSigma(
   o: Obj,
   sectorDefault: number,
-): { volatility: number; volatilitySource: VolatilitySource } {
+  chainPricing: ChainHedgePricing | null,
+): { volatility: number; volatilitySource: VolatilitySource; pricingMode: PricingMode } {
   if (o.volatility !== undefined) {
-    return { volatility: p.num(o, 'volatility', SIGMA_BOUNDS), volatilitySource: 'explicit' };
+    return {
+      volatility: p.num(o, 'volatility', SIGMA_BOUNDS),
+      volatilitySource: 'explicit',
+      pricingMode: 'flat',
+    };
+  }
+  if (chainPricing !== null) {
+    return {
+      volatility: chainPricing.volatility,
+      volatilitySource: 'chain',
+      pricingMode: 'chain-skew',
+    };
   }
   const fromTicker = resolveSigmaFromTicker(o);
-  if (fromTicker !== null) return { volatility: fromTicker, volatilitySource: 'ticker' };
-  return { volatility: sectorDefault, volatilitySource: 'sector-default' };
+  if (fromTicker !== null) {
+    return { volatility: fromTicker, volatilitySource: 'ticker', pricingMode: 'flat' };
+  }
+  return { volatility: sectorDefault, volatilitySource: 'sector-default', pricingMode: 'flat' };
 }
 
 export function parseProtectivePutInput(raw: unknown): ProtectivePutInputs {
   const o = asObject(raw);
   const sector = p.enum(o, 'sector', SECTORS) as SectorKey;
   const sectorDefault = SECTOR_STATS[sector].annualVol * IV_OVER_RV_MULTIPLIER;
+  // Parsed before the sigma ladder runs: the chain is queried AT the strike and
+  // tenor being priced, so both have to be validated numbers first. Every field
+  // keeps its own error text; the only change is which one a call that is
+  // invalid in several ways hears about first (protectionLevel and tenorYears
+  // are now checked ahead of volatility).
+  const positionValue = p.num(o, 'positionValue', { min: 0 });
+  const protectionLevel = p.num(o, 'protectionLevel', { min: 0.05, max: 0.5 });
+  const tenorYears = p.num(o, 'tenorYears', { min: 0.25 });
+  // Skipped outright when the caller passed a volatility: that wins the ladder,
+  // so the interpolation would be work nobody reads.
+  const chainPricing =
+    o.volatility === undefined
+      ? resolveChainPricing(o, protectionLevel, tenorYears, positionValue)
+      : null;
   const base: ProtectivePutInputs = {
-    positionValue: p.num(o, 'positionValue', { min: 0 }),
+    positionValue,
     sector,
-    ...resolveProtectivePutSigma(o, sectorDefault),
-    protectionLevel: p.num(o, 'protectionLevel', { min: 0.05, max: 0.5 }),
-    tenorYears: p.num(o, 'tenorYears', { min: 0.25 }),
+    ...resolveProtectivePutSigma(o, sectorDefault, chainPricing),
+    protectionLevel,
+    tenorYears,
   };
+  // Strike-level sigma for every leg the engine solves beyond the floor put.
+  // Absent in flat mode, which is exactly how the engine reads "price it all at
+  // `volatility`" (see the ivAtStrike field note in lib/calc/protectivePut.ts).
+  if (chainPricing !== null) base.ivAtStrike = chainPricing.ivAtStrike;
   if (o.expectedReturn !== undefined) base.expectedReturn = p.num(o, 'expectedReturn', RATE_BOUNDS);
+  else if (chainPricing?.expectedReturn !== undefined) base.expectedReturn = chainPricing.expectedReturn;
   // Put-spread floor breach risk: target P(stock ends below the short strike).
   // Off-preset values snap to the nearest of SPREAD_RISK_LEVELS inside the calc,
   // so accept any probability in range and let the solve normalize it.

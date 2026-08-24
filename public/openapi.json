@@ -1602,6 +1602,7 @@
                   "sector": "tech_software",
                   "volatility": 0.4,
                   "volatilitySource": "explicit",
+                  "pricingMode": "flat",
                   "protectionLevel": 0.1,
                   "tenorYears": 1,
                   "spreadRiskLevel": 0.1
@@ -4760,7 +4761,7 @@
         "properties": {
           "inputs": {
             "type": "object",
-            "description": "Echo of the resolved inputs actually priced: positionValue, sector, volatility (the sigma priced) and volatilitySource (where that sigma came from), protectionLevel, tenorYears, plus expectedReturn, spreadRiskLevel, and tickerLabel when supplied.",
+            "description": "Echo of the resolved inputs actually priced: positionValue, sector, volatility (the sigma priced), volatilitySource (where that sigma came from) and pricingMode (how the legs were priced), protectionLevel, tenorYears, plus expectedReturn, spreadRiskLevel, and tickerLabel when supplied.",
             "properties": {
               "positionValue": {
                 "type": "number",
@@ -4779,9 +4780,18 @@
                 "enum": [
                   "explicit",
                   "ticker",
-                  "sector-default"
+                  "sector-default",
+                  "chain"
                 ],
-                "description": "Which source produced the sigma actually priced: \"explicit\" (caller-supplied), \"ticker\" (the stock's own implied vol as of the last close), or \"sector-default\" (feed unavailable or ticker uncovered; a sector-typical estimate - tell the user the price is not stock-specific)."
+                "description": "Which source produced the sigma actually priced: \"explicit\" (caller-supplied), \"chain\" (interpolated from the stock's live option chain at the strike being priced), \"ticker\" (the stock's published at-the-money implied vol as of the last close), or \"sector-default\" (feed unavailable or ticker uncovered; a sector-typical estimate - tell the user the price is not stock-specific)."
+              },
+              "pricingMode": {
+                "type": "string",
+                "enum": [
+                  "chain-skew",
+                  "flat"
+                ],
+                "description": "How the legs were priced. \"chain-skew\": each leg is priced at the implied volatility of its own strike, read off the live chain, so the floor put carries the market's downside skew and the put spread's short leg carries its own. \"flat\": every leg is priced at the single `volatility` above, which understates what out-of-the-money protection costs and overstates the rebate the spread's short leg earns - the quote is an estimate of this structure's cost, not a strike-aware one. Reached whenever no live chain applies: an explicit `volatility`, no `ticker`, or a chain that could not be fetched or was not current."
               },
               "protectionLevel": {
                 "type": "number",
@@ -4809,6 +4819,7 @@
               "sector",
               "volatility",
               "volatilitySource",
+              "pricingMode",
               "protectionLevel",
               "tenorYears"
             ]

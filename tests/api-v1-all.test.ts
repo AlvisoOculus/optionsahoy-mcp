@@ -129,14 +129,15 @@ describe('POST /api/v1/protective-put', () => {
 
   it('matches in-process calculateProtectivePut', async () => {
     const res = await ppHandler({ request: postReq('/api/v1/protective-put', PP_BODY) });
-    // The parser stamps volatilitySource onto the inputs it hands the calc, so
-    // the in-process reference has to carry it too (key order included: the
-    // comparison is on serialized bytes).
+    // The parser stamps volatilitySource and pricingMode onto the inputs it
+    // hands the calc, so the in-process reference has to carry them too (key
+    // order included: the comparison is on serialized bytes).
     const reference = {
       positionValue: PP_BODY.positionValue,
       sector: PP_BODY.sector,
       volatility: PP_BODY.volatility,
       volatilitySource: 'explicit',
+      pricingMode: 'flat',
       protectionLevel: PP_BODY.protectionLevel,
       tenorYears: PP_BODY.tenorYears,
     };
