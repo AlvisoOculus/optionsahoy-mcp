@@ -684,18 +684,24 @@ const PROTECTIVE_PUT_OUTPUT_SCHEMA: JsonSchema = {
   properties: {
     inputs: {
       type: 'object',
-      description: 'Echo of the resolved inputs actually priced: positionValue, sector, volatility (the sigma used after ticker/sector resolution), protectionLevel, tenorYears, plus expectedReturn, spreadRiskLevel, and tickerLabel when supplied.',
+      description: 'Echo of the resolved inputs actually priced: positionValue, sector, volatility (the sigma priced) and volatilitySource (where that sigma came from), protectionLevel, tenorYears, plus expectedReturn, spreadRiskLevel, and tickerLabel when supplied.',
       properties: {
         positionValue: num('Position value priced, in dollars.'),
         sector: str('Sector tag used for defaults.'),
         volatility: num('Annualized sigma actually used in pricing, as a decimal.'),
+        volatilitySource: {
+          type: 'string',
+          enum: ['explicit', 'ticker', 'sector-default'],
+          description:
+            'Which source produced the sigma actually priced: "explicit" (caller-supplied), "ticker" (the stock\'s own implied vol as of the last close), or "sector-default" (feed unavailable or ticker uncovered; a sector-typical estimate - tell the user the price is not stock-specific).',
+        },
         protectionLevel: num('Protection level as a fraction below spot (0.10 = 10% OTM put).'),
         tenorYears: num('Option tenor in years.'),
         expectedReturn: num('Caller-supplied annual expected return used for probability metrics. Omitted when not supplied.'),
         spreadRiskLevel: num('Put spread floor breach risk echoed from the request (snapped to a supported preset). Omitted when not supplied.'),
         tickerLabel: str('Display label echoed from the request (ticker or tickerLabel). Omitted when not supplied.'),
       },
-      required: ['positionValue', 'sector', 'volatility', 'protectionLevel', 'tenorYears'],
+      required: ['positionValue', 'sector', 'volatility', 'volatilitySource', 'protectionLevel', 'tenorYears'],
     },
     riskFreeRate: num('Annualized risk-free rate used in option pricing, looked up for the tenor, as a decimal.'),
     realWorldDrift: num('Annual real-world drift used for the probability metrics: expectedReturn when supplied, else the sector long-run return. Does not affect premium math.'),

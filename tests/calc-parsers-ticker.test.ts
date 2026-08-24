@@ -24,8 +24,8 @@ import {
 } from '../functions/_lib/calc-parsers';
 import { getTrailingReturn, hasTrailingReturn, isKnownTicker } from '../lib/data/trailing-returns';
 import returnsData from '../lib/data/trailing-returns.json';
-import { FIXTURE_VOLS, clearVols, seedFreshVols } from './helpers/live-vols-fixture';
-import { VOL_UNRESOLVED_REASON } from '../lib/data/live-vols';
+import { FIXTURE_VOLS, clearVols, cutoffSeconds, seedFreshVols, volsArtifact } from './helpers/live-vols-fixture';
+import { VOL_UNRESOLVED_REASON, __setVolSnapshotForTests } from '../lib/data/live-vols';
 import { SECTOR_STATS } from '../lib/markets/sector-stats';
 import { lognormalHaircut } from '@/lib/calc/volatility-drag';
 
@@ -374,6 +374,80 @@ describe('parseProtectivePutInput — ticker → sigma resolution', () => {
   it('prefers explicit tickerLabel over ticker for display', () => {
     const out = parseProtectivePutInput({ ...PUT_BASE, ticker: 'NVDA', tickerLabel: 'Nvidia' });
     expect(out.tickerLabel).toBe('Nvidia');
+  });
+});
+
+// Sigma provenance (decided 2026-08-24). protective_put_price is the one tool
+// that falls back instead of erroring, so the price it returns may or may not
+// be about the caller's actual stock. `volatilitySource` is how the response
+// says which - asserted on all three paths, since the whole point is that the
+// three are indistinguishable in the number alone.
+describe('parseProtectivePutInput - volatilitySource provenance', () => {
+  const PUT_BASE = {
+    positionValue: 100000,
+    sector: 'tech_software',
+    protectionLevel: 0.2,
+    tenorYears: 1,
+  };
+  const SECTOR_DEFAULT = SECTOR_STATS.tech_software.annualVol * 1.20;
+
+  it('explicit volatility reports "explicit"', () => {
+    const out = parseProtectivePutInput({ ...PUT_BASE, volatility: 0.55 });
+    expect(out.volatilitySource).toBe('explicit');
+    expect(out.volatility).toBe(0.55);
+  });
+
+  it('an explicit volatility beside a covered ticker still reports "explicit"', () => {
+    const out = parseProtectivePutInput({ ...PUT_BASE, ticker: 'NVDA', volatility: 0.55 });
+    expect(out.volatilitySource).toBe('explicit');
+  });
+
+  it('a covered, current ticker reports "ticker"', () => {
+    seedFreshVols();
+    const out = parseProtectivePutInput({ ...PUT_BASE, ticker: 'NVDA' });
+    expect(out.volatilitySource).toBe('ticker');
+    expect(out.volatility).toBe(FIXTURE_VOLS.NVDA);
+  });
+
+  it('an uncovered ticker reports "sector-default" and prices the sector default', () => {
+    const out = parseProtectivePutInput({ ...PUT_BASE, ticker: 'BOGUS' });
+    expect(out.volatilitySource).toBe('sector-default');
+    expect(out.volatility).toBeCloseTo(SECTOR_DEFAULT, 10);
+  });
+
+  it('no ticker at all reports "sector-default"', () => {
+    const out = parseProtectivePutInput(PUT_BASE);
+    expect(out.volatilitySource).toBe('sector-default');
+    expect(out.volatility).toBeCloseTo(SECTOR_DEFAULT, 10);
+  });
+
+  // The case that motivated the field: the symbol IS covered, the feed is the
+  // problem. A stale artifact (and a cold reader) must be indistinguishable
+  // from an uncovered symbol here - same fallback, same disclosure - because
+  // what the caller needs to know is that the price is not stock-specific.
+  it('a stale artifact reports "sector-default" for a covered ticker', () => {
+    __setVolSnapshotForTests(volsArtifact(cutoffSeconds() - 30 * 24 * 60 * 60));
+    const out = parseProtectivePutInput({ ...PUT_BASE, ticker: 'NVDA' });
+    expect(out.volatilitySource).toBe('sector-default');
+    expect(out.volatility).toBeCloseTo(SECTOR_DEFAULT, 10);
+  });
+
+  it('a cold reader (feed unavailable) reports "sector-default" for a covered ticker', () => {
+    clearVols();
+    const out = parseProtectivePutInput({ ...PUT_BASE, ticker: 'NVDA' });
+    expect(out.volatilitySource).toBe('sector-default');
+    expect(out.volatility).toBeCloseTo(SECTOR_DEFAULT, 10);
+  });
+
+  // The field is only useful if it is always there: an agent that has to test
+  // for its presence will not bother, and an absent field reads as "no caveat".
+  it('is always present, on every path', () => {
+    const cases = [
+      parseProtectivePutInput({ ...PUT_BASE, volatility: 0.55 }),
+      parseProtectivePutInput({ ...PUT_BASE, ticker: 'NVDA' }),
+      parseProtectivePutInput(PUT_BASE),
+    ];
+    for (const out of cases) expect(Object.keys(out)).toContain('volatilitySource');
   });
 });
 

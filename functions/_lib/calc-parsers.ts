@@ -10,7 +10,7 @@ import type { AmtIsoInput } from '../../lib/calc/amtIso';
 import type { NsoInput } from '../../lib/calc/nso';
 import type { RsuInput } from '../../lib/calc/rsu';
 import type { ConcentrationInputs } from '../../lib/calc/concentration';
-import type { ProtectivePutInputs } from '../../lib/calc/protectivePut';
+import type { ProtectivePutInputs, VolatilitySource } from '../../lib/calc/protectivePut';
 import type { QsbsInputs } from '../../lib/calc/qsbs';
 import type {
   EquityFundingComparisonInput,
@@ -118,6 +118,10 @@ function resolveDragFromVolatility(o: Obj, dragField: string, horizonYears: numb
   if (o.ticker !== undefined) {
     const sigma = resolveSigmaFromTicker(o);
     if (sigma !== null) return lognormalHaircut(sigma, horizonYears);
+    // No provenance field on this path: it throws rather than falling back, so
+    // a drag that IS returned came from explicit-or-ticker and the caller knows
+    // which. Give these tools a fallback and they get `volatilitySource` too
+    // (see resolveProtectivePutSigma below).
     // WHAT THIS MUST NOT SAY: "that ticker is not in our table". Five of the
     // six ways this branch is reached (CDN timeout, non-200, unparseable body,
     // wrong schemaV, entry older than the last close) have nothing to do with
@@ -401,29 +405,48 @@ export function parseConcentrationInput(raw: unknown): ConcentrationInputs {
   return base;
 }
 
+// THE single point of sigma resolution for protective_put_price. Returns the
+// value AND its provenance as one object so the two cannot be set apart: any
+// caller that takes the number takes the label with it, and a downstream
+// re-derivation (the way an echo starts mislabeling a sector default as the
+// stock's own vol) has nothing to re-derive from.
+//
+// WHY THIS ONE FALLS BACK AND THE DRAG-BEARING PARSERS THROW: `sector` is
+// REQUIRED here, so an unresolved ticker still leaves a defensible, disclosed
+// sector-typical IV, and hedge pricing degrades to "roughly what a name like
+// this costs to hedge" rather than to nothing. The drag parsers have no such
+// input and would have to invent one.
+//
+// DECIDED 2026-08-24 (operator), settling the deferral PR #240 recorded here:
+// the response DOES disclose which source produced the sigma, via
+// `volatilitySource` in the resolved-inputs echo. What tipped it: since the
+// vols feed went live, a CDN blip silently turns a ticker-specific price into a
+// sector-default one, and nothing in the response said so - the caller could
+// not tell "we priced YOUR stock" from "we priced a stock like yours". The
+// field deliberately does NOT separate outage from uncovered-symbol: both leave
+// the caller holding a non-stock-specific price, which is the fact that changes
+// what they should say, and the split would only invite agents to editorialize
+// about our uptime (VOL_UNRESOLVED_REASON already owns that phrasing).
+function resolveProtectivePutSigma(
+  o: Obj,
+  sectorDefault: number,
+): { volatility: number; volatilitySource: VolatilitySource } {
+  if (o.volatility !== undefined) {
+    return { volatility: p.num(o, 'volatility', SIGMA_BOUNDS), volatilitySource: 'explicit' };
+  }
+  const fromTicker = resolveSigmaFromTicker(o);
+  if (fromTicker !== null) return { volatility: fromTicker, volatilitySource: 'ticker' };
+  return { volatility: sectorDefault, volatilitySource: 'sector-default' };
+}
+
 export function parseProtectivePutInput(raw: unknown): ProtectivePutInputs {
   const o = asObject(raw);
   const sector = p.enum(o, 'sector', SECTORS) as SectorKey;
   const sectorDefault = SECTOR_STATS[sector].annualVol * IV_OVER_RV_MULTIPLIER;
-  // WHY THIS ONE FALLS BACK AND THE DRAG-BEARING PARSERS THROW: `sector` is
-  // REQUIRED here, so an unresolved ticker still leaves a defensible, disclosed
-  // sector-typical IV, and hedge pricing degrades to "roughly what a name like
-  // this costs to hedge" rather than to nothing. The drag parsers have no such
-  // input and would have to invent one. DEFERRED BY DESIGN: when the fallback
-  // fires because the FEED was down (rather than because the symbol is
-  // uncovered), the response says only that a sector default was used - it does
-  // not distinguish the two. Disclosing outage-triggered provenance to the
-  // caller is an open PRODUCT decision (it trades an honest caveat against
-  // teaching agents to treat a normal answer as degraded), not an oversight;
-  // do not "fix" it here without settling that.
-  const volatility =
-    o.volatility !== undefined
-      ? p.num(o, 'volatility', SIGMA_BOUNDS)
-      : resolveSigmaFromTicker(o) ?? sectorDefault;
   const base: ProtectivePutInputs = {
     positionValue: p.num(o, 'positionValue', { min: 0 }),
     sector,
-    volatility,
+    ...resolveProtectivePutSigma(o, sectorDefault),
     protectionLevel: p.num(o, 'protectionLevel', { min: 0.05, max: 0.5 }),
     tenorYears: p.num(o, 'tenorYears', { min: 0.25 }),
   };
