@@ -40,8 +40,10 @@ export function canonicalTicker(ticker: string): string {
 // Horizon-weighted blend of return5y and return10y. Below 3y → 100% 5y;
 // at 10y+ → 100% 10y; linear blend in between. Returns null for unknown
 // tickers or missing data. The web reader skips short horizons in favor
-// of a separate chain-derived 2y signal; the MCP server has no chain
-// access, so 5y is the closest substitute for short windows.
+// of a separate chain-derived trailing signal; this table is the only growth
+// source the MCP tools have (protective_put_price reads a chain's own trailing
+// return, but that is the drift for one hedge quote, not a growth projection),
+// so 5y is the closest substitute for short windows.
 export function getTrailingReturn(ticker: string, horizonYears: number): number | null {
   if (!ticker || !Number.isFinite(horizonYears) || horizonYears <= 0) return null;
   const entry = TICKERS[canonicalTicker(ticker)];

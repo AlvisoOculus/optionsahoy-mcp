@@ -11,10 +11,15 @@
 //   NEXT_PUBLIC_OA_DATA_BASE     — public R2 root (data.optionsahoy.com)
 //   NEXT_PUBLIC_OA_PIPELINE_BASE — Worker root (oa-options-pipeline.<acct>.workers.dev)
 
-const DATA_BASE =
-  process.env.NEXT_PUBLIC_OA_DATA_BASE ?? 'https://data.optionsahoy.com';
+import { DATA_BASE } from './data-base';
+
+// Guarded like ./data-base: this module is pulled into the Pages Functions
+// bundle (live-chain imports TICKER_CHAIN_SCHEMA_V, a value), and a bare
+// module-scope `process` reference makes the whole worker fail to publish
+// with "Uncaught ReferenceError: process is not defined".
 const PIPELINE_BASE =
-  process.env.NEXT_PUBLIC_OA_PIPELINE_BASE ?? DATA_BASE;
+  (typeof process !== 'undefined' ? process.env?.NEXT_PUBLIC_OA_PIPELINE_BASE : undefined) ??
+  DATA_BASE;
 
 export interface ChainSide {
   exp: string[];   // YYYY-MM-DD

@@ -32,18 +32,9 @@
 // from REST, MCP, A2A, Poe and the scenario deep-link builder alike) read the
 // warmed memo synchronously via `getLiveVol`.
 
-import { lastTradingDayCutoffMs } from './market-calendar';
+import { DATA_BASE } from './data-base';
+import { isAsOfFresh } from './market-calendar';
 import { canonicalTicker } from './trailing-returns';
-
-/** Public R2 root the artifact is published under. Same override knob and same
- *  default as ./chains.ts's DATA_BASE, so a staging/preview deployment points
- *  BOTH readers at one origin instead of half of them. The `typeof process`
- *  guard is the only difference: chains.ts is browser/Next-only, while this
- *  module also loads inside a Cloudflare Pages Function, where a bare `process`
- *  reference throws unless nodejs_compat is on. */
-const DATA_BASE =
-  (typeof process !== 'undefined' ? process.env?.NEXT_PUBLIC_OA_DATA_BASE : undefined) ??
-  'https://data.optionsahoy.com';
 
 /** Published by the chains worker; contract v1 is frozen (see below). */
 export const VOLS_URL = `${DATA_BASE}/chains/vols.json`;
@@ -184,9 +175,14 @@ async function fetchVolsOnce(timeoutMs: number): Promise<Attempt> {
  *
  * ALSO DEFERRED: generalizing this file into a reusable "gated published
  * artifact" reader (fetch + memo + schema gate + freshness gate, parameterized).
- * There is exactly one artifact today. A second one (the growth table, when it
- * stops being baked) is the trigger; abstracting ahead of it would be guessing
- * at which parts are the varying parts.
+ * A second one (the growth table, when it stops being baked) is the trigger;
+ * abstracting ahead of it would be guessing at which parts are the varying
+ * parts. ./live-chain arrived in 2026-08 and deliberately did NOT trip it: it
+ * is keyed per ticker rather than a singleton, bounded, retry-free, and gated
+ * per document rather than per entry, so a shared factory would have been more
+ * configuration than the six identical lines it saved. Those six lines are
+ * shared instead - DATA_BASE (./data-base) and the freshness predicate
+ * (./market-calendar isAsOfFresh) - which is the part that must not diverge.
  */
 export async function warmVolSnapshot(): Promise<void> {
   if (isFresh(memo, Date.now())) return;
@@ -251,10 +247,9 @@ export function getLiveVol(ticker: string, now: Date = new Date()): number | nul
 
   // THE FRESHNESS GATE. `asOf` is epoch SECONDS of the source chain; the
   // cutoff is 00:00 UTC of the last trading day (see ./market-calendar for why
-  // that day is strictly before today, and why the producer must agree).
-  const asOf = entry.asOf;
-  if (typeof asOf !== 'number' || !Number.isFinite(asOf)) return null;
-  if (asOf * 1000 < lastTradingDayCutoffMs(now)) return null;
+  // that day is strictly before today, why the producer must agree, and why
+  // both readers ask through one predicate).
+  if (!isAsOfFresh(entry.asOf, now)) return null;
 
   return iv;
 }

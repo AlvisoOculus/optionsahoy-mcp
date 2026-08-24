@@ -1,8 +1,9 @@
 // AlphaLatitude Inc. © 2026
 //
-// US equity-market trading calendar, used by the volatility freshness gate in
-// ./live-vols to decide whether a published implied-vol entry is "as of the
-// last market close" or stale.
+// US equity-market trading calendar, and the freshness gate both published-
+// artifact readers apply with it (./live-vols to a published implied-vol entry,
+// ./live-chain to a fetched option chain) to decide whether what they hold is
+// "as of the last market close" or stale.
 //
 // ── The cutoff definition (BOTH SIDES MUST AGREE) ─────────────────────────
 // `lastTradingDay(now)` is the most recent day STRICTLY BEFORE now's UTC
@@ -172,4 +173,20 @@ export function lastTradingDay(now: Date): string {
 export function lastTradingDayCutoffMs(now: Date): number {
   const [y, m, d] = lastTradingDay(now).split('-').map(Number);
   return Date.UTC(y, m - 1, d);
+}
+
+/**
+ * THE FRESHNESS GATE, in one place: is `asOfSeconds` as of the last market
+ * close or newer? Both published-artifact readers ask exactly this question
+ * (./live-vols per vols entry, ./live-chain per chain), and both used to spell
+ * it out themselves. The epoch-SECONDS-to-ms conversion is the part a third
+ * copy would get wrong, and getting it wrong by 1000x silently accepts a chain
+ * from 1970 or rejects every fresh one.
+ *
+ * A non-finite or missing timestamp is not fresh: an artifact that cannot say
+ * when it is from is exactly the artifact this gate exists to refuse.
+ */
+export function isAsOfFresh(asOfSeconds: unknown, now: Date): boolean {
+  if (typeof asOfSeconds !== 'number' || !Number.isFinite(asOfSeconds)) return false;
+  return asOfSeconds * 1000 >= lastTradingDayCutoffMs(now);
 }

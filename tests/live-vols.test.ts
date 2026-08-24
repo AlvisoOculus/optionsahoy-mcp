@@ -28,20 +28,12 @@ import { parseAmtIsoInput, parseProtectivePutInput } from '../functions/_lib/cal
 import { volsArtifact, cutoffSeconds } from './helpers/live-vols-fixture';
 import { TICKER_ALIASES, getTrailingReturn, isKnownTicker } from '../lib/data/trailing-returns';
 import golden from './fixtures/vols-artifact-v1.json';
+import { stubFetch, jsonResponse } from './helpers/stub-fetch';
 
 const DAY = 86_400;
 
 // A Wednesday: an ordinary mid-week trading day with a Tuesday before it.
 const WEDNESDAY = new Date('2026-08-19T14:00:00Z');
-
-function stubFetch(impl: (url: string, init?: RequestInit) => Promise<Response> | Response) {
-  const spy = vi.fn(impl as never);
-  vi.stubGlobal('fetch', spy);
-  return spy;
-}
-
-const jsonResponse = (body: unknown, status = 200) =>
-  new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
 
 beforeEach(() => {
   __setVolSnapshotForTests(undefined);

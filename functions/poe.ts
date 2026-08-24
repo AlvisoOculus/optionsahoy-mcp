@@ -24,8 +24,7 @@ import { DEFAULT_CASH_RETURN_RATE, isMarketSentinel } from './_lib/calc-parsers'
 import { PER_TOOL_FREE_TOOL_BARE } from './_lib/sessions';
 import { logCall, logSample } from './_lib/stats';
 import { getCurrentPrice } from '../lib/data/prices';
-import { warmVolSnapshot } from '../lib/data/live-vols';
-import { mayResolveVolFromTicker } from './_lib/calc-parsers';
+import { warmForCall } from './_lib/calc-parsers';
 import type { PagesContext, PagesFunction } from './_lib/api';
 
 const POE_COST_API = 'https://api.poe.com/bot/cost/';
@@ -1072,13 +1071,14 @@ async function handleQuery(ctx: PagesContext, req: PoeRequest, extractor?: Extra
     return textReply(INTRO);
   }
 
-  // START the vol warm here, BEFORE the billing round-trip, and await it just
-  // before the handler. Poe is the one surface with a mandatory network hop
-  // (poeCost 'authorize') between knowing the tool and running it, so on this
-  // path the artifact fetch is free: it overlaps a wait we were already paying.
-  // Not awaited here on purpose - warmVolSnapshot never rejects and never
-  // throws (see lib/data/live-vols), so a floating handle cannot produce an
-  // unhandled rejection even on the paths that return before the await.
+  // START the market-data warm here, BEFORE the billing round-trip, and await
+  // it just before the handler. Poe is the one surface with a mandatory network
+  // hop (poeCost 'authorize') between knowing the tool and running it, so on
+  // this path the fetches are free: they overlap a wait we were already paying.
+  // Not awaited here on purpose - neither warm ever rejects or throws (see
+  // lib/data/live-vols and lib/data/live-chain), so a floating handle cannot
+  // produce an unhandled rejection even on the paths that return before the
+  // await.
   //
   // The gate runs on the extractor's args with blanks dropped, which is a
   // SUPERSET of the final `args`: everything between here and there only
@@ -1090,7 +1090,7 @@ async function handleQuery(ctx: PagesContext, req: PoeRequest, extractor?: Extra
     extracted.args !== null && typeof extracted.args === 'object' && !Array.isArray(extracted.args)
       ? dropEmpty(extracted.args)
       : {};
-  const volWarm = mayResolveVolFromTicker(tool.name, volGateArgs) ? warmVolSnapshot() : null;
+  const volWarm = warmForCall(tool.name, volGateArgs);
 
   // Charge on success: authorize a hold before computing; capture only after a
   // real answer. During the launch free-period this is a no-op.
@@ -1264,7 +1264,7 @@ async function handleQuery(ctx: PagesContext, req: PoeRequest, extractor?: Extra
     // authorize hop): a `ticker` here should resolve a sigma as of the last
     // market close, or the bot asks for volatility like any other missing field.
     if (volWarm) await volWarm;
-    else if (mayResolveVolFromTicker(tool.name, args)) await warmVolSnapshot();
+    else await warmForCall(tool.name, args);
     result = tool.handler(args) as Result;
   } catch (e) {
     const raw = e instanceof Error ? e.message : 'invalid inputs';

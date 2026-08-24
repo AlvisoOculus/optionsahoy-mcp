@@ -13,8 +13,7 @@
 // drive handlers with `{ request }` alone; in production CF always
 // supplies both.
 import { type PagesContext } from './stats';
-import { warmVolSnapshot } from '../../lib/data/live-vols';
-import { mayResolveVolFromTicker } from './calc-parsers';
+import { warmForCall } from './calc-parsers';
 export type PagesFunction = (context: PagesContext) => Promise<Response> | Response;
 export type { PagesContext } from './stats';
 
@@ -124,19 +123,19 @@ export async function runCalc<I, O>(
     return jsonResponse(400, { error: 'Invalid JSON in request body.' });
   }
   const slug = endpoint.startsWith('rest:') ? endpoint.slice(5) : endpoint;
-  // Warm the published implied-vol artifact before parsing. The parsers are
-  // synchronous (they are shared verbatim with the MCP, A2A and Poe surfaces),
-  // so the async fetch has to happen here, at the request boundary, and the
-  // parser reads the warmed memo. Never throws: a failed warm just means a
-  // `ticker` resolves no volatility, which is the ordinary required-field
-  // error path. Memoized for VOLS_MEMO_TTL_MS, so this is a no-op on all but
-  // the first call in each five-minute window.
+  // Warm the published market data before parsing. The parsers are synchronous
+  // (they are shared verbatim with the MCP, A2A and Poe surfaces), so the async
+  // fetches have to happen here, at the request boundary, and the parser reads
+  // the warmed memos. Never throws: a failed warm just means a `ticker`
+  // resolves no volatility (the ordinary required-field error path) or no
+  // chain (flat pricing, disclosed). Memoized for five minutes, so this is a
+  // no-op on all but the first call in each window.
   //
-  // LAZY: skipped entirely when this request provably cannot read the memo -
+  // LAZY: null entirely when this request provably reads neither memo -
   // explicit `volatility`, no `ticker`, or a tool with no ticker→sigma path.
   // Those requests were paying a cold-memo CDN round-trip for a value nothing
-  // would read. See mayResolveVolFromTicker for how the condition is derived.
-  if (mayResolveVolFromTicker(slug, raw)) await warmVolSnapshot();
+  // would read. See warmForCall for how the condition is derived.
+  await warmForCall(slug, raw);
   let input: I;
   try {
     input = parseInput(raw);
