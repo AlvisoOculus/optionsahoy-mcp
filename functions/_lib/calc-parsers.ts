@@ -22,7 +22,7 @@ import type { LotDivestInput, LotDivestLot } from '../../lib/calc/lotDivest';
 import { asObject, p, FILING_STATUSES, type Obj } from './api';
 import { STATE_CODES } from '../../lib/tax/state-tax';
 import { getTrailingReturn, hasTrailingReturn, isKnownTicker } from '../../lib/data/trailing-returns';
-import { getTrailingVol } from '../../lib/data/trailing-vols';
+import { getLiveVol } from '../../lib/data/live-vols';
 import { SECTOR_STATS, type SectorKey } from '../../lib/markets/sector-stats';
 import { HORIZON_YEARS as CONCENTRATION_HORIZON_YEARS, IV_OVER_RV_MULTIPLIER } from '../../lib/calc/concentration';
 import { lognormalHaircut } from '../../lib/calc/volatility-drag';
@@ -92,12 +92,20 @@ function tickerGrowthError(fieldName: string, ticker: string): Error {
   );
 }
 
-// Returns the cached sigma for `o.ticker`, or null when no ticker is set
-// or the ticker isn't covered. Callers decide how to handle null (throw,
-// or fall through to a default).
+// Returns the published sigma for `o.ticker`, or null when no ticker is set
+// or the ticker resolves no CURRENT volatility. Callers decide how to handle
+// null (throw, or fall through to a default).
+//
+// "Resolves no current volatility" is one outcome with many causes: the daily
+// artifact could not be fetched, the fetch timed out, the schema is not the one
+// we read, the symbol is absent, or its entry predates the last market close.
+// getLiveVol collapses all of them to null on purpose — see lib/data/live-vols.
+// There is no fallback source. A caller either gets a sigma as of the last
+// close, or gets asked for one; it never gets a stale or estimated sigma
+// dressed as a fact.
 function resolveSigmaFromTicker(o: Obj): number | null {
   if (o.ticker === undefined) return null;
-  return getTrailingVol(p.str(o, 'ticker'));
+  return getLiveVol(p.str(o, 'ticker'));
 }
 
 function resolveDragFromVolatility(o: Obj, dragField: string, horizonYears: number): number {

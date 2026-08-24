@@ -1,54 +1,44 @@
 // AlphaLatitude Inc. © 2026
 //
 // Single computed source of truth for what the optional `ticker` shortcut
-// actually resolves. Two independent bundled snapshots back the shortcut:
-// trailing-returns (expected growth) and trailing-vols (volatility). They do
-// not cover the same symbols, and `coveredTickers()` lists every trailing-
-// returns key including recent IPOs whose 5y AND 10y returns are both null
-// (they resolve no growth). So "how many symbols does the shortcut cover"
-// has no single answer; this module partitions the union of both tables by
-// what each symbol resolves, so descriptions, the covered-tickers resource,
-// and tests all read the same live counts instead of drifting hardcoded ones.
+// resolves. Since the volatility shortcut moved to the published daily
+// artifact (see ./live-vols), only ONE side of the shortcut is a static list:
+// expected growth, from the bundled trailing-returns snapshot.
 //
-// The partition is computed by the SAME predicates the parsers call
-// (hasTrailingReturn / hasTrailingVol), so a symbol can never be bucketed as
-// resolving a field the tool would then reject. That reuse is the point: it
-// makes the "resource lists a rejected ticker" bug structurally impossible
-// rather than merely test-detectable.
+// `coveredTickers()` in ./trailing-returns lists every trailing-returns key,
+// including recent IPOs whose 5y AND 10y returns are both null — those resolve
+// NO growth, so membership is not the same question as resolvability. This
+// module answers the resolvability question, and it does so by calling the
+// SAME predicate the parsers call (hasTrailingReturn). That reuse is the
+// point: it makes the "resource lists a ticker the tool then rejects" bug
+// structurally impossible rather than merely test-detectable.
+//
+// There is deliberately no vol partition here any more. Volatility coverage is
+// now a property of a document fetched at request time and gated on the last
+// market close, so it can differ between two calls a minute apart and cannot
+// be enumerated at module load (the Workers runtime forbids I/O there). The
+// covered-tickers resource describes that mechanism instead of publishing a
+// roster that would be stale the moment it was written.
 
 import returns from './trailing-returns.json';
 import { hasTrailingReturn } from './trailing-returns';
-import { hasTrailingVol } from './trailing-vols';
-import vols from './trailing-vols.json';
 
 export type TickerCoverage = {
-  growthAndVol: string[]; // resolves both fields
-  growthOnly: string[]; // resolves growth, pass volatility explicitly
-  volOnly: string[]; // resolves volatility, pass a growth/return field explicitly
-  neither: string[]; // in the universe but resolves nothing usable
+  growth: string[]; // resolves expected growth from a ticker alone
+  noGrowth: string[]; // in the table but resolves no usable trailing CAGR
 };
 
-// Computed on demand from the bundled tables (cheap: a few hundred lookups).
+// Computed on demand from the bundled table (cheap: a few hundred lookups).
 export function tickerCoverage(): TickerCoverage {
-  // Universe = the CANONICAL symbols in either table. We deliberately do NOT
-  // pull in coveredTickers()'s alias keys (e.g. GOOG -> GOOGL): counting an
-  // alias as its own symbol double-counts (GOOG and GOOGL) and inflates every
-  // headline, producing impossible numbers like "86 resolve volatility" when
-  // the vols table has 85 rows. The tables are keyed by canonical symbol, so
-  // their key union is exactly the distinct set; aliases still resolve at call
-  // time via the readers, and the resource notes that.
-  const universe = new Set<string>([...Object.keys(returns.tickers), ...Object.keys(vols.tickers)]);
-  const growthAndVol: string[] = [];
-  const growthOnly: string[] = [];
-  const volOnly: string[] = [];
-  const neither: string[] = [];
-  for (const t of [...universe].sort()) {
-    const g = hasTrailingReturn(t);
-    const v = hasTrailingVol(t);
-    if (g && v) growthAndVol.push(t);
-    else if (g) growthOnly.push(t);
-    else if (v) volOnly.push(t);
-    else neither.push(t);
+  // Universe = the CANONICAL symbols in the table. We deliberately do NOT pull
+  // in coveredTickers()'s alias keys (e.g. GOOG -> GOOGL): counting an alias as
+  // its own symbol double-counts and inflates the headline. Aliases still
+  // resolve at call time via the reader, and the resource notes that.
+  const growth: string[] = [];
+  const noGrowth: string[] = [];
+  for (const t of Object.keys(returns.tickers).sort()) {
+    if (hasTrailingReturn(t)) growth.push(t);
+    else noGrowth.push(t);
   }
-  return { growthAndVol, growthOnly, volOnly, neither };
+  return { growth, noGrowth };
 }

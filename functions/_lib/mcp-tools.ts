@@ -142,7 +142,7 @@ const ISO_DATE = { type: 'string', format: 'date' };
 const TICKER_SCHEMA = {
   type: 'string',
   description:
-    'Optional public-stock symbol (e.g. "NVDA", "AAPL"). When set, the tool substitutes a cached trailing return for any unsupplied expected-return / sale-price field, and a cached implied vol for any unsupplied volatility. Growth and volatility come from two separate cached snapshots, so some symbols resolve only one of the two fields. A symbol not in a given table falls through to a "required field" error for exactly the field it could not resolve: pass that field explicitly, or (for the growth/return/sale-price field) pass the string "market" for the S&P 500 trailing average; never invent a number. The covered-tickers resource (resources/list) lists which symbols resolve which field.',
+    'Optional public-stock symbol (e.g. "NVDA", "AAPL"). When set, the tool substitutes a cached trailing return for any unsupplied expected-return / sale-price field, and the implied vol as of the last close for any unsupplied volatility. Growth and vol come from different sources, so some symbols resolve only one, and a vol that is not current resolves as nothing. A field the ticker cannot resolve falls through to a "required field" error naming that field: pass it explicitly, or (for the growth/return/sale-price field) pass the string "market" for the S&P 500 trailing average; never invent a number. The covered-tickers resource (resources/list) lists which symbols resolve growth.',
 };
 
 // Appended to every tool description so the model picks it up at
@@ -234,7 +234,7 @@ const VOLATILITY_SCHEMA = {
   minimum: 0,
   maximum: 5,
   description:
-    'Annualized volatility (sigma) of the stock as a decimal (0.72 = 72%). Pass the volatility itself, not a pre-computed drag: the tool derives the horizon-cumulative drag internally, and the correct formula is horizon-dependent. This value must come from the user or from a `ticker` that resolves it from the cached implied-vol table; if neither supplies it, ask the user rather than estimating one.',
+    'Annualized volatility (sigma) of the stock as a decimal (0.72 = 72%). Pass the volatility itself, not a pre-computed drag: the tool derives the horizon-cumulative drag internally, and the correct formula is horizon-dependent. This value must come from the user or from a `ticker` that resolves it as of the last market close; if neither supplies it, ask the user rather than estimating one.',
 };
 
 // ---------------------------------------------------------------------
@@ -1417,7 +1417,7 @@ export const TOOLS: McpTool[] = [
           minimum: 0,
           maximum: 5,
           description:
-            'Annualized volatility (sigma) of the stock as a decimal (0.72 = 72%). Pass the volatility itself, not a pre-computed drag: the tool uses it both for hedge pricing (as implied vol) and for the 3y horizon drag, derived internally (the drag formula is horizon-dependent). This value must come from the user or from a `ticker` that resolves it from the cached implied-vol table; if neither supplies it, ask the user rather than estimating one; only as a last fallback does hedge pricing use a sector-typical implied volatility.',
+            'Annualized volatility (sigma) of the stock as a decimal (0.72 = 72%). Pass the volatility itself, not a pre-computed drag: the tool uses it both for hedge pricing (as implied vol) and for the 3y horizon drag, derived internally (the drag formula is horizon-dependent). This value must come from the user or from a `ticker` that resolves it as of the last market close; if neither supplies it, ask the user rather than estimating one; only as a last fallback does hedge pricing use a sector-typical implied volatility.',
         },
         volatilityDrag: {
           type: 'number',
@@ -1487,12 +1487,12 @@ export const TOOLS: McpTool[] = [
           minimum: 0,
           maximum: 5,
           description:
-            'Annualized implied volatility (sigma) of the stock. Resolution order: (1) explicit `volatility` if passed; (2) cached implied vol if `ticker` is covered; (3) sector-typical IV as last fallback. An explicit value must come from the user; otherwise set a covered `ticker`, or omit and let the sector default apply.',
+            'Annualized implied volatility (sigma) of the stock. Resolution order: (1) explicit `volatility` if passed; (2) the `ticker`\'s implied vol as of the last close; (3) sector-typical IV as last fallback. An explicit value must come from the user; otherwise set a covered `ticker`, or omit and let the sector default apply.',
         },
         ticker: {
           type: 'string',
           description:
-            'Optional public-stock symbol (e.g. "NVDA"). When set without an explicit `volatility`, the tool substitutes the ticker\'s cached implied vol. Unknown tickers fall through to the sector default. Echoed to `tickerLabel` in the response.',
+            'Optional public-stock symbol (e.g. "NVDA"). When set without an explicit `volatility`, the tool substitutes the ticker\'s implied vol as of the last close, else the sector default. Echoed to `tickerLabel` in the response.',
         },
         protectionLevel: {
           type: 'number',

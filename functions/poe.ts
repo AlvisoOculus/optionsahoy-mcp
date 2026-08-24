@@ -24,6 +24,7 @@ import { DEFAULT_CASH_RETURN_RATE, isMarketSentinel } from './_lib/calc-parsers'
 import { PER_TOOL_FREE_TOOL_BARE } from './_lib/sessions';
 import { logCall, logSample } from './_lib/stats';
 import { getCurrentPrice } from '../lib/data/prices';
+import { warmVolSnapshot } from '../lib/data/live-vols';
 import type { PagesContext, PagesFunction } from './_lib/api';
 
 const POE_COST_API = 'https://api.poe.com/bot/cost/';
@@ -1238,6 +1239,10 @@ async function handleQuery(ctx: PagesContext, req: PoeRequest, extractor?: Extra
     }
     const args = { ...(TOOL_DEFAULTS[tool.name] ?? {}), ...provided };
     usedArgs = args;
+    // Warm the published implied-vol artifact before the (synchronous)
+    // handler: a `ticker` here should resolve a sigma as of the last market
+    // close, or the bot asks for volatility like any other missing field.
+    await warmVolSnapshot();
     result = tool.handler(args) as Result;
   } catch (e) {
     const raw = e instanceof Error ? e.message : 'invalid inputs';
