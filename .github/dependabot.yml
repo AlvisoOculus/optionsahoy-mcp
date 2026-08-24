@@ -15,6 +15,10 @@ updates:
         patterns: ["*"]
 
   # Root npm project (the MCP stdio server + its test/build tooling).
+  # Note: committing any change to this file makes Dependabot run an immediate
+  # check for all ecosystems — the no-button way to re-run after a config or
+  # override fix (used 2026-08-24 to confirm the $esbuild override unblocked
+  # the npm job).
   - package-ecosystem: npm
     directory: "/"
     schedule:
