@@ -90,22 +90,26 @@ describe('sparkline', () => {
 // ---- render smoke test ---------------------------------------------------
 
 function mockDb(daily: { day: string; n: number }[], lastTs: number | null): D1Database {
+  const now = Date.now();
+  const total = daily.reduce((a, d) => a + d.n, 0);
   return {
     prepare(sql: string): D1PreparedStatement {
-      const isDaily = /GROUP BY day/.test(sql);
-      const rows = isDaily ? daily : [{ t: lastTs }];
-      const obj: D1PreparedStatement = {
+      let rows: unknown[] = [];
+      if (/FROM stats_snapshot WHERE id = 1/.test(sql)) {
+        rows = [{ total, last_id: 1, last_ts: lastTs, computed_at: now }];
+      } else if (/FROM mcp_daily ORDER BY day/.test(sql)) rows = daily;
+      const stmt: D1PreparedStatement = {
         bind() {
-          return obj;
+          return stmt;
         },
         async run() {
           return undefined;
         },
-        async all<T = unknown>() {
+        async all<T>() {
           return { results: rows as T[] };
         },
       };
-      return obj;
+      return stmt;
     },
   };
 }

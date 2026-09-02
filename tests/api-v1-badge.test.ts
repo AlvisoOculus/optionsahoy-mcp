@@ -10,8 +10,16 @@ import { onRequest } from '../functions/api/v1/badge';
 import type { D1Database, D1PreparedStatement, Env, PagesContext } from '../functions/_lib/stats';
 
 function mockDb(n: number): D1Database {
+  const now = Date.now();
   return {
-    prepare(): D1PreparedStatement {
+    prepare(sql: string): D1PreparedStatement {
+      let rows: unknown[] = [];
+      if (/FROM stats_snapshot WHERE id = 1/.test(sql)) {
+        // fresh snapshot so the handler serves without refreshing; `total`
+        // carries the test's n for the all-time metric
+        rows = [{ total: n, last_id: 1, last_ts: now, computed_at: now }];
+      } else if (/FROM mcp_daily WHERE day >= /.test(sql)) rows = [{ n }];
+      else if (/FROM mcp_hourly/.test(sql)) rows = [{ n }];
       const stmt: D1PreparedStatement = {
         bind() {
           return stmt;
@@ -19,8 +27,8 @@ function mockDb(n: number): D1Database {
         async run() {
           return undefined;
         },
-        async all<T = unknown>() {
-          return { results: [{ n }] as T[] };
+        async all<T>() {
+          return { results: rows as T[] };
         },
       };
       return stmt;

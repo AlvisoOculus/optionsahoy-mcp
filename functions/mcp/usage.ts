@@ -26,9 +26,12 @@ interface DayRow {
   n: number;
 }
 
-const SQL_DAILY =
-  "SELECT date(ts/1000, 'unixepoch') AS day, COUNT(*) AS n FROM mcp_calls GROUP BY day ORDER BY day";
-const SQL_LAST = 'SELECT MAX(ts) AS t FROM mcp_calls';
+// Rollup-backed: the all-history curve reads mcp_daily (a few hundred
+// rows, one per day) instead of GROUP BY over every call ever logged -
+// the unbounded scan was part of the 2026-09-01 read outage. ensureFresh
+// keeps today's bucket live, and because the curve lives in the rollup it
+// SURVIVES retention deletes of old mcp_calls rows.
+import { ensureFresh, readDaily } from '../_lib/statsRollup';
 
 const GRAPH_COLS = 56; // constant chart width; days are resampled to fill it
 const HEIGHT = 8; // cumulative chart rows
@@ -179,11 +182,10 @@ export const onRequest: PagesFunction = async (ctx) => {
   }
 
   const today = new Date().toISOString().slice(0, 10);
-  const [dailyRes, lastRes] = await Promise.all([
-    db.prepare(SQL_DAILY).all<DayRow>(),
-    db.prepare(SQL_LAST).all<{ t: number | null }>(),
-  ]);
-  const rows = dailyRes.results ?? [];
+  const snap = await ensureFresh(db, Date.now());
+  const dailyRows = await readDaily(db);
+  const lastT = snap.last_ts;
+  const rows = dailyRows;
   if (rows.length === 0) {
     return new Response(emptyPage(), {
       status: 200,
@@ -200,7 +202,7 @@ export const onRequest: PagesFunction = async (ctx) => {
   const spark = sparkline(resampleToWidth(sparkWindow, GRAPH_COLS));
   const numDays = days.length;
   const firstDay = days[0];
-  const lastTs = lastRes.results?.[0]?.t ?? null;
+  const lastTs = lastT;
 
   // Cumulative chart with a small y-axis label column + baseline.
   const totalStr = total.toLocaleString('en-US');

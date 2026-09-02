@@ -17,27 +17,32 @@
 // Always returns HTTP 200 (even on missing binding or unknown metric) so the
 // badge still renders rather than showing shields' "inaccessible" error.
 
+import { ensureFresh, readWindows } from '../../_lib/statsRollup';
 import { type PagesFunction } from '../../_lib/api';
 import { type D1Database } from '../../_lib/stats';
 
-interface CountRow {
-  n: number;
-}
-
-const DAY = 86_400_000;
-
-const SQL_TOTAL = 'SELECT COUNT(*) AS n FROM mcp_calls';
-const SQL_CALLS_SINCE = 'SELECT COUNT(*) AS n FROM mcp_calls WHERE ts >= ?';
+// Rollup-backed (see _lib/statsRollup.ts): shields.io and registry
+// caches poll this endpoint from many vantage points, and its former
+// COUNT(*) full scans per poll were a top contributor to the 2026-09-01
+// free-tier read outage. A badge poll now costs ~a snapshot row.
 
 interface MetricDef {
   label: string;
-  sql: string;
-  sinceMs?: number; // lookback window; omit for all-time
+  value: (db: D1Database, now: number) => Promise<number>;
 }
 
 const METRICS: Record<string, MetricDef> = {
-  calls30d: { label: 'MCP calls (30d)', sql: SQL_CALLS_SINCE, sinceMs: 30 * DAY },
-  calls: { label: 'MCP calls', sql: SQL_TOTAL },
+  calls30d: {
+    label: 'MCP calls (30d)',
+    value: async (db, now) => {
+      await ensureFresh(db, now);
+      return (await readWindows(db, now)).last30d;
+    },
+  },
+  calls: {
+    label: 'MCP calls',
+    value: async (db, now) => (await ensureFresh(db, now)).total,
+  },
 };
 
 // 8793 -> "8.8k", 950 -> "950", 1_500_000 -> "1.5M"
@@ -88,10 +93,7 @@ export const onRequest: PagesFunction = async (ctx) => {
     return badge(def.label, 'n/a', 'lightgrey');
   }
 
-  const stmt =
-    def.sinceMs == null ? db.prepare(def.sql) : db.prepare(def.sql).bind(Date.now() - def.sinceMs);
-  const res = await stmt.all<CountRow>();
-  const n = res.results[0]?.n ?? 0;
+  const n = await def.value(db, Date.now());
 
   return badge(def.label, humanize(n), 'blue');
 };

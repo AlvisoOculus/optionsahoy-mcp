@@ -11,6 +11,7 @@
 // for 60 seconds before the next read. The numbers move slowly enough
 // that 60s lag is invisible to a human reader.
 
+import { ensureFresh, readWindows, readTopTools } from '../../_lib/statsRollup';
 import { type PagesFunction } from '../../_lib/api';
 import { type D1Database } from '../../_lib/stats';
 
@@ -26,17 +27,6 @@ interface LastRow {
 }
 
 const TOP_TOOLS_LIMIT = 5;
-
-const SQL_TOTAL = 'SELECT COUNT(*) AS n FROM mcp_calls';
-const SQL_SINCE = 'SELECT COUNT(*) AS n FROM mcp_calls WHERE ts >= ?';
-const SQL_TOP_TOOLS = `SELECT tool, COUNT(*) AS n FROM mcp_calls WHERE tool IS NOT NULL GROUP BY tool ORDER BY n DESC LIMIT ${TOP_TOOLS_LIMIT}`;
-const SQL_LAST_TS = 'SELECT ts FROM mcp_calls ORDER BY ts DESC LIMIT 1';
-
-async function scalar(db: D1Database, sql: string, sinceMs?: number): Promise<number> {
-  const stmt = sinceMs == null ? db.prepare(sql) : db.prepare(sql).bind(sinceMs);
-  const res = await stmt.all<CountRow>();
-  return res.results[0]?.n ?? 0;
-}
 
 const CORS: Record<string, string> = {
   'access-control-allow-origin': '*',
@@ -61,31 +51,23 @@ export const onRequest: PagesFunction = async (ctx) => {
   }
 
   const now = Date.now();
-  const day = 86_400_000;
-  const since24h = now - day;
-  const since7d = now - 7 * day;
-  const since30d = now - 30 * day;
-
-  const [total, last24h, last7d, last30d, topToolsRes, lastRes] = await Promise.all([
-    scalar(db, SQL_TOTAL),
-    scalar(db, SQL_SINCE, since24h),
-    scalar(db, SQL_SINCE, since7d),
-    scalar(db, SQL_SINCE, since30d),
-    db.prepare(SQL_TOP_TOOLS).all<ToolRow>(),
-    db.prepare(SQL_LAST_TS).all<LastRow>(),
+  // Rollup-backed (see _lib/statsRollup.ts): the numbers stay 60-second
+  // live, but a refresh reads only the rows that arrived since the last
+  // one instead of scanning the whole call log - the scans behind the
+  // 2026-09-01 free-tier read outage.
+  const snap = await ensureFresh(db, now);
+  const [windows, top] = await Promise.all([
+    readWindows(db, now),
+    readTopTools(db, TOP_TOOLS_LIMIT),
   ]);
 
-  const lastCallAt = lastRes.results[0]?.ts
-    ? new Date(lastRes.results[0].ts).toISOString()
-    : null;
-
   const payload = {
-    totalCalls: total,
-    last24h,
-    last7d,
-    last30d,
-    topTools: topToolsRes.results.map((r) => ({ name: r.tool, count: r.n })),
-    lastCallAt,
+    totalCalls: snap.total,
+    last24h: windows.last24h,
+    last7d: windows.last7d,
+    last30d: windows.last30d,
+    topTools: top.map((r) => ({ name: r.tool, count: r.n })),
+    lastCallAt: snap.last_ts ? new Date(snap.last_ts).toISOString() : null,
     asOf: new Date(now).toISOString(),
   };
 
