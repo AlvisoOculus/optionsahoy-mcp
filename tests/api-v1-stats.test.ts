@@ -10,19 +10,25 @@ import { onRequest } from '../functions/api/v1/stats';
 import type { D1Database, D1PreparedStatement, Env, PagesContext } from '../functions/_lib/stats';
 
 function mockDb(): D1Database {
+  const now = Date.now();
   return {
     prepare(sql: string): D1PreparedStatement {
       let rows: unknown[] = [];
-      if (/SELECT COUNT\(\*\) AS n FROM mcp_calls$/.test(sql)) rows = [{ n: 1234 }];
-      else if (/COUNT\(DISTINCT client_name\)/.test(sql)) rows = [{ n: 7 }];
-      else if (/WHERE ts >= \?/.test(sql)) rows = [{ n: 42 }];
-      else if (/GROUP BY tool/.test(sql)) {
+      if (/FROM stats_snapshot WHERE id = 1/.test(sql)) {
+        // fresh snapshot: endpoints serve without refreshing
+        rows = [{ total: 1234, last_id: 99, last_ts: 1717718400000, computed_at: now }];
+      } else if (/FROM mcp_hourly/.test(sql)) rows = [{ n: 42 }];
+      else if (/FROM mcp_daily WHERE day >= /.test(sql)) rows = [{ n: 300 }];
+      else if (/FROM mcp_tool_counts ORDER BY n DESC/.test(sql)) {
         rows = [
           { tool: 'amt_iso_optimize', n: 500 },
           { tool: 'concentration_analyze', n: 300 },
         ];
-      } else if (/ORDER BY ts DESC LIMIT 1/.test(sql)) {
-        rows = [{ ts: 1717718400000 }];
+      } else if (/FROM mcp_daily ORDER BY day/.test(sql)) {
+        rows = [
+          { day: '2026-08-30', n: 3 },
+          { day: '2026-08-31', n: 5 },
+        ];
       }
       const stmt: D1PreparedStatement = {
         bind() {
@@ -31,7 +37,7 @@ function mockDb(): D1Database {
         async run() {
           return undefined;
         },
-        async all<T = unknown>() {
+        async all<T>() {
           return { results: rows as T[] };
         },
       };
@@ -61,8 +67,8 @@ describe('GET /api/v1/stats', () => {
     const json = (await res.json()) as Record<string, unknown>;
     expect(json.totalCalls).toBe(1234);
     expect(json.last24h).toBe(42);
-    expect(json.last7d).toBe(42);
-    expect(json.last30d).toBe(42);
+    expect(json.last7d).toBe(300);
+    expect(json.last30d).toBe(300);
     expect(json.topTools).toEqual([
       { name: 'amt_iso_optimize', count: 500 },
       { name: 'concentration_analyze', count: 300 },

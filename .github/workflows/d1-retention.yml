@@ -1,0 +1,83 @@
+# AlphaLatitude Inc. © 2026
+#
+# Monthly retention for the MCP stats D1: deletes mcp_calls and
+# mcp_samples rows older than 180 days.
+#
+# Safe to do because the numbers no longer live in the raw log: migration
+# 0005 moved the lifetime total, per-tool counts, and the per-day history
+# into rollup tables (stats_snapshot / mcp_tool_counts / mcp_daily) that
+# every live surface reads. Deleting old raw rows shrinks what any future
+# unbounded query could scan - defense in depth after the 2026-09-01
+# free-tier rows_read outage - without changing a single displayed number.
+#
+# Requires:
+#   secrets.CF_API_TOKEN     - with D1:Edit (the deploy-proxy token may
+#                              need the scope added, same pattern as the
+#                              web repo's token scope-widening history)
+#   secrets.CF_ACCOUNT_ID
+#   vars.D1_STATS_DB_NAME    - the database NAME from the dashboard's D1
+#                              page (the binding is configured in the
+#                              Pages dashboard, so the repo cannot know it)
+#
+# Dispatch with apply=no first: it reports what would be deleted and
+# proves the credentials, touching nothing.
+
+name: D1 stats retention
+
+on:
+  schedule:
+    - cron: '40 6 1 * *' # monthly, offset from other crons
+  workflow_dispatch:
+    inputs:
+      apply:
+        description: 'yes = delete; anything else = report only'
+        required: true
+        default: 'no'
+
+permissions: {}
+
+env:
+  RETAIN_DAYS: 180
+
+jobs:
+  retention:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Preconditions
+        run: |
+          if [ -z "${{ vars.D1_STATS_DB_NAME }}" ]; then
+            echo "::error::Set the repo variable D1_STATS_DB_NAME to the stats database's name (dashboard -> Workers & Pages -> D1)."
+            exit 1
+          fi
+      - name: Report (and verify rollups exist before ever deleting)
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+          DB: ${{ vars.D1_STATS_DB_NAME }}
+        run: |
+          cutoff=$(( ($(date +%s) - RETAIN_DAYS*86400) * 1000 ))
+          echo "cutoff ts: $cutoff ($(date -u -d @$((cutoff/1000)) +%F 2>/dev/null || date -u -r $((cutoff/1000)) +%F))"
+          npx wrangler@3 d1 execute "$DB" --remote --json --command \
+            "SELECT (SELECT COUNT(*) FROM stats_snapshot) AS snapshot_rows, (SELECT COUNT(*) FROM mcp_daily) AS daily_rows, (SELECT COUNT(*) FROM mcp_calls WHERE ts < $cutoff) AS calls_purgeable, (SELECT COUNT(*) FROM mcp_samples WHERE ts < $cutoff) AS samples_purgeable" \
+            | tee /tmp/report.json
+          # HARD GUARD: never delete raw rows unless the rollups that
+          # preserve their history are present and populated.
+          ok=$(jq -r '.[0].results[0] | (.snapshot_rows >= 1 and .daily_rows >= 1)' /tmp/report.json)
+          if [ "$ok" != "true" ]; then
+            echo "::error::Rollup tables missing/empty (migration 0005 not applied?). Refusing to delete raw history."
+            exit 1
+          fi
+      - name: Apply
+        if: ${{ github.event_name == 'schedule' || github.event.inputs.apply == 'yes' }}
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+          DB: ${{ vars.D1_STATS_DB_NAME }}
+        run: |
+          cutoff=$(( ($(date +%s) - RETAIN_DAYS*86400) * 1000 ))
+          npx wrangler@3 d1 execute "$DB" --remote --json --command \
+            "DELETE FROM mcp_samples WHERE ts < $cutoff" | jq -r '.[0].meta // empty'
+          npx wrangler@3 d1 execute "$DB" --remote --json --command \
+            "DELETE FROM mcp_calls WHERE ts < $cutoff" | jq -r '.[0].meta // empty'
+          echo "retention applied (older than $RETAIN_DAYS days)"
