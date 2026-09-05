@@ -309,6 +309,53 @@ describe('caching', () => {
     expect(res.headers.get('cache-control')).toMatch(/no-store/);
   });
 
+  // A Streamable HTTP client opening its listening stream must get 405, not a
+  // 200 that it will read as a stream which closed - that misread is a
+  // reconnect loop. One Copilot session ran that loop 23,480 times in a day
+  // (2026-09-05), taking the account to 79% of D1's daily write cap, because
+  // every probe also wrote a log row.
+  it('answers an SSE stream request with 405 and Allow, not the descriptor', async () => {
+    const logged: unknown[] = [];
+    const res = await onRequest({
+      request: new Request('https://optionsahoy.com/mcp', {
+        method: 'GET',
+        headers: { accept: 'text/event-stream' },
+      }),
+      env: { MCP_STATS: { prepare: () => { logged.push(1); throw new Error('should not log'); } } },
+    });
+    expect(res.status).toBe(405);
+    expect(res.headers.get('allow')).toBe('POST, OPTIONS');
+    expect(await res.text()).toBe('');
+    // No row per probe: that write amplification is what broke the budget.
+    expect(logged).toHaveLength(0);
+  });
+
+  it('still serves the descriptor to a plain discovery GET', async () => {
+    const res = await onRequest({
+      request: new Request('https://optionsahoy.com/mcp', {
+        method: 'GET',
+        headers: { accept: 'application/json' },
+      }),
+      env: {},
+    });
+    expect(res.status).toBe(200);
+    expect(res.headers.get('content-type')).toMatch(/application\/json/);
+    expect((await res.json()) as Record<string, unknown>).toBeTruthy();
+  });
+
+  // Browsers send Accept: text/html,...,*/* - that is a person looking, not a
+  // stream request, and must keep the readable description.
+  it('treats a browser Accept header as discovery, not a stream request', async () => {
+    const res = await onRequest({
+      request: new Request('https://optionsahoy.com/mcp', {
+        method: 'GET',
+        headers: { accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8' },
+      }),
+      env: {},
+    });
+    expect(res.status).toBe(200);
+  });
+
   it('no-stores the GET descriptor too', async () => {
     const res = await onRequest({
       request: new Request('https://optionsahoy.com/mcp', { method: 'GET' }),

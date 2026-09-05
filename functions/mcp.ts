@@ -342,9 +342,28 @@ export const onRequest: PagesFunction = async (ctx) => {
     return new Response(null, { status: 204, headers: { ...CORS, ...NO_STORE } });
   }
   if (request.method === 'GET') {
-    // Some MCP clients GET /mcp first to discover capabilities. Return
-    // a brief JSON description; this also makes the endpoint readable in
-    // a browser.
+    // Streamable HTTP clients open a GET to listen on an SSE stream. This
+    // server has no server-initiated messages, so per the spec it MUST answer
+    // 405 - and a client that gets 405 stops asking and just POSTs.
+    //
+    // Answering those with the descriptor below (200 + JSON) looked harmless
+    // and was not: a client reads the non-stream as a stream that closed, and
+    // reconnects at once, forever. On 2026-09-05 one Copilot CLI session did
+    // this 23,480 times in a day - 90% of all traffic, 47k rows written, and
+    // the account hit 79% of D1's daily write cap. The loop is also invisible
+    // to the user whose editor is spinning on it.
+    //
+    // Deliberately not logged: this is transport-level chatter with no
+    // analytic value, and a row per probe is exactly the write amplification
+    // that made a client-side retry bug our billing problem.
+    if ((request.headers.get('accept') ?? '').includes('text/event-stream')) {
+      return new Response(null, {
+        status: 405,
+        headers: { allow: 'POST, OPTIONS', ...CORS, ...NO_STORE },
+      });
+    }
+    // Everything else is discovery: a person in a browser, or a client
+    // checking what lives here. Keep the readable description.
     logs.push({ endpoint: 'mcp:GET', isError: false });
     logCalls(ctx, logs);
     return new Response(GET_DESCRIPTOR_JSON, {
