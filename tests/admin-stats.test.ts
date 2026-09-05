@@ -30,43 +30,47 @@ function ctx(env: Env, request: Request): PagesContext {
   return { request, env, waitUntil: () => undefined };
 }
 
-// Patterns must be mutually exclusive — find() picks the first match.
-// `WHERE is_error = 1` is the errors query alone; the endpoints query is
-// identified by its ORDER BY n DESC tail. The error-fields query ALSO carries
-// `WHERE is_error = 1`, so its more-specific matcher must come first.
+// Patterns must be mutually exclusive - find() picks the first match, so
+// narrower matchers come first. Every panel now reads mcp_dim_daily
+// (migration 0006) rather than scanning mcp_calls, so the matchers key off
+// each read's `dim` and GROUP BY. Rows are the raw bucket columns where the
+// read layer maps them (k1..k3), and the aliased shape where it does not.
+//
+// dim_snapshot is deliberately unmatched: ensureDimsFresh then finds no
+// cursor and returns without folding, which is also the not-yet-migrated
+// path these tests want.
 const SAMPLE_ROWS = [
-  // Session funnel rollups: FROM mcp_sessions is the distinctive fragment
-  // (their GROUP BY day tail would otherwise collide with the mcp_calls
-  // daily matcher below, so these must come first).
-  // Initializes grouped by client, windowed. Distinct from the endpoint
-  // matcher below: this one names both mcp:initialize and client_name.
-  { match: /endpoint = 'mcp:initialize' AND ts >= \? GROUP BY client_name/, rows: [
-    { client_name: 'claude-code', n: 40 },   // human -> counts
-    { client_name: 'langchain', n: 10 },     // agent -> counts
-    { client_name: 'mcpregistry', n: 900 },  // crawler -> excluded
-    { client_name: null, n: 55 },            // unnamed script -> excluded
-  ] },
   { match: /FROM mcp_sessions[\s\S]*GROUP BY day/, rows: [{ day: '2026-08-03', n: 5, calls: 13 }] },
   { match: /FROM mcp_sessions[\s\S]*GROUP BY depth/, rows: [{ depth: 1, n: 3 }, { depth: 8, n: 1 }] },
+  // Named clients (handshakes + Poe). Its SQL also names mcp:initialize, so
+  // this narrower "k1 != ''" matcher must precede the init-clients one.
+  { match: /dim = 'client'[\s\S]*k1 != ''/, rows: [{ client_name: 'Claude.ai', n: 5 }] },
+  // Initializes grouped by client (k1), named or not: the funnel classifies
+  // these itself, so the unnamed probe bucket must survive the read layer.
+  { match: /dim = 'client'[\s\S]*k2 = 'mcp:initialize'/, rows: [
+    { k1: 'claude-code', n: 40 },   // human -> counts
+    { k1: 'langchain', n: 10 },     // agent -> counts
+    { k1: 'mcpregistry', n: 900 },  // crawler -> excluded
+    { k1: '', n: 55 },              // unnamed script -> excluded
+  ] },
   // error-fields (topErrorFields): shares 4+1=5, volatility 3; the smoke row is
   // dropped as infra, notARealField is dropped as not-an-input-field.
-  { match: /GROUP BY error_msg, endpoint/, rows: [
-    { error_msg: 'field "shares" required', endpoint: 'mcp:tools/call', client: null, n: 4 },
-    { error_msg: 'field "shares" must be a whole number', endpoint: 'rest:amt', client: 'python-httpx/0.27', n: 1 },
-    { error_msg: 'field "volatility" must be <= 5', endpoint: 'rest:concentration', client: 'Cursor', n: 3 },
-    { error_msg: 'field "shares" required', endpoint: 'mcp:tools/call', client: 'optionsahoy-smoke', n: 100 },
-    { error_msg: 'field "notARealField" required', endpoint: 'rest:x', client: null, n: 7 },
+  { match: /dim = 'errfield'/, rows: [
+    { k1: 'field "shares" required', k2: 'mcp:tools/call', k3: '', n: 4 },
+    { k1: 'field "shares" must be a whole number', k2: 'rest:amt', k3: 'python-httpx/0.27', n: 1 },
+    { k1: 'field "volatility" must be <= 5', k2: 'rest:concentration', k3: 'Cursor', n: 3 },
+    { k1: 'field "shares" required', k2: 'mcp:tools/call', k3: 'optionsahoy-smoke', n: 100 },
+    { k1: 'field "notARealField" required', k2: 'rest:x', k3: '', n: 7 },
   ] },
-  { match: /WHERE is_error = 1/, rows: [{ endpoint: 'mcp:tools/call', tool: 'amt_iso_optimize', error_msg: 'field "shares" required', n: 3 }] },
-  { match: /WHERE tool IS NOT NULL/, rows: [{ tool: 'concentration_analyze', n: 18, errors: 2 }] },
-  { match: /WHERE client_name IS NOT NULL/, rows: [{ client_name: 'Claude.ai', n: 5 }] },
-  { match: /GROUP BY endpoint ORDER BY n DESC/, rows: [{ endpoint: 'mcp:tools/call', n: 42 }, { endpoint: 'mcp:initialize', n: 7 }] },
-  // Must precede the generic /GROUP BY day/ — the two per-surface daily queries
-  // also group by day, but are each uniquely identified by their endpoint filter.
-  { match: /endpoint LIKE 'rest:%'/, rows: [{ day: '2026-05-27', n: 9 }, { day: '2026-05-26', n: 11 }] },
-  { match: /endpoint = 'mcp:tools\/call'/, rows: [{ day: '2026-05-27', n: 3 }, { day: '2026-05-26', n: 4 }] },
-  { match: /GROUP BY day/, rows: [{ day: '2026-05-27', n: 22 }, { day: '2026-05-26', n: 27 }] },
-  { match: /SELECT country/, rows: [{ country: 'US', n: 30 }, { country: null, n: 5 }] },
+  { match: /dim = 'error'/, rows: [{ k1: 'mcp:tools/call', k2: 'amt_iso_optimize', k3: 'field "shares" required', n: 3 }] },
+  // The two per-surface daily reads also carry dim = 'endpoint', so their
+  // endpoint filters must be matched before the generic endpoint reads.
+  { match: /k1 LIKE 'rest:%'/, rows: [{ day: '2026-05-27', n: 9 }, { day: '2026-05-26', n: 11 }] },
+  { match: /k1 = 'mcp:tools\/call'/, rows: [{ day: '2026-05-27', n: 3 }, { day: '2026-05-26', n: 4 }] },
+  { match: /dim = 'endpoint'[\s\S]*GROUP BY k1/, rows: [{ endpoint: 'mcp:tools/call', n: 42 }, { endpoint: 'mcp:initialize', n: 7 }] },
+  { match: /dim = 'endpoint'[\s\S]*GROUP BY day/, rows: [{ day: '2026-05-27', n: 22 }, { day: '2026-05-26', n: 27 }] },
+  { match: /dim = 'tool'/, rows: [{ tool: 'concentration_analyze', n: 18, errors: 2 }] },
+  { match: /dim = 'country'/, rows: [{ k1: 'US', n: 30 }, { k1: '', n: 5 }] },
 ];
 
 describe('admin /mcp-stats', () => {
@@ -153,8 +157,8 @@ describe('admin /mcp-stats', () => {
     const env: Env = {
       ADMIN_TOKEN: 'secret',
       MCP_STATS: mockDb([
-        ...SAMPLE_ROWS.filter((r) => !/WHERE is_error/.test(r.match.source)),
-        { match: /WHERE is_error/, rows: [{ endpoint: 'mcp:tools/call', tool: null, error_msg: '<script>alert(1)</script>', n: 1 }] },
+        ...SAMPLE_ROWS.filter((r) => !/dim = 'error'/.test(r.match.source)),
+        { match: /dim = 'error'/, rows: [{ k1: 'mcp:tools/call', k2: '', k3: '<script>alert(1)</script>', n: 1 }] },
       ]),
     };
     const res = await onRequest(ctx(env, req('?token=secret')));
@@ -164,11 +168,11 @@ describe('admin /mcp-stats', () => {
   });
 
   // Two captured examples with distinct real-vs-bot signals + geo/network.
-  // The GROUP BY as_org matcher must precede SAMPLE_ROWS so the REST-network
-  // rollup query resolves to it rather than the generic rest-daily matcher.
+  // The restnet matcher must precede SAMPLE_ROWS so the REST-network panel
+  // resolves to it rather than to the generic rest-daily matcher.
   const WITH_SAMPLES = [
     {
-      match: /GROUP BY as_org/,
+      match: /dim = 'restnet'/,
       rows: [
         { as_org: 'Amazon.com, Inc.', city: 'Ashburn', region: 'Virginia', country: 'US', n: 7 },
         { as_org: 'Comcast Cable', city: 'San Jose', region: 'California', country: 'US', n: 2 },

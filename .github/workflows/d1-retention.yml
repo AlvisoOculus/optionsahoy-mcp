@@ -80,4 +80,9 @@ jobs:
             "DELETE FROM mcp_samples WHERE ts < $cutoff" | jq -r '.[0].meta // empty'
           npx wrangler@3 d1 execute "$DB" --remote --json --command \
             "DELETE FROM mcp_calls WHERE ts < $cutoff" | jq -r '.[0].meta // empty'
+          # The dimensional buckets outlive the raw rows on purpose, but not
+          # forever: the admin dashboard's widest window is 365 days, so
+          # anything past 400 can go without a visible gap.
+          npx wrangler@3 d1 execute "$DB" --remote --json --command \
+            "DELETE FROM mcp_dim_daily WHERE day < date('now', '-400 days')" | jq -r '.[0].meta // empty'
           echo "retention applied (older than $RETAIN_DAYS days)"
