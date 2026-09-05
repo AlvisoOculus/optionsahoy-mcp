@@ -21,6 +21,7 @@ function memDb(state: {
   daily?: Map<string, number>;
   failBatch?: boolean;
   forceLoseClaim?: boolean;
+  onAggRead?: () => void;
 }) {
   state.tools ??= new Map();
   state.hourly ??= new Map();
@@ -85,6 +86,9 @@ function memDb(state: {
     if (/COUNT\(\*\) AS n, MAX\(id\)/.test(sql)) {
       const after = binds[0] as number;
       const rows = state.calls.filter((c) => c.id > after);
+      // Simulates a call landing after the window was claimed but before the
+      // dimension queries run.
+      state.onAggRead?.();
       return [{
         n: rows.length,
         max_id: rows.length ? Math.max(...rows.map((r) => r.id)) : null,
@@ -93,14 +97,16 @@ function memDb(state: {
     }
     if (/AND tool IS NOT NULL GROUP BY tool/.test(sql)) {
       const after = binds[0] as number;
+      const upto = (binds[1] as number | undefined) ?? Number.POSITIVE_INFINITY;
       const m = new Map<string, number>();
-      for (const c of state.calls) if (c.id > after && c.tool) m.set(c.tool, (m.get(c.tool) ?? 0) + 1);
+      for (const c of state.calls) if (c.id > after && c.id <= upto && c.tool) m.set(c.tool, (m.get(c.tool) ?? 0) + 1);
       return [...m].map(([tool, n]) => ({ tool, n }));
     }
     if (/GROUP BY hour_ts/.test(sql)) {
       const after = binds[0] as number;
+      const upto = (binds[1] as number | undefined) ?? Number.POSITIVE_INFINITY;
       const m = new Map<number, number>();
-      for (const c of state.calls) if (c.id > after) {
+      for (const c of state.calls) if (c.id > after && c.id <= upto) {
         const h = Math.floor(c.ts / 3_600_000) * 3_600_000;
         m.set(h, (m.get(h) ?? 0) + 1);
       }
@@ -108,8 +114,9 @@ function memDb(state: {
     }
     if (/GROUP BY day/.test(sql)) {
       const after = binds[0] as number;
+      const upto = (binds[1] as number | undefined) ?? Number.POSITIVE_INFINITY;
       const m = new Map<string, number>();
-      for (const c of state.calls) if (c.id > after) {
+      for (const c of state.calls) if (c.id > after && c.id <= upto) {
         const d = new Date(c.ts).toISOString().slice(0, 10);
         m.set(d, (m.get(d) ?? 0) + 1);
       }
@@ -170,6 +177,30 @@ describe('ensureFresh', () => {
     expect(s3.total).toBe(3);
     expect(state.tools!.get('a')).toBe(2);
     expect(state.tools!.get('b')).toBe(1);
+  });
+
+  it('a call logged mid-fold is counted once, not twice (needs the id ceiling)', async () => {
+    // Reproduces the drift the upper bound closes: without `AND id <= ?`, the
+    // dimension queries pick up a row that arrives after the window was
+    // claimed, while last_id stops short of it - so the next refresh folds
+    // that same row into the per-tool and per-day counters a second time.
+    const state: Parameters<typeof memDb>[0] = {
+      calls: [{ id: 1, ts: T0, tool: 'a' }],
+      snap: { total: 0, last_id: 0, last_ts: null, computed_at: 0 },
+    };
+    let injected = false;
+    state.onAggRead = () => {
+      if (injected) return;
+      injected = true;
+      state.calls.push({ id: 2, ts: T0 + 1_000, tool: 'a' });
+    };
+    const db = memDb(state);
+    await ensureFresh(db, T0);
+    await ensureFresh(db, T0 + 2 * REFRESH_MS);
+    // Two calls exist; 'a' must have been counted exactly twice.
+    expect(state.calls).toHaveLength(2);
+    expect(state.tools!.get('a')).toBe(2);
+    expect(state.snap!.total).toBe(2);
   });
 
   it('a lost CAS serves the stale snapshot and writes nothing', async () => {

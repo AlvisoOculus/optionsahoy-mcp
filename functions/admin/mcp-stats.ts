@@ -71,23 +71,34 @@ export function networkKind(asOrg: string | null | undefined): NetworkKind {
   return 'unknown';
 }
 
+import {
+  ensureDimsFresh,
+  sinceDay,
+  readEndpoints,
+  readDailyTotals,
+  readDailyRest,
+  readDailyMcp,
+  readTools,
+  readErrors,
+  readEndpointErrors,
+  readErrFields,
+  readClients,
+  readInitClients,
+  readCountries,
+  readRestNet,
+} from '../_lib/adminRollup';
+
 const DEFAULT_DAYS = 30;
 const MAX_DAYS = 365;
 
 // Patterns must match the regexes in tests/admin-stats.test.ts mockDb —
 // keep the WHERE / GROUP BY clauses distinct enough that the test mock
 // can identify each query unambiguously.
-const SQL_ENDPOINTS = 'SELECT endpoint, COUNT(*) AS n, SUM(is_error) AS errors FROM mcp_calls WHERE ts >= ? GROUP BY endpoint ORDER BY n DESC';
-const SQL_DAILY = "SELECT date(ts/1000, 'unixepoch') AS day, COUNT(*) AS n FROM mcp_calls WHERE ts >= ? GROUP BY day ORDER BY day DESC";
 // Per-day legitimate calculator calls, split by surface. Both filter
 // is_error = 0 so probe/garbage traffic (calls that fail input validation
 // before any calculator runs) is excluded — these count only calls that
 // carried valid input and actually executed. REST and MCP tool calls are
 // charted separately on the ops dashboard.
-const SQL_DAILY_REST = "SELECT date(ts/1000, 'unixepoch') AS day, COUNT(*) AS n FROM mcp_calls WHERE endpoint LIKE 'rest:%' AND is_error = 0 AND ts >= ? GROUP BY day ORDER BY day DESC";
-const SQL_DAILY_MCP = "SELECT date(ts/1000, 'unixepoch') AS day, COUNT(*) AS n FROM mcp_calls WHERE endpoint = 'mcp:tools/call' AND is_error = 0 AND ts >= ? GROUP BY day ORDER BY day DESC";
-const SQL_TOOLS = 'SELECT tool, COUNT(*) AS n, SUM(is_error) AS errors FROM mcp_calls WHERE tool IS NOT NULL AND ts >= ? GROUP BY tool ORDER BY n DESC';
-const SQL_ERRORS = 'SELECT endpoint, tool, error_msg, COUNT(*) AS n FROM mcp_calls WHERE is_error = 1 AND ts >= ? GROUP BY endpoint, tool, error_msg ORDER BY n DESC LIMIT 25';
 // Input-friction signal: which required fields callers most often omit or botch,
 // over the agent-facing calculator-call surfaces (mcp:tools/call + REST). Poe is
 // excluded by design: its bot pre-fills inputs, so a Poe error is an extraction
@@ -99,15 +110,11 @@ const SQL_ERRORS = 'SELECT endpoint, tool, error_msg, COUNT(*) AS n FROM mcp_cal
 // (harmless today: it sends valid inputs, so it generates no field errors).
 // GROUP BY error_msg, endpoint, client keeps this shape distinct from SQL_ERRORS
 // for the test mock's matcher.
-const SQL_ERR_FIELDS = "SELECT error_msg, endpoint, COALESCE(client_name, ua) AS client, COUNT(*) AS n FROM mcp_calls WHERE is_error = 1 AND (endpoint = 'mcp:tools/call' OR endpoint LIKE 'rest:%') AND ts >= ? GROUP BY error_msg, endpoint, client";
 // Clients come from MCP `initialize` handshakes, plus Poe requests (which have
 // no handshake: each poe:* row carries client_name 'poe').
-const SQL_CLIENTS = "SELECT client_name, COUNT(*) AS n FROM mcp_calls WHERE client_name IS NOT NULL AND (endpoint = 'mcp:initialize' OR endpoint LIKE 'poe:%') AND ts >= ? GROUP BY client_name ORDER BY n DESC";
 // Initializes grouped by the client's self-reported name, so the funnel can
 // separate real connects from the registry-probe swarm (~80% of handshakes)
 // using this repo's own classifier rather than a re-invented regex elsewhere.
-const SQL_INIT_CLIENTS = "SELECT client_name, COUNT(*) AS n FROM mcp_calls WHERE endpoint = 'mcp:initialize' AND ts >= ? GROUP BY client_name";
-const SQL_COUNTRIES = 'SELECT country, COUNT(*) AS n FROM mcp_calls WHERE ts >= ? GROUP BY country ORDER BY n DESC LIMIT 20';
 // REST/direct callers by originating network + coarse location. This is where
 // the datacenter-vs-residential bot signal is meaningful (MCP is excluded: its
 // cloud origin is expected and says nothing about bot-ness).
@@ -125,7 +132,6 @@ export const E2E_SESSION_PREFIX = 'e2e-';
 const SMOKE_SESSION_FILTER = `session_id NOT LIKE '${E2E_SESSION_PREFIX}%'`;
 const SQL_SESSIONS_DAILY = `SELECT date(first_seen) AS day, COUNT(*) AS n, SUM(tool_call_count) AS calls FROM mcp_sessions WHERE ${SMOKE_SESSION_FILTER} AND first_seen >= ? GROUP BY day ORDER BY day DESC`;
 const SQL_SESSION_DEPTH = `SELECT tool_call_count AS depth, COUNT(*) AS n FROM mcp_sessions WHERE ${SMOKE_SESSION_FILTER} AND first_seen >= ? GROUP BY depth ORDER BY depth`;
-const SQL_REST_NET = "SELECT COALESCE(as_org, '(unknown)') AS as_org, COALESCE(city, '') AS city, COALESCE(region, '') AS region, COALESCE(country, '') AS country, COUNT(*) AS n FROM mcp_calls WHERE endpoint LIKE 'rest:%' AND ts >= ? GROUP BY as_org, city, region, country ORDER BY n DESC LIMIT 40";
 
 // `since` is ms epoch for mcp_calls (integer ts column) and an ISO string
 // for mcp_sessions (text first_seen column).
@@ -170,22 +176,26 @@ export const onRequest: PagesFunction = async (ctx) => {
   const days = Number.isFinite(daysParam) && daysParam > 0 && daysParam <= MAX_DAYS ? daysParam : DEFAULT_DAYS;
   const sinceMs = Date.now() - days * 86_400_000;
 
+  // Fold new calls into the daily buckets (own cursor, elected by CAS), then
+  // answer every panel from them. `since` snaps to a UTC day: buckets are
+  // day-grained, and these charts always were.
+  await ensureDimsFresh(db, Date.now());
+  const day = sinceDay(sinceMs);
+
   const [endpoints, daily, dailyRest, dailyMcp, tools, errors, clients, countries, restNet, errFieldRaw, sessionsDaily, sessionDepth, initClients] = await Promise.all([
-    q<EndpointRow>(db, SQL_ENDPOINTS, sinceMs),
-    q<DayRow>(db, SQL_DAILY, sinceMs),
-    q<DayRow>(db, SQL_DAILY_REST, sinceMs),
-    q<DayRow>(db, SQL_DAILY_MCP, sinceMs),
-    q<ToolRow>(db, SQL_TOOLS, sinceMs),
-    q<ErrorRow>(db, SQL_ERRORS, sinceMs),
-    q<ClientRow>(db, SQL_CLIENTS, sinceMs),
-    q<CountryRow>(db, SQL_COUNTRIES, sinceMs),
-    // Resilient: pre-0004 databases lack as_org/region/city, so this throws
-    // until the migration is applied. Degrade to an empty rollup, not a 500.
-    q<RestNetRow>(db, SQL_REST_NET, sinceMs).catch(emptyIfUnmigrated),
-    q<ErrFieldRow>(db, SQL_ERR_FIELDS, sinceMs),
+    readEndpoints(db, day),
+    readDailyTotals(db, day),
+    readDailyRest(db, day),
+    readDailyMcp(db, day),
+    readTools(db, day),
+    readErrors(db, day),
+    readClients(db, day),
+    readCountries(db, day),
+    readRestNet(db, day),
+    readErrFields(db, day),
     q<SessionDayRow>(db, SQL_SESSIONS_DAILY, new Date(sinceMs).toISOString()).catch(emptyIfUnmigrated),
     q<SessionDepthRow>(db, SQL_SESSION_DEPTH, new Date(sinceMs).toISOString()).catch(emptyIfUnmigrated),
-    q<InitClientRow>(db, SQL_INIT_CLIENTS, sinceMs),
+    readInitClients(db, day),
   ]);
 
   // A real connect = a person in an AI client, or a programmatic agent
@@ -216,11 +226,7 @@ export const onRequest: PagesFunction = async (ctx) => {
   let endpointErrors: { error_msg: string; n: number }[] | undefined;
   const errEndpoint = url.searchParams.get('errEndpoint');
   if (errEndpoint) {
-    const r = await db
-      .prepare('SELECT error_msg, COUNT(*) AS n FROM mcp_calls WHERE endpoint = ? AND is_error = 1 AND ts >= ? GROUP BY error_msg ORDER BY n DESC LIMIT 25')
-      .bind(errEndpoint, sinceMs)
-      .all<{ error_msg: string; n: number }>();
-    endpointErrors = r.results;
+    endpointErrors = await readEndpointErrors(db, errEndpoint, day);
   }
 
   // Recent examples (real query+answer, 7-day rolling capture). Resilient: if

@@ -61,12 +61,17 @@ const SQL_CLAIM =
 // exactly the new rows, never the table.
 const SQL_NEW_AGG =
   'SELECT COUNT(*) AS n, MAX(id) AS max_id, MAX(ts) AS max_ts FROM mcp_calls WHERE id > ?';
+// Bounded on BOTH sides. The upper bound is the max_id the aggregate above
+// just claimed: without it a call logged between the two reads would be
+// counted in these dimensions but not in last_id, and would then fold in a
+// second time on the next refresh - totals right, per-tool and per-day
+// counters drifting upward forever.
 const SQL_NEW_TOOLS =
-  'SELECT tool, COUNT(*) AS n FROM mcp_calls WHERE id > ? AND tool IS NOT NULL GROUP BY tool';
+  'SELECT tool, COUNT(*) AS n FROM mcp_calls WHERE id > ? AND id <= ? AND tool IS NOT NULL GROUP BY tool';
 const SQL_NEW_HOURLY =
-  'SELECT (ts / 3600000) * 3600000 AS hour_ts, COUNT(*) AS n FROM mcp_calls WHERE id > ? GROUP BY hour_ts';
+  'SELECT (ts / 3600000) * 3600000 AS hour_ts, COUNT(*) AS n FROM mcp_calls WHERE id > ? AND id <= ? GROUP BY hour_ts';
 const SQL_NEW_DAILY =
-  "SELECT date(ts / 1000, 'unixepoch') AS day, COUNT(*) AS n FROM mcp_calls WHERE id > ? GROUP BY day";
+  "SELECT date(ts / 1000, 'unixepoch') AS day, COUNT(*) AS n FROM mcp_calls WHERE id > ? AND id <= ? GROUP BY day";
 const SQL_COMMIT =
   'UPDATE stats_snapshot SET total = total + ?, last_id = ?, last_ts = COALESCE(?, last_ts) WHERE id = 1';
 const SQL_UPSERT_TOOL =
@@ -99,16 +104,18 @@ export async function ensureFresh(db: D1Database, now: number): Promise<Snapshot
   const won = (claim?.meta?.changes ?? 1) === 1; // mocks without meta: proceed
   if (!won) return snap;
 
-  const [agg, tools, hours, days] = await Promise.all([
-    db.prepare(SQL_NEW_AGG).bind(snap.last_id).all<NewAgg>(),
-    db.prepare(SQL_NEW_TOOLS).bind(snap.last_id).all<ToolRow>(),
-    db.prepare(SQL_NEW_HOURLY).bind(snap.last_id).all<HourRow>(),
-    db.prepare(SQL_NEW_DAILY).bind(snap.last_id).all<DayRow>(),
-  ]);
+  // Claim the window first, then aggregate strictly inside it. Serialized on
+  // purpose: the dimension queries need the ceiling this one returns.
+  const agg = await db.prepare(SQL_NEW_AGG).bind(snap.last_id).all<NewAgg>();
   const a = agg.results[0];
-  if (!a || a.n === 0) {
+  if (!a || a.n === 0 || a.max_id == null) {
     return { ...snap, computed_at: now };
   }
+  const [tools, hours, days] = await Promise.all([
+    db.prepare(SQL_NEW_TOOLS).bind(snap.last_id, a.max_id).all<ToolRow>(),
+    db.prepare(SQL_NEW_HOURLY).bind(snap.last_id, a.max_id).all<HourRow>(),
+    db.prepare(SQL_NEW_DAILY).bind(snap.last_id, a.max_id).all<DayRow>(),
+  ]);
 
   const stmts = [
     db.prepare(SQL_COMMIT).bind(a.n, a.max_id, a.max_ts),
