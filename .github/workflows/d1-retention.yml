@@ -68,6 +68,33 @@ jobs:
             echo "::error::Rollup tables missing/empty (migration 0005 not applied?). Refusing to delete raw history."
             exit 1
           fi
+      # Derived counters must equal the raw log before we delete any of that
+      # log. If they have drifted, deleting the source destroys the only way
+      # to repair them - so this FAILS the job and retention does not run.
+      # Days are compared up to yesterday: today's tail may not be folded yet
+      # (the dimension rollups fold on admin page load, by design).
+      - name: Rollup parity guard
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CF_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CF_ACCOUNT_ID }}
+          DB: ${{ vars.D1_STATS_DB_NAME }}
+        run: |
+          from=$(date -u -d '-30 days' +%F)
+          to=$(date -u -d '-1 day' +%F)
+          npx wrangler@3 d1 execute "$DB" --remote --json --command \
+            "SELECT COUNT(*) AS mismatched_days, COALESCE(MAX(ABS(diff)), 0) AS worst FROM (
+               SELECT d.n - COALESCE(r.n, 0) AS diff FROM mcp_daily d
+                 LEFT JOIN (SELECT date(ts/1000,'unixepoch') AS day, COUNT(*) AS n FROM mcp_calls GROUP BY 1) r
+                   ON r.day = d.day
+                WHERE d.day >= '$from' AND d.day <= '$to' AND d.n != COALESCE(r.n, 0))" \
+            | tee /tmp/parity.json
+          bad=$(jq -r '.[0].results[0].mismatched_days' /tmp/parity.json)
+          if [ "$bad" != "0" ]; then
+            echo "::error::Rollups disagree with the raw log on $bad day(s) (worst $(jq -r '.[0].results[0].worst' /tmp/parity.json) calls). Refusing to delete raw history - run db/maintenance/repair-rollups.sql, then re-dispatch."
+            exit 1
+          fi
+          echo "rollup parity OK across $from..$to"
+
       - name: Apply
         if: ${{ github.event_name == 'schedule' || github.event.inputs.apply == 'yes' }}
         env:
