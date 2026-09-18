@@ -333,6 +333,7 @@ npm run typecheck
 ## Registry listings
 
 - [Official MCP Registry](https://registry.modelcontextprotocol.io/v0/servers?search=optionsahoy) — `io.github.AlvisoOculus/optionsahoy-mcp`, status active
+- [ChatGPT plugin directory](https://chatgpt.com/plugins/plugin_asdk_app_6a2a589865a88191933e9bad10f5bc67) — one-click add for any ChatGPT user, no developer mode (published 2026-07-28)
 - [Smithery](https://smithery.ai/servers/alphalatitude/optionsahoy) — `alphalatitude/optionsahoy` (plus the [equity-plan skill](https://smithery.ai/skills/alphalatitude/equity-plan))
 - [Gemini CLI extensions gallery](https://geminicli.com/extensions/) — `@AlvisoOculus/optionsahoy-mcp`
 - [add-mcp curated registry](https://github.com/neon-solutions/add-mcp)
