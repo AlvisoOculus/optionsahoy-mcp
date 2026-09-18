@@ -22,24 +22,73 @@
 # package you intend to ship first — npm rejects republishing an existing
 # version, so an unchanged package's job goes red (harmless, but bump to ship).
 # `prepublishOnly` runs a build before each publish.
+#
+# Or dispatch this workflow with `tag: v1.9.0` and it cuts that release
+# itself, then does everything a `release: published` run would. See the
+# create-release job for why that entry point has to exist.
 
 name: Publish to npm
 
 on:
   release:
     types: [published]
-  workflow_dispatch: {} # allow a manual run from the Actions tab
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Cut this GitHub release first, then publish it (e.g. v1.10.2). Blank = only republish the current commit to npm.'
+        required: false
+        default: ''
 
 permissions:
   contents: read
   id-token: write # required for npm provenance (OIDC)
 
 jobs:
+  # The GitHub release is the trigger for everything else here: the .mcpb
+  # asset attaches to it, and the registry republish that keeps
+  # optionsahoy-mcp current in every MCP index is gated on it. The monthly
+  # release routine can do every step except this one — its sandbox has no
+  # `gh` CLI, api.github.com is blocked by the egress proxy, and the GitHub
+  # MCP server exposes no create-release tool — so on 2026-09-01 it merged
+  # the 1.10.2 bump, asked for the release by push notification, and the
+  # registry sat on 1.10.1 until someone read the notification. Dispatching a
+  # workflow it CAN do, so the step it cannot reach lives here.
+  #
+  # Everything runs in this one workflow run on purpose: a release created
+  # with GITHUB_TOKEN does not fire `release: published`, so handing off to a
+  # second workflow would hand off to something that never wakes up.
+  create-release:
+    if: inputs.tag != ''
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: '20'
+      - name: Cut the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          version="v$(node -p "require('./package.json').version")"
+          if [ "$TAG" != "$version" ]; then
+            echo "::error::$TAG does not match package.json ($version) — bump the version first, or dispatch the matching tag."
+            exit 1
+          fi
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "$TAG already exists; nothing to cut."
+            exit 0
+          fi
+          gh release create "$TAG" --target "$GITHUB_SHA" --title "$TAG" --generate-notes
+
   publish:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: '20'
           registry-url: 'https://registry.npmjs.org'
@@ -76,7 +125,7 @@ jobs:
         working-directory: integrations/js/optionsahoy-ai-sdk
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: '20'
           registry-url: 'https://registry.npmjs.org'
@@ -107,18 +156,23 @@ jobs:
   # attach it to the release so docs can link the stable URL
   # releases/latest/download/optionsahoy.mcpb.
   mcpb:
-    if: github.event_name == 'release'
+    needs: create-release
+    # create-release is SKIPPED on the `release: published` path, and a
+    # skipped dependency would skip this job too under the default success()
+    # gate. !failure() keeps it running there while still refusing to attach
+    # an asset to a release that failed to cut.
+    if: ${{ !cancelled() && !failure() && (github.event_name == 'release' || inputs.tag != '') }}
     runs-on: ubuntu-latest
     permissions:
       contents: write # upload release asset
     steps:
       - uses: actions/checkout@v7
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@v7
         with:
           node-version: '20'
       - run: npm install --no-audit
       - run: npm run build:mcpb
-      - run: gh release upload "${{ github.event.release.tag_name }}" optionsahoy.mcpb --clobber
+      - run: gh release upload "${{ github.event.release.tag_name || inputs.tag }}" optionsahoy.mcpb --clobber
         env:
           GH_TOKEN: ${{ github.token }}
 
@@ -127,7 +181,9 @@ jobs:
   # the released version. Auth is GitHub OIDC (no secrets) - the registry
   # grants io.github.<owner>/* to workflows running in that owner's repos.
   registry:
-    if: github.event_name == 'release'
+    needs: create-release
+    # Same gate as mcpb: skipped-not-failed on the release path.
+    if: ${{ !cancelled() && !failure() && (github.event_name == 'release' || inputs.tag != '') }}
     runs-on: ubuntu-latest
     permissions:
       id-token: write
