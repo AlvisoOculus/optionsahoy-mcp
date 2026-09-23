@@ -8,6 +8,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { readFileSync, existsSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
 import pkg from '../package.json';
 
 const FILES = [
@@ -134,3 +135,25 @@ for (const file of FILES) {
     }
   });
 }
+
+// The generator itself, run for real. llms-full.txt sat at v1.10.1 while the
+// live descriptors moved on, because scripts/gen-llms-full.ts had not compiled
+// since #210: a `\\'` inside a single-quoted string ended the string early and
+// esbuild rejected the file. Nothing noticed for weeks — the only guard was the
+// stamp check above, which needs the sibling optionsahoy_web checkout and is
+// therefore skipped in CI.
+//
+// This test needs no sibling and no network: it runs the generator and reads
+// what comes out. A generator that cannot run is the failure mode to catch.
+describe('gen-llms-full.ts is runnable', () => {
+  it('executes and stamps the current version', () => {
+    const out = execFileSync('npx', ['tsx', 'scripts/gen-llms-full.ts'], {
+      cwd: new URL('..', import.meta.url).pathname,
+      encoding: 'utf8',
+      timeout: 60_000,
+      maxBuffer: 32 * 1024 * 1024,
+    });
+    expect(out.length).toBeGreaterThan(50_000);
+    expect(out).toContain(`optionsahoy-mcp v${pkg.version}`);
+  });
+});

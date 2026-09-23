@@ -366,6 +366,23 @@ describe('caching', () => {
 });
 
 describe('POST /mcp — resources', () => {
+  // 89 of these arrived in the 14 days to 2026-09-22 and every one got
+  // -32601. We advertise the `resources` capability, so the method is fair
+  // game; we simply have no URI templates, and the empty list says exactly
+  // that. A scanner reads -32601 on an advertised capability as a miss.
+  it('resources/templates/list answers with an empty list, not Method not found', async () => {
+    const { json } = await call<{
+      result?: { resourceTemplates: unknown[] };
+      error?: { code: number; message: string };
+    }>({
+      jsonrpc: '2.0',
+      id: 42,
+      method: 'resources/templates/list',
+    });
+    expect(json.error, `still erroring: ${JSON.stringify(json.error)}`).toBeUndefined();
+    expect(json.result?.resourceTemplates).toEqual([]);
+  });
+
   it('resources/list returns 8 article resources with markdown mime type', async () => {
     type ResourceListItem = { uri: string; name: string; description: string; mimeType: string };
     const { json } = await call<{ result: { resources: ResourceListItem[] } }>({
