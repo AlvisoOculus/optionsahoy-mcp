@@ -141,8 +141,15 @@ export async function runCalc<I, O>(
     input = parseInput(raw);
   } catch (err) {
     const errorMsg = err instanceof Error ? err.message : String(err);
+    // Report every field the caller left out, not just the first one. See
+    // allMissingFields: one round trip instead of one per field.
+    const all = allMissingFields(parseInput as (raw: unknown) => unknown, raw, errorMsg);
     logCall(context, { endpoint, isError: true, errorMsg: `parse: ${errorMsg}` });
-    return jsonResponse(400, { error: `Invalid input: ${errorMsg}`, code: 'invalid_input' });
+    return jsonResponse(400, {
+      error: `Invalid input: ${all.join(' | ')}`,
+      code: 'invalid_input',
+      ...(all.length > 1 ? { missing_or_invalid: all } : {}),
+    });
   }
   try {
     const output = compute(input);
@@ -193,12 +200,78 @@ export type Bounds = { min?: number; max?: number };
 const NUM_STRING_RE = /^\s*\$?-?([0-9]+|[0-9]{1,3}(,[0-9]{3})+)(\.[0-9]+)?\s*$/;
 const NUM_STRIP_RE = /[$,\s]/g;
 
+// Collecting mode for the field parsers.
+//
+// The parsers are fail-fast: the first bad field throws and the caller learns
+// about exactly that one. For an agent filling a form it has never seen, that
+// is one HTTP round trip per missing field. Building one valid
+// concentration_analyze call by hand on 2026-09-22 took five
+// (acquisitionDate -> sector -> stateCode -> ordinaryIncome -> totalAssets),
+// and the same shape shows up in production: tools/call ran a 33% error rate
+// over 14 days, with the top error fields being omissions — volatility 96,
+// expectedGrowth 49, expectedPositionReturn 29, targetDate 28.
+//
+// So after a parse fails, we run it a SECOND time with `collected` armed. In
+// that pass the p.* helpers record their complaint and return a benign
+// placeholder instead of throwing, so the parser keeps walking and every other
+// missing field surfaces too. The happy path never enters this mode: one
+// failed parse is the entry condition, and a successful parse is untouched.
+let collected: string[] | null = null;
+
+// Placeholders are chosen to be VALID for the field's own type so they do not
+// trip a downstream check and invent a complaint about a field the caller got
+// right. `date` returns today because several parsers bound a date to
+// "today or later".
+function fail<T>(message: string, placeholder: T): T {
+  if (collected === null) throw new Error(message);
+  collected.push(message);
+  return placeholder;
+}
+
+const FIELD_NAME_RE = /^field "([^"]+)"/;
+
+// Re-run `parse` collecting every field complaint, and return the message list
+// to report: the original fail-fast message first, then one line per field the
+// caller did not supply at all.
+//
+// The nullish filter is the conservative half. A placeholder can in principle
+// provoke a complaint about a field that WAS supplied (a cross-field rule
+// comparing two dates, say), and blaming a field the caller got right is worse
+// than saying less — so only absent fields are added.
+//
+// Honest caveat: no parser today actually triggers that. Removing this line
+// leaves every test passing, so treat it as insurance against the cross-field
+// rules parsers accumulate, not as a guard something currently needs. If it
+// ever costs more than it earns, it can go.
+export function allMissingFields(parse: (raw: unknown) => unknown, raw: unknown, firstMessage: string): string[] {
+  const obj = typeof raw === 'object' && raw !== null ? (raw as Obj) : {};
+  const messages = [firstMessage];
+  const outer = collected;
+  collected = [];
+  try {
+    parse(raw);
+  } catch {
+    // A non-field check (or a placeholder the parser refuses outright) can
+    // still throw. Whatever it collected before that point still counts.
+  }
+  const found = collected ?? [];
+  collected = outer;
+  for (const m of found) {
+    const name = m.match(FIELD_NAME_RE)?.[1];
+    if (!name) continue;
+    if (obj[name] != null) continue;
+    if (messages.some((existing) => existing.startsWith(`field "${name}"`))) continue;
+    messages.push(m);
+  }
+  return messages;
+}
+
 function checkBounds(k: string, v: number, b?: Bounds): number {
   if (b?.min !== undefined && v < b.min) {
-    throw new Error(`field "${k}" must be >= ${b.min}`);
+    return fail(`field "${k}" must be >= ${b.min}`, b.min);
   }
   if (b?.max !== undefined && v > b.max) {
-    throw new Error(`field "${k}" must be <= ${b.max}`);
+    return fail(`field "${k}" must be <= ${b.max}`, b.max);
   }
   return v;
 }
@@ -215,23 +288,23 @@ export const p = {
       v = Number(v.replace(NUM_STRIP_RE, ''));
     }
     if (typeof v !== 'number' || !Number.isFinite(v)) {
-      throw new Error(`field "${k}" must be a finite number`);
+      return checkBounds(k, fail(`field "${k}" must be a finite number`, b?.min ?? 0), b);
     }
     return checkBounds(k, v, b);
   },
   int(o: Obj, k: string, b?: Bounds): number {
     const v = p.num(o, k, b);
-    if (!Number.isInteger(v)) throw new Error(`field "${k}" must be a whole number`);
+    if (!Number.isInteger(v)) return fail(`field "${k}" must be a whole number`, Math.round(v));
     return v;
   },
   str(o: Obj, k: string): string {
     const v = o[k];
-    if (typeof v !== 'string') throw new Error(`field "${k}" must be a string`);
+    if (typeof v !== 'string') return fail(`field "${k}" must be a string`, '');
     return v;
   },
   bool(o: Obj, k: string): boolean {
     const v = o[k];
-    if (typeof v !== 'boolean') throw new Error(`field "${k}" must be a boolean`);
+    if (typeof v !== 'boolean') return fail(`field "${k}" must be a boolean`, false);
     return v;
   },
   date(o: Obj, k: string): Date {
@@ -239,9 +312,9 @@ export const p = {
     // Name the expected format in both error paths: a model that gets the
     // bare "not a valid date" tends to retry with another bad guess, while
     // an example self-corrects in one round trip.
-    if (typeof v !== 'string') throw new Error(`field "${k}" must be an ISO date string like "2028-06-30"`);
+    if (typeof v !== 'string') return fail(`field "${k}" must be an ISO date string like "2028-06-30"`, new Date());
     const d = new Date(v);
-    if (Number.isNaN(d.getTime())) throw new Error(`field "${k}" is not a valid date; use ISO format like "2028-06-30"`);
+    if (Number.isNaN(d.getTime())) return fail(`field "${k}" is not a valid date; use ISO format like "2028-06-30"`, new Date());
     return d;
   },
   optDate(o: Obj, k: string): Date | null {
@@ -250,7 +323,7 @@ export const p = {
   enum<T extends string>(o: Obj, k: string, allowed: readonly T[]): T {
     const v = o[k];
     if (typeof v !== 'string' || !(allowed as readonly string[]).includes(v)) {
-      throw new Error(`field "${k}" must be one of: ${allowed.join(', ')}`);
+      return fail(`field "${k}" must be one of: ${allowed.join(', ')}`, allowed[0]);
     }
     return v as T;
   },
