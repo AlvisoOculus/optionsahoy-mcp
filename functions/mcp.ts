@@ -12,7 +12,7 @@
 // Add the server to an MCP client by configuring a remote-HTTP MCP
 // connection to https://optionsahoy.com/mcp. No auth.
 
-import { type PagesFunction } from './_lib/api';
+import { allMissingFields, type PagesFunction } from './_lib/api';
 import { logCalls, logSamples, type CallFields, type SampleFields, type D1Database } from './_lib/stats';
 import { TOOLS } from './_lib/mcp-tools';
 import { RESOURCES } from './_lib/mcp-resources';
@@ -264,9 +264,17 @@ async function handle(
       } catch (e) {
         const message = e instanceof Error ? e.message : String(e);
         logs.push({ endpoint, tool: name, isError: true, errorMsg: message });
+        // Name every field the call is missing, not just the first one. An
+        // agent filling an unfamiliar schema otherwise pays one round trip per
+        // omission; five, for the concentration_analyze call I built by hand on
+        // 2026-09-22. `parse` is exposed per tool precisely so this second,
+        // collecting pass can run without also re-running the calculation.
+        const all = tool.parse
+          ? allMissingFields(tool.parse, args ?? {}, message)
+          : [message];
         // Per MCP spec, tool-execution errors come back as isError content,
         // not as a JSON-RPC error.
-        return ok(id, { content: [{ type: 'text', text: `Error: ${message}` }], isError: true });
+        return ok(id, { content: [{ type: 'text', text: `Error: ${all.join(' | ')}` }], isError: true });
       }
     }
 

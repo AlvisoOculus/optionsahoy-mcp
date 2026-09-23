@@ -101,6 +101,11 @@ export type McpTool = {
   outputSchema: Record<string, unknown>;
   annotations: McpToolAnnotations;
   handler: (args: unknown) => unknown;
+  // The input parser on its own, so a failed call can be re-parsed in
+  // collecting mode and report EVERY missing field at once rather than one per
+  // round trip (see allMissingFields in _lib/api.ts). Same function the
+  // handler uses; separated only so the second pass skips the calculation.
+  parse: (args: unknown) => unknown;
 };
 
 // All tools are pure deterministic calculators with no side effects.
@@ -1200,6 +1205,7 @@ export const TOOLS: McpTool[] = [
     },
     outputSchema: AMT_ISO_OUTPUT_SCHEMA,
     handler: (args) => computeAmtIso(parseAmtIsoInput(args)),
+    parse: parseAmtIsoInput,
   },
   {
     name: 'nso_calculate',
@@ -1285,6 +1291,7 @@ export const TOOLS: McpTool[] = [
     },
     outputSchema: NSO_OUTPUT_SCHEMA,
     handler: (args) => computeNsoResult(parseNsoInput(args)),
+    parse: parseNsoInput,
   },
   {
     name: 'rsu_sell_vs_hold',
@@ -1359,6 +1366,7 @@ export const TOOLS: McpTool[] = [
     },
     outputSchema: RSU_OUTPUT_SCHEMA,
     handler: (args) => computeRsuResult(parseRsuInput(args)),
+    parse: parseRsuInput,
   },
   {
     name: 'concentration_analyze',
@@ -1472,6 +1480,7 @@ export const TOOLS: McpTool[] = [
     },
     outputSchema: CONCENTRATION_OUTPUT_SCHEMA,
     handler: (args) => computeConcentration(parseConcentrationInput(args)),
+    parse: parseConcentrationInput,
   },
   {
     name: 'protective_put_price',
@@ -1537,6 +1546,7 @@ export const TOOLS: McpTool[] = [
     },
     outputSchema: PROTECTIVE_PUT_OUTPUT_SCHEMA,
     handler: (args) => calculateProtectivePut(parseProtectivePutInput(args)),
+    parse: parseProtectivePutInput,
   },
   {
     name: 'qsbs_check',
@@ -1626,6 +1636,7 @@ export const TOOLS: McpTool[] = [
     },
     outputSchema: QSBS_OUTPUT_SCHEMA,
     handler: (args) => evaluateQsbs(parseQsbsInput(args)),
+    parse: parseQsbsInput,
   },
   {
     name: 'equity_funding_plan',
@@ -1754,6 +1765,7 @@ export const TOOLS: McpTool[] = [
     },
     outputSchema: EQUITY_FUNDING_OUTPUT_SCHEMA,
     handler: (args) => computeEquityFundingComparison(parseEquityFundingInput(args)),
+    parse: parseEquityFundingInput,
   },
   {
     name: 'rsu_lot_optimize',
@@ -1814,6 +1826,7 @@ export const TOOLS: McpTool[] = [
     },
     outputSchema: RSU_LOT_OPTIMIZE_OUTPUT_SCHEMA,
     handler: (args) => computeLotDivestPlan(parseRsuLotOptimizeInput(args)),
+    parse: parseRsuLotOptimizeInput,
   },
 ];
 
