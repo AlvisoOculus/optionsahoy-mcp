@@ -274,6 +274,17 @@ async function handle(
       logs.push({ endpoint, isError: false });
       return ok(id, { resources: RESOURCES_LIST });
 
+    // Advertising the `resources` capability makes this method fair game, and
+    // clients ask: 89 calls in the 14 days to 2026-09-22, every one answered
+    // -32601 Method not found. We have no URI templates — every resource here
+    // is a fixed URI — so the correct answer is the empty list, not an error.
+    // Scanners read a -32601 on an advertised capability as a conformance
+    // miss, and a client that asks first and lists second saw a failure where
+    // there was nothing wrong.
+    case 'resources/templates/list':
+      logs.push({ endpoint, isError: false });
+      return ok(id, { resourceTemplates: [] });
+
     case 'resources/read': {
       if (isNotification) return null;
       if (!isParams(req.params)) return logErr(-32602, 'Invalid params');
