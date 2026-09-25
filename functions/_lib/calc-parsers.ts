@@ -23,7 +23,7 @@ import { asObject, p, FILING_STATUSES, type Obj } from './api';
 import { STATE_CODES } from '../../lib/tax/state-tax';
 import { getTrailingReturn, hasTrailingReturn, isKnownTicker } from '../../lib/data/trailing-returns';
 import { getLiveVol, VOL_UNRESOLVED_REASON, warmVolSnapshot } from '../../lib/data/live-vols';
-import { getLiveChain, warmChain } from '../../lib/data/live-chain';
+import { getChainAtmVol, getLiveChain, warmChain } from '../../lib/data/live-chain';
 import { warmGrowthSnapshot } from '../../lib/data/live-growth';
 import { chainHedgePricing, type ChainHedgePricing } from '../../lib/data/chain-hedge-inputs';
 import { SECTOR_STATS, type SectorKey } from '../../lib/markets/sector-stats';
@@ -103,12 +103,16 @@ function tickerGrowthError(fieldName: string, ticker: string): Error {
 // artifact could not be fetched, the fetch timed out, the schema is not the one
 // we read, the symbol is absent, or its entry predates the last market close.
 // getLiveVol collapses all of them to null on purpose — see lib/data/live-vols.
-// There is no fallback source. A caller either gets a sigma as of the last
+// The one second source is the same number from the worker by another route:
+// for a ticker the file does not carry, warmForCall fetches its chain, and the
+// worker's response states the ATM sigma it would publish (getChainAtmVol).
+// There is no estimated fallback. A caller either gets a sigma as of the last
 // close, or gets asked for one; it never gets a stale or estimated sigma
 // dressed as a fact.
 function resolveSigmaFromTicker(o: Obj): number | null {
   if (o.ticker === undefined) return null;
-  return getLiveVol(p.str(o, 'ticker'));
+  const ticker = p.str(o, 'ticker');
+  return getLiveVol(ticker) ?? getChainAtmVol(ticker);
 }
 
 function resolveDragFromVolatility(o: Obj, dragField: string, horizonYears: number): number {
@@ -248,6 +252,12 @@ export function mayResolveVolFromTicker(toolOrSlug: string, rawArgs: unknown): b
 export function chainTickerFor(toolOrSlug: string, rawArgs: unknown): string | null {
   const o = tickerLookupArgs(toolOrSlug, rawArgs);
   if (o === null || !TICKER_LOOKUPS[toolOrSlug]!.chain) return null;
+  return fetchableTicker(o);
+}
+
+// A ticker the chain reader would accept a fetch for, or null. A ticker that
+// is not a string resolves to no fetch, because the reader would refuse it.
+function fetchableTicker(o: Record<string, unknown>): string | null {
   const ticker = o.ticker;
   if (typeof ticker !== 'string' || ticker.trim() === '') return null;
   return ticker.trim();
@@ -264,6 +274,12 @@ export function chainTickerFor(toolOrSlug: string, rawArgs: unknown): string | n
  * the chain is the one that can fail, and the ladder underneath it (published
  * sigma, then sector-typical) has to be ready when it does.
  *
+ * A single-sigma tool (no chain of its own) fetches the chain only when the
+ * vols file turns out not to carry its ticker, and then only for the ATM sigma
+ * the worker states alongside it (see resolveSigmaFromTicker). Sequential on
+ * purpose: the common case is a covered ticker, which must not pay for a chain
+ * round-trip, and a miss costs the vols read plus one chain fetch.
+ *
  * Returns null rather than a resolved promise so ONE caller can tell "nothing
  * to warm" from "warm already started": functions/poe.ts kicks this off before
  * its billing round-trip and needs to know whether it holds a handle. Every
@@ -275,7 +291,14 @@ export function warmForCall(toolOrSlug: string, rawArgs: unknown): Promise<void>
   const needsGrowth = mayResolveGrowth(toolOrSlug, rawArgs);
   if (!needsVol && chainTicker === null && !needsGrowth) return null;
   const pending: Promise<void>[] = [];
-  if (needsVol) pending.push(warmVolSnapshot());
+  if (needsVol) {
+    const missTicker = chainTicker === null ? fetchableTicker(rawArgs as Record<string, unknown>) : null;
+    pending.push(
+      missTicker === null
+        ? warmVolSnapshot()
+        : warmVolSnapshot().then(() => (getLiveVol(missTicker) === null ? warmChain(missTicker) : undefined)),
+    );
+  }
   if (chainTicker !== null) pending.push(warmChain(chainTicker));
   if (needsGrowth) pending.push(warmGrowthSnapshot());
   return Promise.all(pending).then(() => undefined);
