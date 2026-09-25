@@ -18,7 +18,7 @@ import { TOOLS } from './_lib/mcp-tools';
 import { RESOURCES } from './_lib/mcp-resources';
 import { PROMPTS } from './_lib/mcp-prompts';
 import { CALL_COUNT_UNKNOWN, bumpSessionCallCount, nextStepsFor, nextStepsProse } from './_lib/sessions';
-import { isInfraClient } from './_lib/classify';
+import { isUnmarketedClient } from './_lib/classify';
 import { SERVER_VERSION } from './_lib/version';
 import { SERVER_INSTRUCTIONS } from './_lib/mcp-instructions';
 import { SCENARIO_WIDGET_RESOURCE, SCENARIO_WIDGET_RESULT_META, SCENARIO_WIDGET_URI } from './_lib/mcp-widget';
@@ -365,11 +365,11 @@ export const onRequest: PagesFunction = async (ctx) => {
   const db = ctx.env?.MCP_STATS;
   const sessionDeps = sessionId && db ? { sessionId, db } : undefined;
   // Whether this caller may be shown the next-steps block at all. Excludes
-  // infrastructure (registry probes, scanners, our own smoke) via the same
-  // predicate the example capture uses. Deliberately broader than
+  // infrastructure (registry probes, scanners, our own smoke) - but not the
+  // monitors that verify this very block (see isUnmarketedClient). Deliberately broader than
   // isRealClient(): an SDK caller reporting a bare script UA is still worth a
   // free-tool link, even though it is not counted as a named connect.
-  const allowInjection = !isInfraClient(request.headers.get('user-agent'), 'mcp');
+  const allowInjection = !isUnmarketedClient(request.headers.get('user-agent'), 'mcp');
 
   if (request.method === 'OPTIONS') {
     return new Response(null, { status: 204, headers: { ...CORS, ...NO_STORE } });
