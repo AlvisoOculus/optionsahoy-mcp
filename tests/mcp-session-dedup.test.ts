@@ -488,6 +488,12 @@ describe('sessionless next-steps injection (the 98% of tool calls with no sessio
     }
   });
 
+  it('our link-checking monitors are served what a user is, not the clean response', async () => {
+    for (const ua of ['optionsahoy-conformance/1', 'optionsahoy-deeplink-live/1', 'optionsahoy-link-survival/1']) {
+      expect((await injectedFor(ua))?.web_tool, `${ua} must see the link it checks`).toBeDefined();
+    }
+  });
+
   it('a session-bearing call still gets the full first-call block (unchanged path)', async () => {
     const res = await onRequest({
       request: rpcRequest(amtIsoCall(1), 'sess-inject-1'),

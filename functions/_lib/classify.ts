@@ -88,3 +88,17 @@ export function isInfraClient(clientName: string | null | undefined, surface: st
   const kind = classifyClient(clientName, surface).kind;
   return kind === 'smoke' || kind === 'crawler';
 }
+
+// Our monitors whose job is to check what a real caller is SERVED: the
+// free-tool link, the scenario deep link, and whether those links resolve.
+// They are infrastructure for counting, but must be served exactly what a user
+// is, or they test a response nobody gets. (2026-09-25: classifying them as
+// smoke withheld the link and failed Live conformance on the next deploy.)
+const USER_VIEW_MONITOR = /^optionsahoy-(conformance|deeplink-live|link-survival)\//;
+
+// Who gets a clean, unmarketed response (no next-steps block): crawlers,
+// scanners and our smoke monitors, except the user-view monitors above.
+export function isUnmarketedClient(clientName: string | null | undefined, surface: string): boolean {
+  if (USER_VIEW_MONITOR.test((clientName ?? '').trim().toLowerCase())) return false;
+  return isInfraClient(clientName, surface);
+}
