@@ -24,6 +24,7 @@ import { STATE_CODES } from '../../lib/tax/state-tax';
 import { getTrailingReturn, hasTrailingReturn, isKnownTicker } from '../../lib/data/trailing-returns';
 import { getLiveVol, VOL_UNRESOLVED_REASON, warmVolSnapshot } from '../../lib/data/live-vols';
 import { getLiveChain, warmChain } from '../../lib/data/live-chain';
+import { warmGrowthSnapshot } from '../../lib/data/live-growth';
 import { chainHedgePricing, type ChainHedgePricing } from '../../lib/data/chain-hedge-inputs';
 import { SECTOR_STATS, type SectorKey } from '../../lib/markets/sector-stats';
 import { HORIZON_YEARS as CONCENTRATION_HORIZON_YEARS, IV_OVER_RV_MULTIPLIER } from '../../lib/calc/concentration';
@@ -271,11 +272,59 @@ export function chainTickerFor(toolOrSlug: string, rawArgs: unknown): string | n
 export function warmForCall(toolOrSlug: string, rawArgs: unknown): Promise<void> | null {
   const chainTicker = chainTickerFor(toolOrSlug, rawArgs);
   const needsVol = mayResolveVolFromTicker(toolOrSlug, rawArgs);
-  if (!needsVol && chainTicker === null) return null;
+  const needsGrowth = mayResolveGrowth(toolOrSlug, rawArgs);
+  if (!needsVol && chainTicker === null && !needsGrowth) return null;
   const pending: Promise<void>[] = [];
   if (needsVol) pending.push(warmVolSnapshot());
   if (chainTicker !== null) pending.push(warmChain(chainTicker));
+  if (needsGrowth) pending.push(warmGrowthSnapshot());
   return Promise.all(pending).then(() => undefined);
+}
+
+// Which fields each tool resolves through the growth table, and how.
+//   byTicker: read when the field is absent and a `ticker` is set, or when it is
+//             the "market" sentinel (which reads SPY's row).
+//   byDefault: read whenever the field is absent or "market" — the S&P blend is
+//             the documented default for expectedMarketReturn.
+const GROWTH_READS: Record<string, { byTicker: string[]; byDefault: string[]; stacks?: true }> = {
+  amt_iso_optimize: { byTicker: ['expectedGrowth'], byDefault: [] },
+  'amt-iso': { byTicker: ['expectedGrowth'], byDefault: [] },
+  nso_calculate: { byTicker: ['expectedSalePrice'], byDefault: ['expectedMarketReturn'] },
+  nso: { byTicker: ['expectedSalePrice'], byDefault: ['expectedMarketReturn'] },
+  rsu_sell_vs_hold: { byTicker: ['expectedSalePrice'], byDefault: ['expectedMarketReturn'] },
+  'rsu-sell-vs-hold': { byTicker: ['expectedSalePrice'], byDefault: ['expectedMarketReturn'] },
+  concentration_analyze: { byTicker: ['expectedPositionReturn'], byDefault: ['expectedMarketReturn'] },
+  concentration: { byTicker: ['expectedPositionReturn'], byDefault: ['expectedMarketReturn'] },
+  equity_funding_plan: { byTicker: ['expectedAnnualGrowth'], byDefault: [], stacks: true },
+  'equity-funding': { byTicker: ['expectedAnnualGrowth'], byDefault: [], stacks: true },
+};
+
+function readsGrowth(o: Record<string, unknown>, rule: { byTicker: string[]; byDefault: string[] }): boolean {
+  const hasTicker = typeof o.ticker === 'string' && o.ticker.trim() !== '';
+  for (const f of rule.byTicker) {
+    if (isMarketSentinel(o[f]) || (o[f] === undefined && hasTicker)) return true;
+  }
+  for (const f of rule.byDefault) {
+    if (o[f] === undefined || isMarketSentinel(o[f])) return true;
+  }
+  return false;
+}
+
+/**
+ * True when parsing `rawArgs` for `toolOrSlug` could read the growth table, so
+ * warmForCall fetches the live copy first (see lib/data/live-growth). Mirrors
+ * the parsers' resolution rules per tool; tools that never read it (qsbs,
+ * protective puts, lot ordering) never pay for the fetch.
+ */
+export function mayResolveGrowth(toolOrSlug: string, rawArgs: unknown): boolean {
+  const rule = GROWTH_READS[toolOrSlug];
+  if (!rule || rawArgs === null || typeof rawArgs !== 'object' || Array.isArray(rawArgs)) return false;
+  const o = rawArgs as Record<string, unknown>;
+  if (readsGrowth(o, rule)) return true;
+  if (rule.stacks && Array.isArray(o.stacks)) {
+    return o.stacks.some((st) => st !== null && typeof st === 'object' && readsGrowth(st as Record<string, unknown>, rule));
+  }
+  return false;
 }
 
 // One resolution ladder for every growth/return field: "market" sentinel →

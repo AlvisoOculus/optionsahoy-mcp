@@ -26,6 +26,7 @@
 import { beforeEach, vi } from 'vitest';
 import { seedFreshVols } from './helpers/live-vols-fixture';
 import { seedNoChains } from './helpers/live-chain-fixture';
+import { __setGrowthSnapshotForTests } from '../lib/data/live-growth';
 
 beforeEach(() => {
   vi.stubGlobal(
@@ -38,4 +39,7 @@ beforeEach(() => {
   );
   seedFreshVols();
   seedNoChains();
+  // No live growth table unless a test seeds one: every other test resolves
+  // growth from the bundled copy, exactly as before live-growth existed.
+  __setGrowthSnapshotForTests(null);
 });
