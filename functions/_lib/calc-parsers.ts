@@ -87,11 +87,28 @@ function marketRate(fieldName: string, horizonYears: number): number {
 // (the CRCL case — telling that caller "not in our table" sent them hunting
 // for a typo that wasn't there).
 function tickerGrowthError(fieldName: string, ticker: string): Error {
+  if (isMarketSentinel(ticker)) return marketAsTickerError(fieldName);
   const why = isKnownTicker(ticker)
     ? `ticker "${ticker}" is covered but listed too recently to have 5y/10y trailing returns`
     : `ticker "${ticker}" is not in our trailing-returns table (covered examples: ${EXAMPLE_COVERED_TICKERS}; full set in the covered-tickers resource)`;
   return new Error(
     `field "${fieldName}" required: ${why}. Pass "${fieldName}" explicitly, or pass the string "market" to use the S&P 500 trailing average. ${ASK_USER_HINT}`,
+  );
+}
+
+// `ticker: "market"`: the caller wants a market-average assumption, which
+// exists, but on the growth field, not on `ticker`. It is not accepted as a
+// ticker because `ticker` also sets volatility, and the index's sigma (~16%)
+// would quietly understate a single stock's risk several times over. So the
+// error names the field that takes "market" and asks for volatility outright.
+// (Seen in prod: 3 calls in the week to 2026-09-18, all from one agent.)
+function marketAsTickerError(fieldName: string): Error {
+  const growth =
+    fieldName === 'volatility'
+      ? 'For growth, pass the growth field itself as "market" (S&P 500 trailing average)'
+      : `For a market-average assumption pass "${fieldName}": "market" (S&P 500 trailing average)`;
+  return new Error(
+    `field "${fieldName}" required: "market" is not a ticker. ${growth} and remove "ticker". Volatility has no market default (the index's would understate a single stock's risk): where the tool needs it, pass "volatility" explicitly. ${ASK_USER_HINT}`,
   );
 }
 
@@ -123,6 +140,7 @@ function resolveDragFromVolatility(o: Obj, dragField: string, horizonYears: numb
     return lognormalHaircut(p.num(o, 'volatility', SIGMA_BOUNDS), horizonYears);
   }
   if (o.ticker !== undefined) {
+    if (isMarketSentinel(o.ticker)) throw marketAsTickerError('volatility');
     const sigma = resolveSigmaFromTicker(o);
     if (sigma !== null) return lognormalHaircut(sigma, horizonYears);
     // No provenance field on this path: it throws rather than falling back, so
@@ -260,6 +278,8 @@ export function chainTickerFor(toolOrSlug: string, rawArgs: unknown): string | n
 function fetchableTicker(o: Record<string, unknown>): string | null {
   const ticker = o.ticker;
   if (typeof ticker !== 'string' || ticker.trim() === '') return null;
+  // Not a symbol: fetching it would spend the worker's upstream budget on a 404.
+  if (isMarketSentinel(ticker)) return null;
   return ticker.trim();
 }
 
