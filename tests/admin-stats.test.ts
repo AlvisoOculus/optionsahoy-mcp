@@ -63,6 +63,12 @@ const SAMPLE_ROWS = [
     { k1: 'field "notARealField" required', k2: 'rest:x', k3: '', n: 7 },
   ] },
   { match: /dim = 'error'/, rows: [{ k1: 'mcp:tools/call', k2: 'amt_iso_optimize', k3: 'field "shares" required', n: 3 }] },
+  // Calls by caller: the smoke row and the scanner are excluded from the real rate.
+  { match: /dim = 'callclient'/, rows: [
+    { k1: 'mcp:tools/call', k2: 'python-httpx/0.28.1', n: 40, errors: 10 },
+    { k1: 'mcp:tools/call', k2: 'SaSame-MCP-Audit/0.1', n: 30, errors: 30 },
+    { k1: 'rest:nso', k2: 'OptionsAhoy-smoke/1.0 (Mozilla/5.0 compatible)', n: 200, errors: 190 },
+  ] },
   // The two per-surface daily reads also carry dim = 'endpoint', so their
   // endpoint filters must be matched before the generic endpoint reads.
   { match: /k1 LIKE 'rest:%'/, rows: [{ day: '2026-05-27', n: 9 }, { day: '2026-05-26', n: 11 }] },
@@ -110,6 +116,8 @@ describe('admin /mcp-stats', () => {
     expect(html).toMatch(/REST calls, valid input/);
     expect(html).toMatch(/MCP tool calls, valid input/);
     expect(html).toMatch(/Most-omitted input fields/);
+    expect(html).toMatch(/Real traffic error rate/);
+    expect(html).toMatch(/25\.0%/);
   });
 
   it('returns structured JSON when format=json', async () => {
@@ -133,6 +141,10 @@ describe('admin /mcp-stats', () => {
     expect(body.dailyMcp).toEqual([
       { day: '2026-05-27', n: 3 },
       { day: '2026-05-26', n: 4 },
+    ]);
+    expect(body.endpointsReal).toEqual([
+      { endpoint: 'mcp:tools/call', n: 40, errors: 10, excluded: 30 },
+      { endpoint: 'rest:nso', n: 0, errors: 0, excluded: 200 },
     ]);
     // Infra (smoke) excluded and non-schema field names dropped; shares 4+1.
     expect(body.topErrorFields).toEqual([
