@@ -78,8 +78,14 @@ export const CHAIN_MEMO_MAX_ENTRIES = 32;
  *  fetch: `ticker` is caller-supplied, and a symbol is a symbol, not a path. */
 const TICKER_RE = /^[A-Z0-9.-]{1,8}$/;
 
-// `chain: null` is a remembered FAILURE, not an absent entry.
-type Memo = { at: number; chain: TickerChain | null };
+// `chain: null` is a remembered FAILURE, not an absent entry. `atmIV1y` is the
+// worker's own ATM 1-year sigma for that chain (see getChainAtmVol), or null
+// when the response carried none.
+type Memo = { at: number; chain: TickerChain | null; atmIV1y: number | null };
+
+/** Response header carrying the worker's ATM 1y IV for the served chain,
+ *  computed by the same function that fills chains/vols.json. */
+export const ATM_IV_HEADER = 'x-oa-atm-iv-1y';
 
 const memo = new Map<string, Memo>();
 const inflight = new Map<string, Promise<void>>();
@@ -110,7 +116,7 @@ function isSide(raw: unknown): boolean {
   return s.exp.length === s.k.length && s.k.length === s.price.length;
 }
 
-function remember(symbol: string, chain: TickerChain | null): void {
+function remember(symbol: string, chain: TickerChain | null, atmIV1y: number | null = null): void {
   if (!memo.has(symbol) && memo.size >= CHAIN_MEMO_MAX_ENTRIES) {
     // Expired entries first: they are already unreadable (every getLiveChain
     // rechecks the TTL), so holding their ~20KB of JSON until the cap forces
@@ -126,7 +132,15 @@ function remember(symbol: string, chain: TickerChain | null): void {
       if (!oldest.done) memo.delete(oldest.value);
     }
   }
-  memo.set(symbol, { at: Date.now(), chain });
+  memo.set(symbol, { at: Date.now(), chain, atmIV1y });
+}
+
+/** The header as a sigma, or null. Same (0, 5] bound ./live-vols applies to a
+ *  published entry: outside it is a producer defect, not a volatile stock. */
+function asAtmVol(raw: string | null): number | null {
+  if (raw === null || raw.trim() === '') return null;
+  const iv = Number(raw);
+  return Number.isFinite(iv) && iv > 0 && iv <= 5 ? iv : null;
 }
 
 /**
@@ -153,6 +167,7 @@ export async function warmChain(ticker: string): Promise<void> {
   if (running) return running;
   const task = (async () => {
     let chain: TickerChain | null = null;
+    let atmIV1y: number | null = null;
     try {
       const res = await fetch(chainUrl(symbol), {
         signal: AbortSignal.timeout(CHAIN_FETCH_TIMEOUT_MS),
@@ -160,11 +175,14 @@ export async function warmChain(ticker: string): Promise<void> {
       });
       // Non-200 covers the budget-exhausted 429 and every other refusal; the
       // body is not a chain and there is nothing to keep.
-      if (res.ok) chain = asChain(await res.json(), symbol);
+      if (res.ok) {
+        chain = asChain(await res.json(), symbol);
+        if (chain !== null) atmIV1y = asAtmVol(res.headers.get(ATM_IV_HEADER));
+      }
     } catch {
       // Network error, DNS failure, abort on timeout, or a truncated body.
     }
-    remember(symbol, chain);
+    remember(symbol, chain, atmIV1y);
   })();
   inflight.set(symbol, task);
   try {
@@ -211,6 +229,22 @@ export function getLiveChain(ticker: string, now: Date = new Date()): TickerChai
 }
 
 /**
+ * The worker's ATM 1-year sigma for `ticker`'s chain, or null. Gated exactly
+ * like getLiveChain (memo TTL, schema, spot, freshness), because the number is
+ * only as current as the chain it was computed from.
+ *
+ * This is the fallback for tickers missing from chains/vols.json. It is the
+ * SAME number that file would publish for the ticker (the worker computes both
+ * with one function), read off the chain response because the file cannot
+ * answer in time: the worker folds an on-demand ticker in after responding,
+ * and the file is CDN-cached. See warmForCall in functions/_lib/calc-parsers.
+ */
+export function getChainAtmVol(ticker: string, now: Date = new Date()): number | null {
+  if (getLiveChain(ticker, now) === null) return null;
+  return memo.get(canonicalTicker(ticker.trim()))?.atmIV1y ?? null;
+}
+
+/**
  * Test seam: replace the memo with exactly these entries. A `null` value is a
  * remembered failure, an absent symbol is a cold memo. `{}` empties it, which
  * is the suite's default (tests/setup-market-data.ts) and means every ticker
@@ -223,10 +257,12 @@ export function getLiveChain(ticker: string, now: Date = new Date()): TickerChai
 export function __setChainsForTests(
   chains: Record<string, TickerChain | null>,
   at: number = Date.now(),
+  atmVols: Record<string, number> = {},
 ): void {
   memo.clear();
   inflight.clear();
   for (const [ticker, chain] of Object.entries(chains)) {
-    memo.set(canonicalTicker(ticker), { at, chain });
+    const symbol = canonicalTicker(ticker);
+    memo.set(symbol, { at, chain, atmIV1y: atmVols[ticker] ?? null });
   }
 }
