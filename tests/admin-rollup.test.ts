@@ -16,6 +16,7 @@ import {
   readErrors,
   readInitClients,
   readCountries,
+  readCallClients,
   DIM_REFRESH_MS,
 } from '../functions/_lib/adminRollup';
 import type { D1Database, D1PreparedStatement } from '../functions/_lib/stats';
@@ -150,6 +151,13 @@ function memDb(state: State): D1Database {
       const rows = newCalls(sql, binds);
       if (/tool IS NOT NULL/.test(sql)) {
         return fold(rows.filter((c) => c.tool), (c) => [c.tool as string, '', '', '']);
+      }
+      // callclient: checked before errfield, whose endpoint filter it contains.
+      if (/OR endpoint = 'a2a'/.test(sql)) {
+        return fold(
+          rows.filter((c) => c.endpoint === 'mcp:tools/call' || c.endpoint.startsWith('rest:') || c.endpoint === 'a2a'),
+          (c) => [c.endpoint, c.client_name ?? c.ua ?? '', '', ''],
+        );
       }
       if (/mcp:tools\/call' OR endpoint LIKE 'rest:%/.test(sql)) {
         return fold(
@@ -317,6 +325,31 @@ describe('ensureDimsFresh', () => {
     const db = memDb(state);
     await ensureDimsFresh(db, T0 + DIM_REFRESH_MS - 1);
     expect(state.scans).toBe(0);
+  });
+});
+
+describe('callclient: calls by caller for the real-traffic error rate', () => {
+  it('folds work-doing endpoints by client, errors included, and nothing else', async () => {
+    const state = newState({
+      calls: [
+        call({ id: 1, ua: 'python-httpx/0.28.1', is_error: 1, error_msg: 'x' }),
+        call({ id: 2, ua: 'python-httpx/0.28.1' }),
+        call({ id: 3, endpoint: 'rest:nso', ua: 'OptionsAhoy-smoke/1.0', is_error: 1, error_msg: 'y' }),
+        call({ id: 4, endpoint: 'a2a', ua: 'okhttp/4.12.0' }),
+        call({ id: 5, endpoint: 'mcp:initialize', client_name: 'Claude-User' }),
+        call({ id: 6, endpoint: 'mcp:server/discover', ua: 'rokmcp-collector/0.2', is_error: 1 }),
+      ],
+      cursor: { last_id: 0, computed_at: 0 },
+    });
+    const db = memDb(state);
+    await ensureDimsFresh(db, T0);
+    const got = (await readCallClients(db, sinceDay(T0 - DAY_MS)))
+      .sort((a, b) => a.endpoint.localeCompare(b.endpoint));
+    expect(got).toEqual([
+      { endpoint: 'a2a', client: 'okhttp/4.12.0', n: 1, errors: 0 },
+      { endpoint: 'mcp:tools/call', client: 'python-httpx/0.28.1', n: 2, errors: 1 },
+      { endpoint: 'rest:nso', client: 'OptionsAhoy-smoke/1.0', n: 1, errors: 1 },
+    ]);
   });
 });
 

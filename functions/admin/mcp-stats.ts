@@ -86,7 +86,38 @@ import {
   readInitClients,
   readCountries,
   readRestNet,
+  readCallClients,
 } from '../_lib/adminRollup';
+
+// The surface classifyClient expects for a logged endpoint.
+function surfaceOf(endpoint: string): string {
+  if (endpoint.startsWith('rest:')) return 'rest';
+  if (endpoint === 'a2a') return 'a2a';
+  return 'mcp';
+}
+
+export interface RealTrafficRow { endpoint: string; n: number; errors: number; excluded: number }
+
+// Per-endpoint calls and errors with our own monitors and crawlers/scanners
+// (isInfraClient) removed. The raw endpoint table cannot answer "what share of
+// real calls fail": in the week to 2026-09-24, 1,360 of 1,391 REST errors were
+// our own smoke suite sending invalid payloads on purpose. `excluded` is the
+// call count dropped, so the reader can see how much was filtered.
+export function realTrafficByEndpoint(
+  rows: { endpoint: string; client: string; n: number; errors: number }[],
+): RealTrafficRow[] {
+  const out = new Map<string, RealTrafficRow>();
+  for (const r of rows) {
+    const cur = out.get(r.endpoint) ?? { endpoint: r.endpoint, n: 0, errors: 0, excluded: 0 };
+    if (isInfraClient(r.client, surfaceOf(r.endpoint))) cur.excluded += r.n;
+    else {
+      cur.n += r.n;
+      cur.errors += r.errors;
+    }
+    out.set(r.endpoint, cur);
+  }
+  return [...out.values()].sort((a, b) => b.n - a.n);
+}
 
 const DEFAULT_DAYS = 30;
 const MAX_DAYS = 365;
@@ -105,9 +136,8 @@ const MAX_DAYS = 365;
 // failure, not caller input-friction. Carries client + endpoint so infra noise
 // can be dropped in JS. `client` is COALESCE(client_name, ua): tool-call rows
 // carry no handshake client_name (that is only on mcp:initialize), so on the MCP
-// surface exclusion relies on the UA. REST smoke sets a marker UA and IS dropped;
-// the MCP smoke sends no marker on call rows, so its exclusion is best-effort
-// (harmless today: it sends valid inputs, so it generates no field errors).
+// surface exclusion relies on the UA. Every one of our monitors sets a marker
+// UA (see classifyClient), so all of them are dropped.
 // GROUP BY error_msg, endpoint, client keeps this shape distinct from SQL_ERRORS
 // for the test mock's matcher.
 // Clients come from MCP `initialize` handshakes, plus Poe requests (which have
@@ -182,7 +212,7 @@ export const onRequest: PagesFunction = async (ctx) => {
   await ensureDimsFresh(db, Date.now());
   const day = sinceDay(sinceMs);
 
-  const [endpoints, daily, dailyRest, dailyMcp, tools, errors, clients, countries, restNet, errFieldRaw, sessionsDaily, sessionDepth, initClients] = await Promise.all([
+  const [endpoints, daily, dailyRest, dailyMcp, tools, errors, clients, countries, restNet, errFieldRaw, sessionsDaily, sessionDepth, initClients, callClients] = await Promise.all([
     readEndpoints(db, day),
     readDailyTotals(db, day),
     readDailyRest(db, day),
@@ -196,7 +226,9 @@ export const onRequest: PagesFunction = async (ctx) => {
     q<SessionDayRow>(db, SQL_SESSIONS_DAILY, new Date(sinceMs).toISOString()).catch(emptyIfUnmigrated),
     q<SessionDepthRow>(db, SQL_SESSION_DEPTH, new Date(sinceMs).toISOString()).catch(emptyIfUnmigrated),
     readInitClients(db, day),
+    readCallClients(db, day),
   ]);
+  const endpointsReal = realTrafficByEndpoint(callClients);
 
   // A real connect = a person in an AI client, or a programmatic agent
   // framework (isRealClient). Note this is NARROWER than the injection gate
@@ -216,7 +248,7 @@ export const onRequest: PagesFunction = async (ctx) => {
   // garbage field names never appear.
   const topErrorFields = rankErrorFields(
     errFieldRaw
-      .filter((r) => !isInfraClient(r.client, r.endpoint.startsWith('mcp:') ? 'mcp' : 'rest'))
+      .filter((r) => !isInfraClient(r.client, surfaceOf(r.endpoint)))
       .map((r) => ({ errorMsg: r.error_msg, n: r.n })),
   );
 
@@ -264,7 +296,7 @@ export const onRequest: PagesFunction = async (ctx) => {
   ).slice(0, 50);
 
   if (url.searchParams.get('format') === 'json') {
-    const body = JSON.stringify({ days, endpoints, daily, dailyRest, dailyMcp, tools, errors, topErrorFields, clients, countries, restNet, sessionsDaily, sessionDepth, initializesReal, realClients, endpointErrors, samples: classified, sampleCounts });
+    const body = JSON.stringify({ days, endpoints, endpointsReal, daily, dailyRest, dailyMcp, tools, errors, topErrorFields, clients, countries, restNet, sessionsDaily, sessionDepth, initializesReal, realClients, endpointErrors, samples: classified, sampleCounts });
     return new Response(body, {
       status: 200,
       headers: {
@@ -274,7 +306,7 @@ export const onRequest: PagesFunction = async (ctx) => {
     });
   }
 
-  const html = renderHtml({ days, endpoints, daily, dailyRest, dailyMcp, tools, errors, topErrorFields, clients, countries, restNet, sessionsDaily, sessionDepth, initializesReal, samples: shownSamples, sampleCounts, kindFilter, token, surface: surfaceParam });
+  const html = renderHtml({ days, endpoints, endpointsReal, daily, dailyRest, dailyMcp, tools, errors, topErrorFields, clients, countries, restNet, sessionsDaily, sessionDepth, initializesReal, samples: shownSamples, sampleCounts, kindFilter, token, surface: surfaceParam });
   return new Response(html, {
     status: 200,
     headers: {
@@ -289,6 +321,7 @@ type ClassifiedSample = SampleRow & { kind: ClientKind; network: NetworkKind };
 interface RenderInput {
   days: number;
   endpoints: EndpointRow[];
+  endpointsReal: RealTrafficRow[];
   daily: DayRow[];
   dailyRest: DayRow[];
   dailyMcp: DayRow[];
@@ -411,6 +444,19 @@ function renderHtml(d: RenderInput): string {
 ${table(
   ['Endpoint', 'Calls', 'Errors'],
   d.endpoints.map((r) => [esc(r.endpoint), `<span class="num">${r.n.toLocaleString()}</span>`, `<span class="num">${(r.errors ?? 0).toLocaleString()}</span>`]),
+)}
+
+<h2>Real traffic error rate (our monitors, crawlers and scanners excluded)</h2>
+<p class="legend">Tool calls, REST and A2A only. The endpoint table above counts everything, including our smoke suite's deliberate invalid payloads.</p>
+${table(
+  ['Endpoint', 'Calls', 'Errors', 'Error rate', 'Excluded'],
+  d.endpointsReal.map((r) => [
+    esc(r.endpoint),
+    `<span class="num">${r.n.toLocaleString()}</span>`,
+    `<span class="num">${r.errors.toLocaleString()}</span>`,
+    `<span class="num">${r.n ? ((100 * r.errors) / r.n).toFixed(1) + '%' : '-'}</span>`,
+    `<span class="num">${r.excluded.toLocaleString()}</span>`,
+  ]),
 )}
 
 <h2>By tool (errors in parens)</h2>

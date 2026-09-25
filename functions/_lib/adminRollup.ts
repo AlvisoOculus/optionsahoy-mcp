@@ -74,6 +74,19 @@ const DIMS: DimSpec[] = [
              AND (endpoint = 'mcp:tools/call' OR endpoint LIKE 'rest:%')
            GROUP BY day, k1, k2, k3`,
   },
+  // Work-doing calls by caller, so the dashboard can state an error rate for
+  // real traffic: our monitors and the scanner swarm are dropped in JS with
+  // the shared classifier (SQL cannot run it). `client` is the same
+  // COALESCE(client_name, ua) errfield uses: call rows carry no handshake name.
+  {
+    dim: 'callclient',
+    sql: `SELECT ${DAY_EXPR} AS day, COALESCE(endpoint, '') AS k1, COALESCE(client_name, ua, '') AS k2,
+                 '' AS k3, '' AS k4, COUNT(*) AS n, COALESCE(SUM(is_error), 0) AS errors
+            FROM mcp_calls
+           WHERE id > ?1 AND id <= ?2
+             AND (endpoint = 'mcp:tools/call' OR endpoint LIKE 'rest:%' OR endpoint = 'a2a')
+           GROUP BY day, k1, k2`,
+  },
   {
     dim: 'client',
     sql: `SELECT ${DAY_EXPR} AS day, COALESCE(client_name, '') AS k1, COALESCE(endpoint, '') AS k2,
@@ -269,6 +282,19 @@ export async function readErrFields(
     [day],
   );
   return r.map((x) => ({ error_msg: x.k1, endpoint: x.k2, client: x.k3, n: x.n }));
+}
+
+export async function readCallClients(
+  db: D1Database,
+  day: string,
+): Promise<{ endpoint: string; client: string; n: number; errors: number }[]> {
+  const r = await rows<{ k1: string; k2: string; n: number; errors: number }>(
+    db,
+    `SELECT k1, k2, SUM(n) AS n, SUM(errors) AS errors FROM mcp_dim_daily
+      WHERE dim = 'callclient' AND day >= ? GROUP BY k1, k2`,
+    [day],
+  );
+  return r.map((x) => ({ endpoint: x.k1, client: x.k2, n: x.n, errors: x.errors }));
 }
 
 // Named clients only (handshakes carrying a client_name, plus Poe), matching

@@ -25,8 +25,13 @@ export function classifyClient(
   surface: string,
 ): { kind: ClientKind; label: string } {
   const c = (clientName ?? '').trim().toLowerCase();
-  // Our own synthetic monitors (REST uptime smoke + the live MCP e2e check).
-  if (c.includes('optionsahoy-smoke') || c.includes('oa-e2e-live')) return { kind: 'smoke', label: 'smoke test' };
+  // Our own synthetic monitors: anything named optionsahoy-* (REST smoke,
+  // conformance, deeplink-live, link-survival) plus the two oa-* scripts
+  // (e2e-live, the Poe live test). Anchored at the start, since the smoke UA
+  // is 'OptionsAhoy-smoke/1.0 (...)'. Before 2026-09-24 only smoke + e2e
+  // matched, so conformance and deeplink-live (~140 tools/call a week)
+  // counted as real traffic.
+  if (/^optionsahoy-|^oa-(e2e-live|live-test)\b/.test(c)) return { kind: 'smoke', label: 'smoke test' };
   // A person typed into the Poe consumer bot.
   if (surface === 'poe' || c === 'poe') return { kind: 'human', label: 'human (Poe)' };
   // Web crawlers / training bots / security scanners, plus the swarm of MCP
@@ -42,7 +47,7 @@ export function classifyClient(
   // (prsm-mcp-graph, agentage-mcp-catalog-health, mcp-uptime, mcp-scraper,
   // kimi-mcp-validator, ...). Deliberately ABSENT: bare 'graph' (LangGraph),
   // bare 'index' (llama-index), bare 'health'/'test'/'client'.
-  if (/\b(bot|crawler|spider)\b|gptbot|oai-searchbot|claudebot|google-extended|googlebot|bingbot|applebot|slurp|duckduckbot|yandex|baiduspider|semrush|ahrefs|mj12|dotbot|petalbot|nuclei|zgrab|masscan|censys|shodan|nmap|sqlmap|probe|prober|scan|registr|inspect|introspect|discover|verif|audit|scoring|rug-?pull|catalog|uptime|indexer|scraper|validat|survey|spec-check|vouch|trust-index|detector|\bguard\b|prsm|prism/.test(c))
+  if (/\b(bot|crawler|spider)\b|gptbot|oai-searchbot|claudebot|google-extended|googlebot|bingbot|applebot|slurp|duckduckbot|yandex|baiduspider|semrush|ahrefs|mj12|dotbot|petalbot|nuclei|zgrab|masscan|censys|shodan|nmap|sqlmap|probe|prober|scan|registr|inspect|introspect|discover|verif|audit|scoring|rug-?pull|catalog|uptime|indexer|scraper|validat|survey|spec-check|vouch|trust-index|detector|\bguard\b|prsm|prism|collector|outreach|marketing/.test(c))
     return { kind: 'crawler', label: 'crawler/scanner' };
   // Interactive AI clients: a real person is in the loop (chat UI, IDE,
   // desktop app). 'Claude-User' is the name Claude.ai sends for a

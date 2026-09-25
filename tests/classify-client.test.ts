@@ -147,3 +147,40 @@ describe('networkKind — datacenter vs residential origin (the bot signal)', ()
     expect(networkKind('Some Regional Net ZZ-9')).toBe('unknown');
   });
 });
+
+// Every monitor we run, by the exact string it sends (scripts/*.mjs, and the
+// live UA strings from the 2026-09-24 audit). Before then conformance and
+// deeplink-live read as real traffic: ~140 clean tools/call a week.
+describe('our own monitors are all "smoke"', () => {
+  it.each([
+    'OptionsAhoy-smoke/1.0 (Mozilla/5.0 compatible)',
+    'optionsahoy-conformance/1',
+    'optionsahoy-deeplink-live/1',
+    'optionsahoy-link-survival/1',
+    'oa-e2e-live',
+    'oa-live-test/1.0',
+  ])('%s', (ua) => {
+    expect(kind(ua, 'mcp')).toBe('smoke');
+    expect(isInfraClient(ua, 'mcp')).toBe(true);
+  });
+
+  it('is anchored: a third party merely mentioning us is not our monitor', () => {
+    expect(kind('my-optionsahoy-client/1.0', 'mcp')).not.toBe('smoke');
+    expect(kind('boa-e2e-live', 'mcp')).not.toBe('smoke');
+  });
+});
+
+describe('scanners seen in the 2026-09-24 audit', () => {
+  it.each([
+    'rokmcp-collector/0.2 (+https://rokmcp.com/bot)',
+    'ziwei-alliance-marketing/1.0 (public A2A outreach, opt-in only)',
+    'SaSame-MCP-Audit/0.1',
+    'BrickBlueBot/0.1 (+https://brick.blue/bot; agentic-web registry)',
+  ])('%s', (ua) => {
+    expect(kind(ua, 'a2a')).toBe('crawler');
+  });
+
+  it('a real agent harness on a bare HTTP client is NOT filtered', () => {
+    expect(isInfraClient('python-httpx/0.28.1', 'mcp')).toBe(false);
+  });
+});
