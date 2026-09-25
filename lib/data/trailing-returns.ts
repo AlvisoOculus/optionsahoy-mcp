@@ -10,6 +10,7 @@
 // verbatim; keep them in sync.
 
 import data from './trailing-returns.json';
+import { liveGrowthRefreshedAt, liveGrowthTable } from './live-growth';
 
 export type TrailingReturnEntry = {
   return5y: number | null;
@@ -18,7 +19,13 @@ export type TrailingReturnEntry = {
   asOf: string;
 };
 
-const TICKERS = data.tickers as Record<string, TrailingReturnEntry>;
+const BUNDLED = data.tickers as Record<string, TrailingReturnEntry>;
+
+// Live table when warmed and at least as new as the bundle, else the bundle.
+// See ./live-growth for why the bundle is only a fallback now.
+function table(): Record<string, TrailingReturnEntry> {
+  return liveGrowthTable(data._refreshedAt) ?? BUNDLED;
+}
 
 // Share-class aliases: user-typed ticker -> the class the daily ETL tracks.
 // Alphabet trades as GOOGL (class A, in the universe) and GOOG (class C);
@@ -46,7 +53,7 @@ export function canonicalTicker(ticker: string): string {
 // so 5y is the closest substitute for short windows.
 export function getTrailingReturn(ticker: string, horizonYears: number): number | null {
   if (!ticker || !Number.isFinite(horizonYears) || horizonYears <= 0) return null;
-  const entry = TICKERS[canonicalTicker(ticker)];
+  const entry = table()[canonicalTicker(ticker)];
   if (!entry) return null;
   const r5 = typeof entry.return5y === 'number' ? entry.return5y : null;
   const r10 = typeof entry.return10y === 'number' ? entry.return10y : null;
@@ -62,7 +69,7 @@ export function getTrailingReturn(ticker: string, horizonYears: number): number 
 // growth-rate input or fall through to "user must supply it" errors.
 export function hasTrailingReturn(ticker: string): boolean {
   if (!ticker) return false;
-  const entry = TICKERS[canonicalTicker(ticker)];
+  const entry = table()[canonicalTicker(ticker)];
   if (!entry) return false;
   return typeof entry.return5y === 'number' || typeof entry.return10y === 'number';
 }
@@ -74,15 +81,15 @@ export function hasTrailingReturn(ticker: string): boolean {
 // for a typo).
 export function isKnownTicker(ticker: string): boolean {
   if (!ticker) return false;
-  return TICKERS[canonicalTicker(ticker)] !== undefined;
+  return table()[canonicalTicker(ticker)] !== undefined;
 }
 
-const TICKER_COUNT = Object.keys(TICKERS).length;
-
 export function trailingReturnsCoverage(): { total: number; refreshedAt: string } {
+  const live = liveGrowthTable(data._refreshedAt);
   return {
-    total: TICKER_COUNT,
-    refreshedAt: (data as { _refreshedAt?: string })._refreshedAt ?? '',
+    total: Object.keys(live ?? BUNDLED).length,
+    // Report the date of the table actually answering, not the bundle's.
+    refreshedAt: live ? liveGrowthRefreshedAt() : data._refreshedAt,
   };
 }
 
@@ -96,5 +103,5 @@ export function trailingReturnsCoverage(): { total: number; refreshedAt: string 
 // (./live-vols) with no fixed roster. For the accurate growth partition, see
 // tickerCoverage() in ./ticker-coverage and the covered-tickers MCP resource.
 export function coveredTickers(): string[] {
-  return [...Object.keys(TICKERS), ...Object.keys(TICKER_ALIASES)].sort();
+  return [...Object.keys(table()), ...Object.keys(TICKER_ALIASES)].sort();
 }
