@@ -365,6 +365,31 @@ describe('caching', () => {
   });
 });
 
+describe('POST /mcp — a prompt name called as a tool', () => {
+  // Seen 16 times in the week to 2026-09-24 for optimize-iso-exercise alone.
+  it('names the tool the prompt drives instead of a bare Unknown tool', async () => {
+    const { json } = await call<{ error: { code: number; message: string } }>({
+      jsonrpc: '2.0',
+      id: 7,
+      method: 'tools/call',
+      params: { name: 'optimize-iso-exercise', arguments: {} },
+    });
+    expect(json.error.code).toBe(-32602);
+    expect(json.error.message).toMatch(/is a prompt/);
+    expect(json.error.message).toMatch(/call the amt_iso_optimize tool/);
+  });
+
+  it('keeps a plain Unknown tool for names that are not prompts', async () => {
+    const { json } = await call<{ error: { message: string } }>({
+      jsonrpc: '2.0',
+      id: 8,
+      method: 'tools/call',
+      params: { name: 'sandbox.execute_shell', arguments: {} },
+    });
+    expect(json.error.message).toMatch(/^Unknown tool: sandbox\.execute_shell\.$/);
+  });
+});
+
 describe('POST /mcp — resources', () => {
   // 89 of these arrived in the 14 days to 2026-09-22 and every one got
   // -32601. We advertise the `resources` capability, so the method is fair

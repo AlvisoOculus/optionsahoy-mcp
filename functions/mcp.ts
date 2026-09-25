@@ -185,7 +185,21 @@ async function handle(
       const { name, arguments: args } = req.params as { name?: unknown; arguments?: unknown };
       if (typeof name !== 'string') return logErr(-32602, 'Invalid params: name must be a string', 'name not a string');
       const tool = TOOLS.find((t) => t.name === name);
-      if (!tool) return logErr(-32602, `Unknown tool: ${name}`, 'unknown tool', name);
+      if (!tool) {
+        // Agents read prompts/list and then call a prompt's name as a tool:
+        // optimize-iso-exercise alone was called that way 16 times in the week
+        // to 2026-09-24, each answered with a bare "Unknown tool". Point them at
+        // the tool the prompt drives. The mapping is read from the prompt's own
+        // "Uses the <tool> tool." sentence, so there is no second copy to drift.
+        const prompt = PROMPTS.find((p) => p.name === name);
+        const uses = prompt?.description.match(/Uses the (\w+) tool/)?.[1];
+        const hint = !prompt
+          ? ''
+          : uses
+            ? ` "${name}" is a prompt (prompts/get), not a tool; call the ${uses} tool instead.`
+            : ` "${name}" is a prompt (prompts/get), not a tool; see tools/list for the tools it orchestrates.`;
+        return logErr(-32602, `Unknown tool: ${name}.${hint}`, 'unknown tool', name);
+      }
       // Warm the published market data this call can read before the
       // (synchronous) handler runs: the implied-vol artifact, so a `ticker`
       // resolves a sigma as of the last market close, and that ticker's option
