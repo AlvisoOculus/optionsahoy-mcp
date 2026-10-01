@@ -47,7 +47,13 @@ export function classifyClient(
   // (prsm-mcp-graph, agentage-mcp-catalog-health, mcp-uptime, mcp-scraper,
   // kimi-mcp-validator, ...). Deliberately ABSENT: bare 'graph' (LangGraph),
   // bare 'index' (llama-index), bare 'health'/'test'/'client'.
-  if (/\b(bot|crawler|spider)\b|gptbot|oai-searchbot|claudebot|google-extended|googlebot|bingbot|applebot|slurp|duckduckbot|yandex|baiduspider|semrush|ahrefs|mj12|dotbot|petalbot|nuclei|zgrab|masscan|censys|shodan|nmap|sqlmap|probe|prober|scan|registr|inspect|introspect|discover|verif|audit|scoring|rug-?pull|catalog|uptime|indexer|scraper|validat|survey|spec-check|vouch|trust-index|detector|\bguard\b|prsm|prism|collector|outreach|marketing/.test(c))
+  // 2026-10-01 audit of the same list: ~38% of 30-day "real connects" were
+  // monitors and research crawlers (mcp-server.io-healthcheck 294, mcp-watch 95,
+  // mcp-checker, mcp-observatory, measure-mcp-schema, *-mcp-index,
+  // *-mcp-health, mcp-*-research/census/inventory/fingerprint...), plus A2A
+  // spam (ziwei-*, AgentScout, hultra-link "sondes"). Health and index stay
+  // anchored ('-health', 'mcp-index') for the reason above.
+  if (/\b(bot|crawler|spider)\b|gptbot|oai-searchbot|claudebot|google-extended|googlebot|bingbot|applebot|slurp|duckduckbot|yandex|baiduspider|semrush|ahrefs|mj12|dotbot|petalbot|nuclei|zgrab|masscan|censys|shodan|nmap|sqlmap|probe|prober|scan|registr|inspect|introspect|discover|verif|audit|scoring|rug-?pull|catalog|uptime|indexer|scraper|validat|survey|spec-check|vouch|trust-index|detector|\bguard\b|prsm|prism|collector|outreach|marketing|healthcheck|-health\b|liveness|\bwatch\b|checker|observatory|measure|mcp-index|schema|archive|directory|research|census|inventory|fingerprint|latency|study|ecosystem|drift|\bscout|radar|sonde|ziwei/.test(c))
     return { kind: 'crawler', label: 'crawler/scanner' };
   // Interactive AI clients: a real person is in the loop (chat UI, IDE,
   // desktop app). 'Claude-User' is the name Claude.ai sends for a

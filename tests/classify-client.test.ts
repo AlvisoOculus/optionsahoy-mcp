@@ -184,3 +184,37 @@ describe('scanners seen in the 2026-09-24 audit', () => {
     expect(isInfraClient('python-httpx/0.28.1', 'mcp')).toBe(false);
   });
 });
+
+// From the 2026-10-01 audit of the 30-day realClients list and A2A callers.
+// Every name here is verbatim from production.
+describe('monitors and research crawlers seen 2026-10-01', () => {
+  it.each([
+    'mcp-server.io-healthcheck', 'mcp-watch', 'mcp-checker', 'mcp-observatory',
+    'measure-mcp-schema', 'referencesource-mcp-health', 'temsor-mcp-index', 'glide-mcp-index',
+    'mcp-schema-archive', 'agentwares-mcp-liveness', 'mcp-directory-research',
+    'hookdeck-mcp-events-directory', 'mcp-disclosure-measurement', 'mcp-drift-pipeline',
+    'mcp-ecosystem-research', 'mcp-hosting-fingerprint', 'mcp-inventory',
+    'mcp-tool-calling-latency-study', 'mcp-ui-census',
+  ])('%s is a crawler, not a real connect', (name) => {
+    expect(kind(name, 'mcp')).toBe('crawler');
+    expect(isRealClient(name, 'mcp')).toBe(false);
+  });
+
+  it.each([
+    'Mozilla/5.0 (compatible; ziwei-recontact/1.0)',
+    'Mozilla/5.0 (compatible; ziwei-implant/1.0)',
+    'AgentScout/0.2 (+https://github.com/neox/agent-scout; discovery of public AI agents)',
+    'RIAA-RadarIAAgent/0.3 (+https://github.com/FHSERVICES974/agent-scout)',
+    'hultra-link/1.0 (+https://donnees.hultra.link/sondes.md)',
+    'TAR-Health/1.0',
+  ])('A2A: %s is a crawler', (ua) => {
+    expect(kind(ua, 'a2a')).toBe('crawler');
+  });
+
+  it.each([
+    'openai-mcp', 'claude-code', 'Anthropic/ClaudeAI', 'github-copilot-developer', 'copilot-cli',
+    'Xcode/copilot-xcode', 'Copilot MCP Gateway', 'llama-index', 'mcp-client', 'langgraph',
+  ])('real client %s is still counted', (name) => {
+    expect(isRealClient(name, 'mcp')).toBe(true);
+  });
+});
