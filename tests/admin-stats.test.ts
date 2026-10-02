@@ -142,6 +142,8 @@ describe('admin /mcp-stats', () => {
       { day: '2026-05-27', n: 3 },
       { day: '2026-05-26', n: 4 },
     ]);
+    // The mock's error row is a caller input error, so no faults.
+    expect(body.toolFaults).toEqual([]);
     expect(body.endpointsReal).toEqual([
       { endpoint: 'mcp:tools/call', n: 40, errors: 10, excluded: 30 },
       { endpoint: 'rest:nso', n: 0, errors: 0, excluded: 200 },

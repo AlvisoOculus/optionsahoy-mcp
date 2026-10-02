@@ -271,6 +271,23 @@ export async function readEndpointErrors(
   return r.map((x) => ({ error_msg: x.k3, n: x.n }));
 }
 
+// Every tool-call and REST error message in the window, uncapped (the per-
+// endpoint breakdown above stops at 25, and a rare crash must not hide below
+// the cut). Small: messages are template-shaped, so distinct keys stay few.
+export async function readCallErrors(
+  db: D1Database,
+  day: string,
+): Promise<{ endpoint: string; tool: string | null; error_msg: string; n: number }[]> {
+  const r = await rows<{ k1: string; k2: string; k3: string; n: number }>(
+    db,
+    `SELECT k1, k2, k3, SUM(n) AS n FROM mcp_dim_daily
+      WHERE dim = 'error' AND day >= ? AND (k1 = 'mcp:tools/call' OR k1 LIKE 'rest:%')
+      GROUP BY k1, k2, k3 ORDER BY n DESC`,
+    [day],
+  );
+  return r.map((x) => ({ endpoint: x.k1, tool: emptyToNull(x.k2), error_msg: x.k3, n: x.n }));
+}
+
 export async function readErrFields(
   db: D1Database,
   day: string,
