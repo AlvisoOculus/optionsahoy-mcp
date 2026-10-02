@@ -87,7 +87,24 @@ import {
   readCountries,
   readRestNet,
   readCallClients,
+  readCallErrors,
 } from '../_lib/adminRollup';
+
+// A caller's mistake, not ours. Every parser rejection starts with
+// `field "<name>"` (REST prefixes `parse: `); the rest are an unknown tool
+// name, a non-JSON body, or a wrong HTTP method. Anything else a tool call
+// logged is an exception our code threw (functions/mcp.ts logs e.message).
+export function isCallerInputError(msg: string): boolean {
+  return /^(parse: )?field "/.test(msg) || /^unknown tool\b/.test(msg) || msg === 'invalid json' || /^method [A-Z]+$/.test(msg);
+}
+
+export interface ToolFault { endpoint: string; tool: string | null; error_msg: string; n: number }
+
+// Tool-call and REST errors that were not the caller's input: the server-side
+// failures. The daily MCP health job (ops repo) alerts on any of these.
+export function toolFaultsFrom(rows: ToolFault[]): ToolFault[] {
+  return rows.filter((r) => !isCallerInputError(r.error_msg));
+}
 
 // The surface classifyClient expects for a logged endpoint.
 function surfaceOf(endpoint: string): string {
@@ -212,7 +229,7 @@ export const onRequest: PagesFunction = async (ctx) => {
   await ensureDimsFresh(db, Date.now());
   const day = sinceDay(sinceMs);
 
-  const [endpoints, daily, dailyRest, dailyMcp, tools, errors, clients, countries, restNet, errFieldRaw, sessionsDaily, sessionDepth, initClients, callClients] = await Promise.all([
+  const [endpoints, daily, dailyRest, dailyMcp, tools, errors, clients, countries, restNet, errFieldRaw, sessionsDaily, sessionDepth, initClients, callClients, callErrors] = await Promise.all([
     readEndpoints(db, day),
     readDailyTotals(db, day),
     readDailyRest(db, day),
@@ -227,7 +244,9 @@ export const onRequest: PagesFunction = async (ctx) => {
     q<SessionDepthRow>(db, SQL_SESSION_DEPTH, new Date(sinceMs).toISOString()).catch(emptyIfUnmigrated),
     readInitClients(db, day),
     readCallClients(db, day),
+    readCallErrors(db, day),
   ]);
+  const toolFaults = toolFaultsFrom(callErrors);
   const endpointsReal = realTrafficByEndpoint(callClients);
 
   // A real connect = a person in an AI client, or a programmatic agent
@@ -296,7 +315,7 @@ export const onRequest: PagesFunction = async (ctx) => {
   ).slice(0, 50);
 
   if (url.searchParams.get('format') === 'json') {
-    const body = JSON.stringify({ days, endpoints, endpointsReal, daily, dailyRest, dailyMcp, tools, errors, topErrorFields, clients, countries, restNet, sessionsDaily, sessionDepth, initializesReal, realClients, endpointErrors, samples: classified, sampleCounts });
+    const body = JSON.stringify({ days, endpoints, endpointsReal, toolFaults, daily, dailyRest, dailyMcp, tools, errors, topErrorFields, clients, countries, restNet, sessionsDaily, sessionDepth, initializesReal, realClients, endpointErrors, samples: classified, sampleCounts });
     return new Response(body, {
       status: 200,
       headers: {
