@@ -1,9 +1,11 @@
 # Daily drift check: the official MCP registry's latest published version must
-# match package.json. The drift class this guards: publishing to npm via
-# workflow_dispatch skips the release-gated registry job in npm-publish.yml,
-# leaving the registry pinned to a stale version (bit us 2026-08: npm 1.10.1,
-# registry 1.9.8 for two weeks). A red run here is the alert; fix by cutting
-# the missing GitHub release (see npm-publish.yml `registry` job).
+# match package.json. The drift class this guards: a version reaching
+# package.json without its release, so npm-publish.yml's release-gated
+# registry job never runs and the registry stays pinned to a stale version
+# (2026-08: npm 1.10.1, registry 1.9.8 for two weeks; 2026-10-01: the 1.10.3
+# bump merged unreleased). A merged bump now releases itself, so a red run
+# here means that npm-publish run failed or never fired. Fix: dispatch
+# npm-publish.yml with tag v<package.json version>.
 
 name: Registry freshness
 
@@ -39,6 +41,6 @@ jobs:
             ")
           echo "package.json: $local_version | registry isLatest: $registry_version"
           if [ "$local_version" != "$registry_version" ]; then
-            echo "::error::Registry drift: registry.modelcontextprotocol.io serves $registry_version but package.json is $local_version. Cut the missing GitHub release so npm-publish.yml's registry job republishes (dispatch publishes skip it)."
+            echo "::error::Registry drift: registry.modelcontextprotocol.io serves $registry_version but package.json is $local_version. Check the npm-publish.yml run for the bump, or dispatch it with tag=v$local_version to cut the release and republish."
             exit 1
           fi

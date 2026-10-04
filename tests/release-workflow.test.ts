@@ -1,6 +1,6 @@
 // AlphaLatitude Inc. © 2026
 //
-// npm-publish.yml has two entry points and they must stay equivalent.
+// npm-publish.yml has three entry points and they must stay equivalent.
 //
 // `release: published` is the human one. The dispatch-with-a-tag one exists
 // because the monthly release routine cannot reach the last step of its own
@@ -9,6 +9,14 @@
 // the 1.10.2 version bump, could not cut the release, sent a push
 // notification instead, and npm plus the MCP registry stayed on 1.10.1 while
 // registry-freshness went red every morning for five days.
+//
+// The dispatch was still a step the routine had to remember, and on
+// 2026-10-01 it merged the 1.10.3 bump and stopped again. So the third entry
+// point is the bump itself: a push to main that changes package.json to a
+// version with no release resolves to that tag and runs the dispatch path.
+// Every gate therefore reads the RESOLVED tag; `inputs.tag` is empty on a
+// push, and a gate still reading it would skip the release it was meant to
+// cut.
 //
 // The subtle part is the job graph. create-release is SKIPPED on the release
 // path, and a skipped `needs` dependency skips its dependents under the
@@ -42,8 +50,8 @@ function job(name: string): string {
 // announce one to the world.
 const RELEASE_ONLY = ['mcpb', 'registry'];
 
-describe('both entry points', () => {
-  it.each(['create-release', 'publish', 'publish-ai-sdk', 'mcpb', 'registry'])(
+describe('every entry point', () => {
+  it.each(['resolve', 'create-release', 'publish', 'publish-ai-sdk', 'mcpb', 'registry'])(
     'job %s exists',
     (name) => {
       expect(job(name), `job "${name}" is missing from npm-publish.yml`).not.toBe('');
@@ -57,13 +65,55 @@ describe('both entry points', () => {
   it('accepts a tag to cut on dispatch', () => {
     expect(WORKFLOW).toMatch(/workflow_dispatch:\n\s+inputs:\n\s+tag:/);
   });
+
+  it('wakes up when a version bump lands on main', () => {
+    expect(WORKFLOW).toMatch(/\n {2}push:\n {4}branches: \[main\]\n {4}paths: \['package\.json'\]/);
+  });
+
+  it('reads the dispatch input in one place only', () => {
+    // Anywhere else, `inputs.tag` is the push path's blind spot.
+    const uses = WORKFLOW.split('\n').filter((l) => l.includes('inputs.tag'));
+    expect(uses).toEqual(['          INPUT_TAG: ${{ inputs.tag }}']);
+  });
+});
+
+describe('resolve', () => {
+  const body = job('resolve');
+
+  it('publishes the tag it resolved', () => {
+    expect(body).toMatch(/outputs:\n\s+tag: \$\{\{ steps\.r\.outputs\.tag \}\}/);
+    expect(body).toContain('echo "tag=$tag" >> "$GITHUB_OUTPUT"');
+  });
+
+  it('takes the input on dispatch', () => {
+    expect(body).toMatch(/workflow_dispatch \]; then\n\s+tag="\$INPUT_TAG"/);
+  });
+
+  it('on a push, resolves package.json only when that release does not exist', () => {
+    // Without the existence check, every package.json edit (a dependency
+    // bump) would re-run the registry publish for an already-released version.
+    expect(body).toMatch(/push \]; then\n\s+v="v\$\(node -p "require\('\.\/package\.json'\)\.version"\)"/);
+    expect(body).toMatch(/if gh release view "\$v"/);
+    expect(body).toMatch(/elif grep -q 'release not found' view-err\.txt; then\n\s+tag="\$v"/);
+  });
+
+  it('treats an unreadable release list as an error, not as "unreleased"', () => {
+    // A transient API failure read as "missing" would re-cut and re-announce.
+    expect(body).toMatch(/else\n\s+echo "gh release view failed[^\n]*exit 1\n\s+fi/);
+  });
+
+  it('fails loudly rather than resolving to nothing', () => {
+    expect(body).toContain('set -euo pipefail');
+  });
 });
 
 describe('create-release', () => {
   const body = job('create-release');
 
-  it('only runs on the dispatch path, where a tag was asked for', () => {
-    expect(body).toMatch(/^\s+if: inputs\.tag != ''$/m);
+  it('only runs when a tag was resolved (dispatch, or a version bump)', () => {
+    expect(body).toMatch(/^\s+needs: resolve$/m);
+    expect(body).toMatch(/^\s+if: needs\.resolve\.outputs\.tag != ''$/m);
+    expect(body).toContain('TAG: ${{ needs.resolve.outputs.tag }}');
   });
 
   it('refuses a tag that does not match package.json', () => {
@@ -87,7 +137,7 @@ describe.each(RELEASE_ONLY)('%s', (name) => {
   const body = job(name);
 
   it('waits for the release to be cut', () => {
-    expect(body).toMatch(/^\s+needs: create-release$/m);
+    expect(body).toMatch(/^\s+needs: \[resolve, create-release\]$/m);
   });
 
   it('survives create-release being skipped, but not it failing', () => {
@@ -96,10 +146,10 @@ describe.each(RELEASE_ONLY)('%s', (name) => {
     expect(cond).toContain('!cancelled()');
   });
 
-  it('runs on both entry points and neither one more', () => {
+  it('runs on every entry point that has a release, and nowhere else', () => {
     const cond = body.match(/^\s+if: (.+)$/m)?.[1] ?? '';
     expect(cond).toContain("github.event_name == 'release'");
-    expect(cond).toContain("inputs.tag != ''");
+    expect(cond).toContain("needs.resolve.outputs.tag != ''");
   });
 });
 
@@ -107,14 +157,25 @@ describe('mcpb asset upload', () => {
   it('names the tag from whichever entry point supplied it', () => {
     // `github.event.release.tag_name` is null on a dispatch run, which would
     // upload the bundle to a release called "".
-    expect(job('mcpb')).toContain('${{ github.event.release.tag_name || inputs.tag }}');
+    expect(job('mcpb')).toContain(
+      '${{ github.event.release.tag_name || needs.resolve.outputs.tag }}',
+    );
   });
 });
 
-describe('npm publish jobs', () => {
-  it.each(['publish', 'publish-ai-sdk'])('%s stays ungated', (name) => {
-    // These are version-keyed and skip-existing, so they are safe to run on a
-    // bare dispatch with no tag - that is the "republish this commit" case.
-    expect(job(name)).not.toContain('needs: create-release');
+describe.each(['publish', 'publish-ai-sdk'])('npm job %s', (name) => {
+  const body = job(name);
+
+  it('does not wait on create-release', () => {
+    // Version-keyed and skip-existing, so safe on a bare dispatch with no
+    // tag - the "republish this commit" case - and not hostage to a tag typo.
+    expect(body).not.toMatch(/^\s+needs:.*create-release/m);
+  });
+
+  it('publishes nothing on a package.json push that is not a version bump', () => {
+    expect(body).toMatch(/^\s+needs: resolve$/m);
+    expect(body).toMatch(
+      /^\s+if: github\.event_name != 'push' \|\| needs\.resolve\.outputs\.tag != ''$/m,
+    );
   });
 });
