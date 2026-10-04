@@ -366,27 +366,40 @@ describe('caching', () => {
 });
 
 describe('POST /mcp — a prompt name called as a tool', () => {
-  // Seen 16 times in the week to 2026-09-24 for optimize-iso-exercise alone.
-  it('names the tool the prompt drives instead of a bare Unknown tool', async () => {
-    const { json } = await call<{ error: { code: number; message: string } }>({
-      jsonrpc: '2.0',
-      id: 7,
-      method: 'tools/call',
-      params: { name: 'optimize-iso-exercise', arguments: {} },
+  // optimize-iso-exercise: 64 calls, 62 failures in the 30 days to 2026-10-04,
+  // even after a "call the X tool instead" hint. A single-tool prompt now runs
+  // its tool; prompt args name the state `state`, the tools `stateCode`.
+  const callAs = (name: string, args: unknown, id = 7) =>
+    call<{ result?: { content: { text: string }[]; isError?: boolean; structuredContent?: Record<string, unknown> }; error?: { code: number; message: string } }>({
+      jsonrpc: '2.0', id, method: 'tools/call', params: { name, arguments: args },
     });
-    expect(json.error.code).toBe(-32602);
-    expect(json.error.message).toMatch(/is a prompt/);
-    expect(json.error.message).toMatch(/call the amt_iso_optimize tool/);
+  const { stateCode, ...amtWithoutStateCode } = AMT_ISO_INPUT;
+
+  it('runs the tool the prompt drives, with the prompt\'s `state` argument', async () => {
+    const viaPrompt = await callAs('optimize-iso-exercise', { ...amtWithoutStateCode, state: stateCode });
+    const direct = await callAs('amt_iso_optimize', AMT_ISO_INPUT, 8);
+    expect(viaPrompt.json.error).toBeUndefined();
+    expect(viaPrompt.json.result!.isError).not.toBe(true);
+    const strip = (r: Record<string, unknown>) => { const { next_steps, ...rest } = r; return rest; };
+    expect(strip(viaPrompt.json.result!.structuredContent!)).toEqual(strip(direct.json.result!.structuredContent!));
+  });
+
+  it('with missing inputs, answers with the tool\'s own field errors, not Unknown tool', async () => {
+    const { json } = await callAs('optimize-iso-exercise', {});
+    expect(json.error).toBeUndefined();
+    expect(json.result!.isError).toBe(true);
+    expect(json.result!.content[0].text).toMatch(/field "shares"/);
+  });
+
+  it('a prompt spanning several tools still gets the prompt hint', async () => {
+    const { json } = await callAs('plan-equity-portfolio', {});
+    expect(json.error!.code).toBe(-32602);
+    expect(json.error!.message).toMatch(/is a prompt .*see tools\/list/);
   });
 
   it('keeps a plain Unknown tool for names that are not prompts', async () => {
-    const { json } = await call<{ error: { message: string } }>({
-      jsonrpc: '2.0',
-      id: 8,
-      method: 'tools/call',
-      params: { name: 'sandbox.execute_shell', arguments: {} },
-    });
-    expect(json.error.message).toMatch(/^Unknown tool: sandbox\.execute_shell\.$/);
+    const { json } = await callAs('sandbox.execute_shell', {});
+    expect(json.error!.message).toMatch(/^Unknown tool: sandbox\.execute_shell\.$/);
   });
 });
 

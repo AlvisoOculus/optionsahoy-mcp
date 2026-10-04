@@ -408,6 +408,22 @@ describe('local stdio MCP server', () => {
     expect(result.structuredContent).toEqual(parsed);
   });
 
+  // A prompt name runs the tool it drives, as on the hosted server.
+  it('runs a single-tool prompt name as its tool, mapping state to stateCode', async () => {
+    const res = await session.request('tools/call', {
+      name: 'optimize-iso-exercise',
+      arguments: {
+        shares: 10000, strike: 5, fmv: 40, volatility: 0.3, expectedGrowth: 0.1, filingStatus: 'single',
+        ordinaryIncome: 200000, state: 'CA', carryforwardCredit: 0, horizon: 3, cashReturnRate: 0.05,
+        grantDate: '2022-01-01', hasLeftCompany: false, terminationDate: null,
+      },
+    });
+    const result = res.result as { content: Array<{ text: string }>; isError?: boolean };
+    expect(result.isError).not.toBe(true);
+    expect(JSON.parse(result.content[0].text).schedules).toBeDefined();
+  });
+
+
 
   describe('next-steps block (npx/MCPB installs)', () => {
     // The local server has no D1 and no session id, but one stdio process
