@@ -26,12 +26,23 @@
 # Or dispatch this workflow with `tag: v1.9.0` and it cuts that release
 # itself, then does everything a `release: published` run would. See the
 # create-release job for why that entry point has to exist.
+#
+# Or just merge the version bump: a push to main that changes package.json to
+# a version with no release yet cuts and publishes `v<version>` the same way.
 
 name: Publish to npm
 
 on:
   release:
     types: [published]
+  # A merged version bump IS the release. The monthly routine twice merged
+  # the bump and stopped short of releasing (1.10.2 on 2026-09-01; 1.10.3 on
+  # 2026-10-01 sat unreleased, registry-freshness red from 10-01), because the
+  # release was a separate step it had to remember. `resolve` turns the bump
+  # into the tag.
+  push:
+    branches: [main]
+    paths: ['package.json']
   workflow_dispatch:
     inputs:
       tag:
@@ -42,6 +53,12 @@ on:
 permissions:
   contents: read
   id-token: write # required for npm provenance (OIDC)
+
+# Two runs for one version (a push and a dispatch, or two quick pushes) would
+# race between `gh release view` and `gh release create`; queue them instead.
+concurrency:
+  group: npm-publish
+  cancel-in-progress: false
 
 jobs:
   # The GitHub release is the trigger for everything else here: the .mcpb
@@ -57,8 +74,45 @@ jobs:
   # Everything runs in this one workflow run on purpose: a release created
   # with GITHUB_TOKEN does not fire `release: published`, so handing off to a
   # second workflow would hand off to something that never wakes up.
+  # The tag this run cuts, or '' for none. Dispatch: the input. Push: the
+  # package.json version, but only if that release does not exist yet, so a
+  # package.json edit that is not a bump releases nothing. Release event: ''
+  # (the release already exists; downstream jobs read the event's tag).
+  resolve:
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.r.outputs.tag }}
+    steps:
+      - uses: actions/checkout@v7
+      - id: r
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT: ${{ github.event_name }}
+          INPUT_TAG: ${{ inputs.tag }}
+        run: |
+          set -euo pipefail
+          tag=''
+          if [ "$EVENT" = workflow_dispatch ]; then
+            tag="$INPUT_TAG"
+          elif [ "$EVENT" = push ]; then
+            v="v$(node -p "require('./package.json').version")"
+            # Fail-safe, like the npm skip-existing check: only a positive
+            # "release not found" means unreleased. Any other gh error stops
+            # here instead of re-announcing a version that already shipped.
+            if gh release view "$v" >/dev/null 2>view-err.txt; then
+              echo "$v is already released; nothing to do."
+            elif grep -q 'release not found' view-err.txt; then
+              tag="$v"
+            else
+              echo "gh release view failed for another reason:"; cat view-err.txt; exit 1
+            fi
+          fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "resolved tag: '$tag'"
+
   create-release:
-    if: inputs.tag != ''
+    needs: resolve
+    if: needs.resolve.outputs.tag != ''
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -70,7 +124,7 @@ jobs:
       - name: Cut the release
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ inputs.tag }}
+          TAG: ${{ needs.resolve.outputs.tag }}
         run: |
           set -euo pipefail
           version="v$(node -p "require('./package.json').version")"
@@ -85,6 +139,11 @@ jobs:
           gh release create "$TAG" --target "$GITHUB_SHA" --title "$TAG" --generate-notes
 
   publish:
+    # Version-keyed and skip-existing, so it does not wait on create-release
+    # (a bare dispatch with no tag republishes this commit). It needs resolve
+    # only so that a package.json push that is not a bump publishes nothing.
+    needs: resolve
+    if: github.event_name != 'push' || needs.resolve.outputs.tag != ''
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7
@@ -119,6 +178,11 @@ jobs:
   # Self-contained: its own deps, build (tsc -> dist/), and tests. Provenance
   # via the same OIDC + NPM_TOKEN as the root package.
   publish-ai-sdk:
+    # Version-keyed and skip-existing, so it does not wait on create-release
+    # (a bare dispatch with no tag republishes this commit). It needs resolve
+    # only so that a package.json push that is not a bump publishes nothing.
+    needs: resolve
+    if: github.event_name != 'push' || needs.resolve.outputs.tag != ''
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -156,12 +220,12 @@ jobs:
   # attach it to the release so docs can link the stable URL
   # releases/latest/download/optionsahoy.mcpb.
   mcpb:
-    needs: create-release
+    needs: [resolve, create-release]
     # create-release is SKIPPED on the `release: published` path, and a
     # skipped dependency would skip this job too under the default success()
     # gate. !failure() keeps it running there while still refusing to attach
     # an asset to a release that failed to cut.
-    if: ${{ !cancelled() && !failure() && (github.event_name == 'release' || inputs.tag != '') }}
+    if: ${{ !cancelled() && !failure() && (github.event_name == 'release' || needs.resolve.outputs.tag != '') }}
     runs-on: ubuntu-latest
     permissions:
       contents: write # upload release asset
@@ -172,7 +236,7 @@ jobs:
           node-version: '20'
       - run: npm install --no-audit
       - run: npm run build:mcpb
-      - run: gh release upload "${{ github.event.release.tag_name || inputs.tag }}" optionsahoy.mcpb --clobber
+      - run: gh release upload "${{ github.event.release.tag_name || needs.resolve.outputs.tag }}" optionsahoy.mcpb --clobber
         env:
           GH_TOKEN: ${{ github.token }}
 
@@ -181,9 +245,9 @@ jobs:
   # the released version. Auth is GitHub OIDC (no secrets) - the registry
   # grants io.github.<owner>/* to workflows running in that owner's repos.
   registry:
-    needs: create-release
+    needs: [resolve, create-release]
     # Same gate as mcpb: skipped-not-failed on the release path.
-    if: ${{ !cancelled() && !failure() && (github.event_name == 'release' || inputs.tag != '') }}
+    if: ${{ !cancelled() && !failure() && (github.event_name == 'release' || needs.resolve.outputs.tag != '') }}
     runs-on: ubuntu-latest
     permissions:
       id-token: write
