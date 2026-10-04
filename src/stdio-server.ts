@@ -128,7 +128,11 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
     // Same prose block the hosted server emits: chat hosts relay words,
     // not JSON fields, and the fidelity instruction tells the model WHY the
     // scenario URL must survive verbatim (see functions/mcp.ts).
-    const prose = next ? nextStepsProse(next) : '';
+    // A disclosed growth assumption leads the prose: models relay words and
+    // paraphrase JSON away, and this is the line the user must hear.
+    const prose = [result.assumptionNotice, next ? nextStepsProse(next) : '']
+      .filter((x): x is string => typeof x === 'string' && x.length > 0)
+      .join('\n\n');
     return {
       content: [
         { type: 'text', text: JSON.stringify(result) },

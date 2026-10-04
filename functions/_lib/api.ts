@@ -13,7 +13,7 @@
 // drive handlers with `{ request }` alone; in production CF always
 // supplies both.
 import { type PagesContext } from './stats';
-import { warmForCall } from './calc-parsers';
+import { attachAssumptions, collectAssumptions, warmForCall, type GrowthAssumption } from './calc-parsers';
 export type PagesFunction = (context: PagesContext) => Promise<Response> | Response;
 export type { PagesContext } from './stats';
 
@@ -137,8 +137,11 @@ export async function runCalc<I, O>(
   // would read. See warmForCall for how the condition is derived.
   await warmForCall(slug, raw);
   let input: I;
+  let assumptions: GrowthAssumption[] = [];
   try {
-    input = parseInput(raw);
+    // Armed: a missing growth assumption falls back to the disclosed market
+    // average instead of erroring (see collectAssumptions).
+    ({ value: input, assumptions } = collectAssumptions(() => parseInput(raw)));
   } catch (err) {
     const errorMsg = err instanceof Error ? err.message : String(err);
     // Report every field the caller left out, not just the first one. See
@@ -152,7 +155,7 @@ export async function runCalc<I, O>(
     });
   }
   try {
-    const output = compute(input);
+    const output = attachAssumptions(compute(input), assumptions);
     logCall(context, { endpoint, isError: false });
     logSample(context, {
       surface: 'rest',
@@ -249,7 +252,9 @@ export function allMissingFields(parse: (raw: unknown) => unknown, raw: unknown,
   const outer = collected;
   collected = [];
   try {
-    parse(raw);
+    // Armed like the real parse, so an absent growth field takes the disclosed
+    // market fallback instead of aborting the walk before later fields.
+    collectAssumptions(() => parse(raw));
   } catch {
     // A non-field check (or a placeholder the parser refuses outright) can
     // still throw. Whatever it collected before that point still counts.

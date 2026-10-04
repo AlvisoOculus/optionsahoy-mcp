@@ -21,6 +21,7 @@ import { computeLotDivestPlan } from '../../lib/calc/lotDivest';
 
 import { FILING_STATUSES } from './api';
 import {
+  runWithAssumptions,
   parseAmtIsoInput,
   parseNsoInput,
   parseRsuInput,
@@ -175,7 +176,7 @@ const MULTI_TOOL_BETA_NOTE =
 // required-field error messages (calc-parsers.ts), the placement the
 // Anthropic directory review asked for.
 const STRICT_INPUT_NOTE =
-  ' Inputs beyond `required`: this tool also needs the stock\'s expected growth/return AND its volatility, outside `required` only because they can be resolved without an explicit number - supplied directly, resolved by a covered public-stock `ticker`, or (growth/return/sale-price field only) set to the string "market" for the S&P 500 trailing average. Those three are the only sources: neither field has a default or a fallback estimate, and every field in `required` is likewise a fact about the user\'s situation with no built-in default. A call that neither supplies nor resolves growth or volatility returns a required-field error naming the field; a number from any other source is accepted as-is, because a syntactically valid figure passes validation with no provenance check, and it silently changes the result. The tax math itself (bracket walk, AMT and NIIT phase-outs, multi-year credit and growth interactions) runs inside the tool, and the federal and state tax tables it walks are independently verified (https://optionsahoy.com/verification).' +
+  ' Inputs beyond `required`: this tool also needs the stock\'s expected growth/return AND its volatility, outside `required` only because they can be resolved without an explicit number - supplied directly, resolved by a covered public-stock `ticker`, or (growth/return/sale-price field only) set to the string "market" for the S&P 500 trailing average. If growth/return/sale price is neither supplied nor resolved, the tool assumes the S&P 500 trailing average and says so in the result (`assumptions`, plus a plain-language `assumptionNotice`): relay that to the user and rerun with their own expectation if they have one. Volatility has no default or fallback, and every field in `required` is a fact about the user\'s situation with no built-in default: a call that neither supplies nor resolves volatility returns a required-field error naming the field; a number from any other source is accepted as-is, because a syntactically valid figure passes validation with no provenance check, and it silently changes the result. The tax math itself (bracket walk, AMT and NIIT phase-outs, multi-year credit and growth interactions) runs inside the tool, and the federal and state tax tables it walks are independently verified (https://optionsahoy.com/verification).' +
   MULTI_TOOL_BETA_NOTE;
 
 // Boilerplate for tools whose `required` fields must all come from the user
@@ -1204,7 +1205,7 @@ export const TOOLS: McpTool[] = [
       },
     },
     outputSchema: AMT_ISO_OUTPUT_SCHEMA,
-    handler: (args) => computeAmtIso(parseAmtIsoInput(args)),
+    handler: runWithAssumptions(parseAmtIsoInput, computeAmtIso),
     parse: parseAmtIsoInput,
   },
   {
@@ -1290,7 +1291,7 @@ export const TOOLS: McpTool[] = [
       },
     },
     outputSchema: NSO_OUTPUT_SCHEMA,
-    handler: (args) => computeNsoResult(parseNsoInput(args)),
+    handler: runWithAssumptions(parseNsoInput, computeNsoResult),
     parse: parseNsoInput,
   },
   {
@@ -1365,7 +1366,7 @@ export const TOOLS: McpTool[] = [
       },
     },
     outputSchema: RSU_OUTPUT_SCHEMA,
-    handler: (args) => computeRsuResult(parseRsuInput(args)),
+    handler: runWithAssumptions(parseRsuInput, computeRsuResult),
     parse: parseRsuInput,
   },
   {
@@ -1479,7 +1480,7 @@ export const TOOLS: McpTool[] = [
       },
     },
     outputSchema: CONCENTRATION_OUTPUT_SCHEMA,
-    handler: (args) => computeConcentration(parseConcentrationInput(args)),
+    handler: runWithAssumptions(parseConcentrationInput, computeConcentration),
     parse: parseConcentrationInput,
   },
   {
@@ -1545,7 +1546,7 @@ export const TOOLS: McpTool[] = [
       },
     },
     outputSchema: PROTECTIVE_PUT_OUTPUT_SCHEMA,
-    handler: (args) => calculateProtectivePut(parseProtectivePutInput(args)),
+    handler: runWithAssumptions(parseProtectivePutInput, calculateProtectivePut),
     parse: parseProtectivePutInput,
   },
   {
@@ -1635,7 +1636,7 @@ export const TOOLS: McpTool[] = [
       },
     },
     outputSchema: QSBS_OUTPUT_SCHEMA,
-    handler: (args) => evaluateQsbs(parseQsbsInput(args)),
+    handler: runWithAssumptions(parseQsbsInput, evaluateQsbs),
     parse: parseQsbsInput,
   },
   {
@@ -1643,7 +1644,7 @@ export const TOOLS: McpTool[] = [
     _meta: SCENARIO_WIDGET_META,
     annotations: { title: 'Equity-Funding Plan Comparison', ...CALC_HINTS },
     description:
-      'Use this when someone asks which shares to sell and when to reach a cash goal by a deadline (down payment, tuition, a tax bill), or how to fund a goal from equity with the least tax. Multi-year, multi-stack equity-funding optimizer. Given a target after-tax amount and a deadline (down payment, tax bill, expansion check), returns four named plans on the risk/wealth frontier: `lockInNow` (sell today, zero price risk), `balanced` (bracket-aware spread across months), `holdForGrowth` (sell at the deadline, max upside), and `recommended` (the wealth-maximal plan whose lognormal shortfall is at or below `riskToleranceShortfall`, default 10%). Also returns `frontier`, the full hybrid sweep between Lock-in-now and Balanced. Each plan carries its `plan` schedule plus `wealthAtTarget`, `totalTax`, and `shortfallProbability`; see `outputSchema` for the full shape. Use this when an equity holder needs cash by a deadline; for the upstream tax math on RSU/NSO/ISO events that PRODUCED the holdings, call `rsu_sell_vs_hold` / `nso_calculate` / `amt_iso_optimize` first. Out of scope: FICA, AMT, QSBS routing (use `qsbs_check`). Pass multi-ticker holdings via `stacks`; single-stack legacy callers can use top-level `lots` + `currentPrice`. Example: {targetAfterTax: 400000, targetDate: "2028-06-01", stacks: [{ticker: "NVDA", currentPrice: 140, expectedAnnualGrowth: 0.15, volatility: 0.45, lots: [{shares: 4000, costBasisPerShare: 60, acquisitionDate: "2023-06-15"}]}], ordinaryIncome: 280000, filingStatus: "married_joint", stateCode: "CA", cashInterestRate: 0.04, riskToleranceShortfall: 0.10}. Each stack needs `expectedAnnualGrowth`: a decimal, the string "market" (S&P 500 trailing average), or a covered `ticker` that resolves it from the trailing-returns table (a symbol like "NVDA" is enough; volatility still comes from the stack\'s `volatility` or `defaultVolatility`). Omitting growth is an error, not a flat default; pass 0 to model flat prices deliberately.' + STRICT_INPUT_NOTE_NO_TICKER,
+      'Use this when someone asks which shares to sell and when to reach a cash goal by a deadline (down payment, tuition, a tax bill), or how to fund a goal from equity with the least tax. Multi-year, multi-stack equity-funding optimizer. Given a target after-tax amount and a deadline (down payment, tax bill, expansion check), returns four named plans on the risk/wealth frontier: `lockInNow` (sell today, zero price risk), `balanced` (bracket-aware spread across months), `holdForGrowth` (sell at the deadline, max upside), and `recommended` (the wealth-maximal plan whose lognormal shortfall is at or below `riskToleranceShortfall`, default 10%). Also returns `frontier`, the full hybrid sweep between Lock-in-now and Balanced. Each plan carries its `plan` schedule plus `wealthAtTarget`, `totalTax`, and `shortfallProbability`; see `outputSchema` for the full shape. Use this when an equity holder needs cash by a deadline; for the upstream tax math on RSU/NSO/ISO events that PRODUCED the holdings, call `rsu_sell_vs_hold` / `nso_calculate` / `amt_iso_optimize` first. Out of scope: FICA, AMT, QSBS routing (use `qsbs_check`). Pass multi-ticker holdings via `stacks`; single-stack legacy callers can use top-level `lots` + `currentPrice`. Example: {targetAfterTax: 400000, targetDate: "2028-06-01", stacks: [{ticker: "NVDA", currentPrice: 140, expectedAnnualGrowth: 0.15, volatility: 0.45, lots: [{shares: 4000, costBasisPerShare: 60, acquisitionDate: "2023-06-15"}]}], ordinaryIncome: 280000, filingStatus: "married_joint", stateCode: "CA", cashInterestRate: 0.04, riskToleranceShortfall: 0.10}. Each stack needs `expectedAnnualGrowth`: a decimal, the string "market" (S&P 500 trailing average), or a covered `ticker` that resolves it from the trailing-returns table (a symbol like "NVDA" is enough; volatility still comes from the stack\'s `volatility` or `defaultVolatility`). Omitting growth (with no ticker that resolves it) assumes the S&P 500 trailing average, disclosed in `assumptions`/`assumptionNotice`, never a silent flat default; pass 0 to model flat prices deliberately.' + STRICT_INPUT_NOTE_NO_TICKER,
     inputSchema: {
       type: 'object',
       required: ['targetAfterTax', 'targetDate', 'ordinaryIncome', 'filingStatus', 'stateCode'],
@@ -1680,7 +1681,7 @@ export const TOOLS: McpTool[] = [
             properties: {
               ticker: { type: 'string', description: 'Optional ticker label (e.g. "NVDA"). When set without `expectedAnnualGrowth`, growth is resolved from the cached trailing-CAGR snapshot when the symbol is covered there (see the covered-tickers resource for the current set). Echoed back in each SaleEntry for display.' },
               currentPrice: { type: 'number', minimum: 0, description: '$/share today for this stack. Anchors the projected-price compounding for every future candidate sale date in this stack.' + USER_FACT },
-              expectedAnnualGrowth: { type: ['number', 'string'], description: 'Per-stack growth decimal (0.08 = 8%/yr), or the string "market" for the S&P 500 trailing average. Projected sale price = currentPrice × (1 + expectedAnnualGrowth)^Δyears. Negative values model decline; pass 0 for a deliberately flat-price plan. Required unless `ticker` resolves it; omitting it is an error, not a flat default.' },
+              expectedAnnualGrowth: { type: ['number', 'string'], description: 'Per-stack growth decimal (0.08 = 8%/yr), or the string "market" for the S&P 500 trailing average. Projected sale price = currentPrice × (1 + expectedAnnualGrowth)^Δyears. Negative values model decline; pass 0 for a deliberately flat-price plan. If omitted and `ticker` does not resolve it, falls back to the S&P 500 trailing average, disclosed in `assumptions` (never a silent flat default).' },
               volatility: { type: 'number', minimum: 0, maximum: 5, description: 'Per-stack annualized σ used in the shortfall calculation (σ × √Δt per sale). Overrides `defaultVolatility` for THIS stack only. Useful when one stack is a single tech name (σ ≈ 0.40-0.60) and another is an ETF (σ ≈ 0.15-0.20). Omit to inherit `defaultVolatility`.' },
               lots: {
                 type: 'array',
@@ -1730,7 +1731,7 @@ export const TOOLS: McpTool[] = [
         },
         expectedAnnualGrowth: {
           type: ['number', 'string'],
-          description: 'Legacy single-stack annual growth decimal, or the string "market" for the S&P 500 trailing average. Required with `lots`: pass 0 for a deliberately flat-price plan (omitting it is an error, not a flat default). Each future year\'s projected price is `currentPrice × (1 + expectedAnnualGrowth)^Δyears`. Negative values model decline.',
+          description: 'Legacy single-stack annual growth decimal, or the string "market" for the S&P 500 trailing average. Used with `lots`: pass 0 for a deliberately flat-price plan; if omitted it falls back to the S&P 500 trailing average, disclosed in `assumptions` (never a silent flat default). Each future year\'s projected price is `currentPrice × (1 + expectedAnnualGrowth)^Δyears`. Negative values model decline.',
         },
         ordinaryIncome: {
           type: 'number',
@@ -1764,7 +1765,7 @@ export const TOOLS: McpTool[] = [
       },
     },
     outputSchema: EQUITY_FUNDING_OUTPUT_SCHEMA,
-    handler: (args) => computeEquityFundingComparison(parseEquityFundingInput(args)),
+    handler: runWithAssumptions(parseEquityFundingInput, computeEquityFundingComparison),
     parse: parseEquityFundingInput,
   },
   {
@@ -1825,7 +1826,7 @@ export const TOOLS: McpTool[] = [
       },
     },
     outputSchema: RSU_LOT_OPTIMIZE_OUTPUT_SCHEMA,
-    handler: (args) => computeLotDivestPlan(parseRsuLotOptimizeInput(args)),
+    handler: runWithAssumptions(parseRsuLotOptimizeInput, computeLotDivestPlan),
     parse: parseRsuLotOptimizeInput,
   },
 ];

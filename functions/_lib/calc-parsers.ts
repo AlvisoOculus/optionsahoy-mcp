@@ -370,6 +370,102 @@ export function mayResolveGrowth(toolOrSlug: string, rawArgs: unknown): boolean 
   return false;
 }
 
+// ── Disclosed market-average fallback for a missing growth assumption ──────
+// Callers often have no view on growth (private companies, or the user never
+// said). Refusing ("ask the user") ended ~260 calls a month in the 30 days to
+// 2026-10-04 without an answer. When a growth field is absent and no ticker
+// resolves it, the parser now uses the S&P 500 trailing average, the same
+// blend expectedMarketReturn defaults to and "market" names, and RECORDS it.
+//
+// Only where a caller can disclose it: the fallback fires only while a
+// collector is armed (collectAssumptions, used by every surface's tool runner,
+// which then attaches `assumptions` + `assumptionNotice` to the result). An
+// unarmed parse keeps the old error, so no path can assume silently.
+
+export interface GrowthAssumption {
+  field: string;
+  /** The value the field took: a rate, or for expectedSalePrice a $/share. */
+  value: number;
+  /** The annual growth rate behind it (the S&P 500 trailing average). */
+  annualRate: number;
+  basis: string;
+  reason: string;
+}
+
+let assumptionCollector: GrowthAssumption[] | null = null;
+let assumptionsDisabled = false;
+
+/** Run a (synchronous) parse with the market-average fallback armed. */
+export function collectAssumptions<T>(fn: () => T): { value: T; assumptions: GrowthAssumption[] } {
+  if (assumptionsDisabled) return { value: fn(), assumptions: [] };
+  const prev = assumptionCollector;
+  const mine: GrowthAssumption[] = [];
+  assumptionCollector = mine;
+  try {
+    return { value: fn(), assumptions: mine };
+  } finally {
+    assumptionCollector = prev;
+  }
+}
+
+/** Run `fn` with the fallback off even inside a tool runner: the caller asks
+ *  the user instead. Poe: a person is right there to ask, and its renderer
+ *  discloses the user's inputs, not the result's assumptionNotice, so an
+ *  assumed growth would read as the user's own view. */
+export function withoutAssumptions<T>(fn: () => T): T {
+  const prev = assumptionsDisabled;
+  assumptionsDisabled = true;
+  try {
+    return fn();
+  } finally {
+    assumptionsDisabled = prev;
+  }
+}
+
+/** Attach recorded assumptions to a calculator result, in data and in words. */
+export function attachAssumptions<O>(output: O, assumptions: GrowthAssumption[]): O {
+  if (!assumptions.length || output === null || typeof output !== 'object') return output;
+  const lines = assumptions.map((a) => `${a.field} ${a.reason}, so this answer assumes ${a.basis}`);
+  return {
+    ...output,
+    assumptions,
+    assumptionNotice:
+      `Assumption: ${lines.join('; ')}. This is a market-average placeholder, not the user's view: ` +
+      'tell the user, and rerun with their own expectation if they have one.',
+  };
+}
+
+/** Parse with the fallback armed, compute, attach. For tool runners. */
+export function runWithAssumptions<I, O>(parse: (raw: unknown) => I, compute: (input: I) => O) {
+  return (raw: unknown): O => {
+    const { value, assumptions } = collectAssumptions(() => parse(raw));
+    return attachAssumptions(compute(value), assumptions);
+  };
+}
+
+// The fallback, or null when no collector is armed (caller keeps its error).
+// A ticker of "market" keeps its own explanatory error (#262), never this.
+function assumeMarketGrowth(
+  o: Obj,
+  field: string,
+  horizonYears: number,
+  toValue: (rate: number) => number = (rate) => rate,
+): number | null {
+  if (!assumptionCollector || isMarketSentinel(o.ticker)) return null;
+  const rate = getTrailingReturn('SPY', horizonYears);
+  if (rate === null) return null;
+  const ticker = typeof o.ticker === 'string' ? o.ticker : null;
+  const value = toValue(rate);
+  assumptionCollector.push({
+    field,
+    value,
+    annualRate: rate,
+    basis: `the S&P 500 trailing average (${(rate * 100).toFixed(1)}%/yr over ${horizonYears}y)`,
+    reason: ticker ? `could not be derived from ticker "${ticker}" (no trailing returns for it)` : 'was not provided',
+  });
+  return value;
+}
+
 // One resolution ladder for every growth/return field: "market" sentinel →
 // explicit number → ticker lookup → "required" error. `label` is the field
 // name quoted in errors when it differs from the key read off `o` (the
@@ -389,8 +485,12 @@ function resolveGrowthRate(
     const ticker = p.str(o, 'ticker');
     const r = getTrailingReturn(ticker, horizonYears);
     if (r !== null) return r;
+    const assumed = assumeMarketGrowth(o, label, horizonYears);
+    if (assumed !== null) return assumed;
     throw tickerGrowthError(label, ticker);
   }
+  const assumed = assumeMarketGrowth(o, label, horizonYears);
+  if (assumed !== null) return assumed;
   throw new Error(
     `field "${label}" required: pass a decimal annual rate (e.g. 0.10 for 10%${zeroHint ? ', or 0 for a deliberately flat-price plan' : ''}), set "ticker" to a covered public-stock symbol (e.g. ${EXAMPLE_COVERED_TICKERS}) to derive from trailing returns, or pass the string "market" to use the S&P 500 trailing average.${zeroHint ? ' Omitting it would silently project flat prices.' : ''} ${ASK_USER_HINT}`,
   );
@@ -408,6 +508,7 @@ function resolveMarketReturn(o: Obj, horizonYears: number): number {
 }
 
 function resolveExpectedSalePrice(o: Obj, currentPrice: number, holdYears: number): number {
+  const salePriceAt = (rate: number) => currentPrice * Math.pow(1 + rate, holdYears);
   if (isMarketSentinel(o.expectedSalePrice)) {
     return currentPrice * Math.pow(1 + marketRate('expectedSalePrice', holdYears), holdYears);
   }
@@ -416,8 +517,12 @@ function resolveExpectedSalePrice(o: Obj, currentPrice: number, holdYears: numbe
     const ticker = p.str(o, 'ticker');
     const r = getTrailingReturn(ticker, holdYears);
     if (r !== null) return currentPrice * Math.pow(1 + r, holdYears);
+    const assumed = assumeMarketGrowth(o, 'expectedSalePrice', holdYears, salePriceAt);
+    if (assumed !== null) return assumed;
     throw tickerGrowthError('expectedSalePrice', ticker);
   }
+  const assumed = assumeMarketGrowth(o, 'expectedSalePrice', holdYears, salePriceAt);
+  if (assumed !== null) return assumed;
   throw new Error(
     `field "expectedSalePrice" required: pass the projected $/share at end of holdYears, set "ticker" to a covered public-stock symbol to derive from currentPrice × (1 + trailing CAGR)^holdYears, or pass the string "market" to project currentPrice at the S&P 500 trailing average. ${ASK_USER_HINT}`,
   );

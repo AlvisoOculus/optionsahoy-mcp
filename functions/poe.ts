@@ -24,7 +24,7 @@ import { DEFAULT_CASH_RETURN_RATE, isMarketSentinel } from './_lib/calc-parsers'
 import { PER_TOOL_FREE_TOOL_BARE } from './_lib/sessions';
 import { logCall, logSample } from './_lib/stats';
 import { getCurrentPrice } from '../lib/data/prices';
-import { warmForCall } from './_lib/calc-parsers';
+import { warmForCall, withoutAssumptions } from './_lib/calc-parsers';
 import type { PagesContext, PagesFunction } from './_lib/api';
 
 const POE_COST_API = 'https://api.poe.com/bot/cost/';
@@ -1270,7 +1270,8 @@ async function handleQuery(ctx: PagesContext, req: PoeRequest, extractor?: Extra
     // market close, or the bot asks for volatility like any other missing field.
     if (volWarm) await volWarm;
     else await warmForCall(tool.name, args);
-    result = tool.handler(args) as Result;
+    // Unarmed: Poe asks the user for a missing growth view (see withoutAssumptions).
+    result = withoutAssumptions(() => tool.handler(args)) as Result;
   } catch (e) {
     const raw = e instanceof Error ? e.message : 'invalid inputs';
     // Handler failed after authorize: do not capture (the hold expires).
