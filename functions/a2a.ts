@@ -61,12 +61,17 @@ export const onRequest: PagesFunction = async (context: PagesContext): Promise<R
     return rpcError(body?.id, -32600, 'Invalid Request: expected a JSON-RPC 2.0 object.');
   }
 
+  // Logging: `a2a` is reserved for message/send, the calls that can run a
+  // skill. Protocol housekeeping gets its own endpoint, as MCP's tools/list
+  // and ping do. Until 2026-10-04 everything logged as `a2a`, so one poller
+  // (okhttp on Alibaba/Ant networks, tasks/get every ~5s since 08-18, never
+  // a skill call) was ~16k of the "real" A2A calls a month.
   // Every call completes synchronously (deterministic calculators, no queue),
   // so tasks/get has nothing to look up: per the A2A spec, unknown task id is
   // error -32001. Captured samples showed real 0.2-era clients calling the
   // task lifecycle and bouncing off method-not-found.
   if (body.method === 'tasks/get' || body.method === 'tasks/cancel') {
-    logCall(context, { endpoint: 'a2a', isError: false, errorMsg: `legacy ${String(body.method)}` });
+    logCall(context, { endpoint: `a2a:${String(body.method)}`, isError: false, errorMsg: 'legacy task lifecycle' });
     return rpcError(
       body.id,
       -32001,
@@ -81,13 +86,13 @@ export const onRequest: PagesFunction = async (context: PagesContext): Promise<R
   if (body.method === 'agent/getAuthenticatedExtendedCard' || body.method === 'agent/getExtendedCard') {
     // We serve one public card and require no auth, so the extended card is
     // the same card.
-    logCall(context, { endpoint: 'a2a', isError: false, errorMsg: `card via ${String(body.method)}` });
+    logCall(context, { endpoint: 'a2a:card', isError: false, errorMsg: `card via ${String(body.method)}` });
     return rpcResult(body.id, buildAgentCard());
   }
   if (body.method === 'rpc.discover') {
     // OpenRPC service discovery: answer with the methods we actually support
     // rather than a method-not-found.
-    logCall(context, { endpoint: 'a2a', isError: false, errorMsg: 'rpc.discover' });
+    logCall(context, { endpoint: 'a2a:rpc.discover', isError: false });
     return rpcResult(body.id, {
       openrpc: '1.2.6',
       info: { title: 'OptionsAhoy Equity Planner (A2A)', version: AGENT_VERSION },
@@ -105,7 +110,7 @@ export const onRequest: PagesFunction = async (context: PagesContext): Promise<R
   const method = body.method === 'SendMessage' ? 'message/send' : body.method;
   const isLegacyTaskSend = method === 'tasks/send';
   if (method !== 'message/send' && !isLegacyTaskSend) {
-    logCall(context, { endpoint: 'a2a', isError: true, errorMsg: `method ${String(body.method)}` });
+    logCall(context, { endpoint: 'a2a:bad-method', isError: true, errorMsg: `method ${String(body.method)}` });
     return rpcError(
       body.id,
       -32601,
