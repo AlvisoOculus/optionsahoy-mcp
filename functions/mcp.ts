@@ -17,6 +17,7 @@ import { logCalls, logSamples, type CallFields, type SampleFields, type D1Databa
 import { TOOLS } from './_lib/mcp-tools';
 import { RESOURCES } from './_lib/mcp-resources';
 import { PROMPTS } from './_lib/mcp-prompts';
+import { adaptPromptArgs, toolForPrompt } from './_lib/prompt-aliases';
 import { CALL_COUNT_UNKNOWN, bumpSessionCallCount, nextStepsFor, nextStepsProse } from './_lib/sessions';
 import { isUnmarketedClient } from './_lib/classify';
 import { SERVER_VERSION } from './_lib/version';
@@ -184,22 +185,25 @@ async function handle(
       if (!isParams(req.params)) return logErr(-32602, 'Invalid params');
       const { name, arguments: args } = req.params as { name?: unknown; arguments?: unknown };
       if (typeof name !== 'string') return logErr(-32602, 'Invalid params: name must be a string', 'name not a string');
-      const tool = TOOLS.find((t) => t.name === name);
+      let tool = TOOLS.find((t) => t.name === name);
+      let callArgs: unknown = args;
       if (!tool) {
-        // Agents read prompts/list and then call a prompt's name as a tool:
-        // optimize-iso-exercise alone was called that way 16 times in the week
-        // to 2026-09-24, each answered with a bare "Unknown tool". Point them at
-        // the tool the prompt drives. The mapping is read from the prompt's own
-        // "Uses the <tool> tool." sentence, so there is no second copy to drift.
-        const prompt = PROMPTS.find((p) => p.name === name);
-        const uses = prompt?.description.match(/Uses the (\w+) tool/)?.[1];
-        const hint = !prompt
-          ? ''
-          : uses
-            ? ` "${name}" is a prompt (prompts/get), not a tool; call the ${uses} tool instead.`
-            : ` "${name}" is a prompt (prompts/get), not a tool; see tools/list for the tools it orchestrates.`;
+        // A prompt name that drives one tool runs that tool (see prompt-aliases).
+        const aliased = toolForPrompt(name);
+        if (aliased) {
+          tool = TOOLS.find((t) => t.name === aliased);
+          callArgs = adaptPromptArgs(args);
+        }
+      }
+      if (!tool) {
+        // Still unresolved and a prompt: one that orchestrates several tools
+        // (plan-equity-portfolio), so there is no single tool to run.
+        const hint = PROMPTS.some((p) => p.name === name)
+          ? ` "${name}" is a prompt (prompts/get), not a tool; see tools/list for the tools it orchestrates.`
+          : '';
         return logErr(-32602, `Unknown tool: ${name}.${hint}`, 'unknown tool', name);
       }
+      const toolName = tool.name;
       // Warm the published market data this call can read before the
       // (synchronous) handler runs: the implied-vol artifact, so a `ticker`
       // resolves a sigma as of the last market close, and that ticker's option
@@ -208,14 +212,14 @@ async function handle(
       // "field volatility required" error or to flat pricing, never to a stale
       // number. Gated: null for calls that provably read neither, which is most
       // of them (see warmForCall).
-      await warmForCall(name, args ?? {});
+      await warmForCall(toolName, callArgs ?? {});
       try {
-        const result = tool.handler(args ?? {}) as Record<string, unknown>;
-        logs.push({ endpoint, tool: name, isError: false });
+        const result = tool.handler(callArgs ?? {}) as Record<string, unknown>;
+        logs.push({ endpoint, tool: toolName, isError: false });
         // Capture this successful call as an example (7-day rolling, admin-gated).
         // Stringify the result now, before next_steps injection, so it stays clean.
         try {
-          samples.push({ surface: 'mcp', tool: name, query: JSON.stringify(args ?? {}), answer: JSON.stringify(result) });
+          samples.push({ surface: 'mcp', tool: toolName, query: JSON.stringify(callArgs ?? {}), answer: JSON.stringify(result) });
         } catch {
           // never let example capture break the tool response
         }
@@ -244,7 +248,7 @@ async function handle(
             const count = sessionDeps
               ? await bumpSessionCallCount(sessionDeps.db, sessionDeps.sessionId)
               : CALL_COUNT_UNKNOWN;
-            const next = nextStepsFor(name, count, sessionDeps?.sessionId, args);
+            const next = nextStepsFor(toolName, count, sessionDeps?.sessionId, callArgs);
             if (next) result.next_steps = next;
           } catch {
             // Session tracking failure must never break the tool response.
@@ -277,14 +281,14 @@ async function handle(
         });
       } catch (e) {
         const message = e instanceof Error ? e.message : String(e);
-        logs.push({ endpoint, tool: name, isError: true, errorMsg: message });
+        logs.push({ endpoint, tool: toolName, isError: true, errorMsg: message });
         // Name every field the call is missing, not just the first one. An
         // agent filling an unfamiliar schema otherwise pays one round trip per
         // omission; five, for the concentration_analyze call I built by hand on
         // 2026-09-22. `parse` is exposed per tool precisely so this second,
         // collecting pass can run without also re-running the calculation.
         const all = tool.parse
-          ? allMissingFields(tool.parse, args ?? {}, message)
+          ? allMissingFields(tool.parse, callArgs ?? {}, message)
           : [message];
         // Per MCP spec, tool-execution errors come back as isError content,
         // not as a JSON-RPC error.

@@ -32,6 +32,7 @@ import { SERVER_INSTRUCTIONS } from '../functions/_lib/mcp-instructions';
 import { SERVER_VERSION } from '../functions/_lib/version';
 import { nextStepsFor, nextStepsProse } from '../functions/_lib/sessions';
 import { warmForCall } from '../functions/_lib/calc-parsers';
+import { adaptPromptArgs, toolForPrompt } from '../functions/_lib/prompt-aliases';
 
 const SERVER_INFO = { name: 'optionsahoy', version: SERVER_VERSION };
 
@@ -84,7 +85,12 @@ const server = new Server(SERVER_INFO, {
 server.setRequestHandler(ListToolsRequestSchema, async () => ({ tools: TOOLS_LIST }));
 
 server.setRequestHandler(CallToolRequestSchema, async (req) => {
-  const tool = TOOLS_BY_NAME.get(req.params.name);
+  // A prompt name that drives one tool runs that tool, as on the hosted server
+  // (see functions/_lib/prompt-aliases).
+  const aliased = TOOLS_BY_NAME.has(req.params.name) ? null : toolForPrompt(req.params.name);
+  const tool = TOOLS_BY_NAME.get(aliased ?? req.params.name);
+  const toolName = tool?.name ?? req.params.name;
+  const args = aliased ? adaptPromptArgs(req.params.arguments) : req.params.arguments;
   if (!tool) {
     return {
       content: [{ type: 'text', text: `Error: unknown tool "${req.params.name}"` }],
@@ -102,9 +108,9 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
   // Gated on the same predicate the hosted surfaces use: a call that reads
   // neither does not pay for filling them. This matters MORE here than in a
   // Worker - a desktop client on hotel wifi eats the whole timeout inline.
-  await warmForCall(req.params.name, req.params.arguments ?? {});
+  await warmForCall(toolName, args ?? {});
   try {
-    const result = tool.handler(req.params.arguments) as Record<string, unknown>;
+    const result = tool.handler(args) as Record<string, unknown>;
     // Same next-steps block the hosted server injects. There is no HTTP
     // session here, but this process serves exactly one client for its whole
     // lifetime, so a local counter dedupes as precisely as a session id would:
@@ -114,7 +120,7 @@ server.setRequestHandler(CallToolRequestSchema, async (req) => {
     // the life of the process - on the surface Claude Desktop installs.)
     // No join token either way: that is a prefix of a session id, and there is
     // no session row to join against.
-    const next = nextStepsFor(req.params.name, ++toolCallCount, undefined, req.params.arguments);
+    const next = nextStepsFor(toolName, ++toolCallCount, undefined, args);
     if (next) result.next_steps = next;
     // Per MCP spec, tools that declare an outputSchema return the result
     // object as `structuredContent` plus a backwards-compatible serialized
