@@ -467,3 +467,45 @@ describe('A2A methods real clients actually call (from the production error log)
     expect(body.error?.code).toBe(-32601);
   });
 });
+
+// `a2a` means message/send (calls that can run a skill); protocol housekeeping
+// logs under its own endpoint, as MCP's tools/list does. Until 2026-10-04 a
+// tasks/get poller (~16k calls/30d, never a skill call) counted as real A2A.
+describe('A2A logging separates skill traffic from protocol housekeeping', () => {
+  function recordingDb() {
+    const endpoints: string[] = [];
+    const db = {
+      prepare: (sql: string) => {
+        const isCallLog = sql.startsWith('INSERT INTO mcp_calls');
+        const stmt = {
+          bind: (...args: unknown[]) => { if (isCallLog) endpoints.push(String(args[1])); return stmt; },
+          run: async () => undefined,
+          all: async () => ({ results: [] }),
+        };
+        return stmt;
+      },
+      batch: async () => [],
+    };
+    return { db, endpoints };
+  }
+  const send = async (method: string, params: unknown = {}) => {
+    const { db, endpoints } = recordingDb();
+    await a2aHandler({ request: rpcReq({ jsonrpc: '2.0', id: 1, method, params }), env: { MCP_STATS: db }, waitUntil: () => undefined } as never);
+    return endpoints;
+  };
+
+  it.each([
+    ['tasks/get', 'a2a:tasks/get'],
+    ['tasks/cancel', 'a2a:tasks/cancel'],
+    ['agent/getAuthenticatedExtendedCard', 'a2a:card'],
+    ['rpc.discover', 'a2a:rpc.discover'],
+    ['nonsense/method', 'a2a:bad-method'],
+  ])('%s logs as %s', async (method, endpoint) => {
+    expect(await send(method)).toEqual([endpoint]);
+  });
+
+  it('message/send stays `a2a`', async () => {
+    const endpoints = await send('message/send', { message: { role: 'user', parts: [{ kind: 'text', text: 'hello' }] } });
+    expect(endpoints).toEqual(['a2a']);
+  });
+});
