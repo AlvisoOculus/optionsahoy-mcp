@@ -271,9 +271,11 @@ describe('POST /mcp — tools/call dispatches to the right calc', () => {
     expect(json.result.content[0]!.text).toMatch(/lumpSum|riskBand|"plans"/);
   });
 
-  it('concentration_analyze with no ticker and no growth returns isError ("ask the user")', async () => {
+  // Was isError "ask the user" until 2026-10-04 (~260 calls/30d ended there).
+  // Now: answered at the S&P 500 trailing average, disclosed in data and words.
+  it('concentration_analyze with no ticker and no growth answers at a disclosed market average', async () => {
     const { json } = await call<{
-      result: { content: Array<{ text: string }>; isError?: boolean };
+      result: { content: Array<{ text: string }>; isError?: boolean; structuredContent: Record<string, unknown> };
     }>({
       jsonrpc: '2.0',
       id: 8,
@@ -293,8 +295,15 @@ describe('POST /mcp — tools/call dispatches to the right calc', () => {
         },
       },
     });
-    expect(json.result.isError).toBe(true);
-    expect(json.result.content[0]!.text).toMatch(/MUST NOT invent/i);
+    expect(json.result.isError).not.toBe(true);
+    const sc = json.result.structuredContent;
+    const assumptions = sc.assumptions as Array<{ field: string; value: number; annualRate: number; reason: string }>;
+    expect(assumptions).toHaveLength(1);
+    expect(assumptions[0]).toMatchObject({ field: 'expectedPositionReturn', reason: 'was not provided' });
+    expect(assumptions[0].value).toBe(assumptions[0].annualRate);
+    expect(sc.assumptionNotice).toMatch(/expectedPositionReturn was not provided.*S&P 500 trailing average.*tell the user/);
+    // The notice also goes out as words, first, ahead of any next-steps prose.
+    expect(json.result.content[1]!.text.startsWith(String(sc.assumptionNotice))).toBe(true);
   });
 });
 

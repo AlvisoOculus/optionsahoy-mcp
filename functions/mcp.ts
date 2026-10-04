@@ -266,7 +266,11 @@ async function handle(
         // the field (#206) still left ChatGPT rendering no link at all.
         // Agents parsing content[0] as JSON are unaffected.
         const next = (result as { next_steps?: { web_tool?: string; also_run?: string; beta?: string } }).next_steps;
-        const prose = next ? nextStepsProse(next) : '';
+        // A disclosed growth assumption leads the prose: models relay words and
+        // paraphrase JSON away, and this is the line the user must hear.
+        const prose = [result.assumptionNotice, next ? nextStepsProse(next) : '']
+          .filter((x): x is string => typeof x === 'string' && x.length > 0)
+          .join('\n\n');
         return ok(id, {
           content: [
             { type: 'text', text: JSON.stringify(result) },

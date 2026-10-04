@@ -18,6 +18,7 @@
 // REST answer for the same input.
 
 import {
+  runWithAssumptions,
   parseAmtIsoInput,
   parseNsoInput,
   parseRsuInput,
@@ -91,7 +92,7 @@ export const SKILLS: Skill[] = [
       ' amt ',
       'exercise schedule',
     ],
-    run: (input) => computeAmtIso(parseAmtIsoInput(input)),
+    run: runWithAssumptions(parseAmtIsoInput, computeAmtIso),
   },
   {
     id: 'nso_calculate',
@@ -104,7 +105,7 @@ export const SKILLS: Skill[] = [
     ],
     rest: '/api/v1/nso',
     keywords: ['non-qualified', 'nonqualified', 'non qualified', ' nso ', ' nsos '],
-    run: (input) => computeNsoResult(parseNsoInput(input)),
+    run: runWithAssumptions(parseNsoInput, computeNsoResult),
   },
   {
     id: 'rsu_sell_vs_hold',
@@ -117,7 +118,7 @@ export const SKILLS: Skill[] = [
     ],
     rest: '/api/v1/rsu-sell-vs-hold',
     keywords: ['restricted stock unit', 'restricted stock', ' rsu ', ' rsus ', 'just vested', 'sell or hold'],
-    run: (input) => computeRsuResult(parseRsuInput(input)),
+    run: runWithAssumptions(parseRsuInput, computeRsuResult),
   },
   {
     id: 'concentration_analyze',
@@ -130,7 +131,7 @@ export const SKILLS: Skill[] = [
     ],
     rest: '/api/v1/concentration',
     keywords: ['concentrated', 'concentration', 'single stock', 'diversify', 'sell down'],
-    run: (input) => calculateConcentration(parseConcentrationInput(input)),
+    run: runWithAssumptions(parseConcentrationInput, calculateConcentration),
   },
   {
     id: 'protective_put_price',
@@ -141,7 +142,7 @@ export const SKILLS: Skill[] = [
     examples: ['What would a protective put, a zero-cost collar, or a put spread on my 10,000 shares cost?'],
     rest: '/api/v1/protective-put',
     keywords: ['protective put', 'collar', 'put spread', 'hedge', 'hedging', 'downside protection'],
-    run: (input) => calculateProtectivePut(parseProtectivePutInput(input)),
+    run: runWithAssumptions(parseProtectivePutInput, calculateProtectivePut),
   },
   {
     id: 'qsbs_check',
@@ -152,7 +153,7 @@ export const SKILLS: Skill[] = [
     examples: ['Do my shares qualify for the Section 1202 qualified small business stock exclusion?'],
     rest: '/api/v1/qsbs',
     keywords: ['qsbs', 'section 1202', ' 1202', 'qualified small business', 'small business stock'],
-    run: (input) => evaluateQsbs(parseQsbsInput(input)),
+    run: runWithAssumptions(parseQsbsInput, evaluateQsbs),
   },
   {
     id: 'equity_funding_plan',
@@ -165,7 +166,7 @@ export const SKILLS: Skill[] = [
     ],
     rest: '/api/v1/equity-funding',
     keywords: ['down payment', 'cash goal', 'fund a', 'raise cash', 'liquidity', 'need cash', 'tuition', 'buy a house'],
-    run: (input) => computeEquityFundingComparison(parseEquityFundingInput(input)),
+    run: runWithAssumptions(parseEquityFundingInput, computeEquityFundingComparison),
   },
   {
     id: 'rsu_lot_optimize',
@@ -178,7 +179,7 @@ export const SKILLS: Skill[] = [
     ],
     rest: '/api/v1/rsu-lot-order',
     keywords: ['which lots', 'sell first', 'lot order', 'specific lot', ' fifo ', 'diversify', 'divest'],
-    run: (input) => computeLotDivestPlan(parseRsuLotOptimizeInput(input)),
+    run: runWithAssumptions(parseRsuLotOptimizeInput, computeLotDivestPlan),
   },
 ];
 
