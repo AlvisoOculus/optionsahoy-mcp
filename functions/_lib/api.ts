@@ -33,15 +33,6 @@ export const CORS_HEADERS: Record<string, string> = {
   'access-control-max-age': '86400',
 };
 
-// Best-effort JSON for example capture; never throws into the request path.
-function safeStringify(v: unknown): string | undefined {
-  try {
-    return JSON.stringify(v);
-  } catch {
-    return undefined;
-  }
-}
-
 export function jsonResponse(status: number, body: unknown): Response {
   return new Response(JSON.stringify(body), {
     status,
@@ -57,6 +48,7 @@ export function preflight(): Response {
 // a 400 with the error message if parsing / validation / the calc throws.
 // Logs one row to MCP_STATS per inbound POST (preflight OPTIONS skipped).
 import { logCall, logSample } from './stats';
+import { tickerUses } from './ticker-demand';
 import { encodeScenario, withScenario } from './scenario';
 
 // Per-endpoint next-step block for REST responses. REST is the highest-volume
@@ -147,7 +139,7 @@ export async function runCalc<I, O>(
     // Report every field the caller left out, not just the first one. See
     // allMissingFields: one round trip instead of one per field.
     const all = allMissingFields(parseInput as (raw: unknown) => unknown, raw, errorMsg);
-    logCall(context, { endpoint, isError: true, errorMsg: `parse: ${errorMsg}` });
+    logCall(context, { endpoint, isError: true, errorMsg: `parse: ${errorMsg}`, tickers: tickerUses(raw, null, true) });
     return jsonResponse(400, {
       error: `Invalid input: ${all.join(' | ')}`,
       code: 'invalid_input',
@@ -156,13 +148,8 @@ export async function runCalc<I, O>(
   }
   try {
     const output = attachAssumptions(compute(input), assumptions);
-    logCall(context, { endpoint, isError: false });
-    logSample(context, {
-      surface: 'rest',
-      tool: slug,
-      query: safeStringify(raw),
-      answer: safeStringify(output),
-    });
+    logCall(context, { endpoint, isError: false, tickers: tickerUses(raw, output, false) });
+    logSample(context, { surface: 'rest', tool: slug, args: raw });
     const nextSteps = restNextSteps(slug, raw);
     return jsonResponse(
       200,
@@ -173,7 +160,7 @@ export async function runCalc<I, O>(
     // computation failure, not a caller error - surface it as 5xx so agents
     // can distinguish "fix your request" (4xx) from "retry / report" (5xx).
     const errorMsg = err instanceof Error ? err.message : String(err);
-    logCall(context, { endpoint, isError: true, errorMsg: `calc: ${errorMsg}` });
+    logCall(context, { endpoint, isError: true, errorMsg: `calc: ${errorMsg}`, tickers: tickerUses(raw, null, true) });
     return jsonResponse(500, { error: `Calculation failed: ${errorMsg}`, code: 'computation_error' });
   }
 }

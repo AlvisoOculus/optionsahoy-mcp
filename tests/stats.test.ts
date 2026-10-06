@@ -234,20 +234,14 @@ describe('logCalls (batch)', () => {
 describe('logSample (example capture)', () => {
   it('is a no-op without the MCP_STATS binding', () => {
     const c = ctx({}); // no db
-    expect(() => logSample(c, { surface: 'poe', query: 'q', answer: 'a' })).not.toThrow();
+    expect(() => logSample(c, { surface: 'poe', args: { shares: 1 } })).not.toThrow();
     expect(c.waited).toHaveLength(0);
   });
 
-  it('writes one mcp_samples insert + a 7-day prune, truncates, hands promise to waitUntil', async () => {
+  it('writes one mcp_samples insert + a 7-day prune, hands promise to waitUntil', async () => {
     const { db, recorded } = mockDb();
     const c = ctx({ db });
-    logSample(c, {
-      surface: 'poe',
-      tool: 'qsbs_check',
-      clientName: 'poe',
-      query: 'Q'.repeat(5000),
-      answer: 'A'.repeat(9000),
-    });
+    logSample(c, { surface: 'poe', tool: 'qsbs_check', clientName: 'poe', args: { shares: 50000 } });
     expect(c.waited).toHaveLength(1);
     await Promise.all(c.waited);
 
@@ -259,8 +253,6 @@ describe('logSample (example capture)', () => {
     const b = inserts[0].bindings; // ts, surface, tool, client_name, query, answer
     expect(b[1]).toBe('poe');
     expect(b[2]).toBe('qsbs_check');
-    expect((b[4] as string).length).toBe(4000); // query truncated
-    expect((b[5] as string).length).toBe(8000); // answer truncated
 
     const cutoff = prunes[0].bindings[0] as number;
     expect(cutoff).toBeLessThanOrEqual(Date.now());
@@ -270,7 +262,7 @@ describe('logSample (example capture)', () => {
   it('falls back to the request User-Agent as the client when none is given', async () => {
     const { db, recorded } = mockDb();
     const c = ctx({ db, ua: 'curl/8.1.2' });
-    logSample(c, { surface: 'rest', tool: 'equity-funding', query: 'q', answer: 'a' });
+    logSample(c, { surface: 'rest', tool: 'equity-funding', args: {} });
     await Promise.all(c.waited);
     const insert = recorded.find((r) => r.sql.startsWith('INSERT INTO mcp_samples'))!;
     expect(insert.bindings[3]).toBe('curl/8.1.2'); // client_name = UA
@@ -279,7 +271,7 @@ describe('logSample (example capture)', () => {
   it('keeps an explicit clientName over the User-Agent', async () => {
     const { db, recorded } = mockDb();
     const c = ctx({ db, ua: 'curl/8.1.2' });
-    logSample(c, { surface: 'poe', clientName: 'poe', query: 'q', answer: 'a' });
+    logSample(c, { surface: 'poe', clientName: 'poe', args: {} });
     await Promise.all(c.waited);
     const insert = recorded.find((r) => r.sql.startsWith('INSERT INTO mcp_samples'))!;
     expect(insert.bindings[3]).toBe('poe');
@@ -288,7 +280,7 @@ describe('logSample (example capture)', () => {
   it('skips our own smoke suite so it never pollutes the capture', () => {
     const { db, recorded } = mockDb();
     const c = ctx({ db, ua: 'OptionsAhoy-smoke/1.0 (Mozilla/5.0 compatible)' });
-    logSample(c, { surface: 'rest', tool: 'qsbs', query: 'q', answer: 'a' });
+    logSample(c, { surface: 'rest', tool: 'qsbs', args: {} });
     expect(c.waited).toHaveLength(0); // nothing scheduled
     expect(recorded).toHaveLength(0); // no insert, no prune
   });
@@ -296,7 +288,7 @@ describe('logSample (example capture)', () => {
   it('skips registry probes / crawlers', () => {
     const { db, recorded } = mockDb();
     const c = ctx({ db });
-    logSample(c, { surface: 'mcp', tool: 'qsbs_check', clientName: 'glimind-probe', query: 'q', answer: 'a' });
+    logSample(c, { surface: 'mcp', tool: 'qsbs_check', clientName: 'glimind-probe', args: {} });
     expect(recorded).toHaveLength(0);
   });
 
@@ -304,13 +296,136 @@ describe('logSample (example capture)', () => {
     const { db, recorded } = mockDb();
     const c = ctx({ db });
     logSamples(c, [
-      { surface: 'poe', clientName: 'poe', tool: 'qsbs_check', query: 'real', answer: 'a' },
-      { surface: 'mcp', clientName: 'smithery-probe', tool: 'nso_calculate', query: 'noise', answer: 'a' },
-      { surface: 'rest', clientName: 'OptionsAhoy-smoke/1.0', tool: 'amt-iso', query: 'noise', answer: 'a' },
+      { surface: 'poe', clientName: 'poe', tool: 'qsbs_check', args: {} },
+      { surface: 'mcp', clientName: 'smithery-probe', tool: 'nso_calculate', args: {} },
+      { surface: 'rest', clientName: 'OptionsAhoy-smoke/1.0', tool: 'amt-iso', args: {} },
     ]);
     await Promise.all(c.waited);
     const inserts = recorded.filter((r) => r.sql.startsWith('INSERT INTO mcp_samples'));
     expect(inserts).toHaveLength(1); // only the real Poe row survives
     expect(inserts[0].bindings[3]).toBe('poe');
+  });
+});
+
+// The capture is product feedback about HOW tools are called, and every public
+// statement about the server says users' figures are not retained. Until
+// 2026-10-06 it stored the full query and answer text: share counts, income,
+// holdings, and Poe's whole conversation. These pin that no value, from any
+// surface, reaches the insert.
+describe('logSample stores the call shape, never a value', () => {
+  const FIGURES = [50000, 412345, 98.76, '2021-03-15', 'NVDA', 'CA', 'my salary is 412345'];
+
+  async function insertFor(fields: Parameters<typeof logSample>[1]) {
+    const { db, recorded } = mockDb();
+    const c = ctx({ db });
+    logSample(c, fields);
+    await Promise.all(c.waited);
+    return recorded.find((r) => r.sql.startsWith('INSERT INTO mcp_samples'))!.bindings;
+  }
+
+  function assertNoFigures(bindings: unknown[]) {
+    const stored = JSON.stringify(bindings.slice(4, 6));
+    for (const f of FIGURES) expect(stored, `stored ${String(f)}`).not.toContain(String(f));
+  }
+
+  it('keeps field names and value types from structured arguments', async () => {
+    const b = await insertFor({
+      surface: 'mcp',
+      tool: 'equity_funding_plan',
+      args: {
+        targetAmount: 412345,
+        stateCode: 'CA',
+        stacks: [{ ticker: 'NVDA', currentPrice: 98.76, lots: [{ shares: 50000, acquisitionDate: '2021-03-15' }] }],
+      },
+    });
+    expect(JSON.parse(b[4] as string)).toEqual({
+      stacks: {
+        items: 1,
+        of: {
+          currentPrice: 'number',
+          lots: { items: 1, of: { acquisitionDate: 'string', shares: 'number' } },
+          ticker: 'string',
+        },
+      },
+      stateCode: 'string',
+      targetAmount: 'number',
+    });
+    assertNoFigures(b);
+  });
+
+  it('never stores an answer', async () => {
+    const b = await insertFor({ surface: 'rest', tool: 'nso', args: { shares: 50000 } });
+    expect(b[5]).toBeNull();
+  });
+
+  it('reduces free text (a Poe or A2A message) to a word count', async () => {
+    const b = await insertFor({ surface: 'a2a', args: 'my salary is 412345 and I hold 50000 NVDA' });
+    expect(b[4]).toBe('free text, 9 words');
+    assertNoFigures(b);
+  });
+
+  it('shapes JSON text the same as the object it encodes', async () => {
+    const b = await insertFor({ surface: 'a2a', args: JSON.stringify({ skill: 'qsbs', input: { shares: 50000 } }) });
+    expect(JSON.parse(b[4] as string)).toEqual({ input: { shares: 'number' }, skill: 'string' });
+    assertNoFigures(b);
+  });
+
+  it('counts, rather than copies, keys that are not argument names', async () => {
+    const b = await insertFor({ surface: 'mcp', args: { shares: 1, 'my salary is 412345': 1, '50000 NVDA': 2 } });
+    expect(JSON.parse(b[4] as string)).toEqual({ shares: 'number', '(other keys)': 2 });
+    assertNoFigures(b);
+  });
+
+  it('stops descending at a fixed depth', async () => {
+    const deep = { a: { b: { c: { d: { e: { f: { g: { salary: 412345 } } } } } } } };
+    const b = await insertFor({ surface: 'mcp', args: deep });
+    expect(b[4]).toBe('{"a":{"b":{"c":{"d":{"e":{"f":"object"}}}}}}');
+    assertNoFigures(b);
+  });
+});
+
+describe('daily ticker counts', () => {
+  const UPSERT = 'INSERT INTO mcp_ticker_daily';
+
+  it('folds each named ticker into one upsert per call row, keyed by day, tool and outcome', async () => {
+    const { db, recorded } = mockDb();
+    const c = ctx({ db });
+    logCalls(c, [
+      { endpoint: 'mcp:tools/call', tool: 'protective_put_price', isError: false, tickers: [{ ticker: 'NVDA', outcome: 'ok' }] },
+      { endpoint: 'mcp:tools/call', tool: 'amt_iso_optimize', isError: true, tickers: [{ ticker: 'XYZQ', outcome: 'error' }] },
+    ]);
+    await Promise.all(c.waited);
+    const ups = recorded.filter((r) => r.sql.startsWith(UPSERT));
+    expect(ups.map((r) => r.bindings.slice(1))).toEqual([
+      ['NVDA', 'protective_put_price', 'ok'],
+      ['XYZQ', 'amt_iso_optimize', 'error'],
+    ]);
+    expect(ups[0].sql).toContain('ON CONFLICT(day, ticker, tool, outcome) DO UPDATE SET n = n + 1');
+    expect(ups[0].bindings[0]).toBe(new Date().toISOString().slice(0, 10));
+  });
+
+  it('writes them in their own batch, so a missing table cannot cost the call log', async () => {
+    const { db } = mockDb();
+    const batch = vi.fn(async (stmts: D1PreparedStatement[]) => {
+      for (const s of stmts) await s.run();
+    });
+    const c = ctx({ db: { ...db, batch } });
+    logCalls(c, [
+      { endpoint: 'mcp:tools/call', tool: 'nso_calculate', isError: false, tickers: [{ ticker: 'AAPL', outcome: 'ok' }] },
+      { endpoint: 'mcp:tools/list', isError: false },
+    ]);
+    await Promise.all(c.waited);
+    expect(batch).toHaveBeenCalledTimes(2);
+    expect(batch.mock.calls[0][0]).toHaveLength(2); // the two call rows
+    expect(batch.mock.calls[1][0]).toHaveLength(1); // the one ticker upsert
+  });
+
+  it('leaves our own monitors and scanners out', async () => {
+    const { db, recorded } = mockDb();
+    const c = ctx({ db, ua: 'OptionsAhoy-smoke/1.0 (Mozilla/5.0 compatible)' });
+    logCalls(c, [{ endpoint: 'mcp:tools/call', tool: 'nso_calculate', isError: false, tickers: [{ ticker: 'NVDA', outcome: 'ok' }] }]);
+    await Promise.all(c.waited);
+    expect(recorded.filter((r) => r.sql.startsWith(UPSERT))).toHaveLength(0);
+    expect(recorded.filter((r) => r.sql.startsWith('INSERT INTO mcp_calls'))).toHaveLength(1);
   });
 });

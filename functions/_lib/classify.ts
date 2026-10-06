@@ -90,6 +90,13 @@ export function isRealClient(clientName: string | null | undefined, surface: str
 // Infrastructure = automated noise we never want polluting the 7-day example
 // capture or the "real engagement" counts: our own smoke suite plus registry
 // crawlers and security scanners.
+// The surface classifyClient expects for a logged endpoint.
+export function surfaceOf(endpoint: string): string {
+  if (endpoint.startsWith('rest:')) return 'rest';
+  if (endpoint === 'a2a') return 'a2a';
+  return 'mcp';
+}
+
 export function isInfraClient(clientName: string | null | undefined, surface: string): boolean {
   const kind = classifyClient(clientName, surface).kind;
   return kind === 'smoke' || kind === 'crawler';

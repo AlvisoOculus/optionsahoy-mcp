@@ -1,5 +1,10 @@
 -- AlphaLatitude Inc. © 2026
 --
+-- SINCE 2026-10-06 this table holds only the SHAPE of each call (field names
+-- and value types, see callShape in functions/_lib/stats.ts) and answer is
+-- always NULL; existing rows were purged that day. The paragraph below
+-- describes what it stored before then.
+--
 -- A rolling 7-day sample of REAL inputs and outputs across all surfaces (Poe,
 -- MCP, REST), captured for product feedback: there is no other way to see what
 -- users actually ask or what we return. Unlike mcp_calls (metadata only), this

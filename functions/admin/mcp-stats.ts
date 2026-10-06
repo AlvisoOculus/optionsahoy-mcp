@@ -28,7 +28,7 @@
 
 import { type PagesFunction } from '../_lib/api';
 import { type D1Database } from '../_lib/stats';
-import { classifyClient, isInfraClient, isRealClient, KIND_RANK, type ClientKind } from '../_lib/classify';
+import { classifyClient, isInfraClient, isRealClient, surfaceOf, KIND_RANK, type ClientKind } from '../_lib/classify';
 import { rankErrorFields } from '../_lib/error-fields';
 
 // Client classification lives in ../_lib/classify (shared with the sample
@@ -88,6 +88,8 @@ import {
   readRestNet,
   readCallClients,
   readCallErrors,
+  readTickerDemand,
+  type TickerDemandRow,
 } from '../_lib/adminRollup';
 
 // A caller's mistake, not ours. Every parser rejection starts with
@@ -104,13 +106,6 @@ export interface ToolFault { endpoint: string; tool: string | null; error_msg: s
 // failures. The daily MCP health job (ops repo) alerts on any of these.
 export function toolFaultsFrom(rows: ToolFault[]): ToolFault[] {
   return rows.filter((r) => !isCallerInputError(r.error_msg));
-}
-
-// The surface classifyClient expects for a logged endpoint.
-function surfaceOf(endpoint: string): string {
-  if (endpoint.startsWith('rest:')) return 'rest';
-  if (endpoint === 'a2a') return 'a2a';
-  return 'mcp';
 }
 
 export interface RealTrafficRow { endpoint: string; n: number; errors: number; excluded: number }
@@ -229,7 +224,7 @@ export const onRequest: PagesFunction = async (ctx) => {
   await ensureDimsFresh(db, Date.now());
   const day = sinceDay(sinceMs);
 
-  const [endpoints, daily, dailyRest, dailyMcp, tools, errors, clients, countries, restNet, errFieldRaw, sessionsDaily, sessionDepth, initClients, callClients, callErrors] = await Promise.all([
+  const [endpoints, daily, dailyRest, dailyMcp, tools, errors, clients, countries, restNet, errFieldRaw, sessionsDaily, sessionDepth, initClients, callClients, callErrors, tickerDemand] = await Promise.all([
     readEndpoints(db, day),
     readDailyTotals(db, day),
     readDailyRest(db, day),
@@ -245,6 +240,7 @@ export const onRequest: PagesFunction = async (ctx) => {
     readInitClients(db, day),
     readCallClients(db, day),
     readCallErrors(db, day),
+    readTickerDemand(db, day).catch(emptyIfUnmigrated),
   ]);
   const toolFaults = toolFaultsFrom(callErrors);
   const endpointsReal = realTrafficByEndpoint(callClients);
@@ -280,7 +276,8 @@ export const onRequest: PagesFunction = async (ctx) => {
     endpointErrors = await readEndpointErrors(db, errEndpoint, day);
   }
 
-  // Recent examples (real query+answer, 7-day rolling capture). Resilient: if
+  // Recent examples (7-day rolling capture of call shapes: field names and
+  // value types, never values; see callShape in _lib/stats). Resilient: if
   // the mcp_samples table is not yet created (migration 0003 not applied) the
   // query throws and we show none. Optional ?surface=poe|mcp|rest filter.
   let samples: SampleRow[] = [];
@@ -315,7 +312,7 @@ export const onRequest: PagesFunction = async (ctx) => {
   ).slice(0, 50);
 
   if (url.searchParams.get('format') === 'json') {
-    const body = JSON.stringify({ days, endpoints, endpointsReal, toolFaults, daily, dailyRest, dailyMcp, tools, errors, topErrorFields, clients, countries, restNet, sessionsDaily, sessionDepth, initializesReal, realClients, endpointErrors, samples: classified, sampleCounts });
+    const body = JSON.stringify({ days, endpoints, endpointsReal, toolFaults, daily, dailyRest, dailyMcp, tools, errors, topErrorFields, clients, countries, restNet, sessionsDaily, sessionDepth, initializesReal, realClients, endpointErrors, tickerDemand, samples: classified, sampleCounts });
     return new Response(body, {
       status: 200,
       headers: {
@@ -325,7 +322,7 @@ export const onRequest: PagesFunction = async (ctx) => {
     });
   }
 
-  const html = renderHtml({ days, endpoints, endpointsReal, daily, dailyRest, dailyMcp, tools, errors, topErrorFields, clients, countries, restNet, sessionsDaily, sessionDepth, initializesReal, samples: shownSamples, sampleCounts, kindFilter, token, surface: surfaceParam });
+  const html = renderHtml({ days, endpoints, endpointsReal, daily, dailyRest, dailyMcp, tools, errors, topErrorFields, clients, countries, restNet, sessionsDaily, sessionDepth, initializesReal, tickerDemand, samples: shownSamples, sampleCounts, kindFilter, token, surface: surfaceParam });
   return new Response(html, {
     status: 200,
     headers: {
@@ -353,6 +350,7 @@ interface RenderInput {
   sessionsDaily: SessionDayRow[];
   sessionDepth: SessionDepthRow[];
   initializesReal: number;
+  tickerDemand: TickerDemandRow[];
   samples: ClassifiedSample[];
   sampleCounts: Partial<Record<ClientKind, number>>;
   kindFilter: string[];
@@ -558,7 +556,21 @@ ${table(
   d.topErrorFields.map((r) => [`<code>${esc(r.field)}</code>`, `<span class="num">${r.count.toLocaleString()}</span>`]),
 )}
 
-<h2>Recent examples (7-day capture)</h2>
+<h2>Tickers asked about (our monitors and scanners excluded)</h2>
+<p class="legend">Daily counts per symbol. <b>fallback</b>: the call succeeded but some of that ticker's data was missing (S&amp;P 500 growth, or a sector-typical volatility). <b>error</b>: the call failed, which is where a symbol whose volatility we cannot resolve shows up.</p>
+${table(
+  ['Ticker', 'Calls', 'OK', 'Fallback', 'Error', 'Tools'],
+  d.tickerDemand.map((r) => [
+    `<code>${esc(r.ticker)}</code>`,
+    `<span class="num">${r.n.toLocaleString()}</span>`,
+    `<span class="num">${r.ok.toLocaleString()}</span>`,
+    `<span class="num">${r.fallback.toLocaleString()}</span>`,
+    `<span class="num">${r.error.toLocaleString()}</span>`,
+    esc(r.tools),
+  ]),
+)}
+
+<h2>Recent examples (7-day capture: field names and types, never values)</h2>
 ${samplesLegend(d)}
 ${
   d.samples.length === 0
@@ -577,7 +589,7 @@ ${
           // assistant's cloud, not the user's, so it would mislead.
           const loc = s.surface !== 'mcp' ? [s.city, s.region, s.country].filter(Boolean).join(', ') : '';
           const geo = loc ? ` <span class="geo">${esc(loc)}${s.as_org ? ' &middot; ' + esc(s.as_org) : ''}</span>` : '';
-          return `<details class="ex"><summary>${badge}${netBadge} ${esc(when)} &middot; <b>${esc(s.surface)}</b> &middot; ${esc(s.tool) || '<i>-</i>'} &middot; <span class="cl">${client}</span>${geo}</summary><pre><b>Q:</b> ${esc(s.query)}\n\n<b>A:</b> ${esc(s.answer)}</pre></details>`;
+          return `<details class="ex"><summary>${badge}${netBadge} ${esc(when)} &middot; <b>${esc(s.surface)}</b> &middot; ${esc(s.tool) || '<i>-</i>'} &middot; <span class="cl">${client}</span>${geo}</summary><pre>${esc(s.query)}</pre></details>`;
         })
         .join('\n')
 }
