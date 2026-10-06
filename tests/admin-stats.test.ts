@@ -77,6 +77,9 @@ const SAMPLE_ROWS = [
   { match: /dim = 'endpoint'[\s\S]*GROUP BY day/, rows: [{ day: '2026-05-27', n: 22 }, { day: '2026-05-26', n: 27 }] },
   { match: /dim = 'tool'/, rows: [{ tool: 'concentration_analyze', n: 18, errors: 2 }] },
   { match: /dim = 'country'/, rows: [{ k1: 'US', n: 30 }, { k1: '', n: 5 }] },
+  { match: /FROM mcp_ticker_daily/, rows: [
+    { ticker: 'ZZZZ', n: 9, ok: 0, fallback: 2, error: 7, tools: 'amt_iso_optimize,protective_put_price' },
+  ] },
 ];
 
 describe('admin /mcp-stats', () => {
@@ -144,6 +147,9 @@ describe('admin /mcp-stats', () => {
     ]);
     // The mock's error row is a caller input error, so no faults.
     expect(body.toolFaults).toEqual([]);
+    expect(body.tickerDemand).toEqual([
+      { ticker: 'ZZZZ', n: 9, ok: 0, fallback: 2, error: 7, tools: 'amt_iso_optimize,protective_put_price' },
+    ]);
     expect(body.endpointsReal).toEqual([
       { endpoint: 'mcp:tools/call', n: 40, errors: 10, excluded: 30 },
       { endpoint: 'rest:nso', n: 0, errors: 0, excluded: 200 },

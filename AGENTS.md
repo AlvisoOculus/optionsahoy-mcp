@@ -81,7 +81,7 @@ Do not add new MCP tools without updating `tests/api-v1-all.test.ts` (endpoint i
 
 - **No tax filing.** Outputs are decisions to make + dollar amounts; no IRS submission.
 - **No fund / asset custody.** Calculator only.
-- **No PII retention.** Inputs are not logged; only call counts + tool names are persisted to the MCP_STATS D1 binding for the public stats endpoint.
+- **Input values are not stored.** Per call, the MCP_STATS D1 binding keeps the tool, success or error (an error message names the field at fault), the client name and user agent, and coarse location and network. A rolling 7-day sample keeps each call's field names and value types, never the values, and the tickers callers name are kept as daily counts. See https://optionsahoy.com/privacy.
 - **No financial advice.** Outputs are deterministic math against user inputs; the user is responsible for verifying with a CPA / advisor before acting.
 
 ## Integration docs

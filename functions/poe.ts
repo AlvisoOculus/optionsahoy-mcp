@@ -23,6 +23,7 @@ import { TOOLS, isToolName, type ToolName } from './_lib/mcp-tools';
 import { DEFAULT_CASH_RETURN_RATE, isMarketSentinel } from './_lib/calc-parsers';
 import { PER_TOOL_FREE_TOOL_BARE } from './_lib/sessions';
 import { logCall, logSample } from './_lib/stats';
+import { tickerUses, type TickerUse } from './_lib/ticker-demand';
 import { getCurrentPrice } from '../lib/data/prices';
 import { warmForCall, withoutAssumptions } from './_lib/calc-parsers';
 import type { PagesContext, PagesFunction } from './_lib/api';
@@ -1013,7 +1014,7 @@ async function handleQuery(ctx: PagesContext, req: PoeRequest, extractor?: Extra
   const env = (ctx.env ?? {}) as PoeEnv;
   // Every request is logged to MCP_STATS as a `poe:*` endpoint with client
   // name "poe" so it shows on the MCP metrics page alongside REST + MCP.
-  const log = (f: { endpoint: string; tool?: string; isError?: boolean; errorMsg?: string }) =>
+  const log = (f: { endpoint: string; tool?: string; isError?: boolean; errorMsg?: string; tickers?: TickerUse[] }) =>
     logCall(ctx, { clientName: 'poe', isError: false, ...f });
 
   const messages = Array.isArray(req.query) ? req.query : [];
@@ -1275,7 +1276,7 @@ async function handleQuery(ctx: PagesContext, req: PoeRequest, extractor?: Extra
   } catch (e) {
     const raw = e instanceof Error ? e.message : 'invalid inputs';
     // Handler failed after authorize: do not capture (the hold expires).
-    log({ endpoint: 'poe:tools/call', tool: tool.name, isError: true, errorMsg: raw });
+    log({ endpoint: 'poe:tools/call', tool: tool.name, isError: true, errorMsg: raw, tickers: tickerUses(usedArgs, null, true) });
     // The common case is a missing forward estimate (growth/return/sale price).
     // Ask for it plainly and lead with the easy option (a ticker). Otherwise
     // fall back to the engine hint, stripped of its model-facing meta sentence.
@@ -1342,7 +1343,7 @@ async function handleQuery(ctx: PagesContext, req: PoeRequest, extractor?: Extra
   if (charge > 0) {
     await poeCost('capture', req.bot_query_id as string, env, charge, `OptionsAhoy ${tool.name}`);
   }
-  log({ endpoint: 'poe:tools/call', tool: tool.name });
+  log({ endpoint: 'poe:tools/call', tool: tool.name, tickers: tickerUses(usedArgs, result, false) });
 
   // Closing call to action. While the bot is free, point to the matching free
   // web tool (funnel). Once the bot charges, do NOT advertise the free tool
@@ -1364,9 +1365,9 @@ async function handleQuery(ctx: PagesContext, req: PoeRequest, extractor?: Extra
     `${POE_RELATED_HINT[tool.name]}\n\n` +
     `${cta}\n\n` +
     `_Worked out deterministically against the relevant federal tax code plus all 50 states and DC, not estimated._`;
-  // Capture this successful answer as an example (7-day rolling, admin-gated) so
-  // we can see what people actually ask and what we return.
-  logSample(ctx, { surface: 'poe', tool: tool.name, clientName: 'poe', query: convo, answer: body });
+  // Capture this successful call's shape as an example (7-day rolling,
+  // admin-gated; field names and types only, never the conversation).
+  logSample(ctx, { surface: 'poe', tool: tool.name, clientName: 'poe', args: usedArgs });
   return textReply(body);
 }
 

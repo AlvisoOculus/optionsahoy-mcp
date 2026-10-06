@@ -369,3 +369,30 @@ export async function readRestNet(
     [day],
   );
 }
+
+export interface TickerDemandRow {
+  ticker: string;
+  n: number;
+  ok: number;
+  fallback: number;
+  error: number;
+  /** Comma-separated tools that named it. */
+  tools: string;
+}
+
+// The tickers callers named in the window, busiest first, with how the calls
+// went for them (see functions/_lib/ticker-demand.ts). Reads the daily-count
+// table directly: it is already a rollup, a few hundred rows a month.
+export async function readTickerDemand(db: D1Database, day: string): Promise<TickerDemandRow[]> {
+  return rows<TickerDemandRow>(
+    db,
+    `SELECT ticker, SUM(n) AS n,
+        SUM(CASE WHEN outcome = 'ok' THEN n ELSE 0 END) AS ok,
+        SUM(CASE WHEN outcome = 'fallback' THEN n ELSE 0 END) AS fallback,
+        SUM(CASE WHEN outcome = 'error' THEN n ELSE 0 END) AS error,
+        GROUP_CONCAT(DISTINCT tool) AS tools
+      FROM mcp_ticker_daily WHERE day >= ?
+      GROUP BY ticker ORDER BY n DESC LIMIT 100`,
+    [day],
+  );
+}

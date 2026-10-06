@@ -13,6 +13,7 @@
 // connection to https://optionsahoy.com/mcp. No auth.
 
 import { allMissingFields, type PagesFunction } from './_lib/api';
+import { tickerUses } from './_lib/ticker-demand';
 import { logCalls, logSamples, type CallFields, type SampleFields, type D1Database } from './_lib/stats';
 import { TOOLS } from './_lib/mcp-tools';
 import { RESOURCES } from './_lib/mcp-resources';
@@ -215,14 +216,10 @@ async function handle(
       await warmForCall(toolName, callArgs ?? {});
       try {
         const result = tool.handler(callArgs ?? {}) as Record<string, unknown>;
-        logs.push({ endpoint, tool: toolName, isError: false });
-        // Capture this successful call as an example (7-day rolling, admin-gated).
-        // Stringify the result now, before next_steps injection, so it stays clean.
-        try {
-          samples.push({ surface: 'mcp', tool: toolName, query: JSON.stringify(callArgs ?? {}), answer: JSON.stringify(result) });
-        } catch {
-          // never let example capture break the tool response
-        }
+        logs.push({ endpoint, tool: toolName, isError: false, tickers: tickerUses(callArgs, result, false) });
+        // Capture this successful call's shape as an example (7-day rolling,
+        // admin-gated; field names and types only, see callShape).
+        samples.push({ surface: 'mcp', tool: toolName, args: callArgs ?? {} });
         // Inject the next-step conversion block (free tool -> complementary
         // tool -> beta) as a top-level `next_steps` field. It lived at
         // `_meta.optionsahoy` until 2026-08; a protocol-namespaced key read as
@@ -285,7 +282,7 @@ async function handle(
         });
       } catch (e) {
         const message = e instanceof Error ? e.message : String(e);
-        logs.push({ endpoint, tool: toolName, isError: true, errorMsg: message });
+        logs.push({ endpoint, tool: toolName, isError: true, errorMsg: message, tickers: tickerUses(callArgs, null, true) });
         // Name every field the call is missing, not just the first one. An
         // agent filling an unfamiliar schema otherwise pays one round trip per
         // omission; five, for the concentration_analyze call I built by hand on

@@ -9,11 +9,13 @@
 //   - which clients (initialize.clientInfo.name) are connecting
 //   - what's erroring and where
 //   - rough geo + UA distribution
+//   - which tickers are asked about, as daily counts (mcp_ticker_daily)
 //
 // If the MCP_STATS binding is not configured (local dev, tests, or before
 // Andrew wires it in the Pages dashboard), logCall is a silent no-op.
 
-import { isInfraClient } from './classify';
+import { isInfraClient, surfaceOf } from './classify';
+import type { TickerUse } from './ticker-demand';
 
 // Minimal D1 surface we use. Full type lives in @cloudflare/workers-types
 // which we deliberately don't pull in (would force one for the whole repo
@@ -52,6 +54,8 @@ export interface CallFields {
   isError: boolean;
   errorMsg?: string;
   clientName?: string;
+  /** Tickers the call named, folded into daily counts (see ticker-demand). */
+  tickers?: TickerUse[];
 }
 
 const UA_MAX = 200;
@@ -135,6 +139,29 @@ export function logCalls(ctx: PagesContext, batch: CallFields[]): void {
         : Promise.all(stmts.map((s) => s.run()));
   const promise = writes.catch(() => undefined);
   if (ctx.waitUntil) ctx.waitUntil(promise);
+  countTickers(ctx, db, batch, ua, ts);
+}
+
+const TICKER_UPSERT_SQL =
+  'INSERT INTO mcp_ticker_daily (day, ticker, tool, outcome, n) VALUES (?, ?, ?, ?, 1) ' +
+  'ON CONFLICT(day, ticker, tool, outcome) DO UPDATE SET n = n + 1';
+
+// Fold the tickers these calls named into today's counts. Its own batch on
+// purpose: a D1 batch is one transaction, so sharing the call-log batch would
+// let a missing mcp_ticker_daily table (migration 0007 not applied) roll the
+// call rows back with it. Our monitors and scanners are left out, as they are
+// from the example capture, so the counts are demand and not our own probes.
+function countTickers(ctx: PagesContext, db: D1Database, batch: CallFields[], ua: string | null, ts: number): void {
+  const day = new Date(ts).toISOString().slice(0, 10);
+  const stmts = batch.flatMap((f) =>
+    !f.tickers?.length || isInfraClient(f.clientName ?? ua, surfaceOf(f.endpoint))
+      ? []
+      : f.tickers.map((t) => db.prepare(TICKER_UPSERT_SQL).bind(day, t.ticker, f.tool ?? f.endpoint, t.outcome)),
+  );
+  if (stmts.length === 0) return;
+  const writes: Promise<unknown> = db.batch ? db.batch(stmts) : Promise.all(stmts.map((s) => s.run()));
+  const promise = writes.catch(() => undefined);
+  if (ctx.waitUntil) ctx.waitUntil(promise);
 }
 
 export function logCall(ctx: PagesContext, fields: CallFields): void {
@@ -143,14 +170,64 @@ export function logCall(ctx: PagesContext, fields: CallFields): void {
 
 // --- example capture (mcp_samples) -----------------------------------------
 //
-// A rolling 7-day sample of real inputs+outputs, for product feedback. UNLIKE
-// the metadata-only mcp_calls table, this stores query+answer text (financial
-// details), so it is admin-token-gated, pruned to 7 days on every write, and
-// only written for successful calls. See db/migrations/0003_mcp_samples.sql.
+// A rolling 7-day sample of successful calls, for product feedback: which
+// fields callers send, in what structure, per tool and client. It stores the
+// SHAPE of the arguments only (field names and value types, array lengths),
+// never a value, and never the answer. Until 2026-10-06 it kept the full
+// query and answer text, i.e. users' share counts, income and holdings, which
+// every public statement about the server (listings, tool descriptions, the
+// privacy page) said was not retained; callShape is what makes that true.
+// Admin-token-gated, pruned to 7 days on every write.
 
 const SAMPLE_QUERY_MAX = 4000;
-const SAMPLE_ANSWER_MAX = 8000;
 const SAMPLE_RETENTION_MS = 7 * 86_400_000; // 7 days rolling
+const SHAPE_MAX_DEPTH = 6;
+const SHAPE_MAX_KEYS = 60;
+// A real argument name. Anything else is counted, not copied: a key is caller
+// text too, and could carry a figure as easily as a value can.
+const FIELD_NAME = /^[A-Za-z_][A-Za-z0-9_]{0,63}$/;
+
+function shapeOf(v: unknown, depth: number): unknown {
+  if (v === null) return 'null';
+  if (Array.isArray(v)) {
+    if (v.length === 0) return [];
+    return depth >= SHAPE_MAX_DEPTH ? `array(${v.length})` : { items: v.length, of: shapeOf(v[0], depth + 1) };
+  }
+  if (typeof v === 'object') {
+    if (depth >= SHAPE_MAX_DEPTH) return 'object';
+    const out: Record<string, unknown> = {};
+    let other = 0;
+    for (const k of Object.keys(v as object).sort()) {
+      if (!FIELD_NAME.test(k) || Object.keys(out).length >= SHAPE_MAX_KEYS) other++;
+      else out[k] = shapeOf((v as Record<string, unknown>)[k], depth + 1);
+    }
+    if (other > 0) out['(other keys)'] = other;
+    return out;
+  }
+  return typeof v;
+}
+
+/**
+ * What mcp_samples keeps of a call's arguments: their shape, never a value.
+ * An object (or JSON text of one) becomes field names mapped to value types;
+ * free text (a Poe or A2A message) becomes its word count.
+ */
+export function callShape(args: unknown): string | null {
+  if (args === undefined) return null;
+  let v = args;
+  if (typeof v === 'string') {
+    try {
+      v = JSON.parse(v);
+    } catch {
+      // not JSON: free text, handled below
+    }
+    if (typeof v === 'string' || v === null || typeof v !== 'object') {
+      const words = String(args).trim() === '' ? 0 : String(args).trim().split(/\s+/).length;
+      return `free text, ${words} words`;
+    }
+  }
+  return JSON.stringify(shapeOf(v, 0)).slice(0, SAMPLE_QUERY_MAX);
+}
 const SAMPLE_INSERT_SQL =
   'INSERT INTO mcp_samples (ts, surface, tool, client_name, query, answer, country, region, city, as_org, asn) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)';
 const SAMPLE_PRUNE_SQL = 'DELETE FROM mcp_samples WHERE ts < ?';
@@ -159,8 +236,8 @@ export interface SampleFields {
   surface: string; // poe | mcp | rest | a2a
   tool?: string;
   clientName?: string;
-  query?: string;
-  answer?: string;
+  /** The call's arguments (object, JSON text or free text). Only callShape(args) is stored. */
+  args?: unknown;
 }
 
 // Write N example rows + prune the >7-day tail, in one fire-and-forget round
@@ -179,7 +256,6 @@ export function logSamples(ctx: PagesContext, batch: SampleFields[]): void {
   if (kept.length === 0) return;
   const ts = Date.now();
   const geo = readCf(ctx.request);
-  const cut = (s: string | undefined, max: number) => (s ? s.slice(0, max) : null);
   const stmts = kept.map((f) => {
     const client = f.clientName ?? ua;
     return db.prepare(SAMPLE_INSERT_SQL).bind(
@@ -187,8 +263,8 @@ export function logSamples(ctx: PagesContext, batch: SampleFields[]): void {
       f.surface,
       f.tool ?? null,
       client ? client.slice(0, CLIENT_NAME_MAX) : null,
-      cut(f.query, SAMPLE_QUERY_MAX),
-      cut(f.answer, SAMPLE_ANSWER_MAX),
+      callShape(f.args),
+      null, // answer: never stored (see callShape)
       geo.country,
       geo.region,
       geo.city,

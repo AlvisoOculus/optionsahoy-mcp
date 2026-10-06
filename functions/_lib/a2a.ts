@@ -324,7 +324,7 @@ export interface HandledMessage {
 // A message with NO data part never runs a parser at all: it is keyword-routed
 // to a "call it like this" pointer. Skill ids are the MCP tool names, which is
 // what the gates key on.
-function skillCall(parts: A2APart[]): { skill: string; input: unknown } | null {
+export function skillCall(parts: A2APart[]): { skill: string; input: unknown } | null {
   const dataPart = parts.find(
     (p) => p.kind === 'data' && p.data !== null && typeof p.data === 'object',
   );
