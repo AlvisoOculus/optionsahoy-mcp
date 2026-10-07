@@ -4,7 +4,7 @@
     "equityFunding.ts": "5102597f504868d3edb8bf914614726d90d00597a37342224a238790ebab6f6b",
     "lotSelector.ts": "77941b477d2dd2cd959de56f60fc89e5471fc881788ed47b8a35edea92fc91b7",
     "lotDivest.ts": "7b15c5b25e89290c1a292885faf2f3b1b8e0e91c7b847649da3167266632270d",
-    "../tax/bracket-walker.ts": "d798e31d06240967f9bcc5c8b2e9c6972d5ad3efe6c35a48f14d58f090ecd5a4",
+    "../tax/bracket-walker.ts": "28eef062108b71c54e6d7ff3b70bade0db9a24184460da2ed0f23d243db8ab72",
     "../tax/federal-amt-2026.ts": "667423d3800248904233e727e73bde58cfd16df6c5f547f68769b5aac1c762ae",
     "../tax/state-tax.ts": "11223b39f874a989ea3f60666c97aa942905b7be9e0e8f53f8661b4f3819cbc0",
     "../tax/state-rules.ts": "43a3ad90e66b4fa26717abc105420f99061c0df7e3c330f5d8f0023fbf311c95"

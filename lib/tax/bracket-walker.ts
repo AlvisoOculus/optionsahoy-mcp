@@ -38,7 +38,6 @@ export function sliceBracketsAcrossDelta(
     // Income below the first bracket's min is untaxed (a state schedule that
     // starts at $10,000, say): it uses up the added amount without a slice.
     remaining -= fillStart - cursor;
-    cursor = fillStart;
     if (remaining <= 0) break;
     const room = bracketEnd - fillStart;
     const fill = Math.min(remaining, room);
