@@ -398,6 +398,11 @@ describe('matches the exhaustive optimum (guards the dominance pruning)', () => 
 
   // The reviewer's minimized counterexample, at full size. Pinned as a value so
   // a regression shows the dollar cost rather than an abstract inequality.
+  // Re-pinned 2026-10-06 (was 4,398.27): the state engine now computes the
+  // California return from AGI with the 2026 schedules, so state tax on the
+  // same plan rose. The tie behavior itself is guarded by the small exhaustive
+  // 'LT/ST tie at equal gain per share' case above, which still matches the
+  // optimum to the cent.
   it('the LT/ST tie regression stays fixed ($90 of overstated tax)', () => {
     const r = computeLotDivestPlan(base({
       lots: [
@@ -408,7 +413,7 @@ describe('matches the exhaustive optimum (guards the dominance pruning)', () => 
       currentPrice: 900, divestPercent: 0.75, horizonYears: 3,
       ordinaryIncome: 2_000, today: d('2026-07-26'),
     }));
-    expect(r.totalTax).toBeCloseTo(4398.27, 2);
+    expect(r.totalTax).toBeCloseTo(5690.52, 2);
   });
 });
 
@@ -436,7 +441,7 @@ describe('matches the exhaustive optimum (guards the dominance pruning)', () => 
 // $8.69 regression. The asymmetry is why this ships, not a guarantee that it
 // never costs anything.
 describe('swapPass can re-time a fully-sold lot across its own sale dates', () => {
-  it('harvests $252 more loss than the pre-fix plan on a fully-divested pair', () => {
+  it('re-timing harvests far more of the loss than the pre-fix plan on a fully-divested pair', () => {
     const r = computeLotDivestPlan(base({
       lots: [
         { vestDate: d('2025-05-02'), shares: 85, costBasisPerShare: 113.2471 },
@@ -452,8 +457,9 @@ describe('swapPass can re-time a fully-sold lot across its own sale dates', () =
     }));
     // Pre-fix this plan priced at -$3.44; the re-timed plan realizes far more of
     // the loss inside the horizon. A negative total tax is a net credit against
-    // other income, so MORE negative is better.
-    expect(r.totalTax).toBeLessThan(-250);
-    expect(r.totalTax).toBeCloseTo(-255.85, 1);
+    // other income, so MORE negative is better. (-255.85 before South Carolina's
+    // 2026 return was modeled: it now starts from AGI at 1.99% / 5.21%.)
+    expect(r.totalTax).toBeLessThan(-230);
+    expect(r.totalTax).toBeCloseTo(-239.44, 1);
   });
 });

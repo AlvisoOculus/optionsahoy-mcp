@@ -26,10 +26,14 @@ describe('CA bracket year alignment (regression for the one-year label offset)',
     expect(b[1].min).not.toBe(21512);
   });
 
-  it('2026 is held at the 2025 schedule until FTB publishes (matches the note)', () => {
-    const b25 = getStateBrackets('CA', 'single', '2025');
-    const b26 = getStateBrackets('CA', 'single', '2026');
-    expect(b26).toEqual(b25);
+  it('2026 single uses the FTB 2026 schedule (matches the note)', () => {
+    // Re-pinned 2026-10-06: FTB published the 2026 schedules (October 2026) and CA.json now carries them, so 2026 no longer equals 2025.
+    const b25 = getStateBrackets('CA', 'single', '2025')!;
+    const b26 = getStateBrackets('CA', 'single', '2026')!;
+    expect(b26[1].min).toBe(11456);
+    expect(b26[5]).toEqual({ min: 75197, rate: 0.093 });
+    expect(b26.at(-1)).toEqual({ min: 1_000_000, rate: 0.133 });
+    expect(b26).not.toEqual(b25);
   });
 
   it('mirror parity: CA.json is byte-identical to the web repo source of truth shape', () => {
