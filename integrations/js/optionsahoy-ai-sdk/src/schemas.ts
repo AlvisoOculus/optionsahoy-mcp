@@ -56,6 +56,13 @@ export const amtIsoParameters = z.object({
   fmv: z.number().min(0).describe('Current fair market value per share, USD.'),
   filingStatus,
   ordinaryIncome: z.number().min(0).describe('Annual ordinary income before this exercise, USD.'),
+  itemizedTaxes: z
+    .number()
+    .min(0)
+    .optional()
+    .describe(
+      'Only if the user itemizes: state and local taxes deducted on Schedule A, line 7, which the AMT adds back instead of the standard deduction. Omit for the standard deduction.',
+    ),
   stateCode,
   carryforwardCredit: z.number().min(0).describe('Existing federal AMT credit carryforward, USD.'),
   horizon: z.number().int().min(1).max(10).describe('Planning horizon in years (1 to 10).'),
