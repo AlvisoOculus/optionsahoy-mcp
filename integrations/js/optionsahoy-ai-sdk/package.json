@@ -1,6 +1,6 @@
 {
   "name": "optionsahoy-ai-sdk",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Vercel AI SDK tools for the OptionsAhoy equity-compensation calculators: ISO/AMT, NSO, RSU, concentration, protective put, QSBS, and equity-funding. Keyless, deterministic, relevant federal tax code plus all 50 states and DC.",
   "type": "module",
   "main": "./dist/index.js",

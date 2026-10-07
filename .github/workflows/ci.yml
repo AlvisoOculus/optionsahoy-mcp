@@ -24,3 +24,11 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run build
+      # The AI SDK adapter keeps its own zod copies of the request schemas, and
+      # its conformance test used to run only at publish time: #274 added
+      # itemizedTaxes, merged green, and the 1.11.0 release run went red.
+      - name: AI SDK adapter tests (schema conformance with openapi.json)
+        working-directory: integrations/js/optionsahoy-ai-sdk
+        run: |
+          npm install --no-audit --no-fund
+          npm test
