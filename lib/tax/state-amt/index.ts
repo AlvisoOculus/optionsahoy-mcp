@@ -31,6 +31,11 @@
 //         "rateOnAmti": number          // 0.055 for CT
 //       }
 //
+// Either kind may set "requiresFederalAmt": true when the state imposes its
+// AMT only on someone who owes federal AMT that year. CT does (Conn. Gen.
+// Stat. 12-700a(a): "subject to and required to pay the federal alternative
+// minimum tax"); CA, CO and MN do not, so their AMT can apply on its own.
+//
 // REFRESH (annual): see ./README.md. Each state form is published on a
 // different cadence; the JSON files carry an `asOfYear` so the orchestrator
 // can warn if data is more than one year stale.
@@ -52,6 +57,7 @@ export interface StateAmtDataSimple {
   name: string;
   source: string;
   asOfYear: number;
+  requiresFederalAmt?: boolean;
   rate: number;
   phaseoutRate: number;
   exemption: Record<AmtFilingStatus, number>;
@@ -63,6 +69,7 @@ export interface StateAmtDataPiggyback {
   name: string;
   source: string;
   asOfYear: number;
+  requiresFederalAmt?: boolean;
   rateOnFederalTmt: number;
   rateOnAmti: number;
 }
@@ -82,6 +89,17 @@ const REGISTRY: Record<string, StateAmtData> = {
   CT: CT_DATA as StateAmtData,
   MN: MN_DATA as StateAmtData,
 };
+
+// Single source of truth for "which states have a modeled AMT", derived from
+// the data registry above. UI copy must interpolate these rather than hardcode
+// the list — add a state's JSON to REGISTRY and every surface updates. (This is
+// why the list previously drifted to a stale "CA, NY, MN" across many files.)
+export const STATE_AMT_CODES: readonly string[] = Object.keys(REGISTRY);
+export const STATE_AMT_LABEL = STATE_AMT_CODES.join(', '); // "CA, CO, CT, MN"
+export const STATE_AMT_LABEL_AND =
+  STATE_AMT_CODES.length <= 1
+    ? STATE_AMT_LABEL
+    : `${STATE_AMT_CODES.slice(0, -1).join(', ')}, and ${STATE_AMT_CODES[STATE_AMT_CODES.length - 1]}`; // "CA, CO, CT, and MN"
 
 export function hasStateAmt(stateCode: string): boolean {
   return stateCode.toUpperCase() in REGISTRY;
@@ -133,15 +151,19 @@ export function stateTentativeMinimumTax(
 
 /**
  * State AMT owed. The user pays the excess of state TMT over state regular
- * tax. The caller supplies the regular state tax (ordinary income only —
- * computed elsewhere via the existing `state-tax.ts` walker).
+ * tax. The caller supplies the regular state tax (ordinary income only,
+ * computed elsewhere via the `state-tax.ts` walker) and the federal AMT owed
+ * the same year, because some states (CT) impose theirs only when federal
+ * AMT is owed.
  */
 export function stateAmtOwed(
   stateCode: string,
   amti: number,
   status: AmtFilingStatus,
   regularStateTax: number,
+  federalAmtOwed: number,
 ): number {
+  if (getStateAmtData(stateCode)?.requiresFederalAmt && !(federalAmtOwed > 0)) return 0;
   return Math.max(0, stateTentativeMinimumTax(stateCode, amti, status) - regularStateTax);
 }
 

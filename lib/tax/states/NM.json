@@ -110,7 +110,33 @@
           "rate": 0.059
         }
       ],
-      "notes": ""
+      "notes": "Head of household: the married-joint schedule for head of household. https://www.nmlegis.gov/Sessions/24%20Regular/final/HB0252.pdf",
+      "head_household": [
+        {
+          "min": 0,
+          "rate": 0.015
+        },
+        {
+          "min": 8000,
+          "rate": 0.032
+        },
+        {
+          "min": 25000,
+          "rate": 0.043
+        },
+        {
+          "min": 50000,
+          "rate": 0.047
+        },
+        {
+          "min": 100000,
+          "rate": 0.049
+        },
+        {
+          "min": 315000,
+          "rate": 0.059
+        }
+      ]
     }
   }
 }

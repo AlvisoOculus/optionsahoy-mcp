@@ -127,6 +127,7 @@ function ordinaryOffsetSaving(
     ordinaryIncome: ordinaryIncome - amount,
     gainAmount: amount,
     isLongTerm: false,
+    isOrdinaryIncome: true,
     filingStatus,
   });
   return fed + state;

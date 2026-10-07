@@ -96,35 +96,35 @@
           "rate": 0.01
         },
         {
-          "min": 11079,
+          "min": 11456,
           "rate": 0.02
         },
         {
-          "min": 26264,
+          "min": 27157,
           "rate": 0.04
         },
         {
-          "min": 41452,
+          "min": 42861,
           "rate": 0.06
         },
         {
-          "min": 57542,
+          "min": 59498,
           "rate": 0.08
         },
         {
-          "min": 72724,
+          "min": 75197,
           "rate": 0.093
         },
         {
-          "min": 371479,
+          "min": 384109,
           "rate": 0.103
         },
         {
-          "min": 445771,
+          "min": 460927,
           "rate": 0.113
         },
         {
-          "min": 742953,
+          "min": 768213,
           "rate": 0.123
         },
         {
@@ -138,31 +138,31 @@
           "rate": 0.01
         },
         {
-          "min": 22158,
+          "min": 22912,
           "rate": 0.02
         },
         {
-          "min": 52528,
+          "min": 54314,
           "rate": 0.04
         },
         {
-          "min": 82904,
+          "min": 85722,
           "rate": 0.06
         },
         {
-          "min": 115084,
+          "min": 118996,
           "rate": 0.08
         },
         {
-          "min": 145448,
+          "min": 150394,
           "rate": 0.093
         },
         {
-          "min": 742958,
+          "min": 768218,
           "rate": 0.103
         },
         {
-          "min": 891542,
+          "min": 921854,
           "rate": 0.113
         },
         {
@@ -170,11 +170,53 @@
           "rate": 0.123
         },
         {
-          "min": 1485906,
+          "min": 1536426,
           "rate": 0.133
         }
       ],
-      "notes": "CA tax-year 2026 schedule is not yet published (FTB publishes the inflation-indexed schedule in the fall). Held at the 2025 figures as the best available estimate; refresh when FTB releases 2026. Includes the 1% mental-health surcharge over $1M."
+      "head_household": [
+        {
+          "min": 0,
+          "rate": 0.01
+        },
+        {
+          "min": 22927,
+          "rate": 0.02
+        },
+        {
+          "min": 54316,
+          "rate": 0.04
+        },
+        {
+          "min": 70018,
+          "rate": 0.06
+        },
+        {
+          "min": 86654,
+          "rate": 0.08
+        },
+        {
+          "min": 102356,
+          "rate": 0.093
+        },
+        {
+          "min": 522385,
+          "rate": 0.103
+        },
+        {
+          "min": 626864,
+          "rate": 0.113
+        },
+        {
+          "min": 1000000,
+          "rate": 0.123
+        },
+        {
+          "min": 1044771,
+          "rate": 0.133
+        }
+      ],
+      "notes": "2026 Schedules X, Y and Z as published by FTB (Tax News, '2026 Indexing', October 2026; CCPI 3.4%), with the 1% Behavioral Health Services Tax on taxable income over $1,000,000 folded in. FTB's table prints 'over 118,966' in the joint 8% row; the $4,109.92 base tax fixes it at 118,996. https://www.ftb.ca.gov/about-ftb/newsroom/tax-news/index.html"
     }
   }
 }

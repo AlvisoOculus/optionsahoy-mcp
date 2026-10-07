@@ -21,6 +21,19 @@ export const LTCG_2026: Brackets = CURRENT_FEDERAL_TABLE.ltcg;
 export const STANDARD_DEDUCTION_2026: Record<FilingStatus, number> =
   CURRENT_FEDERAL_TABLE.stdDeduction;
 
+// Every calculator takes TAXABLE income (Form 1040 line 15), the user's income
+// after deductions. Several rules key off a larger figure: the net investment
+// income tax tests AGI (§ 1411), payroll tax tests wages (§ 3101), and the AMT
+// disallows the standard deduction (§ 56(b)(1)(D), see federal-amt-2026.ts).
+// For a filer who takes the standard deduction, AGI is taxable income plus
+// that deduction (QBI and the Schedule 1-A deductions aside), and for a
+// W-2-only filer it is also their wages. This is the one place that
+// conversion lives. For an itemizer it is a floor: their AGI is higher by the
+// amount their itemized deductions exceed the standard deduction.
+export function agiFromTaxableIncome(taxableIncome: number, status: FilingStatus): number {
+  return Math.max(0, taxableIncome) + STANDARD_DEDUCTION_2026[status];
+}
+
 // Net Investment Income Tax (IRC § 1411): 3.8% over the statutory MAGI threshold.
 export const NIIT_RATE = CURRENT_FEDERAL_TABLE.niit.rate;
 

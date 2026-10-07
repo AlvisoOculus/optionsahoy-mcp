@@ -67,7 +67,12 @@
           "ordinaryIncome": {
             "type": "number",
             "minimum": 0,
-            "description": "Annual ordinary income before this exercise, USD. Baseline for the bracket walk and the AMT exemption phaseout. Must come from the user. This is taxable income after deductions, not gross wages: the engine applies no standard or itemized deduction to it."
+            "description": "Annual ordinary income before this exercise, USD. Baseline for the bracket walk and the AMT exemption phaseout. Must come from the user. This is taxable income after deductions, not gross wages: regular tax is figured on it as given. For the AMT the calculation adds the standard deduction back (Form 6251, line 2a), unless `itemizedTaxes` is given, in which case it adds back those taxes instead."
+          },
+          "itemizedTaxes": {
+            "type": "number",
+            "minimum": 0,
+            "description": "Only if you itemize deductions: the state and local taxes deducted on Schedule A, line 7. The AMT adds these back instead of the standard deduction. Omit if you take the standard deduction. When omitted, the AMT add-back defaults to the full standard deduction."
           },
           "stateCode": {
             "type": "string",

@@ -24,13 +24,13 @@ import {
 } from '@/lib/tax/bracket-walker';
 import type { TaxBreakdownRow } from '@/lib/calc/concentration';
 import { computeStateGainTax } from '@/lib/tax/state-tax';
-import { ORDINARY_2026 } from '@/lib/tax/federal-2026';
+import { ORDINARY_2026, agiFromTaxableIncome } from '@/lib/tax/federal-2026';
 import {
   additionalMedicareTaxOnAddedWages,
   medicareTaxOnAddedWages,
   socialSecurityTaxOnAddedWages,
 } from '@/lib/tax/fica-2026';
-import { getStateBrackets } from '@/lib/tax/state-tax';
+import { getStateBrackets, stateTaxBreakdownRows } from '@/lib/tax/state-tax';
 import type { TickerChain } from '@/lib/data/chains';
 import type { FilingStatus } from '@/lib/tax/types';
 
@@ -155,19 +155,26 @@ export function computeTaxAtExercise(input: NsoInput): NsoTaxAtExercise {
     ordinaryIncome: input.ordinaryIncome,
     gainAmount: bargainElement,
     isLongTerm: false,
+    isOrdinaryIncome: true,
     filingStatus: input.filingStatus,
   });
 
   // FICA (only when still employed at exercise).
+  // Payroll tax tests WAGES, and ordinaryIncome is taxable income: for a
+  // W-2 filer on the standard deduction, wages are at least taxable income
+  // plus that deduction (agiFromTaxableIncome), and more by any pre-tax
+  // 401(k) deferral, which payroll tax still counts. Using taxable income
+  // left the Social Security base and Additional Medicare threshold too far away.
+  const wagesBefore = agiFromTaxableIncome(input.ordinaryIncome, input.filingStatus);
   const socialSecurity = input.stillEmployed
-    ? socialSecurityTaxOnAddedWages(input.ordinaryIncome, bargainElement)
+    ? socialSecurityTaxOnAddedWages(wagesBefore, bargainElement)
     : 0;
   const medicare = input.stillEmployed
     ? medicareTaxOnAddedWages(bargainElement)
     : 0;
   const additionalMedicare = input.stillEmployed
     ? additionalMedicareTaxOnAddedWages(
-        input.ordinaryIncome,
+        wagesBefore,
         bargainElement,
         input.filingStatus,
       )
@@ -397,21 +404,10 @@ export function nsoStateBreakdownRows(input: NsoInput): TaxBreakdownRow[] {
     (input.currentPrice - input.strike) * input.shares,
   );
   if (bargainElement === 0) return [];
-  const stateBrackets = getStateBrackets(input.stateCode, input.filingStatus, '2026');
-  if (!stateBrackets) return [];
-  const slices = sliceBracketsAcrossDelta(
-    input.ordinaryIncome,
-    bargainElement,
-    stateBrackets,
+  return stateTaxBreakdownRows(
+    { stateCode: input.stateCode, filingStatus: input.filingStatus, ordinaryIncome: input.ordinaryIncome },
+    { wages: bargainElement },
   );
-  return slices
-    .filter((s) => s.tax > 0)
-    .map((s) => ({
-      label: input.stateCode,
-      rate: s.rate,
-      amount: s.amount,
-      tax: s.tax,
-    }));
 }
 
 // ---------------------------------------------------------------

@@ -86,7 +86,25 @@
           "rate": 0.045
         }
       ],
-      "notes": ""
+      "notes": "Head of household: the married-joint schedule for head of household. https://www.oklegislature.gov/cf_pdf/2025-26%20ENR/hB/HB2764%20ENR.PDF",
+      "head_household": [
+        {
+          "min": 0,
+          "rate": 0.0
+        },
+        {
+          "min": 7500,
+          "rate": 0.025
+        },
+        {
+          "min": 9800,
+          "rate": 0.035
+        },
+        {
+          "min": 14400,
+          "rate": 0.045
+        }
+      ]
     }
   }
 }

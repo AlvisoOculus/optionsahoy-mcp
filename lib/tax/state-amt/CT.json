@@ -4,5 +4,7 @@
   "source": "https://portal.ct.gov/-/media/drs/forms/2025/income/ct-6251_1225.pdf",
   "asOfYear": 2025,
   "rateOnFederalTmt": 0.19,
-  "rateOnAmti": 0.055
+  "rateOnAmti": 0.055,
+  "requiresFederalAmt": true,
+  "requiresFederalAmtSource": "Conn. Gen. Stat. 12-700a(a): the net Connecticut minimum tax applies to an individual 'subject to and required to pay the federal alternative minimum tax under Section 55'. https://www.cga.ct.gov/current/pub/chap_229.htm#sec_12-700a"
 }

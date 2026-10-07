@@ -4,6 +4,11 @@
 // equityFunding.ts / lotSelector.ts pair hashes to exactly what
 // lib/calc/.mirror-manifest.json records.
 //
+// The set also covers the shared, amtIso-independent tax files
+// (bracket-walker.ts, federal-amt-2026.ts, state-tax.ts, state-rules.ts),
+// keyed relative to lib/calc as "../tax/<file>" so the same manifest and the
+// same join(calcDir, file) resolve in both repos.
+//
 // What this enforces: you cannot edit either file without regenerating the
 // manifest — the hash mismatch turns this test red — so the manifest moves in
 // lockstep with the pair in every PR that touches them, making the sync a

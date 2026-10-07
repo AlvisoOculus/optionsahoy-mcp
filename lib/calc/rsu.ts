@@ -28,13 +28,13 @@ import {
 } from '@/lib/tax/bracket-walker';
 import type { TaxBreakdownRow } from '@/lib/calc/concentration';
 import { computeStateGainTax } from '@/lib/tax/state-tax';
-import { ORDINARY_2026 } from '@/lib/tax/federal-2026';
+import { ORDINARY_2026, agiFromTaxableIncome } from '@/lib/tax/federal-2026';
 import {
   additionalMedicareTaxOnAddedWages,
   medicareTaxOnAddedWages,
   socialSecurityTaxOnAddedWages,
 } from '@/lib/tax/fica-2026';
-import { getStateBrackets } from '@/lib/tax/state-tax';
+import { stateTaxBreakdownRows } from '@/lib/tax/state-tax';
 import type { FilingStatus } from '@/lib/tax/types';
 // Re-export the lognormal vol-drag mapping + chain-derived haircut so this
 // module is the single import for the RSU calc UI. Math is identical to NSO.
@@ -147,18 +147,25 @@ export function computeTaxAtVest(input: RsuInput): RsuTaxAtVest {
     ordinaryIncome: input.ordinaryIncome,
     gainAmount: vestValue,
     isLongTerm: false,
+    isOrdinaryIncome: true,
     filingStatus: input.filingStatus,
   });
 
+  // Payroll tax tests WAGES, and ordinaryIncome is taxable income: for a
+  // W-2 filer on the standard deduction, wages are at least taxable income
+  // plus that deduction (agiFromTaxableIncome), and more by any pre-tax
+  // 401(k) deferral, which payroll tax still counts. Using taxable income
+  // left the Social Security base and Additional Medicare threshold too far away.
+  const wagesBefore = agiFromTaxableIncome(input.ordinaryIncome, input.filingStatus);
   const socialSecurity = input.stillEmployed
-    ? socialSecurityTaxOnAddedWages(input.ordinaryIncome, vestValue)
+    ? socialSecurityTaxOnAddedWages(wagesBefore, vestValue)
     : 0;
   const medicare = input.stillEmployed
     ? medicareTaxOnAddedWages(vestValue)
     : 0;
   const additionalMedicare = input.stillEmployed
     ? additionalMedicareTaxOnAddedWages(
-        input.ordinaryIncome,
+        wagesBefore,
         vestValue,
         input.filingStatus,
       )
@@ -341,21 +348,10 @@ export function rsuFederalBreakdownRows(input: RsuInput): TaxBreakdownRow[] {
 export function rsuStateBreakdownRows(input: RsuInput): TaxBreakdownRow[] {
   const vestValue = Math.max(0, input.shares * input.currentPrice);
   if (vestValue === 0) return [];
-  const stateBrackets = getStateBrackets(input.stateCode, input.filingStatus, '2026');
-  if (!stateBrackets) return [];
-  const slices = sliceBracketsAcrossDelta(
-    input.ordinaryIncome,
-    vestValue,
-    stateBrackets,
+  return stateTaxBreakdownRows(
+    { stateCode: input.stateCode, filingStatus: input.filingStatus, ordinaryIncome: input.ordinaryIncome },
+    { wages: vestValue },
   );
-  return slices
-    .filter((s) => s.tax > 0)
-    .map((s) => ({
-      label: input.stateCode,
-      rate: s.rate,
-      amount: s.amount,
-      tax: s.tax,
-    }));
 }
 
 // Bracket-walk rows for a SHORT-TERM cap gain (taxed at ordinary marginal).
@@ -381,21 +377,10 @@ export function rsuStcgStateRows(
   gainAmount: number,
 ): TaxBreakdownRow[] {
   if (gainAmount <= 0) return [];
-  const stateBrackets = getStateBrackets(input.stateCode, input.filingStatus, '2026');
-  if (!stateBrackets) return [];
-  const slices = sliceBracketsAcrossDelta(
-    input.ordinaryIncome,
-    gainAmount,
-    stateBrackets,
+  return stateTaxBreakdownRows(
+    { stateCode: input.stateCode, filingStatus: input.filingStatus, ordinaryIncome: input.ordinaryIncome },
+    { shortTermGain: gainAmount },
   );
-  return slices
-    .filter((s) => s.tax > 0)
-    .map((s) => ({
-      label: input.stateCode,
-      rate: s.rate,
-      amount: s.amount,
-      tax: s.tax,
-    }));
 }
 
 // Re-export — NSO already provides a no-state-tax detector with the right

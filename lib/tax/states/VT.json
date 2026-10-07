@@ -48,15 +48,15 @@
           "rate": 0.0335
         },
         {
-          "min": 49400,
+          "min": 50750,
           "rate": 0.066
         },
         {
-          "min": 119700,
+          "min": 122850,
           "rate": 0.076
         },
         {
-          "min": 249700,
+          "min": 256300,
           "rate": 0.0875
         }
       ],
@@ -66,19 +66,37 @@
           "rate": 0.0335
         },
         {
-          "min": 82500,
+          "min": 84700,
           "rate": 0.066
         },
         {
-          "min": 199450,
+          "min": 204750,
           "rate": 0.076
         },
         {
-          "min": 304000,
+          "min": 312050,
           "rate": 0.0875
         }
       ],
-      "notes": ""
+      "notes": "Head of household: its own head-of-household schedule. https://tax.vermont.gov/sites/tax/files/documents/IN-114-Instr-2026.pdf 2026 brackets are Vermont's PRELIMINARY schedules from the 2026 IN-114 estimated-tax instructions; refresh when the 2026 IN-111 is published.",
+      "head_household": [
+        {
+          "min": 0,
+          "rate": 0.0335
+        },
+        {
+          "min": 68000,
+          "rate": 0.066
+        },
+        {
+          "min": 175500,
+          "rate": 0.076
+        },
+        {
+          "min": 284150,
+          "rate": 0.0875
+        }
+      ]
     }
   }
 }

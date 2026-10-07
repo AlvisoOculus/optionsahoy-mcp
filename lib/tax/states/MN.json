@@ -78,7 +78,25 @@
           "rate": 0.0985
         }
       ],
-      "notes": ""
+      "notes": "Head of household: its own head-of-household schedule. https://www.revenue.state.mn.us/sites/default/files/2025-12/inflation-adjusted-amounts-2026.pdf",
+      "head_household": [
+        {
+          "min": 0,
+          "rate": 0.0535
+        },
+        {
+          "min": 41010,
+          "rate": 0.068
+        },
+        {
+          "min": 164800,
+          "rate": 0.0785
+        },
+        {
+          "min": 270060,
+          "rate": 0.0985
+        }
+      ]
     }
   }
 }

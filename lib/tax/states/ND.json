@@ -28,25 +28,47 @@
     "2026": {
       "single": [
         {
-          "min": 48475,
+          "min": 0,
+          "rate": 0
+        },
+        {
+          "min": 49575,
           "rate": 0.0195
         },
         {
-          "min": 244825,
+          "min": 250400,
           "rate": 0.025
         }
       ],
       "married_joint": [
         {
-          "min": 80975,
+          "min": 0,
+          "rate": 0
+        },
+        {
+          "min": 82800,
           "rate": 0.0195
         },
         {
-          "min": 298075,
+          "min": 304850,
           "rate": 0.025
         }
       ],
-      "notes": ""
+      "notes": "Head of household: its own head-of-household schedule. https://www.tax.nd.gov/sites/www/files/documents/forms/individual/2025-iit/28709-form-nd-1es-2026.pdf 2026 single and joint schedules from the 2026 ND-1ES tax rate schedules: https://www.tax.nd.gov/sites/www/files/documents/forms/individual/2025-iit/28709-form-nd-1es-2026.pdf",
+      "head_household": [
+        {
+          "min": 0,
+          "rate": 0.0
+        },
+        {
+          "min": 66400,
+          "rate": 0.0195
+        },
+        {
+          "min": 277600,
+          "rate": 0.025
+        }
+      ]
     }
   }
 }

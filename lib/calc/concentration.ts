@@ -8,11 +8,11 @@ import {
   computeFederalGainTax,
   computeStateGainTax,
   sliceBracketsAcrossDelta,
-  getStateBrackets,
 } from '@/lib/tax';
 import type { FilingStatus } from '@/lib/tax';
 import { longTermStartDate } from './lotSelector';
-import { LTCG_2026, ORDINARY_2026, NIIT_RATE, NIIT_THRESHOLDS } from '@/lib/tax/federal-2026';
+import { LTCG_2026, ORDINARY_2026, NIIT_RATE, NIIT_THRESHOLDS, agiFromTaxableIncome } from '@/lib/tax/federal-2026';
+import { stateTaxBreakdownRows } from '@/lib/tax/state-tax';
 import { SECTOR_STATS, type SectorKey } from '@/lib/markets/sector-stats';
 import { blackScholesPut, blackScholesCall } from '@/lib/options/black-scholes';
 import { RISK_FREE_RATE_1Y } from '@/lib/tax/federal-2026';
@@ -79,7 +79,10 @@ export type TaxBreakdownRow = {
   label: string;            // e.g. "Federal LTCG", "NIIT", "California"
   rate: number;             // e.g. 0.15
   amount: number;           // dollars in this slice
-  tax: number;              // amount × rate
+  tax: number;              // amount × rate, or the adjustment when `detail` is set
+  // An adjustment that is not one bracket slice (a state deduction phasing
+  // out, a recapture, a credit): shown in place of "amount × rate".
+  detail?: string;
 };
 
 export type YearlySale = {
@@ -297,8 +300,9 @@ function breakdownForSale(args: {
     if (s.tax > 0) rows.push({ label: federalLabel, rate: s.rate, amount: s.amount, tax: s.tax });
   }
 
-  // NIIT — single bucket: 3.8% on min(investment income, AGI excess).
-  const agi = ordinaryIncome + gainAmount;
+  // NIIT — single bucket: 3.8% on min(investment income, AGI excess). AGI
+  // adds the standard deduction back to taxable income (as computeNiit does).
+  const agi = agiFromTaxableIncome(ordinaryIncome, filingStatus) + gainAmount;
   const niitThreshold = NIIT_THRESHOLDS[filingStatus];
   if (agi > niitThreshold) {
     const taxable = Math.min(gainAmount, agi - niitThreshold);
@@ -315,13 +319,12 @@ function breakdownForSale(args: {
       rows.push({ label: 'WA LTCG (above $270K)', rate: 0.07, amount: taxable, tax: taxable * 0.07 });
     }
   } else {
-    const stateBrackets = getStateBrackets(stateCode, filingStatus);
-    if (stateBrackets) {
-      const slices = sliceBracketsAcrossDelta(ordinaryIncome, gainAmount, stateBrackets);
-      for (const s of slices) {
-        if (s.tax > 0) rows.push({ label: stateCode, rate: s.rate, amount: s.amount, tax: s.tax });
-      }
-    }
+    rows.push(
+      ...stateTaxBreakdownRows(
+        { stateCode, filingStatus, ordinaryIncome },
+        isLongTerm ? { longTermGain: gainAmount } : { shortTermGain: gainAmount },
+      ),
+    );
   }
 
   return rows;
