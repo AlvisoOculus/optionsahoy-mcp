@@ -298,7 +298,7 @@ describe('parseEquityFundingInput error paths', () => {
 
   it('throws on missing required top-level field', () => {
     const { ordinaryIncome: _drop, ...without } = BASE;
-    expect(() => parse(without)).toThrow(/ordinaryIncome.*finite number/);
+    expect(() => parse(without)).toThrow('field "ordinaryIncome" required (a number)');
   });
 
   it('throws when neither stacks nor legacy lots are supplied', () => {
