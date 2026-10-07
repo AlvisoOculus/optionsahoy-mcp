@@ -23,7 +23,7 @@
           "rate": 0.039
         }
       ],
-      "notes": "Separate tables for income ≤$89,600"
+      "notes": "Separate tables for income \u2264$89,600"
     },
     "2026": {
       "single": [
@@ -32,8 +32,8 @@
           "rate": 0.02
         },
         {
-          "min": 4600,
-          "rate": 0.039
+          "min": 4700,
+          "rate": 0.037
         }
       ],
       "married_joint": [
@@ -42,11 +42,11 @@
           "rate": 0.02
         },
         {
-          "min": 4600,
-          "rate": 0.039
+          "min": 4700,
+          "rate": 0.037
         }
       ],
-      "notes": ""
+      "notes": "2026: Ark. Code 26-51-201(a)(4) as amended by Act 1 of the 2026 First Extraordinary Session (top rate 3.7%, retroactive to January 1, 2026). One table for every filing status. These brackets are the table for net income over $94,700; state-rules.ts applies the separate table at or below $94,700 and the bracket adjustment from $94,701 to $97,600. https://arkleg.state.ar.us/Acts/FTPDocument?path=%2FACTS%2F2026S1%2FPublic%2F&file=1.pdf&ddBienniumSession=2025%2F2026S1"
     }
   }
 }

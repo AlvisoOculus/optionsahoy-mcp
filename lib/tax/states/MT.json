@@ -46,7 +46,17 @@
           "rate": 0.0565
         }
       ],
-      "notes": ""
+      "notes": "Head of household: its own head-of-household schedule. https://revenue.mt.gov/news/recent-news/HB-337",
+      "head_household": [
+        {
+          "min": 0,
+          "rate": 0.047
+        },
+        {
+          "min": 71250,
+          "rate": 0.0565
+        }
+      ]
     }
   }
 }

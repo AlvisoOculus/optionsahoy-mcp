@@ -1,8 +1,12 @@
 {
-  "_comment": "Drift guard for the co-dependent lotSelector.ts / equityFunding.ts / lotDivest.ts set (RSU-lot-order spec, docs/tools/rsu-lot-order-spec.md §2.4). What it enforces: editing any of these three without regenerating this manifest fails mirror-manifest.test.ts in the SAME repo (file hash != recorded hash), so the manifest is forced to move in lockstep with the pair in every PR that touches them. Sync rule: copy all three (both files + this manifest) into the other repo together. LIMIT: this is a within-repo staleness check, not a cross-repo equality proof — if an edit in one repo is never propagated (both file AND manifest left stale on the other side), each repo stays internally green while drifting. Closing that fully needs a cross-repo assertion (CI fetching the other repo at a pinned ref); until then cross-repo identity rests on the sync PR touching both repos. Regenerate: node scripts/gen-calc-mirror-manifest.mjs. Other lib/calc files are intentionally NOT covered — several already diverge between repos.",
+  "_comment": "Drift guard for the co-dependent lotSelector.ts / equityFunding.ts / lotDivest.ts set (RSU-lot-order spec, docs/tools/rsu-lot-order-spec.md §2.4) and the shared tax engine files (bracket-walker, federal-amt-2026, state-tax, state-rules). What it enforces: editing any of these without regenerating this manifest fails mirror-manifest.test.ts in the SAME repo (file hash != recorded hash), so the manifest is forced to move in lockstep with the pair in every PR that touches them. Sync rule: copy all three (both files + this manifest) into the other repo together. LIMIT: this is a within-repo staleness check, not a cross-repo equality proof — if an edit in one repo is never propagated (both file AND manifest left stale on the other side), each repo stays internally green while drifting. Closing that fully needs a cross-repo assertion (CI fetching the other repo at a pinned ref); until then cross-repo identity rests on the sync PR touching both repos. Regenerate: node scripts/gen-calc-mirror-manifest.mjs. Other lib/calc files are intentionally NOT covered — several already diverge between repos.",
   "files": {
-    "equityFunding.ts": "37e95eebf6c1c79ecefc23bec471c176dcfbc098d8ac3026ba69c992c9ef0eaf",
+    "equityFunding.ts": "5102597f504868d3edb8bf914614726d90d00597a37342224a238790ebab6f6b",
     "lotSelector.ts": "77941b477d2dd2cd959de56f60fc89e5471fc881788ed47b8a35edea92fc91b7",
-    "lotDivest.ts": "36949d49bf9a482597327d1647732c87ff3712803e0a25ab26afa460905ddc1c"
+    "lotDivest.ts": "7b15c5b25e89290c1a292885faf2f3b1b8e0e91c7b847649da3167266632270d",
+    "../tax/bracket-walker.ts": "d798e31d06240967f9bcc5c8b2e9c6972d5ad3efe6c35a48f14d58f090ecd5a4",
+    "../tax/federal-amt-2026.ts": "667423d3800248904233e727e73bde58cfd16df6c5f547f68769b5aac1c762ae",
+    "../tax/state-tax.ts": "11223b39f874a989ea3f60666c97aa942905b7be9e0e8f53f8661b4f3819cbc0",
+    "../tax/state-rules.ts": "43a3ad90e66b4fa26717abc105420f99061c0df7e3c330f5d8f0023fbf311c95"
   }
 }

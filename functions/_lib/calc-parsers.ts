@@ -641,6 +641,12 @@ export function parseAmtIsoInput(raw: unknown): AmtIsoInput {
     hasLeftCompany: p.bool(o, 'hasLeftCompany'),
     terminationDate: p.optDate(o, 'terminationDate'),
   };
+  // Itemizers only: the Schedule A line 7 taxes the AMT adds back in place of
+  // the standard deduction (Form 6251 line 2a). Omitted means the standard
+  // deduction, and the key stays absent so the resolved input (and with it the
+  // web deep link's &mcp= payload) is byte-identical for every existing call.
+  const itemizedTaxes = p.optNum(o, 'itemizedTaxes', { min: 0 });
+  if (itemizedTaxes !== undefined) input.itemizedTaxes = itemizedTaxes;
   // The 90-day post-termination exercise window is only computed when BOTH
   // hasLeftCompany and terminationDate are present (see computeAmtIso). Without
   // the date the horizon silently caps to 1 year and the window fields return

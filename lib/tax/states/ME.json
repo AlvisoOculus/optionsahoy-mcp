@@ -40,11 +40,11 @@
           "rate": 0.058
         },
         {
-          "min": 27399,
+          "min": 27400,
           "rate": 0.0675
         },
         {
-          "min": 64849,
+          "min": 64850,
           "rate": 0.0715
         }
       ],
@@ -54,15 +54,29 @@
           "rate": 0.058
         },
         {
-          "min": 54849,
+          "min": 54850,
           "rate": 0.0675
         },
         {
-          "min": 129749,
+          "min": 129750,
           "rate": 0.0715
         }
       ],
-      "notes": ""
+      "notes": "Head of household: its own head-of-household schedule. https://www.maine.gov/revenue/sites/maine.gov.revenue/files/2026-05/ind_tax_rate_sched_2026_rev.pdf",
+      "head_household": [
+        {
+          "min": 0,
+          "rate": 0.058
+        },
+        {
+          "min": 41100,
+          "rate": 0.0675
+        },
+        {
+          "min": 97300,
+          "rate": 0.0715
+        }
+      ]
     }
   }
 }

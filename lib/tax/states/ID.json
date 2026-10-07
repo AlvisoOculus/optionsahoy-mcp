@@ -20,17 +20,27 @@
     "2026": {
       "single": [
         {
-          "min": 4811,
+          "min": 4938,
           "rate": 0.053
         }
       ],
       "married_joint": [
         {
-          "min": 9622,
+          "min": 9876,
           "rate": 0.053
         }
       ],
-      "notes": "Flat tax above threshold"
+      "notes": "PROVISIONAL: Idaho Code 63-3024(3), $2,500 x CPI-U 2025 (321.943) / CPI-U 1998 (163.0) = $4,937.78 -> $4,938; joint and head of household 2 x $4,938 = $9,876 (the Tax Commission's 2023-2025 convention). Replace with the 2026 Form 40 figure when published. https://legislature.idaho.gov/statutesrules/idstat/title63/t63ch30/sect63-3024/",
+      "head_household": [
+        {
+          "min": 0,
+          "rate": 0
+        },
+        {
+          "min": 9876,
+          "rate": 0.053
+        }
+      ]
     }
   }
 }

@@ -203,13 +203,18 @@ const QSBS_UNSURE_NOTE =
 // Vol input shared by amt_iso_optimize, nso_calculate, rsu_sell_vs_hold.
 // concentration_analyze defines its own version because it also uses sigma
 // for Black-Scholes hedge pricing (dual purpose).
-// Appended to every ordinary-income field. The engine walks the brackets on
-// the figure it is given and applies NO standard or itemized deduction (the
-// STANDARD_DEDUCTION_2026 constant is IRS-conformance-tested and surfaced on
-// the verification page, but no calc subtracts it), so the input must already
-// be taxable income. Regular tax and the AMTI base legitimately differ here -
-// AMT disallows the standard deduction - and one field feeds both, so the
-// contract is stated per field rather than guessed from "W-2 income".
+// Appended to every ordinary-income field. The engine walks the federal regular
+// brackets on the figure it is given and subtracts NO standard or itemized
+// deduction from it, so the input must already be taxable income (Form 1040
+// line 15). Where the law measures a larger figure the engine adds the
+// deduction BACK to this one field (STANDARD_DEDUCTION_2026, IRS-conformance-
+// tested): the AMT base, because Form 6251 line 2a disallows the standard
+// deduction (amt_iso_optimize adds back `itemizedTaxes`, the Schedule A line 7
+// taxes, instead when an itemizer supplies them), and the AGI that the NIIT
+// threshold tests and most state returns start from (agiFromTaxableIncome;
+// a state's own phaseouts key off it too). One field
+// feeds all of these, so the contract is stated per field rather than guessed
+// from "W-2 income"; amt_iso_optimize states its add-back in AMT_TAXABLE_INCOME_NOTE.
 // Appended to required fields that are FACTS ABOUT THE USER (share counts,
 // prices, balances, income) rather than planning choices (horizon, tenor).
 // The validator range-checks these but cannot provenance-check them, so an
@@ -234,6 +239,12 @@ const PLANNING_CHOICE =
 
 const TAXABLE_INCOME_NOTE =
   ' This is taxable income after deductions, not gross wages: the engine applies no standard or itemized deduction to it.';
+
+// amt_iso_optimize's ordinaryIncome: regular tax uses the figure as given, but
+// the AMT disallows the standard deduction, so the engine adds it back
+// (Form 6251 line 2a) unless the caller itemizes and passes itemizedTaxes.
+const AMT_TAXABLE_INCOME_NOTE =
+  ' This is taxable income after deductions, not gross wages: regular tax is figured on it as given. For the AMT the calculation adds the standard deduction back (Form 6251, line 2a), unless `itemizedTaxes` is given, in which case it adds back those taxes instead.';
 
 const VOLATILITY_SCHEMA = {
   type: 'number',
@@ -277,18 +288,20 @@ const YEAR_TAX_SCHEMA: JsonSchema = {
     year: int('Schedule year, 1-indexed (1 = current year).'),
     shares: num('ISO shares exercised this year.'),
     bargain: num('Bargain element recognized this year in dollars: shares x (projected FMV - strike).'),
+    amti: num('Federal alternative minimum taxable income (AMTI) for the year in dollars (Form 6251 line 4): ordinaryIncome, plus the standard deduction the AMT disallows (or itemizedTaxes for an itemizer), plus bargain.'),
     regularFederal: num('Regular federal income tax for the year in dollars (ordinary income only, before AMT).'),
     regularState: num('Regular state income tax for the year in dollars.'),
     tmtFederal: num('Federal tentative minimum tax for the year in dollars.'),
     tmtState: num('State tentative minimum tax for the year in dollars (0 in states without AMT).'),
     amtOwedFederal: num('Federal AMT owed above regular tax this year in dollars.'),
     amtOwedState: num('State AMT owed above regular state tax this year in dollars.'),
+    stateTaxOnSpread: num('State tax on this year\'s bargain element at exercise in dollars, in a state that taxes an ISO spread at exercise (Pennsylvania); 0 elsewhere. Included in cashTax.'),
     creditRecovered: num('Federal AMT credit applied (recovered) this year in dollars.'),
     cashTax: num('Total cash tax paid this year in dollars: federal + state, net of credit recovery.'),
   },
   required: [
-    'year', 'shares', 'bargain', 'regularFederal', 'regularState', 'tmtFederal', 'tmtState',
-    'amtOwedFederal', 'amtOwedState', 'creditRecovered', 'cashTax',
+    'year', 'shares', 'bargain', 'amti', 'regularFederal', 'regularState', 'tmtFederal', 'tmtState',
+    'amtOwedFederal', 'amtOwedState', 'stateTaxOnSpread', 'creditRecovered', 'cashTax',
   ],
 };
 
@@ -315,7 +328,7 @@ const AMT_SCHEDULE_SCHEMA: JsonSchema = {
     creditRemaining: num('Federal AMT credit still unrecovered at the horizon in dollars.'),
     grossGain: num('shares x (projected FMV at horizon - strike): the LTCG-eligible gain in dollars.'),
     federalLTCG: num('Federal long-term capital gains tax (including NIIT) on grossGain in dollars.'),
-    stateLTCG: num('State long-term capital gains tax on grossGain in dollars.'),
+    stateLTCG: num('State long-term capital gains tax on grossGain in dollars (in a state that taxed the spread at exercise, on the gain above that spread).'),
     amtPremiumFV: num('Future-valued AMT premium stream (exercise tax paid above the no-exercise baseline, compounded at cashReturnRate to the horizon) in dollars.'),
     nfv: num('After-tax Net Final Value at the horizon in dollars: grossGain - federalLTCG - stateLTCG - amtPremiumFV. This is the summary figure each schedule is scored on.'),
   },
@@ -564,12 +577,13 @@ const RSU_OUTPUT_SCHEMA: JsonSchema = {
 // concentration_analyze tax slice row (concentration.ts TaxBreakdownRow).
 const TAX_ROW_SCHEMA: JsonSchema = {
   type: 'object',
-  description: 'One tax slice: a dollar amount taxed at one rate.',
+  description: 'One tax slice: a dollar amount taxed at one rate, or one state adjustment row (when `detail` is present).',
   properties: {
     label: str('Tax line label, e.g. "Federal LTCG", "NIIT", "California".'),
     rate: num('Rate applied to this slice as a decimal (0.15 = 15%).'),
     amount: num('Dollars of gain in this slice.'),
-    tax: num('Tax in dollars: amount x rate.'),
+    tax: num('Tax in dollars: amount x rate, or the adjustment itself when `detail` is present.'),
+    detail: str('Present only on an adjustment row (rate and amount 0): what the state brackets alone do not explain, such as deductions phasing out, add-ons and credits.'),
   },
   required: ['label', 'rate', 'amount', 'tax'],
 };
@@ -1162,7 +1176,13 @@ export const TOOLS: McpTool[] = [
           type: 'number',
           minimum: 0,
           description:
-            'Annual ordinary income before this exercise, USD. Baseline for the bracket walk and the AMT exemption phaseout.' + USER_FACT + TAXABLE_INCOME_NOTE,
+            'Annual ordinary income before this exercise, USD. Baseline for the bracket walk and the AMT exemption phaseout.' + USER_FACT + AMT_TAXABLE_INCOME_NOTE,
+        },
+        itemizedTaxes: {
+          type: 'number',
+          minimum: 0,
+          description:
+            'Only if you itemize deductions: the state and local taxes deducted on Schedule A, line 7. The AMT adds these back instead of the standard deduction. Omit if you take the standard deduction. When omitted, the AMT add-back defaults to the full standard deduction.',
         },
         stateCode: {
           ...STATE_SCHEMA,

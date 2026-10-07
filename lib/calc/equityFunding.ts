@@ -275,14 +275,14 @@ function effectiveAfterTaxCashRate(
   const fedTaxNow = walkOrdinaryBrackets(ordinaryIncome, ORDINARY_2026[filingStatus]);
   const fedTaxPlus = walkOrdinaryBrackets(ordinaryIncome + dx, ORDINARY_2026[filingStatus]);
   const fedMarginal = (fedTaxPlus - fedTaxNow) / dx;
-  // computeStateGainTax with isLongTerm=false treats the input as ordinary
-  // income — which is what interest income is. Sidesteps the state-LTCG
-  // preferential paths.
+  // Interest is ordinary income, not a capital gain: isOrdinaryIncome keeps
+  // it off the state capital-gain paths (MA's 8.5%, MO's exclusion).
   const stateDelta = computeStateGainTax({
     stateCode,
     ordinaryIncome,
     gainAmount: dx,
     isLongTerm: false,
+    isOrdinaryIncome: true,
     filingStatus,
   });
   const stateMarginal = stateDelta / dx;

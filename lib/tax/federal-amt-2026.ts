@@ -14,6 +14,7 @@
 // and phaseout threshold as Unmarried Individuals (§ 55(d)(1)).
 import type { FilingStatus } from './types';
 import { CURRENT_FEDERAL_TABLE } from './generated/federal-tax-tables.generated';
+import { STANDARD_DEDUCTION_2026 } from './federal-2026';
 
 // AMT supports only the 3 statuses our calculator exposes (federal § 55(d)(1)
 // also defines MFS but the calculator UI omits it per the concentration tool's
@@ -34,6 +35,35 @@ export const AMT_RATES = {
   lower: AMT.rateLower,
   upper: AMT.rateUpper,
 } as const;
+
+/**
+ * Form 6251 line 2a: the deduction regular tax allowed and the AMT does not.
+ * A filer who takes the standard deduction adds all of it back
+ * (§ 56(b)(1)(D)); an itemizer adds back the taxes deducted on Schedule A,
+ * line 7 instead (§ 56(b)(1)(A)(ii)). `itemizedTaxes` null or undefined means
+ * the filer takes the standard deduction.
+ */
+export function amtDeductionAddback(
+  status: AmtFilingStatus,
+  itemizedTaxes?: number | null,
+): number {
+  if (itemizedTaxes == null || !Number.isFinite(itemizedTaxes)) return STANDARD_DEDUCTION_2026[status];
+  return Math.max(0, itemizedTaxes);
+}
+
+/**
+ * Alternative minimum taxable income (Form 6251 line 4) from regular taxable
+ * income: add back what line 2a disallows, plus `preferences` such as an ISO
+ * bargain element (line 2i).
+ */
+export function amtiFromTaxableIncome(
+  taxableIncome: number,
+  status: AmtFilingStatus,
+  preferences = 0,
+  itemizedTaxes?: number | null,
+): number {
+  return taxableIncome + amtDeductionAddback(status, itemizedTaxes) + preferences;
+}
 
 /**
  * AMT exemption after phaseout. § 55(d)(2) reduces the full exemption by

@@ -23,10 +23,13 @@ import {
   AMT_BREAKPOINT_2026,
   AMT_RATES,
   amtExemption,
+  amtiFromTaxableIncome,
   tentativeMinimumTax,
 } from '@/lib/tax/federal-amt-2026';
-import { computeStateGainTax, getStateBrackets } from '@/lib/tax/state-tax';
+import { computeStateGainTax, stateIncomeTax, stateTaxBreakdownRows } from '@/lib/tax/state-tax';
+import { stateTaxesIsoSpreadAtExercise } from '@/lib/tax/state-rules';
 import {
+  getStateAmtData,
   hasStateAmt,
   stateAmtLineItems,
   stateTentativeMinimumTax,
@@ -54,7 +57,11 @@ export interface AmtIsoInput {
                               // ATM IV when a public ticker is set. Stored as the
                               // haircut so the slider mirrors NSO's UX.
   filingStatus: FilingStatus;
-  ordinaryIncome: number;
+  ordinaryIncome: number;     // regular TAXABLE income, after deductions
+  // Itemizers only: the taxes deducted on Schedule A, line 7, which Form 6251
+  // line 2a adds back in place of the standard deduction. Null or omitted
+  // means the filer takes the standard deduction, and all of it comes back.
+  itemizedTaxes?: number | null;
   stateCode: string;          // 2-letter; use 'CA' style
   carryforwardCredit: number; // existing federal AMT credit from prior years
   horizon: number;            // 1..10
@@ -214,7 +221,11 @@ export function nfvBreakdown(schedule: Schedule, input: AmtIsoInput): NfvBreakdo
   const stateLTCG = computeStateGainTax({
     stateCode: input.stateCode,
     ordinaryIncome: input.ordinaryIncome,
-    gainAmount: grossGain,
+    gainAmount: spreadTaxedStateGain(
+      input.stateCode,
+      grossGain,
+      schedule.years.reduce((sum, y) => sum + y.bargain, 0),
+    ),
     isLongTerm: true,
     filingStatus: input.filingStatus,
   });
@@ -238,9 +249,11 @@ export function cumulativeNetFinalValue(schedule: Schedule, input: AmtIsoInput):
   const futureFmv = input.fmv * Math.pow(1 + g, T);
   const grossPerShare = Math.max(0, futureFmv - input.strike);
   let cumShares = 0;
+  let cumBargain = 0;
   let cumFvTax = 0;
   return schedule.years.map((y, i) => {
     cumShares += y.shares;
+    cumBargain += y.bargain;
     const premium = y.cashTax - (y.regularFederal + y.regularState);
     const yearsToHorizon = Math.max(0, T - 1 - i);
     cumFvTax += premium * Math.pow(1 + input.cashReturnRate, yearsToHorizon);
@@ -255,7 +268,7 @@ export function cumulativeNetFinalValue(schedule: Schedule, input: AmtIsoInput):
     const state = computeStateGainTax({
       stateCode: input.stateCode,
       ordinaryIncome: input.ordinaryIncome,
-      gainAmount: grossGain,
+      gainAmount: spreadTaxedStateGain(input.stateCode, grossGain, cumBargain),
       isLongTerm: true,
       filingStatus: input.filingStatus,
     });
@@ -274,13 +287,7 @@ export function regularTaxBreakdownRows(
   for (const s of fedSlices) {
     if (s.tax > 0) rows.push({ label: 'Federal', rate: s.rate, amount: s.amount, tax: s.tax });
   }
-  const stateBrackets = getStateBrackets(stateCode, filingStatus);
-  if (stateBrackets) {
-    const slices = sliceBracketsAcrossDelta(0, ordinaryIncome, stateBrackets);
-    for (const s of slices) {
-      if (s.tax > 0) rows.push({ label: stateCode, rate: s.rate, amount: s.amount, tax: s.tax });
-    }
-  }
+  rows.push(...stateTaxBreakdownRows({ stateCode, filingStatus, ordinaryIncome }));
   return rows;
 }
 
@@ -328,12 +335,17 @@ export interface YearTax {
   year: number;             // 1-indexed
   shares: number;
   bargain: number;
+  amti: number;             // Form 6251 line 4: taxable income + line 2a add-back + bargain
   regularFederal: number;
   regularState: number;
   tmtFederal: number;
   tmtState: number;
   amtOwedFederal: number;
   amtOwedState: number;
+  // State tax on the spread at exercise, in a state that taxes an ISO then
+  // (Pennsylvania); 0 elsewhere. Part of cashTax, and that state's sale-year
+  // gain is measured from the exercise-date value (spreadTaxedStateGain).
+  stateTaxOnSpread: number;
   creditRecovered: number;  // federal AMT credit applied this year
   cashTax: number;          // federal + state, net of credit recovery
 }
@@ -407,10 +419,21 @@ export interface DepartedRecommendation {
 
 interface YearContext {
   ordinaryIncome: number;
+  // AMTI before any bargain element: taxable income plus the deduction the
+  // AMT disallows (Form 6251 line 2a). Federal and state AMT both start here.
+  amtiBase: number;
   filingStatus: FilingStatus;
   stateCode: string;
   regularFederal: number;
   regularState: number;
+  // The regular tax the state's AMT form compares against (before credits;
+  // see StateTaxResult.amtComparator).
+  regularStateForAmt: number;
+  // Per-state rules, looked up once here rather than in the optimizer's loop:
+  // the state imposes its AMT only alongside federal AMT (CT), and the state
+  // taxes an ISO spread at exercise (PA).
+  stateAmtNeedsFederalAmt: boolean;
+  stateTaxesSpread: boolean;
 }
 
 function buildYearContext(input: AmtIsoInput): YearContext {
@@ -418,16 +441,21 @@ function buildYearContext(input: AmtIsoInput): YearContext {
     input.ordinaryIncome,
     ORDINARY_2026[input.filingStatus],
   );
-  const stateBrackets = getStateBrackets(input.stateCode, input.filingStatus);
-  const regularState = stateBrackets
-    ? walkOrdinaryBrackets(input.ordinaryIncome, stateBrackets)
-    : 0;
+  const state = stateIncomeTax({
+    stateCode: input.stateCode,
+    filingStatus: input.filingStatus,
+    ordinaryIncome: input.ordinaryIncome,
+  });
   return {
     ordinaryIncome: input.ordinaryIncome,
+    amtiBase: amtiFromTaxableIncome(input.ordinaryIncome, input.filingStatus, 0, input.itemizedTaxes),
     filingStatus: input.filingStatus,
     stateCode: input.stateCode,
     regularFederal,
-    regularState,
+    regularState: state.tax,
+    regularStateForAmt: state.amtComparator,
+    stateAmtNeedsFederalAmt: getStateAmtData(input.stateCode)?.requiresFederalAmt === true,
+    stateTaxesSpread: stateTaxesIsoSpreadAtExercise(input.stateCode),
   };
 }
 
@@ -439,37 +467,59 @@ function computeYearTax(
   creditBalance: number,
 ): YearTax {
   const bargain = shares * bargainPerShare;
-  const amti = ctx.ordinaryIncome + bargain;
+  const amti = ctx.amtiBase + bargain;
   const tmtFederal = tentativeMinimumTax(amti, ctx.filingStatus);
   const tmtState = stateTentativeMinimumTax(ctx.stateCode, amti, ctx.filingStatus);
   const amtOwedFederal = Math.max(0, tmtFederal - ctx.regularFederal);
-  const amtOwedState = Math.max(0, tmtState - ctx.regularState);
+  // Same rule as stateAmtOwed(), inlined for the optimizer's hot loop.
+  const amtOwedState =
+    ctx.stateAmtNeedsFederalAmt && !(amtOwedFederal > 0) ? 0 : Math.max(0, tmtState - ctx.regularStateForAmt);
 
   // Credit recovery: only positive when regular > tmt federally (i.e., AMT not
   // owed this year). Capped by both credit balance and the regular−tmt headroom.
   const headroom = Math.max(0, ctx.regularFederal - tmtFederal);
   const creditRecovered = Math.min(creditBalance, headroom);
 
+  const stateTaxOnSpread = ctx.stateTaxesSpread && bargain > 0
+    ? computeStateGainTax({
+        stateCode: ctx.stateCode,
+        ordinaryIncome: ctx.ordinaryIncome,
+        gainAmount: bargain,
+        isLongTerm: false,
+        isOrdinaryIncome: true,
+        filingStatus: ctx.filingStatus,
+      })
+    : 0;
+
   const cashTax =
     ctx.regularFederal +
     ctx.regularState +
     amtOwedFederal +
-    amtOwedState -
+    amtOwedState +
+    stateTaxOnSpread -
     creditRecovered;
 
   return {
     year: yearIndex,
     shares,
     bargain,
+    amti,
     regularFederal: ctx.regularFederal,
     regularState: ctx.regularState,
     tmtFederal,
     tmtState,
     amtOwedFederal,
     amtOwedState,
+    stateTaxOnSpread,
     creditRecovered,
     cashTax,
   };
+}
+
+// The sale-year gain the STATE taxes. Where the state already taxed the
+// spread at exercise, that part of the gain is not taxed again.
+function spreadTaxedStateGain(stateCode: string, grossGain: number, spreadAlreadyTaxed: number): number {
+  return stateTaxesIsoSpreadAtExercise(stateCode) ? Math.max(0, grossGain - spreadAlreadyTaxed) : grossGain;
 }
 
 // ---------------------------------------------------------------
@@ -478,7 +528,7 @@ function computeYearTax(
 
 /**
  * Federal AMT crossover bargain: largest bargain element such that
- * tmt(ordinary + B) ≤ regular_tax. Above this, AMT > 0.
+ * tmt(amtiBase + B) ≤ regular_tax. Above this, AMT > 0.
  *
  * Bisection rather than closed-form: TMT is piecewise linear with kinks at
  * the phaseout threshold, complete-phaseout point, and 26%/28% breakpoint —
@@ -491,8 +541,8 @@ export function findCrossoverBargain(input: AmtIsoInput): {
   alreadyInAmt: boolean;
 } {
   const ctx = buildYearContext(input);
-  // TMT(ordinary + 0) — if already > regular, no crossover (any exercise adds AMT).
-  const tmtAtZero = tentativeMinimumTax(ctx.ordinaryIncome, ctx.filingStatus);
+  // TMT with no exercise: if already > regular, no crossover (any exercise adds AMT).
+  const tmtAtZero = tentativeMinimumTax(ctx.amtiBase, ctx.filingStatus);
   if (tmtAtZero >= ctx.regularFederal) {
     return { crossoverBargain: 0, alreadyInAmt: tmtAtZero > ctx.regularFederal };
   }
@@ -501,7 +551,7 @@ export function findCrossoverBargain(input: AmtIsoInput): {
   let hi = 50_000_000; // a $50M bargain element sanity cap; far above any realistic input
   for (let i = 0; i < 60; i++) {
     const mid = (lo + hi) / 2;
-    const tmt = tentativeMinimumTax(ctx.ordinaryIncome + mid, ctx.filingStatus);
+    const tmt = tentativeMinimumTax(ctx.amtiBase + mid, ctx.filingStatus);
     if (tmt <= ctx.regularFederal) {
       lo = mid;
     } else {
@@ -800,7 +850,7 @@ function netValueForQuantity(
   const state = computeStateGainTax({
     stateCode: qctx.stateCode,
     ordinaryIncome: qctx.ordinaryIncome,
-    gainAmount: grossGain,
+    gainAmount: spreadTaxedStateGain(qctx.stateCode, grossGain, yearTax.bargain),
     isLongTerm: true,
     filingStatus: qctx.filingStatus,
   });

@@ -37,32 +37,34 @@
       "single": [
         {
           "min": 0,
-          "rate": 0
+          "rate": 0.0199
         },
         {
-          "min": 3640,
-          "rate": 0.03
-        },
-        {
-          "min": 18230,
-          "rate": 0.06
+          "min": 30000,
+          "rate": 0.0521
         }
       ],
       "married_joint": [
         {
           "min": 0,
-          "rate": 0
+          "rate": 0.0199
         },
         {
-          "min": 3640,
-          "rate": 0.03
-        },
-        {
-          "min": 18230,
-          "rate": 0.06
+          "min": 30000,
+          "rate": 0.0521
         }
       ],
-      "notes": "Top rate temporarily reduced to 6% Jul 2025 - Jun 2026"
+      "head_household": [
+        {
+          "min": 0,
+          "rate": 0.0199
+        },
+        {
+          "min": 30000,
+          "rate": 0.0521
+        }
+      ],
+      "notes": "2026 rates under Act 110 of 2026 (H.4216): 1.99% under $30,000; at $30,000 or more, 5.21% of taxable income minus $966 (which these brackets reproduce). https://www.scstatehouse.gov/sess126_2025-2026/bills/4216.htm"
     }
   }
 }

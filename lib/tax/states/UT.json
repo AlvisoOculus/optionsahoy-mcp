@@ -21,16 +21,22 @@
       "single": [
         {
           "min": 0,
-          "rate": 0.045
+          "rate": 0.0445
         }
       ],
       "married_joint": [
         {
           "min": 0,
-          "rate": 0.045
+          "rate": 0.0445
         }
       ],
-      "notes": "Flat tax"
+      "head_household": [
+        {
+          "min": 0,
+          "rate": 0.0445
+        }
+      ],
+      "notes": "Flat 4.45% for 2026 (2026 SB 60; UCA 59-10-104 as amended). https://le.utah.gov/xcode/Title59/Chapter10/59-10-S104.html"
     }
   }
 }

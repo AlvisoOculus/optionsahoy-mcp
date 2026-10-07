@@ -126,7 +126,37 @@
           "rate": 0.0699
         }
       ],
-      "notes": ""
+      "notes": "Head of household: its own head-of-household schedule. https://portal.ct.gov/-/media/drs/forms/2025/income/ct-1040-tcs_1225.pdf",
+      "head_household": [
+        {
+          "min": 0,
+          "rate": 0.02
+        },
+        {
+          "min": 16000,
+          "rate": 0.045
+        },
+        {
+          "min": 80000,
+          "rate": 0.055
+        },
+        {
+          "min": 160000,
+          "rate": 0.06
+        },
+        {
+          "min": 320000,
+          "rate": 0.065
+        },
+        {
+          "min": 400000,
+          "rate": 0.069
+        },
+        {
+          "min": 800000,
+          "rate": 0.0699
+        }
+      ]
     }
   }
 }

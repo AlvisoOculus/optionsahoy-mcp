@@ -3,7 +3,7 @@
 // Pure functions for walking progressive tax brackets. No state, no I/O.
 
 import type { Bracket, FilingStatus, Brackets } from './types';
-import { LTCG_2026, ORDINARY_2026, NIIT_RATE, NIIT_THRESHOLDS } from './federal-2026';
+import { LTCG_2026, ORDINARY_2026, NIIT_RATE, NIIT_THRESHOLDS, agiFromTaxableIncome } from './federal-2026';
 
 // One slice of tax: a chunk of dollars taxed at a single bracket rate.
 // Used for breakdowns/tooltips so the user can see exactly which bracket
@@ -35,6 +35,11 @@ export function sliceBracketsAcrossDelta(
     const bracketEnd = i + 1 < brackets.length ? brackets[i + 1].min : Infinity;
     if (cursor >= bracketEnd) continue;
     const fillStart = Math.max(cursor, bracketStart);
+    // Income below the first bracket's min is untaxed (a state schedule that
+    // starts at $10,000, say): it uses up the added amount without a slice.
+    remaining -= fillStart - cursor;
+    cursor = fillStart;
+    if (remaining <= 0) break;
     const room = bracketEnd - fillStart;
     const fill = Math.min(remaining, room);
     if (fill > 0) {
@@ -130,6 +135,9 @@ export function walkLtcgFederal(
 //   (a) investment income (we use the LTCG amount as a proxy here)
 //   (b) (AGI − threshold)
 // Returns 0 when AGI is at or below the filing-status threshold.
+// `ordinaryIncome` is taxable income, so AGI adds the deduction back
+// (agiFromTaxableIncome); testing taxable income against the threshold
+// understated the tax by up to 3.8% of the standard deduction.
 
 export function computeNiit(
   ordinaryIncome: number,
@@ -138,7 +146,7 @@ export function computeNiit(
 ): number {
   if (investmentIncome <= 0) return 0;
 
-  const agi = ordinaryIncome + investmentIncome;
+  const agi = agiFromTaxableIncome(ordinaryIncome, filingStatus) + investmentIncome;
   const threshold = NIIT_THRESHOLDS[filingStatus];
 
   if (agi <= threshold) return 0;

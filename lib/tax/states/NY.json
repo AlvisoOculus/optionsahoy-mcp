@@ -158,7 +158,45 @@
           "rate": 0.109
         }
       ],
-      "notes": "Tax benefit recapture"
+      "notes": "Tax benefit recapture Head of household: its own head-of-household schedule. https://www.tax.ny.gov/pdf/current_forms/it/it2105i.pdf",
+      "head_household": [
+        {
+          "min": 0,
+          "rate": 0.039
+        },
+        {
+          "min": 12800,
+          "rate": 0.044
+        },
+        {
+          "min": 17650,
+          "rate": 0.0515
+        },
+        {
+          "min": 20900,
+          "rate": 0.054
+        },
+        {
+          "min": 107650,
+          "rate": 0.059
+        },
+        {
+          "min": 269300,
+          "rate": 0.0685
+        },
+        {
+          "min": 1616450,
+          "rate": 0.0965
+        },
+        {
+          "min": 5000000,
+          "rate": 0.103
+        },
+        {
+          "min": 25000000,
+          "rate": 0.109
+        }
+      ]
     }
   }
 }

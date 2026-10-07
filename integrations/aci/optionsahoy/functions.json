@@ -2,7 +2,12 @@
   {
     "name": "OPTIONSAHOY__AMT_ISO_OPTIMIZE",
     "description": "Returns a multi-year Incentive Stock Option (ISO) exercise schedule, searched over its full discretized candidate space to maximize after-tax Net Final Value (NFV) at the planning horizon, minimizing federal and state Alternative Minimum Tax (AMT) across the years. Models AMT credit recovery in later years, qualifying-disposition timing, the 10-year grant expiration, and the post-termination exercise window. Relevant federal tax code plus all 50 states and DC. Deterministic: same inputs always return the same schedule. Use this for ISO planning; for non-qualified stock options (NSO) use OPTIONSAHOY__NSO_CALCULATE, for restricted stock units (RSU) use OPTIONSAHOY__RSU_SELL_VS_HOLD. Every field listed as required must come from the user or be derivable from an optional ticker; never invent a value.",
-    "tags": ["finance", "iso", "amt", "tax"],
+    "tags": [
+      "finance",
+      "iso",
+      "amt",
+      "tax"
+    ],
     "visibility": "public",
     "active": true,
     "protocol": "rest",
@@ -24,7 +29,9 @@
               "default": "application/json"
             }
           },
-          "required": ["Content-Type"],
+          "required": [
+            "Content-Type"
+          ],
           "visible": [],
           "additionalProperties": false
         },
@@ -68,13 +75,22 @@
             },
             "filingStatus": {
               "type": "string",
-              "enum": ["single", "married_joint", "head_household"],
+              "enum": [
+                "single",
+                "married_joint",
+                "head_household"
+              ],
               "description": "United States federal filing status. Drives the ordinary brackets, AMT exemption tier, and AMT exemption phaseout start."
             },
             "ordinaryIncome": {
               "type": "number",
               "minimum": 0,
-              "description": "Annual W-2 / 1099 income excluding the exercise, USD. Taxable income after deductions, not gross wages: no standard or itemized deduction is applied."
+              "description": "Annual W-2 / 1099 income excluding the exercise, USD. Taxable income after deductions, not gross wages. Regular tax uses it as given; the AMT adds the standard deduction back (Form 6251 line 2a), or itemizedTaxes if you give it."
+            },
+            "itemizedTaxes": {
+              "type": "number",
+              "minimum": 0,
+              "description": "Only if you itemize deductions: the state and local taxes deducted on Schedule A, line 7. The AMT adds these back instead of the standard deduction. Omit if you take the standard deduction; when omitted, the AMT add-back defaults to the full standard deduction."
             },
             "stateCode": {
               "type": "string",
@@ -144,15 +160,23 @@
           "additionalProperties": false
         }
       },
-      "required": ["body"],
-      "visible": ["body"],
+      "required": [
+        "body"
+      ],
+      "visible": [
+        "body"
+      ],
       "additionalProperties": false
     }
   },
   {
     "name": "OPTIONSAHOY__NSO_CALCULATE",
     "description": "Computes the after-tax payout on a non-qualified stock option (NSO) exercise: federal, state, FICA (Social Security + Medicare + Additional Medicare) on the bargain element, then compares selling at exercise versus holding for long-term capital gains across the chosen horizon. Relevant federal tax code plus all 50 states and DC. Use this for NSO grants; for ISOs use OPTIONSAHOY__AMT_ISO_OPTIMIZE, for RSUs use OPTIONSAHOY__RSU_SELL_VS_HOLD. Every required field must come from the user or be derivable from an optional ticker; never invent a value.",
-    "tags": ["finance", "nso", "tax"],
+    "tags": [
+      "finance",
+      "nso",
+      "tax"
+    ],
     "visibility": "public",
     "active": true,
     "protocol": "rest",
@@ -174,7 +198,9 @@
               "default": "application/json"
             }
           },
-          "required": ["Content-Type"],
+          "required": [
+            "Content-Type"
+          ],
           "visible": [],
           "additionalProperties": false
         },
@@ -204,7 +230,11 @@
             },
             "filingStatus": {
               "type": "string",
-              "enum": ["single", "married_joint", "head_household"],
+              "enum": [
+                "single",
+                "married_joint",
+                "head_household"
+              ],
               "description": "United States federal filing status."
             },
             "stateCode": {
@@ -247,7 +277,10 @@
             },
             "holdFunding": {
               "type": "string",
-              "enum": ["sell-to-cover", "cash"],
+              "enum": [
+                "sell-to-cover",
+                "cash"
+              ],
               "description": "How the strike cost and exercise tax are funded."
             }
           },
@@ -281,15 +314,23 @@
           "additionalProperties": false
         }
       },
-      "required": ["body"],
-      "visible": ["body"],
+      "required": [
+        "body"
+      ],
+      "visible": [
+        "body"
+      ],
       "additionalProperties": false
     }
   },
   {
     "name": "OPTIONSAHOY__RSU_SELL_VS_HOLD",
     "description": "Compares the after-tax payout from selling restricted stock unit (RSU) shares at vest and reinvesting in the market versus holding the shares: includes the 12-month short-term-vs-long-term capital-gains cliff, state tax, FICA, and the optional growth assumption. Relevant federal tax code plus all 50 states and DC. Use this for RSUs at vest; for ISOs use OPTIONSAHOY__AMT_ISO_OPTIMIZE, for NSOs use OPTIONSAHOY__NSO_CALCULATE. Every required field must come from the user or be derivable from an optional ticker; never invent a value.",
-    "tags": ["finance", "rsu", "tax"],
+    "tags": [
+      "finance",
+      "rsu",
+      "tax"
+    ],
     "visibility": "public",
     "active": true,
     "protocol": "rest",
@@ -311,7 +352,9 @@
               "default": "application/json"
             }
           },
-          "required": ["Content-Type"],
+          "required": [
+            "Content-Type"
+          ],
           "visible": [],
           "additionalProperties": false
         },
@@ -336,7 +379,11 @@
             },
             "filingStatus": {
               "type": "string",
-              "enum": ["single", "married_joint", "head_household"],
+              "enum": [
+                "single",
+                "married_joint",
+                "head_household"
+              ],
               "description": "United States federal filing status."
             },
             "stateCode": {
@@ -405,15 +452,24 @@
           "additionalProperties": false
         }
       },
-      "required": ["body"],
-      "visible": ["body"],
+      "required": [
+        "body"
+      ],
+      "visible": [
+        "body"
+      ],
       "additionalProperties": false
     }
   },
   {
     "name": "OPTIONSAHOY__CONCENTRATION_ANALYZE",
     "description": "Quantifies single-stock concentration risk: drawdown exposure at 30/50/70% scenarios, sell-down plans over 1/2/3 years with multi-year tax math, the tax saved by waiting for long-term treatment, and a Black-Scholes hedging cost. Relevant federal tax code plus all 50 states and DC. Every required field must come from the user or be derivable from an optional ticker; never invent a value. totalAssets is user-supplied and never inferred.",
-    "tags": ["finance", "concentration", "risk", "tax"],
+    "tags": [
+      "finance",
+      "concentration",
+      "risk",
+      "tax"
+    ],
     "visibility": "public",
     "active": true,
     "protocol": "rest",
@@ -435,7 +491,9 @@
               "default": "application/json"
             }
           },
-          "required": ["Content-Type"],
+          "required": [
+            "Content-Type"
+          ],
           "visible": [],
           "additionalProperties": false
         },
@@ -481,7 +539,11 @@
             },
             "filingStatus": {
               "type": "string",
-              "enum": ["single", "married_joint", "head_household"],
+              "enum": [
+                "single",
+                "married_joint",
+                "head_household"
+              ],
               "description": "United States federal filing status."
             },
             "ordinaryIncome": {
@@ -523,7 +585,10 @@
               "properties": {
                 "kind": {
                   "type": "string",
-                  "enum": ["put", "collar"],
+                  "enum": [
+                    "put",
+                    "collar"
+                  ],
                   "description": "Hedge structure."
                 },
                 "protectionLevel": {
@@ -542,8 +607,17 @@
                   "description": "For a collar, the upside cap as a fraction above current."
                 }
               },
-              "required": ["kind", "protectionLevel", "tenorYears"],
-              "visible": ["kind", "protectionLevel", "tenorYears", "upsideCapPct"],
+              "required": [
+                "kind",
+                "protectionLevel",
+                "tenorYears"
+              ],
+              "visible": [
+                "kind",
+                "protectionLevel",
+                "tenorYears",
+                "upsideCapPct"
+              ],
               "additionalProperties": false
             }
           },
@@ -576,15 +650,23 @@
           "additionalProperties": false
         }
       },
-      "required": ["body"],
-      "visible": ["body"],
+      "required": [
+        "body"
+      ],
+      "visible": [
+        "body"
+      ],
       "additionalProperties": false
     }
   },
   {
     "name": "OPTIONSAHOY__PROTECTIVE_PUT_PRICE",
     "description": "Prices three hedge structures on a single-stock position using Black-Scholes: a protective put, a zero-cost collar, and a put spread. Reports annual cost, maximum loss, upside cap, bad-year coverage, a payoff table, and a recommended structure. Every required field must come from the user; never invent a value.",
-    "tags": ["finance", "hedging", "options"],
+    "tags": [
+      "finance",
+      "hedging",
+      "options"
+    ],
     "visibility": "public",
     "active": true,
     "protocol": "rest",
@@ -606,7 +688,9 @@
               "default": "application/json"
             }
           },
-          "required": ["Content-Type"],
+          "required": [
+            "Content-Type"
+          ],
           "visible": [],
           "additionalProperties": false
         },
@@ -690,15 +774,24 @@
           "additionalProperties": false
         }
       },
-      "required": ["body"],
-      "visible": ["body"],
+      "required": [
+        "body"
+      ],
+      "visible": [
+        "body"
+      ],
       "additionalProperties": false
     }
   },
   {
     "name": "OPTIONSAHOY__QSBS_CHECK",
     "description": "Evaluates Section 1202 Qualified Small Business Stock (QSBS) against the six statutory tests, returning the verdict, exclusion percentage, federal tax saved, per-test status, and state conformity under the OBBBA 2026 tiered exclusion rules. Every required field must come from the user; for enum fields that accept \"unsure\", pass \"unsure\" when the user does not know rather than guessing.",
-    "tags": ["finance", "qsbs", "tax", "section-1202"],
+    "tags": [
+      "finance",
+      "qsbs",
+      "tax",
+      "section-1202"
+    ],
     "visibility": "public",
     "active": true,
     "protocol": "rest",
@@ -720,7 +813,9 @@
               "default": "application/json"
             }
           },
-          "required": ["Content-Type"],
+          "required": [
+            "Content-Type"
+          ],
           "visible": [],
           "additionalProperties": false
         },
@@ -740,17 +835,30 @@
             },
             "entityType": {
               "type": "string",
-              "enum": ["us-c-corp", "other"],
+              "enum": [
+                "us-c-corp",
+                "other"
+              ],
               "description": "Issuing entity type. Only a United States C corporation can issue QSBS."
             },
             "acquisitionMethod": {
               "type": "string",
-              "enum": ["original-issuance", "gift-or-inheritance", "secondary", "unsure"],
+              "enum": [
+                "original-issuance",
+                "gift-or-inheritance",
+                "secondary",
+                "unsure"
+              ],
               "description": "How the stock was acquired. Pass \"unsure\" if unknown."
             },
             "assetCategory": {
               "type": "string",
-              "enum": ["under-50m", "50m-to-75m", "over-75m", "unsure"],
+              "enum": [
+                "under-50m",
+                "50m-to-75m",
+                "over-75m",
+                "unsure"
+              ],
               "description": "Gross assets of the issuer at issuance. Pass \"unsure\" if unknown."
             },
             "industry": {
@@ -778,7 +886,11 @@
             },
             "activeBusiness": {
               "type": "string",
-              "enum": ["yes", "no", "unsure"],
+              "enum": [
+                "yes",
+                "no",
+                "unsure"
+              ],
               "description": "Whether the issuer met the active-business requirement. Pass \"unsure\" if unknown."
             },
             "adjustedBasis": {
@@ -802,7 +914,11 @@
             },
             "filingStatus": {
               "type": "string",
-              "enum": ["single", "married_joint", "head_household"],
+              "enum": [
+                "single",
+                "married_joint",
+                "head_household"
+              ],
               "description": "United States federal filing status."
             }
           },
@@ -837,15 +953,24 @@
           "additionalProperties": false
         }
       },
-      "required": ["body"],
-      "visible": ["body"],
+      "required": [
+        "body"
+      ],
+      "visible": [
+        "body"
+      ],
       "additionalProperties": false
     }
   },
   {
     "name": "OPTIONSAHOY__EQUITY_FUNDING_PLAN",
     "description": "Returns the optimal multi-year share-sale schedule to fund a cash goal (e.g. selling equity to buy a house) by a target date. Produces four named plans on the risk/wealth frontier (Lock-in-now / Balanced / Hold-for-growth / Recommended) plus the full hybrid frontier, with bracket-aware tax math and lognormal shortfall probability. Relevant federal tax code plus all 50 states and DC. Provide either stacks (multi-stack) or legacy lots + currentPrice (single-stack). Every required field must come from the user; never invent a value.",
-    "tags": ["finance", "equity-funding", "tax", "planning"],
+    "tags": [
+      "finance",
+      "equity-funding",
+      "tax",
+      "planning"
+    ],
     "visibility": "public",
     "active": true,
     "protocol": "rest",
@@ -867,7 +992,9 @@
               "default": "application/json"
             }
           },
-          "required": ["Content-Type"],
+          "required": [
+            "Content-Type"
+          ],
           "visible": [],
           "additionalProperties": false
         },
@@ -940,14 +1067,32 @@
                           "description": "Optional future vest date for unvested RSU tranches; excluded from sales before this date."
                         }
                       },
-                      "required": ["shares", "costBasisPerShare", "acquisitionDate"],
-                      "visible": ["shares", "costBasisPerShare", "acquisitionDate", "vestDate"],
+                      "required": [
+                        "shares",
+                        "costBasisPerShare",
+                        "acquisitionDate"
+                      ],
+                      "visible": [
+                        "shares",
+                        "costBasisPerShare",
+                        "acquisitionDate",
+                        "vestDate"
+                      ],
                       "additionalProperties": false
                     }
                   }
                 },
-                "required": ["currentPrice", "lots"],
-                "visible": ["ticker", "currentPrice", "expectedAnnualGrowth", "volatility", "lots"],
+                "required": [
+                  "currentPrice",
+                  "lots"
+                ],
+                "visible": [
+                  "ticker",
+                  "currentPrice",
+                  "expectedAnnualGrowth",
+                  "volatility",
+                  "lots"
+                ],
                 "additionalProperties": false
               }
             },
@@ -975,8 +1120,16 @@
                     "description": "ISO 8601 acquisition date (YYYY-MM-DD)."
                   }
                 },
-                "required": ["shares", "costBasisPerShare", "acquisitionDate"],
-                "visible": ["shares", "costBasisPerShare", "acquisitionDate"],
+                "required": [
+                  "shares",
+                  "costBasisPerShare",
+                  "acquisitionDate"
+                ],
+                "visible": [
+                  "shares",
+                  "costBasisPerShare",
+                  "acquisitionDate"
+                ],
                 "additionalProperties": false
               }
             },
@@ -996,7 +1149,11 @@
             },
             "filingStatus": {
               "type": "string",
-              "enum": ["single", "married_joint", "head_household"],
+              "enum": [
+                "single",
+                "married_joint",
+                "head_household"
+              ],
               "description": "United States federal filing status."
             },
             "stateCode": {
@@ -1044,15 +1201,24 @@
           "additionalProperties": false
         }
       },
-      "required": ["body"],
-      "visible": ["body"],
+      "required": [
+        "body"
+      ],
+      "visible": [
+        "body"
+      ],
       "additionalProperties": false
     }
   },
   {
     "name": "OPTIONSAHOY__RSU_LOT_OPTIMIZE",
     "description": "Which vested RSU lots to sell, and when, to divest a target share fraction at the lowest tax: specific-lot identification, long-term deferral, and multi-year bracket spreading versus a first-in-first-out (FIFO) sell order. Returns the year-by-year sell schedule, total tax (federal LTCG plus NIIT plus state), and the saving versus a FIFO sell order on the same schedule. Relevant federal tax code plus all 50 states and DC. Every required field must come from the user; never invent a value.",
-    "tags": ["finance", "rsu", "tax", "planning"],
+    "tags": [
+      "finance",
+      "rsu",
+      "tax",
+      "planning"
+    ],
     "visibility": "public",
     "active": true,
     "protocol": "rest",
@@ -1074,7 +1240,9 @@
               "default": "application/json"
             }
           },
-          "required": ["Content-Type"],
+          "required": [
+            "Content-Type"
+          ],
           "visible": [],
           "additionalProperties": false
         },
@@ -1106,8 +1274,16 @@
                     "description": "Per-share cost basis, USD (the share price on vest day)."
                   }
                 },
-                "required": ["vestDate", "shares", "costBasisPerShare"],
-                "visible": ["vestDate", "shares", "costBasisPerShare"],
+                "required": [
+                  "vestDate",
+                  "shares",
+                  "costBasisPerShare"
+                ],
+                "visible": [
+                  "vestDate",
+                  "shares",
+                  "costBasisPerShare"
+                ],
                 "additionalProperties": false
               }
             },
@@ -1135,7 +1311,11 @@
             },
             "filingStatus": {
               "type": "string",
-              "enum": ["single", "married_joint", "head_household"],
+              "enum": [
+                "single",
+                "married_joint",
+                "head_household"
+              ],
               "description": "United States federal filing status."
             },
             "stateCode": {
@@ -1165,8 +1345,12 @@
           "additionalProperties": false
         }
       },
-      "required": ["body"],
-      "visible": ["body"],
+      "required": [
+        "body"
+      ],
+      "visible": [
+        "body"
+      ],
       "additionalProperties": false
     }
   }

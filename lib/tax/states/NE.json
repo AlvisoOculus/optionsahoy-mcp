@@ -70,7 +70,25 @@
           "rate": 0.0455
         }
       ],
-      "notes": ""
+      "notes": "Head of household: its own head-of-household schedule. https://revenue.nebraska.gov/sites/default/files/doc/tax-forms/2025/f_1040N-ES.pdf",
+      "head_household": [
+        {
+          "min": 0,
+          "rate": 0.0246
+        },
+        {
+          "min": 7700,
+          "rate": 0.0351
+        },
+        {
+          "min": 39620,
+          "rate": 0.0455
+        },
+        {
+          "min": 59160,
+          "rate": 0.0455
+        }
+      ]
     }
   }
 }

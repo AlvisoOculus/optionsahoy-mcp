@@ -158,7 +158,49 @@
           "rate": 0.065
         }
       ],
-      "notes": "2% capital-gains surtax for AGI over $350k since 2025"
+      "notes": "2% capital-gains surtax for AGI over $350k since 2025 Head of household: the married-joint schedule for head of household. https://www.marylandcomptroller.gov/content/dam/mdcomp/tax/forms/worksheets/2026-pv-worksheet.pdf",
+      "head_household": [
+        {
+          "min": 0,
+          "rate": 0.02
+        },
+        {
+          "min": 1000,
+          "rate": 0.03
+        },
+        {
+          "min": 2000,
+          "rate": 0.04
+        },
+        {
+          "min": 3000,
+          "rate": 0.0475
+        },
+        {
+          "min": 150000,
+          "rate": 0.05
+        },
+        {
+          "min": 175000,
+          "rate": 0.0525
+        },
+        {
+          "min": 225000,
+          "rate": 0.055
+        },
+        {
+          "min": 300000,
+          "rate": 0.0575
+        },
+        {
+          "min": 600000,
+          "rate": 0.0625
+        },
+        {
+          "min": 1200000,
+          "rate": 0.065
+        }
+      ]
     }
   }
 }

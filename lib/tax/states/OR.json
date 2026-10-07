@@ -78,7 +78,25 @@
           "rate": 0.099
         }
       ],
-      "notes": ""
+      "notes": "Head of household: the married-joint schedule for head of household. https://www.oregon.gov/dor/forms/FormsPubs/publication-or-estimate_101-026_2026.pdf",
+      "head_household": [
+        {
+          "min": 0,
+          "rate": 0.0475
+        },
+        {
+          "min": 9100,
+          "rate": 0.0675
+        },
+        {
+          "min": 22800,
+          "rate": 0.0875
+        },
+        {
+          "min": 250000,
+          "rate": 0.099
+        }
+      ]
     }
   }
 }

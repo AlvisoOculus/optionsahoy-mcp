@@ -21,16 +21,22 @@
       "single": [
         {
           "min": 0,
-          "rate": 0.0519
+          "rate": 0.0499
         }
       ],
       "married_joint": [
         {
           "min": 0,
-          "rate": 0.0519
+          "rate": 0.0499
         }
       ],
-      "notes": "Flat tax"
+      "head_household": [
+        {
+          "min": 0,
+          "rate": 0.0499
+        }
+      ],
+      "notes": "Flat 4.99% for 2026 under HB 463 (signed May 11, 2026), retroactive to January 1, 2026. https://gov.georgia.gov/document/2026-signed-legislation/hb-463/download"
     }
   }
 }

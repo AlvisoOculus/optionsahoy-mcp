@@ -762,8 +762,8 @@
             "example": {
               "ok": true,
               "result": {
-                "crossoverShares": 240,
-                "crossoverBargain": 47650,
+                "crossoverShares": 78,
+                "crossoverBargain": 15450.000000000011,
                 "alreadyInAmt": false,
                 "schedules": {
                   "lumpSum": {
@@ -773,66 +773,74 @@
                         "year": 1,
                         "shares": 10000,
                         "bargain": 1980000,
+                        "amti": 2412200,
                         "regularFederal": 81196,
-                        "regularState": 30077.275999999998,
-                        "tmtFederal": 661510,
-                        "tmtState": 166600.00000000003,
-                        "amtOwedFederal": 580314,
-                        "amtOwedState": 136522.72400000005,
+                        "regularState": 31416.318,
+                        "tmtFederal": 670526,
+                        "tmtState": 168854.00000000003,
+                        "amtOwedFederal": 589330,
+                        "amtOwedState": 137121.68200000003,
+                        "stateTaxOnSpread": 0,
                         "creditRecovered": 0,
-                        "cashTax": 828110
+                        "cashTax": 839064
                       },
                       {
                         "year": 2,
                         "shares": 0,
                         "bargain": 0,
+                        "amti": 432200,
                         "regularFederal": 81196,
-                        "regularState": 30077.275999999998,
-                        "tmtFederal": 67854,
-                        "tmtState": 19343.31,
+                        "regularState": 31416.318,
+                        "tmtFederal": 76870,
+                        "tmtState": 21597.31,
                         "amtOwedFederal": 0,
                         "amtOwedState": 0,
-                        "creditRecovered": 13342,
-                        "cashTax": 97931.276
+                        "stateTaxOnSpread": 0,
+                        "creditRecovered": 4326,
+                        "cashTax": 108286.318
                       },
                       {
                         "year": 3,
                         "shares": 0,
                         "bargain": 0,
+                        "amti": 432200,
                         "regularFederal": 81196,
-                        "regularState": 30077.275999999998,
-                        "tmtFederal": 67854,
-                        "tmtState": 19343.31,
+                        "regularState": 31416.318,
+                        "tmtFederal": 76870,
+                        "tmtState": 21597.31,
                         "amtOwedFederal": 0,
                         "amtOwedState": 0,
-                        "creditRecovered": 13342,
-                        "cashTax": 97931.276
+                        "stateTaxOnSpread": 0,
+                        "creditRecovered": 4326,
+                        "cashTax": 108286.318
                       },
                       {
                         "year": 4,
                         "shares": 0,
                         "bargain": 0,
+                        "amti": 432200,
                         "regularFederal": 81196,
-                        "regularState": 30077.275999999998,
-                        "tmtFederal": 67854,
-                        "tmtState": 19343.31,
+                        "regularState": 31416.318,
+                        "tmtFederal": 76870,
+                        "tmtState": 21597.31,
                         "amtOwedFederal": 0,
                         "amtOwedState": 0,
-                        "creditRecovered": 13342,
-                        "cashTax": 97931.276
+                        "stateTaxOnSpread": 0,
+                        "creditRecovered": 4326,
+                        "cashTax": 108286.318
                       }
                     ],
-                    "totalTax": 1121903.828,
-                    "baselineRegularTax": 445093.104,
-                    "exerciseTax": 676810.7239999999,
-                    "creditEarned": 580314,
-                    "creditRecovered": 40026,
-                    "creditRemaining": 540288,
+                    "totalTax": 1163922.954,
+                    "baselineRegularTax": 450449.272,
+                    "exerciseTax": 713473.6819999999,
+                    "creditEarned": 589330,
+                    "creditRecovered": 12978,
+                    "creditRemaining": 576352,
                     "grossGain": 2187625.781249999,
                     "federalLTCG": 509969.9359374998,
-                    "stateLTCG": 265750.16890624986,
-                    "amtPremiumFV": 787767.4576205001,
-                    "nfv": 624138.2187857493
+                    "stateLTCG": 265821.2489062499,
+                    "amtPremiumFV": 827320.9133752501,
+                    "nfv": 584513.6830309993
                   },
                   "evenSplit": {
                     "label": "even_split",
@@ -841,134 +849,150 @@
                         "year": 1,
                         "shares": 2500,
                         "bargain": 495000,
+                        "amti": 927200,
                         "regularFederal": 81196,
-                        "regularState": 30077.275999999998,
-                        "tmtFederal": 206454,
-                        "tmtState": 61540.27250000001,
-                        "amtOwedFederal": 125258,
-                        "amtOwedState": 31462.99650000001,
+                        "regularState": 31416.318,
+                        "tmtFederal": 215470,
+                        "tmtState": 64357.77250000001,
+                        "amtOwedFederal": 134274,
+                        "amtOwedState": 32625.454500000007,
+                        "stateTaxOnSpread": 0,
                         "creditRecovered": 0,
-                        "cashTax": 267994.2725
+                        "cashTax": 279511.7725
                       },
                       {
                         "year": 2,
                         "shares": 2500,
                         "bargain": 507499.99999999994,
+                        "amti": 939700,
                         "regularFederal": 81196,
-                        "regularState": 30077.275999999998,
-                        "tmtFederal": 209954,
-                        "tmtState": 62634.02250000001,
-                        "amtOwedFederal": 128758,
-                        "amtOwedState": 32556.74650000001,
+                        "regularState": 31416.318,
+                        "tmtFederal": 218970.00000000003,
+                        "tmtState": 65451.52250000001,
+                        "amtOwedFederal": 137774.00000000003,
+                        "amtOwedState": 33719.20450000001,
+                        "stateTaxOnSpread": 0,
                         "creditRecovered": 0,
-                        "cashTax": 272588.0225
+                        "cashTax": 284105.5225
                       },
                       {
                         "year": 3,
                         "shares": 2500,
                         "bargain": 520312.49999999994,
+                        "amti": 952512.5,
                         "regularFederal": 81196,
-                        "regularState": 30077.275999999998,
-                        "tmtFederal": 213541.5,
-                        "tmtState": 63755.11625000001,
-                        "amtOwedFederal": 132345.5,
-                        "amtOwedState": 33677.84025000001,
+                        "regularState": 31416.318,
+                        "tmtFederal": 222557.50000000003,
+                        "tmtState": 66572.61625,
+                        "amtOwedFederal": 141361.50000000003,
+                        "amtOwedState": 34840.29825000001,
+                        "stateTaxOnSpread": 0,
                         "creditRecovered": 0,
-                        "cashTax": 277296.61625
+                        "cashTax": 288814.11625
                       },
                       {
                         "year": 4,
                         "shares": 2500,
                         "bargain": 533445.3124999998,
+                        "amti": 965645.3124999998,
                         "regularFederal": 81196,
-                        "regularState": 30077.275999999998,
-                        "tmtFederal": 217218.68749999994,
-                        "tmtState": 64904.23734374999,
-                        "amtOwedFederal": 136022.68749999994,
-                        "amtOwedState": 34826.961343749994,
+                        "regularState": 31416.318,
+                        "tmtFederal": 226234.68749999994,
+                        "tmtState": 67595.17187499999,
+                        "amtOwedFederal": 145038.68749999994,
+                        "amtOwedState": 35862.853874999986,
+                        "stateTaxOnSpread": 0,
                         "creditRecovered": 0,
-                        "cashTax": 282122.92484374996
+                        "cashTax": 293513.85937499994
                       }
                     ],
-                    "totalTax": 1100001.83609375,
-                    "baselineRegularTax": 445093.104,
-                    "exerciseTax": 654908.73209375,
-                    "creditEarned": 522384.18749999994,
+                    "totalTax": 1145945.2706250001,
+                    "baselineRegularTax": 450449.272,
+                    "exerciseTax": 695495.9986250001,
+                    "creditEarned": 558448.1875,
                     "creditRecovered": 0,
-                    "creditRemaining": 522384.18749999994,
+                    "creditRemaining": 558448.1875,
                     "grossGain": 2187625.781249999,
                     "federalLTCG": 509969.9359374998,
-                    "stateLTCG": 265750.16890624986,
-                    "amtPremiumFV": 704447.8076958125,
-                    "nfv": 707457.8687104369
+                    "stateLTCG": 265821.2489062499,
+                    "amtPremiumFV": 748191.6685143125,
+                    "nfv": 663642.9278919369
                   },
                   "optimized": {
                     "label": "optimized",
                     "years": [
                       {
                         "year": 1,
-                        "shares": 1350,
-                        "bargain": 267300,
+                        "shares": 1814,
+                        "bargain": 359172,
+                        "amti": 791372,
                         "regularFederal": 81196,
-                        "regularState": 30077.275999999998,
-                        "tmtFederal": 142698,
-                        "tmtState": 41616.52250000001,
-                        "amtOwedFederal": 61502,
-                        "amtOwedState": 11539.246500000008,
+                        "regularState": 31416.318,
+                        "tmtFederal": 177438.16000000003,
+                        "tmtState": 52472.8225,
+                        "amtOwedFederal": 96242.16000000003,
+                        "amtOwedState": 20740.504500000003,
+                        "stateTaxOnSpread": 0,
                         "creditRecovered": 0,
-                        "cashTax": 184314.52250000002
+                        "cashTax": 229594.98250000004
                       },
                       {
                         "year": 2,
-                        "shares": 2955,
-                        "bargain": 599864.9999999999,
+                        "shares": 2797,
+                        "bargain": 567790.9999999999,
+                        "amti": 999990.9999999999,
                         "regularFederal": 81196,
-                        "regularState": 30077.275999999998,
-                        "tmtFederal": 235816.19999999998,
-                        "tmtState": 69990.55,
-                        "amtOwedFederal": 154620.19999999998,
-                        "amtOwedState": 39913.274000000005,
+                        "regularState": 31416.318,
+                        "tmtFederal": 235851.47999999998,
+                        "tmtState": 69999.37,
+                        "amtOwedFederal": 154655.47999999998,
+                        "amtOwedState": 38267.051999999996,
+                        "stateTaxOnSpread": 0,
                         "creditRecovered": 0,
-                        "cashTax": 305806.75
+                        "cashTax": 305534.85
                       },
                       {
                         "year": 3,
-                        "shares": 2883,
-                        "bargain": 600024.3749999999,
+                        "shares": 2728,
+                        "bargain": 567764.9999999999,
+                        "amti": 999964.9999999999,
                         "regularFederal": 81196,
-                        "regularState": 30077.275999999998,
-                        "tmtFederal": 235864.23749999996,
-                        "tmtState": 70001.70625,
-                        "amtOwedFederal": 154668.23749999996,
-                        "amtOwedState": 39924.430250000005,
+                        "regularState": 31416.318,
+                        "tmtFederal": 235844.19999999998,
+                        "tmtState": 69997.55,
+                        "amtOwedFederal": 154648.19999999998,
+                        "amtOwedState": 38265.232,
+                        "stateTaxOnSpread": 0,
                         "creditRecovered": 0,
-                        "cashTax": 305865.94375
+                        "cashTax": 305525.75
                       },
                       {
                         "year": 4,
-                        "shares": 2812,
-                        "bargain": 600019.2874999997,
+                        "shares": 2661,
+                        "bargain": 567799.1906249998,
+                        "amti": 999999.1906249998,
                         "regularFederal": 81196,
-                        "regularState": 30077.275999999998,
-                        "tmtFederal": 235862.10074999993,
-                        "tmtState": 70001.35012499998,
-                        "amtOwedFederal": 154666.10074999993,
-                        "amtOwedState": 39924.074124999985,
+                        "regularState": 31416.318,
+                        "tmtFederal": 235853.77337499996,
+                        "tmtState": 69999.94334375,
+                        "amtOwedFederal": 154657.77337499996,
+                        "amtOwedState": 38267.62534375,
+                        "stateTaxOnSpread": 0,
                         "creditRecovered": 0,
-                        "cashTax": 305863.4508749999
+                        "cashTax": 305537.71671874996
                       }
                     ],
-                    "totalTax": 1101850.667125,
-                    "baselineRegularTax": 445093.104,
-                    "exerciseTax": 656757.5631249999,
-                    "creditEarned": 525456.5382499999,
+                    "totalTax": 1146193.29921875,
+                    "baselineRegularTax": 450449.272,
+                    "exerciseTax": 695744.0272187501,
+                    "creditEarned": 560203.613375,
                     "creditRecovered": 0,
-                    "creditRemaining": 525456.5382499999,
+                    "creditRemaining": 560203.613375,
                     "grossGain": 2187625.781249999,
                     "federalLTCG": 509969.9359374998,
-                    "stateLTCG": 265750.16890624986,
-                    "amtPremiumFV": 697940.0040770625,
-                    "nfv": 713965.6723291869
+                    "stateLTCG": 265821.2489062499,
+                    "amtPremiumFV": 743603.6508405625,
+                    "nfv": 668230.9455656868
                   }
                 },
                 "stateHasAmt": true,
@@ -1032,12 +1056,12 @@
                 "exercise": {
                   "bargainElement": 200000,
                   "federal": 65971.25,
-                  "state": 18685.210000000003,
-                  "socialSecurity": 279,
+                  "state": 18818.91,
+                  "socialSecurity": 0,
                   "medicare": 2900,
-                  "additionalMedicare": 1619.9999999999998,
-                  "total": 89455.46,
-                  "netCashSellAll": 110544.54
+                  "additionalMedicare": 1764.8999999999999,
+                  "total": 89455.06,
+                  "netCashSellAll": 110544.94
                 },
                 "bracketJump": {
                   "fromRate": 0.24,
@@ -1048,31 +1072,31 @@
                   "funding": "cash",
                   "costBasis": 50,
                   "strikeCost": 50000,
-                  "cashNeededAtExercise": 139455.46000000002,
+                  "cashNeededAtExercise": 139455.06,
                   "sharesSoldToCover": 0,
                   "sharesRetained": 5000,
                   "effectiveSalePrice": 73.11449482169826,
                   "expectedGain": 115572.4741084913,
-                  "ltcgFederal": 20967.625132396366,
-                  "ltcgState": 10748.240092089694,
-                  "ltcgTotal": 31715.86522448606,
-                  "afterTaxProceedsAtSale": 333856.6088840052,
-                  "y0OutflowGain": 20207.096154000006,
-                  "y0OutflowLtcgFederal": 3038.934076952001,
-                  "y0OutflowLtcgState": 1879.259942322,
-                  "y0OutflowLtcgTotal": 4918.194019274,
-                  "y0OutflowForgoneNet": 15288.902134726006,
-                  "netAtYearN": 179112.2467492792
+                  "ltcgFederal": 21579.425132396365,
+                  "ltcgState": 10874.240092089694,
+                  "ltcgTotal": 32453.66522448606,
+                  "afterTaxProceedsAtSale": 333118.8088840052,
+                  "y0OutflowGain": 20207.038194000004,
+                  "y0OutflowLtcgFederal": 3650.7231804720004,
+                  "y0OutflowLtcgState": 1879.254552041999,
+                  "y0OutflowLtcgTotal": 5529.977732513999,
+                  "y0OutflowForgoneNet": 14677.060461486006,
+                  "netAtYearN": 178986.6884225192
                 },
                 "sellNowInvest": {
-                  "netCashAtY0": 110544.54,
-                  "marketGain": 16017.903846000003,
-                  "ltcgFederal": 2402.6855769000003,
-                  "ltcgState": 1489.6650576780012,
-                  "ltcgTotal": 3892.3506345780015,
-                  "netAtYearN": 122670.09321142199
+                  "netCashAtY0": 110544.94,
+                  "marketGain": 16017.961806000003,
+                  "ltcgFederal": 2863.1768195280006,
+                  "ltcgState": 1489.6704479580003,
+                  "ltcgTotal": 4352.847267486,
+                  "netAtYearN": 122210.05453851401
                 },
-                "holdMinusCashless": 56442.153537857215
+                "holdMinusCashless": 56776.633884005176
               }
             }
           }
@@ -1122,12 +1146,12 @@
                 "vest": {
                   "vestValue": 100000,
                   "federal": 33171.25,
-                  "state": 9300.000000000004,
+                  "state": 9438,
                   "socialSecurity": 0,
                   "medicare": 1450,
                   "additionalMedicare": 899.9999999999999,
-                  "total": 44821.25,
-                  "netCashAtVest": 55178.75,
+                  "total": 44959.25,
+                  "netCashAtVest": 55040.75,
                   "federalWithheldAtVest": 22000
                 },
                 "bracketJump": {
@@ -1138,24 +1162,24 @@
                 "hold": {
                   "costBasis": 100,
                   "effectiveSalePrice": 118.81105408525967,
-                  "sharesRetained": 551.7875,
-                  "expectedGain": 10379.70450607022,
-                  "capGainFederal": 1951.384447141201,
-                  "capGainState": 965.3125190645296,
-                  "capGainTotal": 2916.696966205731,
+                  "sharesRetained": 550.4075,
+                  "expectedGain": 10353.745251432561,
+                  "capGainFederal": 1946.5041072693214,
+                  "capGainState": 962.8983083832281,
+                  "capGainTotal": 2909.4024156525493,
                   "isLongTerm": true,
-                  "netAtYearN": 62641.75753986449
+                  "netAtYearN": 62485.092835780015
                 },
                 "sellNowInvest": {
-                  "netCashAtY0": 55178.75,
-                  "marketGain": 7995.400875000001,
-                  "capGainFederal": 1503.1353644999997,
-                  "capGainState": 743.5722813749999,
-                  "capGainTotal": 2246.707645875,
+                  "netCashAtY0": 55040.75,
+                  "marketGain": 7975.404675000002,
+                  "capGainFederal": 1499.3760789000003,
+                  "capGainState": 741.7126347750018,
+                  "capGainTotal": 2241.088713675002,
                   "isLongTerm": true,
-                  "netAtYearN": 60927.443229125
+                  "netAtYearN": 60775.065961324995
                 },
-                "holdMinusSell": 1714.3143107394935
+                "holdMinusSell": 1710.0268744550194
               }
             }
           }
@@ -1236,8 +1260,8 @@
                         "gainAmount": 299729.11491267144,
                         "isLongTerm": true,
                         "federalTax": 56349.073603582234,
-                        "stateTax": 29696.88998513187,
-                        "totalTax": 86045.9635887141,
+                        "stateTax": 29781.02998513187,
+                        "totalTax": 86130.1035887141,
                         "breakdown": [
                           {
                             "label": "Federal LTCG",
@@ -1254,29 +1278,36 @@
                           {
                             "label": "CA",
                             "rate": 0.093,
-                            "amount": 171479,
-                            "tax": 15947.547
+                            "amount": 173909,
+                            "tax": 16173.537
                           },
                           {
                             "label": "CA",
                             "rate": 0.103,
-                            "amount": 74292,
-                            "tax": 7652.076
+                            "amount": 76818,
+                            "tax": 7912.254
                           },
                           {
                             "label": "CA",
                             "rate": 0.113,
-                            "amount": 53958.114912671444,
-                            "tax": 6097.266985131873
+                            "amount": 49002.114912671444,
+                            "tax": 5537.238985131873
+                          },
+                          {
+                            "label": "CA adjustments",
+                            "rate": 0,
+                            "amount": 0,
+                            "tax": 157.99999999999636,
+                            "detail": "deductions, add-ons and credits"
                           }
                         ]
                       }
                     ],
                     "totalSale": 399729.11491267144,
-                    "totalTax": 86045.9635887141,
-                    "endOfHorizonWealth": 1350554.3624649164,
+                    "totalTax": 86130.1035887141,
+                    "endOfHorizonWealth": 1350454.9769878509,
                     "savingsVsLumpSum": 81.53641128589516,
-                    "wealthVsLumpSum": -13987.346552583855,
+                    "wealthVsLumpSum": -13983.656911629718,
                     "year1IsShortTerm": false,
                     "taxBreakdown": [
                       {
@@ -1292,29 +1323,36 @@
                         "tax": 11389.706366681514
                       },
                       {
+                        "label": "CA adjustments",
+                        "rate": 0,
+                        "amount": 0,
+                        "tax": 157.99999999999636,
+                        "detail": "deductions, add-ons and credits"
+                      },
+                      {
                         "label": "CA",
                         "rate": 0.093,
-                        "amount": 171479,
-                        "tax": 15947.547
+                        "amount": 173909,
+                        "tax": 16173.537
                       },
                       {
                         "label": "CA",
                         "rate": 0.103,
-                        "amount": 74292,
-                        "tax": 7652.076
+                        "amount": 76818,
+                        "tax": 7912.254
                       },
                       {
                         "label": "CA",
                         "rate": 0.113,
-                        "amount": 53958.114912671444,
-                        "tax": 6097.266985131873
+                        "amount": 49002.114912671444,
+                        "tax": 5537.238985131873
                       }
                     ],
                     "wealthByYear": [
                       1200000,
-                      1179626.4848151945,
-                      1262200.338752258,
-                      1350554.3624649164
+                      1179539.6776904974,
+                      1262107.4551288323,
+                      1350454.9769878509
                     ]
                   },
                   {
@@ -1327,8 +1365,8 @@
                         "gainAmount": 149864.55745633572,
                         "isLongTerm": true,
                         "federalTax": 28174.536801791117,
-                        "stateTax": 13937.403843439228,
-                        "totalTax": 42111.940645230345,
+                        "stateTax": 14095.403843439228,
+                        "totalTax": 42269.940645230345,
                         "breakdown": [
                           {
                             "label": "Federal LTCG",
@@ -1345,8 +1383,15 @@
                           {
                             "label": "CA",
                             "rate": 0.093,
-                            "amount": 149864.55745633572,
-                            "tax": 13937.403843439222
+                            "amount": 149864.55745633575,
+                            "tax": 13937.403843439224
+                          },
+                          {
+                            "label": "CA adjustments",
+                            "rate": 0,
+                            "amount": 0,
+                            "tax": 158.00000000000364,
+                            "detail": "deductions, add-ons and credits"
                           }
                         ]
                       },
@@ -1356,8 +1401,8 @@
                         "gainAmount": 149614.72675951532,
                         "isLongTerm": true,
                         "federalTax": 28127.568630788883,
-                        "stateTax": 13914.16958863493,
-                        "totalTax": 42041.738219423816,
+                        "stateTax": 14072.16958863493,
+                        "totalTax": 42199.738219423816,
                         "breakdown": [
                           {
                             "label": "Federal LTCG",
@@ -1374,17 +1419,24 @@
                           {
                             "label": "CA",
                             "rate": 0.093,
-                            "amount": 149614.72675951532,
-                            "tax": 13914.169588634924
+                            "amount": 149614.72675951535,
+                            "tax": 13914.169588634928
+                          },
+                          {
+                            "label": "CA adjustments",
+                            "rate": 0,
+                            "amount": 0,
+                            "tax": 158.00000000000182,
+                            "detail": "deductions, add-ons and credits"
                           }
                         ]
                       }
                     ],
                     "totalSale": 399479.28421585105,
-                    "totalTax": 84153.67886465415,
-                    "endOfHorizonWealth": 1340318.0844518472,
-                    "savingsVsLumpSum": 1973.8211353458464,
-                    "wealthVsLumpSum": -24223.624565653037,
+                    "totalTax": 84469.67886465415,
+                    "endOfHorizonWealth": 1339957.0371749555,
+                    "savingsVsLumpSum": 1741.9611353458458,
+                    "wealthVsLumpSum": -24481.596724525094,
                     "year1IsShortTerm": false,
                     "taxBreakdown": [
                       {
@@ -1400,17 +1452,24 @@
                         "tax": 11380.212800202338
                       },
                       {
+                        "label": "CA adjustments",
+                        "rate": 0,
+                        "amount": 0,
+                        "tax": 316.00000000000546,
+                        "detail": "deductions, add-ons and credits"
+                      },
+                      {
                         "label": "CA",
                         "rate": 0.093,
-                        "amount": 299479.28421585105,
-                        "tax": 27851.573432074147
+                        "amount": 299479.2842158511,
+                        "tax": 27851.573432074154
                       }
                     ],
                     "wealthByYear": [
                       1200000,
-                      1218503.1623343432,
-                      1252633.723786773,
-                      1340318.0844518472
+                      1218340.153947106,
+                      1252296.2964251922,
+                      1339957.0371749555
                     ]
                   },
                   {
@@ -1423,8 +1482,8 @@
                         "gainAmount": 99909.70497089053,
                         "isLongTerm": true,
                         "federalTax": 18783.02453452742,
-                        "stateTax": 9291.602562292821,
-                        "totalTax": 28074.62709682024,
+                        "stateTax": 9429.602562292821,
+                        "totalTax": 28212.62709682024,
                         "breakdown": [
                           {
                             "label": "Federal LTCG",
@@ -1441,8 +1500,15 @@
                           {
                             "label": "CA",
                             "rate": 0.093,
-                            "amount": 99909.70497089053,
-                            "tax": 9291.60256229282
+                            "amount": 99909.70497089054,
+                            "tax": 9291.602562292821
+                          },
+                          {
+                            "label": "CA adjustments",
+                            "rate": 0,
+                            "amount": 0,
+                            "tax": 138,
+                            "detail": "deductions, add-ons and credits"
                           }
                         ]
                       },
@@ -1452,8 +1518,8 @@
                         "gainAmount": 99743.15117301025,
                         "isLongTerm": true,
                         "federalTax": 18751.712420525924,
-                        "stateTax": 9276.113059089956,
-                        "totalTax": 28027.82547961588,
+                        "stateTax": 9414.113059089952,
+                        "totalTax": 28165.825479615876,
                         "breakdown": [
                           {
                             "label": "Federal LTCG",
@@ -1464,14 +1530,21 @@
                           {
                             "label": "NIIT",
                             "rate": 0.038,
-                            "amount": 99743.15117301024,
-                            "tax": 3790.239744574389
+                            "amount": 99743.15117301025,
+                            "tax": 3790.2397445743895
                           },
                           {
                             "label": "CA",
                             "rate": 0.093,
-                            "amount": 99743.15117301025,
-                            "tax": 9276.113059089954
+                            "amount": 99743.15117301024,
+                            "tax": 9276.113059089952
+                          },
+                          {
+                            "label": "CA adjustments",
+                            "rate": 0,
+                            "amount": 0,
+                            "tax": 138,
+                            "detail": "deductions, add-ons and credits"
                           }
                         ]
                       },
@@ -1481,8 +1554,8 @@
                         "gainAmount": 99576.80556737732,
                         "isLongTerm": true,
                         "federalTax": 18720.439446666936,
-                        "stateTax": 9260.64291776609,
-                        "totalTax": 27981.082364433027,
+                        "stateTax": 9392.64291776609,
+                        "totalTax": 28113.082364433027,
                         "breakdown": [
                           {
                             "label": "Federal LTCG",
@@ -1493,23 +1566,30 @@
                           {
                             "label": "NIIT",
                             "rate": 0.038,
-                            "amount": 99576.8055673773,
-                            "tax": 3783.9186115603375
+                            "amount": 99576.80556737732,
+                            "tax": 3783.918611560338
                           },
                           {
                             "label": "CA",
                             "rate": 0.093,
-                            "amount": 99576.80556737732,
-                            "tax": 9260.64291776609
+                            "amount": 99576.8055673773,
+                            "tax": 9260.642917766088
+                          },
+                          {
+                            "label": "CA adjustments",
+                            "rate": 0,
+                            "amount": 0,
+                            "tax": 132.00000000000182,
+                            "detail": "deductions, add-ons and credits"
                           }
                         ]
                       }
                     ],
                     "totalSale": 399229.661711278,
-                    "totalTax": 84083.53494086914,
-                    "endOfHorizonWealth": 1328478.6892989082,
-                    "savingsVsLumpSum": 2043.96505913086,
-                    "wealthVsLumpSum": -36063.019718592055,
+                    "totalTax": 84491.53494086914,
+                    "endOfHorizonWealth": 1328027.159986716,
+                    "savingsVsLumpSum": 1720.1050591308594,
+                    "wealthVsLumpSum": -36411.47391276457,
                     "year1IsShortTerm": false,
                     "taxBreakdown": [
                       {
@@ -1525,17 +1605,24 @@
                         "tax": 11370.727145028566
                       },
                       {
+                        "label": "CA adjustments",
+                        "rate": 0,
+                        "amount": 0,
+                        "tax": 408.0000000000018,
+                        "detail": "deductions, add-ons and credits"
+                      },
+                      {
                         "label": "CA",
                         "rate": 0.093,
                         "amount": 299229.6617112781,
-                        "tax": 27828.358539148863
+                        "tax": 27828.35853914886
                       }
                     ],
                     "wealthByYear": [
                       1200000,
-                      1230835.441556229,
-                      1273396.0241911819,
-                      1328478.6892989082
+                      1230693.0671420598,
+                      1273101.3091538516,
+                      1328027.159986716
                     ]
                   }
                 ],
@@ -1894,14 +1981,14 @@
                     "feasible": false,
                     "targetAfterTax": 200000,
                     "targetDateISO": "2028-01-01",
-                    "totalAfterTaxAchieved": 172762.61,
+                    "totalAfterTaxAchieved": 172628.91,
                     "totalSharesSold": 2000,
                     "totalGrossProceeds": 224834.72,
                     "totalTaxes": {
                       "federal": 27725.21,
-                      "state": 17323.19,
+                      "state": 17456.89,
                       "niit": 7023.72,
-                      "total": 52072.11
+                      "total": 52205.81
                     },
                     "schedule": [
                       {
@@ -1916,20 +2003,20 @@
                             "gainAmount": 184834.7247426237,
                             "isLongTerm": true,
                             "federalTax": 27725.208711393552,
-                            "stateTax": 17323.186648490242,
+                            "stateTax": 17456.88664849024,
                             "niit": 7023.7195402197,
-                            "netCash": 172762.60984252018
+                            "netCash": 172628.9098425202
                           }
                         ],
                         "yearGrossProceeds": 224834.7247426237,
-                        "yearTotalTax": 52072.1149001035,
-                        "yearNetCash": 172762.60984252018,
-                        "runningCumulativeNet": 172762.60984252018
+                        "yearTotalTax": 52205.8149001035,
+                        "yearNetCash": 172628.9098425202,
+                        "runningCumulativeNet": 172628.9098425202
                       }
                     ],
                     "comparison": {
-                      "sellAllInTargetYearTotalTax": 52072.11,
-                      "sellAllInTargetYearAfterTax": 172762.61,
+                      "sellAllInTargetYearTotalTax": 52205.81,
+                      "sellAllInTargetYearAfterTax": 172628.91,
                       "optimizedSavingsVsTargetYearSale": 0,
                       "optimizedSavingsPct": 0
                     },
@@ -1940,13 +2027,13 @@
                       0
                     ],
                     "shortfall": {
-                      "maxAchievableAfterTax": 172762.61,
-                      "gap": 27237.39
+                      "maxAchievableAfterTax": 172628.91,
+                      "gap": 27371.09
                     }
                   },
-                  "wealthAtTarget": 172762.61,
-                  "totalTax": 52072.11,
-                  "shortfallProbability": 0.7065737034819962
+                  "wealthAtTarget": 172628.91,
+                  "totalTax": 52205.81,
+                  "shortfallProbability": 0.707113403289392
                 },
                 "lockInNow": {
                   "planKey": "lock_in_now",
@@ -1955,14 +2042,14 @@
                     "feasible": false,
                     "targetAfterTax": 200000,
                     "targetDateISO": "2028-01-01",
-                    "totalAfterTaxAchieved": 161374.58,
+                    "totalAfterTaxAchieved": 161210.13,
                     "totalSharesSold": 2000,
                     "totalGrossProceeds": 200000,
                     "totalTaxes": {
                       "federal": 24000,
-                      "state": 14880,
+                      "state": 15038,
                       "niit": 6080,
-                      "total": 44960
+                      "total": 45118
                     },
                     "schedule": [
                       {
@@ -1977,22 +2064,22 @@
                             "gainAmount": 160000,
                             "isLongTerm": true,
                             "federalTax": 24000,
-                            "stateTax": 14880.000000000004,
+                            "stateTax": 15038,
                             "niit": 6080,
-                            "netCash": 155040
+                            "netCash": 154882
                           }
                         ],
                         "yearGrossProceeds": 200000,
-                        "yearTotalTax": 44960,
-                        "yearNetCash": 155040,
-                        "runningCumulativeNet": 161374.5830146192
+                        "yearTotalTax": 45118,
+                        "yearNetCash": 154882,
+                        "runningCumulativeNet": 161210.1274927132
                       }
                     ],
                     "comparison": {
-                      "sellAllInTargetYearTotalTax": 52072.11,
-                      "sellAllInTargetYearAfterTax": 172762.61,
-                      "optimizedSavingsVsTargetYearSale": 7112.11,
-                      "optimizedSavingsPct": 0.1366
+                      "sellAllInTargetYearTotalTax": 52205.81,
+                      "sellAllInTargetYearAfterTax": 172628.91,
+                      "optimizedSavingsVsTargetYearSale": 7087.81,
+                      "optimizedSavingsPct": 0.1358
                     },
                     "remainingShares": 0,
                     "remainingPositionValue": 0,
@@ -2001,12 +2088,12 @@
                       0
                     ],
                     "shortfall": {
-                      "maxAchievableAfterTax": 161374.58,
-                      "gap": 38625.42
+                      "maxAchievableAfterTax": 161210.13,
+                      "gap": 38789.87
                     }
                   },
-                  "wealthAtTarget": 161374.58,
-                  "totalTax": 44960,
+                  "wealthAtTarget": 161210.13,
+                  "totalTax": 45118,
                   "shortfallProbability": 1
                 },
                 "balanced": {
@@ -2016,14 +2103,14 @@
                     "feasible": false,
                     "targetAfterTax": 200000,
                     "targetDateISO": "2028-01-01",
-                    "totalAfterTaxAchieved": 170526.91,
+                    "totalAfterTaxAchieved": 170367.62,
                     "totalSharesSold": 2000,
                     "totalGrossProceeds": 219666.61,
                     "totalTaxes": {
                       "federal": 26949.99,
-                      "state": 16708.99,
+                      "state": 16866.99,
                       "niit": 6827.33,
-                      "total": 50486.32
+                      "total": 50644.32
                     },
                     "schedule": [
                       {
@@ -2038,15 +2125,15 @@
                             "gainAmount": 17347.750096335527,
                             "isLongTerm": true,
                             "federalTax": 2602.1625144503305,
-                            "stateTax": 1613.3407589592025,
+                            "stateTax": 1613.3407589592061,
                             "niit": 659.2145036607508,
-                            "netCash": 16473.032319265243
+                            "netCash": 16473.03231926524
                           }
                         ],
                         "yearGrossProceeds": 21347.750096335527,
-                        "yearTotalTax": 4874.717777070284,
-                        "yearNetCash": 16473.032319265243,
-                        "runningCumulativeNet": 16767.766624449803
+                        "yearTotalTax": 4874.717777070287,
+                        "yearNetCash": 16473.03231926524,
+                        "runningCumulativeNet": 16767.7666244498
                       },
                       {
                         "year": 2027,
@@ -2060,14 +2147,14 @@
                             "gainAmount": 17487.64879643726,
                             "isLongTerm": true,
                             "federalTax": 2623.147319465588,
-                            "stateTax": 1626.3513380686709,
-                            "niit": 664.5306542646167,
-                            "netCash": 16573.619484638384
+                            "stateTax": 1626.3513380686672,
+                            "niit": 664.5306542646158,
+                            "netCash": 16573.619484638388
                           }
                         ],
                         "yearGrossProceeds": 21487.64879643726,
-                        "yearTotalTax": 4914.029311798876,
-                        "yearNetCash": 16573.619484638384,
+                        "yearTotalTax": 4914.029311798871,
+                        "yearNetCash": 16573.619484638388,
                         "runningCumulativeNet": 33600.26178276821
                       },
                       {
@@ -2082,15 +2169,15 @@
                             "gainAmount": 17623.907490844624,
                             "isLongTerm": true,
                             "federalTax": 2643.5861236266937,
-                            "stateTax": 1639.0233966485503,
-                            "niit": 669.7084846520947,
-                            "netCash": 16671.589485917284
+                            "stateTax": 1641.0233966485503,
+                            "niit": 669.7084846520956,
+                            "netCash": 16669.589485917284
                           }
                         ],
                         "yearGrossProceeds": 21623.907490844624,
-                        "yearTotalTax": 4952.318004927339,
-                        "yearNetCash": 16671.589485917284,
-                        "runningCumulativeNet": 50495.67875238137
+                        "yearTotalTax": 4954.31800492734,
+                        "yearNetCash": 16669.589485917284,
+                        "runningCumulativeNet": 50493.6519010144
                       },
                       {
                         "year": 2027,
@@ -2104,15 +2191,15 @@
                             "gainAmount": 17765.615939530675,
                             "isLongTerm": true,
                             "federalTax": 2664.8423909296016,
-                            "stateTax": 1652.202282376351,
+                            "stateTax": 1694.202282376351,
                             "niit": 675.0934057021659,
-                            "netCash": 16773.47786052256
+                            "netCash": 16731.47786052256
                           }
                         ],
                         "yearGrossProceeds": 21765.615939530675,
-                        "yearTotalTax": 4992.138079008118,
-                        "yearNetCash": 16773.47786052256,
-                        "runningCumulativeNet": 67456.40680012487
+                        "yearTotalTax": 5034.138079008118,
+                        "yearNetCash": 16731.47786052256,
+                        "runningCumulativeNet": 67411.91108309219
                       },
                       {
                         "year": 2027,
@@ -2126,15 +2213,15 @@
                             "gainAmount": 17908.25304944216,
                             "isLongTerm": true,
                             "federalTax": 2686.237957416324,
-                            "stateTax": 1665.4675335981228,
-                            "niit": 680.5136158788027,
-                            "netCash": 16876.033942548907
+                            "stateTax": 1707.4675335981228,
+                            "niit": 680.5136158788023,
+                            "netCash": 16834.033942548907
                           }
                         ],
                         "yearGrossProceeds": 21908.25304944216,
-                        "yearTotalTax": 5032.21910689325,
-                        "yearNetCash": 16876.033942548907,
-                        "runningCumulativeNet": 84482.74381092469
+                        "yearTotalTax": 5074.21910689325,
+                        "yearNetCash": 16834.033942548907,
+                        "runningCumulativeNet": 84395.87402917467
                       },
                       {
                         "year": 2027,
@@ -2148,15 +2235,15 @@
                             "gainAmount": 18047.178903338194,
                             "isLongTerm": true,
                             "federalTax": 2707.0768355007294,
-                            "stateTax": 1678.387638010452,
-                            "niit": 685.7927983268505,
-                            "netCash": 16975.92163150016
+                            "stateTax": 1720.3876380104484,
+                            "niit": 685.792798326851,
+                            "netCash": 16933.921631500165
                           }
                         ],
                         "yearGrossProceeds": 22047.178903338194,
-                        "yearTotalTax": 5071.2572718380325,
-                        "yearNetCash": 16975.92163150016,
-                        "runningCumulativeNet": 101572.85816603321
+                        "yearTotalTax": 5113.257271838029,
+                        "yearNetCash": 16933.921631500165,
+                        "runningCumulativeNet": 101443.70586092478
                       },
                       {
                         "year": 2027,
@@ -2170,15 +2257,15 @@
                             "gainAmount": 18191.661186275203,
                             "isLongTerm": true,
                             "federalTax": 2728.7491779412803,
-                            "stateTax": 1691.8244903235936,
-                            "niit": 691.2831250784584,
-                            "netCash": 17079.80439293187
+                            "stateTax": 1721.824490323601,
+                            "niit": 691.2831250784579,
+                            "netCash": 17049.804392931866
                           }
                         ],
                         "yearGrossProceeds": 22191.661186275203,
-                        "yearTotalTax": 5111.856793343332,
-                        "yearNetCash": 17079.80439293187,
-                        "runningCumulativeNet": 118729.1712873145
+                        "yearTotalTax": 5141.856793343339,
+                        "yearNetCash": 17049.804392931866,
+                        "runningCumulativeNet": 118569.88459765472
                       },
                       {
                         "year": 2027,
@@ -2192,15 +2279,15 @@
                             "gainAmount": 18332.384203884918,
                             "isLongTerm": true,
                             "federalTax": 2749.8576305827373,
-                            "stateTax": 1704.9117309612957,
-                            "niit": 696.6305997476264,
-                            "netCash": 17180.98424259326
+                            "stateTax": 1704.911730961292,
+                            "niit": 696.6305997476269,
+                            "netCash": 17180.984242593262
                           }
                         ],
                         "yearGrossProceeds": 22332.384203884918,
-                        "yearTotalTax": 5151.39996129166,
-                        "yearNetCash": 17180.98424259326,
-                        "runningCumulativeNet": 135949.83487907657
+                        "yearTotalTax": 5151.399961291656,
+                        "yearNetCash": 17180.984242593262,
+                        "runningCumulativeNet": 135790.5481894168
                       },
                       {
                         "year": 2027,
@@ -2222,7 +2309,7 @@
                         "yearGrossProceeds": 22478.735529256308,
                         "yearTotalTax": 5192.524683721025,
                         "yearNetCash": 17286.210845535283,
-                        "runningCumulativeNet": 153237.29190514903
+                        "runningCumulativeNet": 153078.00521548925
                       },
                       {
                         "year": 2028,
@@ -2244,14 +2331,14 @@
                         "yearGrossProceeds": 22483.47247426237,
                         "yearTotalTax": 5193.855765267726,
                         "yearNetCash": 17289.616708994643,
-                        "runningCumulativeNet": 170526.90861414367
+                        "runningCumulativeNet": 170367.6219244839
                       }
                     ],
                     "comparison": {
-                      "sellAllInTargetYearTotalTax": 52072.11,
-                      "sellAllInTargetYearAfterTax": 172762.61,
-                      "optimizedSavingsVsTargetYearSale": 1585.8,
-                      "optimizedSavingsPct": 0.0305
+                      "sellAllInTargetYearTotalTax": 52205.81,
+                      "sellAllInTargetYearAfterTax": 172628.91,
+                      "optimizedSavingsVsTargetYearSale": 1561.5,
+                      "optimizedSavingsPct": 0.0299
                     },
                     "remainingShares": 0,
                     "remainingPositionValue": 0,
@@ -2260,13 +2347,13 @@
                       0
                     ],
                     "shortfall": {
-                      "maxAchievableAfterTax": 170526.91,
-                      "gap": 29473.09
+                      "maxAchievableAfterTax": 170367.62,
+                      "gap": 29632.38
                     }
                   },
-                  "wealthAtTarget": 170526.91,
-                  "totalTax": 50486.32,
-                  "shortfallProbability": 0.719622773437159,
+                  "wealthAtTarget": 170367.62,
+                  "totalTax": 50644.32,
+                  "shortfallProbability": 0.7203345746858013,
                   "lockInFraction": 0
                 },
                 "holdForGrowth": {
@@ -2276,14 +2363,14 @@
                     "feasible": false,
                     "targetAfterTax": 200000,
                     "targetDateISO": "2028-01-01",
-                    "totalAfterTaxAchieved": 172762.61,
+                    "totalAfterTaxAchieved": 172628.91,
                     "totalSharesSold": 2000,
                     "totalGrossProceeds": 224834.72,
                     "totalTaxes": {
                       "federal": 27725.21,
-                      "state": 17323.19,
+                      "state": 17456.89,
                       "niit": 7023.72,
-                      "total": 52072.11
+                      "total": 52205.81
                     },
                     "schedule": [
                       {
@@ -2298,20 +2385,20 @@
                             "gainAmount": 184834.7247426237,
                             "isLongTerm": true,
                             "federalTax": 27725.208711393552,
-                            "stateTax": 17323.186648490242,
+                            "stateTax": 17456.88664849024,
                             "niit": 7023.7195402197,
-                            "netCash": 172762.60984252018
+                            "netCash": 172628.9098425202
                           }
                         ],
                         "yearGrossProceeds": 224834.7247426237,
-                        "yearTotalTax": 52072.1149001035,
-                        "yearNetCash": 172762.60984252018,
-                        "runningCumulativeNet": 172762.60984252018
+                        "yearTotalTax": 52205.8149001035,
+                        "yearNetCash": 172628.9098425202,
+                        "runningCumulativeNet": 172628.9098425202
                       }
                     ],
                     "comparison": {
-                      "sellAllInTargetYearTotalTax": 52072.11,
-                      "sellAllInTargetYearAfterTax": 172762.61,
+                      "sellAllInTargetYearTotalTax": 52205.81,
+                      "sellAllInTargetYearAfterTax": 172628.91,
                       "optimizedSavingsVsTargetYearSale": 0,
                       "optimizedSavingsPct": 0
                     },
@@ -2322,13 +2409,13 @@
                       0
                     ],
                     "shortfall": {
-                      "maxAchievableAfterTax": 172762.61,
-                      "gap": 27237.39
+                      "maxAchievableAfterTax": 172628.91,
+                      "gap": 27371.09
                     }
                   },
-                  "wealthAtTarget": 172762.61,
-                  "totalTax": 52072.11,
-                  "shortfallProbability": 0.7065737034819962
+                  "wealthAtTarget": 172628.91,
+                  "totalTax": 52205.81,
+                  "shortfallProbability": 0.707113403289392
                 },
                 "frontier": [],
                 "targetAfterTax": 200000,
@@ -2383,8 +2470,8 @@
                 "sharesToSell": 150,
                 "totalShares": 300,
                 "totalGross": 27000,
-                "totalTax": 184.3000000000011,
-                "totalAfterTax": 26815.699999999997,
+                "totalTax": 184.29999999999927,
+                "totalAfterTax": 26815.7,
                 "schedule": [
                   {
                     "year": 2026,
@@ -2398,13 +2485,13 @@
                         "grossProceeds": 14400,
                         "gainAmount": -2400,
                         "isLongTerm": false,
-                        "taxAttributed": -799.1999999999989
+                        "taxAttributed": -799.2000000000007
                       }
                     ],
                     "netLong": 0,
                     "netShort": -2400,
-                    "tax": -799.1999999999989,
-                    "effectiveRate": -0.055499999999999924,
+                    "tax": -799.2000000000007,
+                    "effectiveRate": -0.05550000000000005,
                     "carryforwardGenerated": 0
                   },
                   {
@@ -2431,28 +2518,28 @@
                 ],
                 "keptUnrealizedGain": 11700,
                 "carryforwardRemaining": 0,
-                "headlineAfterTaxKept": 26815.699999999997,
-                "headlineDeltaVsFifo": 3103.3999999999996,
+                "headlineAfterTaxKept": 26815.7,
+                "headlineDeltaVsFifo": 3103.4000000000033,
                 "attribution": {
-                  "lotSelection": 3103.3999999999996,
-                  "spreadingDeferral": -4.547473508864641e-13,
+                  "lotSelection": 3103.4000000000033,
+                  "spreadingDeferral": -4.092726157978177e-12,
                   "total": 3103.399999999999
                 },
                 "horizonCards": [
                   {
                     "horizonYears": 1,
-                    "totalTax": 309.1000000000011,
-                    "afterTaxKept": 26690.899999999998
+                    "totalTax": 309.0999999999993,
+                    "afterTaxKept": 26690.9
                   },
                   {
                     "horizonYears": 2,
-                    "totalTax": 184.3000000000011,
-                    "afterTaxKept": 26815.699999999997
+                    "totalTax": 184.29999999999927,
+                    "afterTaxKept": 26815.7
                   },
                   {
                     "horizonYears": 3,
-                    "totalTax": 184.3000000000011,
-                    "afterTaxKept": 26815.699999999997
+                    "totalTax": 184.29999999999927,
+                    "afterTaxKept": 26815.7
                   }
                 ],
                 "deferralCallouts": []
@@ -2558,7 +2645,12 @@
           "ordinaryIncome": {
             "type": "number",
             "minimum": 0,
-            "description": "Annual ordinary income excluding the exercise. Taxable income after deductions, not gross wages: no standard or itemized deduction is applied."
+            "description": "Annual ordinary income excluding the exercise. Taxable income after deductions, not gross wages: regular tax is figured on it as given. For the AMT the calculation adds the standard deduction back (Form 6251, line 2a), unless `itemizedTaxes` is given, in which case it adds back those taxes instead."
+          },
+          "itemizedTaxes": {
+            "type": "number",
+            "minimum": 0,
+            "description": "Only if you itemize deductions: the state and local taxes deducted on Schedule A, line 7. The AMT adds these back instead of the standard deduction. Omit if you take the standard deduction. When omitted, the AMT add-back defaults to the full standard deduction."
           },
           "stateCode": {
             "$ref": "#/components/schemas/StateCode"
@@ -3290,6 +3382,10 @@
                           "type": "number",
                           "description": "Bargain element recognized this year in dollars: shares x (projected FMV - strike)."
                         },
+                        "amti": {
+                          "type": "number",
+                          "description": "Federal alternative minimum taxable income (AMTI) for the year in dollars (Form 6251 line 4): ordinaryIncome, plus the standard deduction the AMT disallows (or itemizedTaxes for an itemizer), plus bargain."
+                        },
                         "regularFederal": {
                           "type": "number",
                           "description": "Regular federal income tax for the year in dollars (ordinary income only, before AMT)."
@@ -3314,6 +3410,10 @@
                           "type": "number",
                           "description": "State AMT owed above regular state tax this year in dollars."
                         },
+                        "stateTaxOnSpread": {
+                          "type": "number",
+                          "description": "State tax on this year's bargain element at exercise in dollars, in a state that taxes an ISO spread at exercise (Pennsylvania); 0 elsewhere. Included in cashTax."
+                        },
                         "creditRecovered": {
                           "type": "number",
                           "description": "Federal AMT credit applied (recovered) this year in dollars."
@@ -3327,12 +3427,14 @@
                         "year",
                         "shares",
                         "bargain",
+                        "amti",
                         "regularFederal",
                         "regularState",
                         "tmtFederal",
                         "tmtState",
                         "amtOwedFederal",
                         "amtOwedState",
+                        "stateTaxOnSpread",
                         "creditRecovered",
                         "cashTax"
                       ]
@@ -3373,7 +3475,7 @@
                   },
                   "stateLTCG": {
                     "type": "number",
-                    "description": "State long-term capital gains tax on grossGain in dollars."
+                    "description": "State long-term capital gains tax on grossGain in dollars (in a state that taxed the spread at exercise, on the gain above that spread)."
                   },
                   "amtPremiumFV": {
                     "type": "number",
@@ -3431,6 +3533,10 @@
                           "type": "number",
                           "description": "Bargain element recognized this year in dollars: shares x (projected FMV - strike)."
                         },
+                        "amti": {
+                          "type": "number",
+                          "description": "Federal alternative minimum taxable income (AMTI) for the year in dollars (Form 6251 line 4): ordinaryIncome, plus the standard deduction the AMT disallows (or itemizedTaxes for an itemizer), plus bargain."
+                        },
                         "regularFederal": {
                           "type": "number",
                           "description": "Regular federal income tax for the year in dollars (ordinary income only, before AMT)."
@@ -3455,6 +3561,10 @@
                           "type": "number",
                           "description": "State AMT owed above regular state tax this year in dollars."
                         },
+                        "stateTaxOnSpread": {
+                          "type": "number",
+                          "description": "State tax on this year's bargain element at exercise in dollars, in a state that taxes an ISO spread at exercise (Pennsylvania); 0 elsewhere. Included in cashTax."
+                        },
                         "creditRecovered": {
                           "type": "number",
                           "description": "Federal AMT credit applied (recovered) this year in dollars."
@@ -3468,12 +3578,14 @@
                         "year",
                         "shares",
                         "bargain",
+                        "amti",
                         "regularFederal",
                         "regularState",
                         "tmtFederal",
                         "tmtState",
                         "amtOwedFederal",
                         "amtOwedState",
+                        "stateTaxOnSpread",
                         "creditRecovered",
                         "cashTax"
                       ]
@@ -3514,7 +3626,7 @@
                   },
                   "stateLTCG": {
                     "type": "number",
-                    "description": "State long-term capital gains tax on grossGain in dollars."
+                    "description": "State long-term capital gains tax on grossGain in dollars (in a state that taxed the spread at exercise, on the gain above that spread)."
                   },
                   "amtPremiumFV": {
                     "type": "number",
@@ -3572,6 +3684,10 @@
                           "type": "number",
                           "description": "Bargain element recognized this year in dollars: shares x (projected FMV - strike)."
                         },
+                        "amti": {
+                          "type": "number",
+                          "description": "Federal alternative minimum taxable income (AMTI) for the year in dollars (Form 6251 line 4): ordinaryIncome, plus the standard deduction the AMT disallows (or itemizedTaxes for an itemizer), plus bargain."
+                        },
                         "regularFederal": {
                           "type": "number",
                           "description": "Regular federal income tax for the year in dollars (ordinary income only, before AMT)."
@@ -3596,6 +3712,10 @@
                           "type": "number",
                           "description": "State AMT owed above regular state tax this year in dollars."
                         },
+                        "stateTaxOnSpread": {
+                          "type": "number",
+                          "description": "State tax on this year's bargain element at exercise in dollars, in a state that taxes an ISO spread at exercise (Pennsylvania); 0 elsewhere. Included in cashTax."
+                        },
                         "creditRecovered": {
                           "type": "number",
                           "description": "Federal AMT credit applied (recovered) this year in dollars."
@@ -3609,12 +3729,14 @@
                         "year",
                         "shares",
                         "bargain",
+                        "amti",
                         "regularFederal",
                         "regularState",
                         "tmtFederal",
                         "tmtState",
                         "amtOwedFederal",
                         "amtOwedState",
+                        "stateTaxOnSpread",
                         "creditRecovered",
                         "cashTax"
                       ]
@@ -3655,7 +3777,7 @@
                   },
                   "stateLTCG": {
                     "type": "number",
-                    "description": "State long-term capital gains tax on grossGain in dollars."
+                    "description": "State long-term capital gains tax on grossGain in dollars (in a state that taxed the spread at exercise, on the gain above that spread)."
                   },
                   "amtPremiumFV": {
                     "type": "number",
@@ -3817,6 +3939,10 @@
                           "type": "number",
                           "description": "Bargain element recognized this year in dollars: shares x (projected FMV - strike)."
                         },
+                        "amti": {
+                          "type": "number",
+                          "description": "Federal alternative minimum taxable income (AMTI) for the year in dollars (Form 6251 line 4): ordinaryIncome, plus the standard deduction the AMT disallows (or itemizedTaxes for an itemizer), plus bargain."
+                        },
                         "regularFederal": {
                           "type": "number",
                           "description": "Regular federal income tax for the year in dollars (ordinary income only, before AMT)."
@@ -3841,6 +3967,10 @@
                           "type": "number",
                           "description": "State AMT owed above regular state tax this year in dollars."
                         },
+                        "stateTaxOnSpread": {
+                          "type": "number",
+                          "description": "State tax on this year's bargain element at exercise in dollars, in a state that taxes an ISO spread at exercise (Pennsylvania); 0 elsewhere. Included in cashTax."
+                        },
                         "creditRecovered": {
                           "type": "number",
                           "description": "Federal AMT credit applied (recovered) this year in dollars."
@@ -3854,12 +3984,14 @@
                         "year",
                         "shares",
                         "bargain",
+                        "amti",
                         "regularFederal",
                         "regularState",
                         "tmtFederal",
                         "tmtState",
                         "amtOwedFederal",
                         "amtOwedState",
+                        "stateTaxOnSpread",
                         "creditRecovered",
                         "cashTax"
                       ]
@@ -3900,7 +4032,7 @@
                   },
                   "stateLTCG": {
                     "type": "number",
-                    "description": "State long-term capital gains tax on grossGain in dollars."
+                    "description": "State long-term capital gains tax on grossGain in dollars (in a state that taxed the spread at exercise, on the gain above that spread)."
                   },
                   "amtPremiumFV": {
                     "type": "number",
@@ -4552,7 +4684,7 @@
                         "type": "array",
                         "items": {
                           "type": "object",
-                          "description": "One tax slice: a dollar amount taxed at one rate.",
+                          "description": "One tax slice: a dollar amount taxed at one rate, or one state adjustment row (when `detail` is present).",
                           "properties": {
                             "label": {
                               "type": "string",
@@ -4568,7 +4700,11 @@
                             },
                             "tax": {
                               "type": "number",
-                              "description": "Tax in dollars: amount x rate."
+                              "description": "Tax in dollars: amount x rate, or the adjustment itself when `detail` is present."
+                            },
+                            "detail": {
+                              "type": "string",
+                              "description": "Present only on an adjustment row (rate and amount 0): what the state brackets alone do not explain, such as deductions phasing out, add-ons and credits."
                             }
                           },
                           "required": [
@@ -4621,7 +4757,7 @@
                   "type": "array",
                   "items": {
                     "type": "object",
-                    "description": "One tax slice: a dollar amount taxed at one rate.",
+                    "description": "One tax slice: a dollar amount taxed at one rate, or one state adjustment row (when `detail` is present).",
                     "properties": {
                       "label": {
                         "type": "string",
@@ -4637,7 +4773,11 @@
                       },
                       "tax": {
                         "type": "number",
-                        "description": "Tax in dollars: amount x rate."
+                        "description": "Tax in dollars: amount x rate, or the adjustment itself when `detail` is present."
+                      },
+                      "detail": {
+                        "type": "string",
+                        "description": "Present only on an adjustment row (rate and amount 0): what the state brackets alone do not explain, such as deductions phasing out, add-ons and credits."
                       }
                     },
                     "required": [

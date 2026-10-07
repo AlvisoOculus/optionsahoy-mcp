@@ -53,48 +53,70 @@
       "single": [
         {
           "min": 0,
-          "rate": 0.0222
+          "rate": 0.0211
         },
         {
           "min": 10000,
-          "rate": 0.0296
+          "rate": 0.0281
         },
         {
           "min": 25000,
-          "rate": 0.0333
+          "rate": 0.0316
         },
         {
           "min": 40000,
-          "rate": 0.0444
+          "rate": 0.0422
         },
         {
           "min": 60000,
-          "rate": 0.0482
+          "rate": 0.0458
         }
       ],
       "married_joint": [
         {
           "min": 0,
-          "rate": 0.0222
+          "rate": 0.0211
         },
         {
           "min": 10000,
-          "rate": 0.0296
+          "rate": 0.0281
         },
         {
           "min": 25000,
-          "rate": 0.0333
+          "rate": 0.0316
         },
         {
           "min": 40000,
-          "rate": 0.0444
+          "rate": 0.0422
         },
         {
           "min": 60000,
-          "rate": 0.0482
+          "rate": 0.0458
         }
       ],
-      "notes": ""
+      "head_household": [
+        {
+          "min": 0,
+          "rate": 0.0211
+        },
+        {
+          "min": 10000,
+          "rate": 0.0281
+        },
+        {
+          "min": 25000,
+          "rate": 0.0316
+        },
+        {
+          "min": 40000,
+          "rate": 0.0422
+        },
+        {
+          "min": 60000,
+          "rate": 0.0458
+        }
+      ],
+      "notes": "2026 rates under SB 392 (W. Va. Code 11-21-4j), retroactive to January 1, 2026; one schedule for single, joint and head of household. https://www.wvlegislature.gov/Bill_Text_HTML/2026_SESSIONS/RS/bills/sb392%20sub1%20enr.pdf"
     }
   }
 }
