@@ -175,7 +175,16 @@ export function asObject(raw: unknown): Obj {
   if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) {
     throw new Error('body must be a JSON object');
   }
-  return raw as Obj;
+  // A null field means "not provided". OpenAI strict-mode tool calling makes
+  // every optional field required-but-nullable, so those callers send null for
+  // each one they do not know, and a null used to fail as "must be a finite
+  // number" instead of reaching the absent-field path (default, ticker lookup,
+  // disclosed fallback, or a plain "required"). No input gives null its own
+  // meaning: terminationDate, the one nullable input, already reads it as absent.
+  const o = raw as Obj;
+  return Object.values(o).includes(null)
+    ? Object.fromEntries(Object.entries(o).filter(([, v]) => v !== null))
+    : o;
 }
 
 // Inclusive numeric bounds, mirroring the `minimum`/`maximum` declared on each
@@ -279,6 +288,9 @@ export const p = {
     if (typeof v === 'string' && NUM_STRING_RE.test(v)) {
       v = Number(v.replace(NUM_STRIP_RE, ''));
     }
+    // Absent and malformed are different mistakes: "must be a finite number"
+    // for a field the caller never sent gave a model nothing to fix.
+    if (v === undefined) return checkBounds(k, fail(`field "${k}" required (a number)`, b?.min ?? 0), b);
     if (typeof v !== 'number' || !Number.isFinite(v)) {
       return checkBounds(k, fail(`field "${k}" must be a finite number`, b?.min ?? 0), b);
     }
@@ -291,11 +303,13 @@ export const p = {
   },
   str(o: Obj, k: string): string {
     const v = o[k];
+    if (v === undefined) return fail(`field "${k}" required (a string)`, '');
     if (typeof v !== 'string') return fail(`field "${k}" must be a string`, '');
     return v;
   },
   bool(o: Obj, k: string): boolean {
     const v = o[k];
+    if (v === undefined) return fail(`field "${k}" required (true or false)`, false);
     if (typeof v !== 'boolean') return fail(`field "${k}" must be a boolean`, false);
     return v;
   },
@@ -304,6 +318,7 @@ export const p = {
     // Name the expected format in both error paths: a model that gets the
     // bare "not a valid date" tends to retry with another bad guess, while
     // an example self-corrects in one round trip.
+    if (v === undefined) return fail(`field "${k}" required (an ISO date like "2028-06-30")`, new Date());
     if (typeof v !== 'string') return fail(`field "${k}" must be an ISO date string like "2028-06-30"`, new Date());
     const d = new Date(v);
     if (Number.isNaN(d.getTime())) return fail(`field "${k}" is not a valid date; use ISO format like "2028-06-30"`, new Date());
@@ -314,12 +329,13 @@ export const p = {
   },
   enum<T extends string>(o: Obj, k: string, allowed: readonly T[]): T {
     const v = o[k];
+    if (v === undefined) return fail(`field "${k}" required (one of: ${allowed.join(', ')})`, allowed[0]);
     if (typeof v !== 'string' || !(allowed as readonly string[]).includes(v)) {
       return fail(`field "${k}" must be one of: ${allowed.join(', ')}`, allowed[0]);
     }
     return v as T;
   },
   optNum(o: Obj, k: string, b?: Bounds): number | undefined {
-    return o[k] === undefined ? undefined : p.num(o, k, b);
+    return o[k] == null ? undefined : p.num(o, k, b);
   },
 };

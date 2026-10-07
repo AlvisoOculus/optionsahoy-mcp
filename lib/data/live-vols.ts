@@ -237,21 +237,49 @@ export function getLiveVol(ticker: string, now: Date = new Date()): number | nul
   // like "constructor" or "__proto__" would otherwise read off Object.prototype.
   const symbol = canonicalTicker(ticker);
   if (!Object.hasOwn(m.doc.vols, symbol)) return null;
-  const entry = m.doc.vols[symbol];
-  if (!entry || typeof entry !== 'object') return null;
+  return entrySigma(m.doc.vols[symbol], now);
+}
 
+// The per-entry gate both readers apply: a sane sigma, as of the last close.
+function entrySigma(entry: unknown, now: Date): number | null {
+  if (!entry || typeof entry !== 'object') return null;
+  const { atmIV1y: iv, asOf } = entry as LiveVolEntry;
   // Same sanity bound the baked reader applied: a sigma outside (0, 5] is a
   // pipeline defect, not a volatile stock, and must not reach a calculator.
-  const iv = entry.atmIV1y;
   if (typeof iv !== 'number' || !Number.isFinite(iv) || iv <= 0 || iv > 5) return null;
-
   // THE FRESHNESS GATE. `asOf` is epoch SECONDS of the source chain; the
   // cutoff is 00:00 UTC of the last trading day (see ./market-calendar for why
   // that day is strictly before today, why the producer must agree, and why
   // both readers ask through one predicate).
-  if (!isAsOfFresh(entry.asOf, now)) return null;
-
+  if (!isAsOfFresh(asOf, now)) return null;
   return iv;
+}
+
+/** Below this many fresh entries a median describes a few stocks, not the market. */
+export const MARKET_VOL_MIN_ENTRIES = 50;
+
+/**
+ * The median implied volatility across every covered ticker as of the last
+ * close, and how many entries it spans; null when the memo is cold or failed,
+ * or too few entries pass the gate. It is the disclosed placeholder for a
+ * caller who has no volatility to give (assumeMarketVol in
+ * functions/_lib/calc-parsers): a startup employee planning an ISO exercise
+ * has no ticker and no idea what an implied volatility is. 554 tickers on
+ * 2026-10-07, median 38.1%.
+ */
+export function getMarketMedianVol(now: Date = new Date()): { sigma: number; n: number } | null {
+  const m = memo;
+  if (!isFresh(m, Date.now()) || m.doc === null || m.doc.schemaV !== VOLS_SCHEMA_V) return null;
+  const sigmas: number[] = [];
+  for (const entry of Object.values(m.doc.vols)) {
+    const s = entrySigma(entry, now);
+    if (s !== null) sigmas.push(s);
+  }
+  if (sigmas.length < MARKET_VOL_MIN_ENTRIES) return null;
+  sigmas.sort((a, b) => a - b);
+  const mid = sigmas.length >> 1;
+  const sigma = sigmas.length % 2 ? sigmas[mid] : (sigmas[mid - 1] + sigmas[mid]) / 2;
+  return { sigma, n: sigmas.length };
 }
 
 /** Test seam. Tests inject a fixture document (or a remembered failure)

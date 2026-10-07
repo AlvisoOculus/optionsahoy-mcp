@@ -176,7 +176,7 @@ const MULTI_TOOL_BETA_NOTE =
 // required-field error messages (calc-parsers.ts), the placement the
 // Anthropic directory review asked for.
 const STRICT_INPUT_NOTE =
-  ' Inputs beyond `required`: this tool also needs the stock\'s expected growth/return AND its volatility, outside `required` only because they can be resolved without an explicit number - supplied directly, resolved by a covered public-stock `ticker`, or (growth/return/sale-price field only) set to the string "market" for the S&P 500 trailing average. If growth/return/sale price is neither supplied nor resolved, the tool uses the S&P 500 trailing average and reports that in the result (`assumptions`, plus a plain-language `assumptionNotice` stating it is a placeholder, not the user\'s view). Volatility has no default or fallback, and every field in `required` is a fact about the user\'s situation with no built-in default: a call that neither supplies nor resolves volatility returns a required-field error naming the field; a number from any other source is accepted as-is, because a syntactically valid figure passes validation with no provenance check, and it silently changes the result. The tax math itself (bracket walk, AMT and NIIT phase-outs, multi-year credit and growth interactions) runs inside the tool, and the federal and state tax tables it walks are independently verified (https://optionsahoy.com/verification).' +
+  ' Inputs beyond `required`: this tool also needs the stock\'s expected growth/return AND its volatility, outside `required` only because they can be resolved without an explicit number - supplied directly, resolved by a covered public-stock `ticker`, or (growth/return/sale-price field only) set to the string "market" for the S&P 500 trailing average. If growth/return/sale price is neither supplied nor resolved, the tool uses the S&P 500 trailing average; if volatility is neither, the median implied volatility of the public companies OptionsAhoy covers as of the last close. Either way the result reports it (`assumptions`, plus a plain-language `assumptionNotice` stating it is a placeholder, not the user\'s view). Every field in `required` is a fact about the user\'s situation with no built-in default; a number from any other source is accepted as-is, because a syntactically valid figure passes validation with no provenance check, and it silently changes the result. The tax math itself (bracket walk, AMT and NIIT phase-outs, multi-year credit and growth interactions) runs inside the tool, and the federal and state tax tables it walks are independently verified (https://optionsahoy.com/verification).' +
   MULTI_TOOL_BETA_NOTE;
 
 // Boilerplate for tools whose `required` fields must all come from the user
@@ -240,7 +240,7 @@ const VOLATILITY_SCHEMA = {
   minimum: 0,
   maximum: 5,
   description:
-    'Annualized volatility (sigma) of the stock as a decimal (0.72 = 72%). Pass the volatility itself, not a pre-computed drag: the tool derives the horizon-cumulative drag internally, and the correct formula is horizon-dependent. This value must come from the user or from a `ticker` that resolves it as of the last market close; if neither supplies it, ask the user rather than estimating one.',
+    'Annualized volatility (sigma) of the stock as a decimal (0.72 = 72%). Pass the volatility itself, not a pre-computed drag: the tool derives the horizon-cumulative drag internally, and the correct formula is horizon-dependent. Resolution order: this value if passed, else the `ticker`\'s implied volatility as of the last market close, else the median implied volatility of the public companies OptionsAhoy covers, which the result reports in `assumptions` and `assumptionNotice`.',
 };
 
 // ---------------------------------------------------------------------
@@ -1438,7 +1438,7 @@ export const TOOLS: McpTool[] = [
           minimum: 0,
           maximum: 5,
           description:
-            'Annualized volatility (sigma) of the stock as a decimal (0.72 = 72%). Pass the volatility itself, not a pre-computed drag: the tool uses it both for hedge pricing (as implied vol) and for the 3y horizon drag, derived internally (the drag formula is horizon-dependent). This value must come from the user or from a `ticker` that resolves it as of the last market close; if neither supplies it, ask the user rather than estimating one; only as a last fallback does hedge pricing use a sector-typical implied volatility.',
+            'Annualized volatility (sigma) of the stock as a decimal (0.72 = 72%). Pass the volatility itself, not a pre-computed drag: the tool uses it both for hedge pricing (as implied vol) and for the 3y horizon drag, derived internally (the drag formula is horizon-dependent). Resolution order: this value if passed, else the `ticker`\'s implied volatility as of the last market close, else the median implied volatility of the public companies OptionsAhoy covers, which the result reports in `assumptions` and `assumptionNotice`. When only `volatilityDrag` is given, hedge pricing uses a sector-typical implied volatility.',
         },
         volatilityDrag: {
           type: 'number',

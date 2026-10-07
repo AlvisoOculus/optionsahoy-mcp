@@ -291,7 +291,8 @@ describe('tolerant numeric reader (LLM callers quote numbers)', () => {
       expect(() => p.num({ x: bad }, 'x'), `should reject "${bad}"`).toThrow('finite number');
     }
     expect(() => p.num({ x: true }, 'x')).toThrow('finite number');
-    expect(() => p.num({}, 'x')).toThrow('finite number');
+    // Absent is its own mistake, named as such (a model can fix "required").
+    expect(() => p.num({}, 'x')).toThrow('field "x" required (a number)');
   });
 
   it('rejects non-thousands comma placement (European decimals must not 10x)', () => {

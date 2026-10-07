@@ -22,7 +22,7 @@ import type { LotDivestInput, LotDivestLot } from '../../lib/calc/lotDivest';
 import { asObject, p, FILING_STATUSES, type Obj } from './api';
 import { STATE_CODES } from '../../lib/tax/state-tax';
 import { getTrailingReturn, hasTrailingReturn, isKnownTicker } from '../../lib/data/trailing-returns';
-import { getLiveVol, VOL_UNRESOLVED_REASON, warmVolSnapshot } from '../../lib/data/live-vols';
+import { getLiveVol, getMarketMedianVol, VOL_UNRESOLVED_REASON, warmVolSnapshot } from '../../lib/data/live-vols';
 import { getChainAtmVol, getLiveChain, warmChain } from '../../lib/data/live-chain';
 import { warmGrowthSnapshot } from '../../lib/data/live-growth';
 import { chainHedgePricing, type ChainHedgePricing } from '../../lib/data/chain-hedge-inputs';
@@ -141,12 +141,12 @@ function resolveDragFromVolatility(o: Obj, dragField: string, horizonYears: numb
   }
   if (o.ticker !== undefined) {
     if (isMarketSentinel(o.ticker)) throw marketAsTickerError('volatility');
-    const sigma = resolveSigmaFromTicker(o);
+    const sigma = resolveSigmaFromTicker(o) ?? assumeMarketVol(o);
     if (sigma !== null) return lognormalHaircut(sigma, horizonYears);
-    // No provenance field on this path: it throws rather than falling back, so
-    // a drag that IS returned came from explicit-or-ticker and the caller knows
-    // which. Give these tools a fallback and they get `volatilitySource` too
-    // (see resolveProtectivePutSigma below).
+    // No sigma for the ticker: an armed caller gets the disclosed market median
+    // (assumeMarketVol records it in `assumptions`); an unarmed one gets this
+    // error, so a drag returned without an assumption came from explicit-or-
+    // ticker and the caller knows which.
     // WHAT THIS MUST NOT SAY: "that ticker is not in our table". Five of the
     // six ways this branch is reached (CDN timeout, non-200, unparseable body,
     // wrong schemaV, entry older than the last close) have nothing to do with
@@ -158,6 +158,8 @@ function resolveDragFromVolatility(o: Obj, dragField: string, horizonYears: numb
       `field "volatility" required: could not resolve a current implied volatility for ticker "${p.str(o, 'ticker')}" (${VOL_UNRESOLVED_REASON}). Pass "volatility" explicitly (annualized sigma, e.g. 0.30 for 30%) - do not invent one. ${ASK_USER_HINT}`,
     );
   }
+  const assumed = assumeMarketVol(o);
+  if (assumed !== null) return lognormalHaircut(assumed, horizonYears);
   throw new Error(
     `field "volatility" required: annualized sigma of the stock as a decimal (e.g. 0.30 for 30%). Or set "ticker" to a public-stock symbol to resolve its implied volatility as of the last market close. ${ASK_USER_HINT}`,
   );
@@ -210,19 +212,25 @@ function resolveDragFromVolatility(o: Obj, dragField: string, horizonYears: numb
 //                     tool prices at a single sigma by construction, so a chain
 //                     would buy it nothing and cost its every ticker call a
 //                     second round-trip.
-type TickerLookups = { volShortCircuit: string | null; chain: boolean };
+//   volFallback     = with no sigma to be had, the parser falls back to the
+//                     disclosed market-median volatility (assumeMarketVol),
+//                     so a call with neither `volatility` nor `ticker` still
+//                     needs the vols document warmed. False for
+//                     protective_put_price, whose fallback is its own
+//                     sector-typical sigma.
+type TickerLookups = { volShortCircuit: string | null; chain: boolean; volFallback: boolean };
 
 const TICKER_LOOKUPS: Record<string, TickerLookups> = {
-  amt_iso_optimize: { volShortCircuit: 'volatilityDrag', chain: false },
-  'amt-iso': { volShortCircuit: 'volatilityDrag', chain: false },
-  nso_calculate: { volShortCircuit: 'haircut', chain: false },
-  nso: { volShortCircuit: 'haircut', chain: false },
-  rsu_sell_vs_hold: { volShortCircuit: 'haircut', chain: false },
-  'rsu-sell-vs-hold': { volShortCircuit: 'haircut', chain: false },
-  concentration_analyze: { volShortCircuit: null, chain: false },
-  concentration: { volShortCircuit: null, chain: false },
-  protective_put_price: { volShortCircuit: null, chain: true },
-  'protective-put': { volShortCircuit: null, chain: true },
+  amt_iso_optimize: { volShortCircuit: 'volatilityDrag', chain: false, volFallback: true },
+  'amt-iso': { volShortCircuit: 'volatilityDrag', chain: false, volFallback: true },
+  nso_calculate: { volShortCircuit: 'haircut', chain: false, volFallback: true },
+  nso: { volShortCircuit: 'haircut', chain: false, volFallback: true },
+  rsu_sell_vs_hold: { volShortCircuit: 'haircut', chain: false, volFallback: true },
+  'rsu-sell-vs-hold': { volShortCircuit: 'haircut', chain: false, volFallback: true },
+  concentration_analyze: { volShortCircuit: null, chain: false, volFallback: true },
+  concentration: { volShortCircuit: null, chain: false, volFallback: true },
+  protective_put_price: { volShortCircuit: null, chain: true, volFallback: false },
+  'protective-put': { volShortCircuit: null, chain: true, volFallback: false },
 };
 
 // Both gates below start here: a registered tool, a plain-object argument bag,
@@ -232,8 +240,10 @@ function tickerLookupArgs(toolOrSlug: string, rawArgs: unknown): Record<string, 
   if (!Object.hasOwn(TICKER_LOOKUPS, toolOrSlug)) return null;
   if (rawArgs === null || typeof rawArgs !== 'object' || Array.isArray(rawArgs)) return null;
   const o = rawArgs as Record<string, unknown>;
-  if (o.ticker === undefined) return null;
-  if (o.volatility !== undefined) return null;
+  // == null, not === undefined: asObject drops null fields before parsing, so
+  // a null must read as absent here too or the warm and the parse disagree.
+  if (o.ticker == null) return null;
+  if (o.volatility != null) return null;
   return o;
 }
 
@@ -252,7 +262,20 @@ export function mayResolveVolFromTicker(toolOrSlug: string, rawArgs: unknown): b
   const o = tickerLookupArgs(toolOrSlug, rawArgs);
   if (o === null) return false;
   const shortCircuit = TICKER_LOOKUPS[toolOrSlug]!.volShortCircuit;
-  return shortCircuit === null || o[shortCircuit] === undefined;
+  return shortCircuit === null || o[shortCircuit] == null;
+}
+
+/**
+ * True when parsing `rawArgs` could fall back to the market-median volatility
+ * (no `volatility`, no short-circuit field, no `ticker`), which reads the same
+ * vols document. With a ticker, mayResolveVolFromTicker already warms it.
+ */
+export function mayAssumeVol(toolOrSlug: string, rawArgs: unknown): boolean {
+  if (!Object.hasOwn(TICKER_LOOKUPS, toolOrSlug) || !TICKER_LOOKUPS[toolOrSlug]!.volFallback) return false;
+  if (rawArgs === null || typeof rawArgs !== 'object' || Array.isArray(rawArgs)) return false;
+  const o = rawArgs as Record<string, unknown>;
+  const shortCircuit = TICKER_LOOKUPS[toolOrSlug]!.volShortCircuit;
+  return o.volatility == null && o.ticker == null && (shortCircuit === null || o[shortCircuit] == null);
 }
 
 /**
@@ -307,7 +330,7 @@ function fetchableTicker(o: Record<string, unknown>): string | null {
  */
 export function warmForCall(toolOrSlug: string, rawArgs: unknown): Promise<void> | null {
   const chainTicker = chainTickerFor(toolOrSlug, rawArgs);
-  const needsVol = mayResolveVolFromTicker(toolOrSlug, rawArgs);
+  const needsVol = mayResolveVolFromTicker(toolOrSlug, rawArgs) || mayAssumeVol(toolOrSlug, rawArgs);
   const needsGrowth = mayResolveGrowth(toolOrSlug, rawArgs);
   if (!needsVol && chainTicker === null && !needsGrowth) return null;
   const pending: Promise<void>[] = [];
@@ -345,10 +368,10 @@ const GROWTH_READS: Record<string, { byTicker: string[]; byDefault: string[]; st
 function readsGrowth(o: Record<string, unknown>, rule: { byTicker: string[]; byDefault: string[] }): boolean {
   const hasTicker = typeof o.ticker === 'string' && o.ticker.trim() !== '';
   for (const f of rule.byTicker) {
-    if (isMarketSentinel(o[f]) || (o[f] === undefined && hasTicker)) return true;
+    if (isMarketSentinel(o[f]) || (o[f] == null && hasTicker)) return true;
   }
   for (const f of rule.byDefault) {
-    if (o[f] === undefined || isMarketSentinel(o[f])) return true;
+    if (o[f] == null || isMarketSentinel(o[f])) return true;
   }
   return false;
 }
@@ -386,7 +409,8 @@ export interface GrowthAssumption {
   field: string;
   /** The value the field took: a rate, or for expectedSalePrice a $/share. */
   value: number;
-  /** The annual growth rate behind it (the S&P 500 trailing average). */
+  /** The annual rate behind it: the S&P 500 trailing growth rate, or for
+   *  `volatility` the annualized sigma itself. */
   annualRate: number;
   basis: string;
   reason: string;
@@ -464,6 +488,35 @@ function assumeMarketGrowth(
     reason: ticker ? `could not be derived from ticker "${ticker}" (no trailing returns for it)` : 'was not provided',
   });
   return value;
+}
+
+// The volatility counterpart: with no sigma from the caller or the ticker, use
+// the median implied volatility across every covered stock as of the last
+// close, and RECORD it (same armed-collector rule as growth: unarmed callers
+// such as Poe keep the "volatility required" error and ask the user). One
+// assumption per parse: concentration reads the sigma twice (drag and hedge).
+function assumeMarketVol(o: Obj): number | null {
+  if (!assumptionCollector) return null;
+  const prior = assumedVol();
+  if (prior !== null) return prior;
+  const market = getMarketMedianVol();
+  if (market === null) return null;
+  const ticker = typeof o.ticker === 'string' ? o.ticker : null;
+  assumptionCollector.push({
+    field: 'volatility',
+    value: market.sigma,
+    annualRate: market.sigma,
+    basis: `the median implied volatility of the ${market.n} public companies OptionsAhoy covers (${(market.sigma * 100).toFixed(1)}% a year, as of the last market close)`,
+    reason: ticker
+      ? `could not be resolved for ticker "${ticker}" (no current implied volatility for it in OptionsAhoy's data or its option chain)`
+      : 'was not provided',
+  });
+  return market.sigma;
+}
+
+// The volatility this parse already assumed, or null.
+function assumedVol(): number | null {
+  return assumptionCollector?.find((a) => a.field === 'volatility')?.value ?? null;
 }
 
 // One resolution ladder for every growth/return field: "market" sentinel →
@@ -655,8 +708,10 @@ export function parseConcentrationInput(raw: unknown): ConcentrationInputs {
     expectedMarketReturn: resolveMarketReturn(o, CONCENTRATION_HORIZON_YEARS),
     volatilityDrag: resolveDragFromVolatility(o, 'volatilityDrag', CONCENTRATION_HORIZON_YEARS),
   };
-  // Mirror the drag's sigma source so hedge pricing uses the same value.
-  const sigma = o.volatility !== undefined ? p.num(o, 'volatility', SIGMA_BOUNDS) : resolveSigmaFromTicker(o);
+  // Mirror the drag's sigma source so hedge pricing uses the same value,
+  // including a market-median volatility the drag assumed.
+  const sigma =
+    o.volatility !== undefined ? p.num(o, 'volatility', SIGMA_BOUNDS) : resolveSigmaFromTicker(o) ?? assumedVol();
   if (sigma !== null) base.volatility = sigma;
   if (o.hedgeChoice !== undefined) {
     const hc = asObject(o.hedgeChoice);
@@ -870,7 +925,9 @@ export function parseEquityFundingInput(raw: unknown, trustedToday?: Date): Equi
   // rather than letting it fall through to a confusing "infeasible, $0
   // achievable" result. Compare by calendar day so "fund by today" is allowed.
   if (dayUTC(targetDate) < dayUTC(today)) {
-    throw new Error('field "targetDate" must be today or later: the deadline is in the past.');
+    throw new Error(
+      `field "targetDate" must be today or later: the deadline is in the past (today is ${today.toISOString().slice(0, 10)}).`,
+    );
   }
   const horizonYears = Math.max(
     0.25,
