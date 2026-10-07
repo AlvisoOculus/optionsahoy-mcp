@@ -160,7 +160,10 @@ describe('local stdio MCP server', () => {
     expect(i).toMatch(/come in a few kinds/);
     expect(i).toMatch(/pure enhancers/);
     expect(i).toMatch(/Omit those, do not ask the user for them/);
-    expect(i).toMatch(/still need a real value/);
+    // Growth and volatility gained disclosed placeholders (2026-10-04/07);
+    // the model must relay the notice instead of asking for them.
+    expect(i).toMatch(/get a disclosed placeholder/);
+    expect(i).toMatch(/relay that notice/);
     expect(i).toMatch(/terminationDate once hasLeftCompany is true/);
     // The income contract changes what the model must ASK for, so it has to
     // live here and not only in the parameter descriptions.
