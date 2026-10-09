@@ -97,7 +97,16 @@ import {
 // name, a non-JSON body, or a wrong HTTP method. Anything else a tool call
 // logged is an exception our code threw (functions/mcp.ts logs e.message).
 export function isCallerInputError(msg: string): boolean {
-  return /^(parse: )?field "/.test(msg) || /^unknown tool\b/.test(msg) || msg === 'invalid json' || /^method [A-Z]+$/.test(msg);
+  return (
+    /^(parse: )?field "/.test(msg) ||
+    // The stacks/lots error before 2026-10-09 lacked the field "..." prefix;
+    // those rows stay in the call log for months, so read them as what they
+    // were: a caller who sent neither (or both) of stacks and lots.
+    /^(parse: )?(provide )?either "stacks"/.test(msg) ||
+    /^unknown tool\b/.test(msg) ||
+    msg === 'invalid json' ||
+    /^method [A-Z]+$/.test(msg)
+  );
 }
 
 export interface ToolFault { endpoint: string; tool: string | null; error_msg: string; n: number }
