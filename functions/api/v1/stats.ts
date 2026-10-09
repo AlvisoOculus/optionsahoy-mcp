@@ -12,6 +12,7 @@
 // that 60s lag is invisible to a human reader.
 
 import { ensureFresh, readWindows, readTopTools } from '../../_lib/statsRollup';
+import { readToolCallStats } from '../../_lib/toolCalls';
 import { type PagesFunction } from '../../_lib/api';
 import { type D1Database } from '../../_lib/stats';
 
@@ -56,12 +57,18 @@ export const onRequest: PagesFunction = async (ctx) => {
   // one instead of scanning the whole call log - the scans behind the
   // 2026-09-01 free-tier read outage.
   const snap = await ensureFresh(db, now);
-  const [windows, top] = await Promise.all([
+  const [windows, top, toolCalls] = await Promise.all([
     readWindows(db, now),
     readTopTools(db, TOP_TOOLS_LIMIT),
+    readToolCallStats(db, now),
   ]);
 
   const payload = {
+    // Usage: successful tool calls from real callers (see _lib/toolCalls.ts).
+    // What /for-agents and the README badge show.
+    toolCalls,
+    // Every logged message, pings and probes included. Kept for existing
+    // readers; not a usage number.
     totalCalls: snap.total,
     last24h: windows.last24h,
     last7d: windows.last7d,
@@ -75,7 +82,8 @@ export const onRequest: PagesFunction = async (ctx) => {
     status: 200,
     headers: {
       'content-type': 'application/json',
-      'cache-control': 'public, max-age=60, s-maxage=60',
+      // Five minutes: the tool-call count reads a few hundred rollup rows.
+      'cache-control': 'public, max-age=300, s-maxage=300',
       ...CORS,
     },
   });

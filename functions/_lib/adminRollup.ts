@@ -301,6 +301,23 @@ export async function readErrFields(
   return r.map((x) => ({ error_msg: x.k1, endpoint: x.k2, client: x.k3, n: x.n }));
 }
 
+// The per-caller rows for calls that ran a calculator (an MCP tools/call or a
+// REST calculator endpoint), one per day: the slice the public tool-call count
+// reads (functions/_lib/toolCalls.ts). About 490 rows for 30 days on
+// 2026-10-09, against 2,586 for the whole callclient dimension.
+export async function readToolCallRows(
+  db: D1Database,
+  day: string,
+): Promise<{ day: string; endpoint: string; client: string; n: number; errors: number }[]> {
+  const r = await rows<{ day: string; k1: string; k2: string; n: number; errors: number }>(
+    db,
+    `SELECT day, k1, k2, n, errors FROM mcp_dim_daily
+      WHERE dim = 'callclient' AND day >= ? AND (k1 = 'mcp:tools/call' OR k1 LIKE 'rest:%')`,
+    [day],
+  );
+  return r.map((x) => ({ day: x.day, endpoint: x.k1, client: x.k2, n: x.n, errors: x.errors }));
+}
+
 export async function readCallClients(
   db: D1Database,
   day: string,

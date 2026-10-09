@@ -63,8 +63,10 @@ describe('GET /api/v1/stats', () => {
     const res = await onRequest(ctx({ MCP_STATS: mockDb() }));
     expect(res.status).toBe(200);
     expect(res.headers.get('content-type')).toMatch(/application\/json/);
-    expect(res.headers.get('cache-control')).toContain('max-age=60');
+    expect(res.headers.get('cache-control')).toContain('max-age=300');
     const json = (await res.json()) as Record<string, unknown>;
+    // The usage number is its own field; the raw totals stay for old readers.
+    expect(json.toolCalls).toEqual({ last7d: expect.any(Number), last30d: expect.any(Number) });
     expect(json.totalCalls).toBe(1234);
     expect(json.last24h).toBe(42);
     expect(json.last7d).toBe(300);
