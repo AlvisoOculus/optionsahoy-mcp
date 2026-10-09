@@ -22,6 +22,7 @@ describe('extractRequiredField', () => {
   it('catches the structural holdings errors that do not lead with field "..."', () => {
     // The single most common equity-funding friction: no holdings supplied.
     expect(extractRequiredField('either "stacks" (v1.7+) or legacy "lots" + "currentPrice" required')).toBe('stacks');
+    expect(extractRequiredField('field "stacks" required: pass "stacks" (v1.7+), or legacy "lots" plus "currentPrice"')).toBe('stacks');
     expect(extractRequiredField('lots[2] must be an object with shares, costBasisPerShare, acquisitionDate')).toBe('lots');
     expect(extractRequiredField('field "shares" required: pass a number, or ticker "NVDA"')).toBe('shares'); // field before ticker
   });

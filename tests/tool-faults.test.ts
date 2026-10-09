@@ -17,6 +17,11 @@ describe('isCallerInputError', () => {
     'unknown tool: foo_bar',
     'invalid json',
     'method GET',
+    // The pre-2026-10-09 stacks/lots wording: three of these turned the daily
+    // MCP health check red as "tool faults" (a caller sent neither).
+    'either "stacks" (v1.7+) or legacy "lots" + "currentPrice" required',
+    'provide either "stacks" (v1.7+) or legacy "lots" + "currentPrice", not both.',
+    'field "stacks" required: pass "stacks" (v1.7+), or legacy "lots" plus "currentPrice"',
   ])('caller error: %s', (m) => expect(isCallerInputError(m)).toBe(true));
 
   it.each([

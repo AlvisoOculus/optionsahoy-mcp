@@ -958,7 +958,7 @@ export function parseEquityFundingInput(raw: unknown, trustedToday?: Date): Equi
   // top-level `lots` silently dropped the lots (stacks won), losing part of the
   // position with no warning. Reject the ambiguous call instead.
   if (o.stacks !== undefined && o.lots !== undefined) {
-    throw new Error('provide either "stacks" (v1.7+) or legacy "lots" + "currentPrice", not both.');
+    throw new Error('field "stacks": pass either "stacks" (v1.7+) or legacy "lots" + "currentPrice", not both.');
   }
 
   if (o.stacks !== undefined) {
@@ -976,7 +976,7 @@ export function parseEquityFundingInput(raw: unknown, trustedToday?: Date): Equi
   const lotsRaw = o.lots;
   if (!Array.isArray(lotsRaw) || lotsRaw.length === 0) {
     throw new Error(
-      'either "stacks" (v1.7+) or legacy "lots" + "currentPrice" required',
+      'field "stacks" required: pass "stacks" (v1.7+), or legacy "lots" plus "currentPrice"',
     );
   }
   base.lots = lotsRaw.map((lot, idx) => parseEquityFundingLot(lot, idx));

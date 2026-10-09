@@ -310,7 +310,7 @@ describe('parseEquityFundingInput error paths', () => {
         filingStatus: 'single',
         stateCode: 'CA',
       }),
-    ).toThrow(/stacks.*or legacy.*lots.*required/);
+    ).toThrow('field "stacks" required: pass "stacks" (v1.7+), or legacy "lots" plus "currentPrice"');
   });
 
   it('throws on invalid date format', () => {
