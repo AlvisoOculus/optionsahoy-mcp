@@ -98,6 +98,15 @@ function mockDb(daily: { day: string; n: number }[], lastTs: number | null): D1D
       if (/FROM stats_snapshot WHERE id = 1/.test(sql)) {
         rows = [{ total, last_id: 1, last_ts: lastTs, computed_at: now }];
       } else if (/FROM mcp_daily ORDER BY day/.test(sql)) rows = daily;
+      // The page plots real tool calls from the per-caller rollup: serve each
+      // day as a real client's calls, plus a monitor the page must not count.
+      else if (/dim = 'callclient'.*mcp:tools\/call/s.test(sql)) {
+        rows = daily.flatMap((d) => [
+          { day: d.day, k1: 'mcp:tools/call', k2: 'claude-ai', n: d.n, errors: 0 },
+          { day: d.day, k1: 'mcp:tools/call', k2: 'optionsahoy-conformance/1', n: 100, errors: 0 },
+          { day: d.day, k1: 'mcp:ping', k2: 'copilot-cli', n: 5000, errors: 0 },
+        ]);
+      }
       const stmt: D1PreparedStatement = {
         bind() {
           return stmt;
@@ -130,8 +139,8 @@ describe('GET /api/v1/usage', () => {
     expect(res.headers.get('content-type')).toContain('text/html');
     const html = await res.text();
     expect(html).toContain('#2E7A7A'); // OA marine
-    expect(html).toContain('total tool calls');
-    expect(html).toContain('10 total'); // 4 + 6
+    // 4 + 6 from the real client; the monitor's 200 and the pings are not usage.
+    expect(html).toContain('10 successful tool calls from real callers');
     expect(html).toMatch(/[█▁▂▃▄▅▆▇]/); // a block glyph rendered
     expect(html).toContain('/api/v1/stats'); // live-data link
     expect(html).toContain('sr-only'); // accessible numbers present

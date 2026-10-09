@@ -46,6 +46,24 @@ export function toolCallStatsFrom(
   return out;
 }
 
+/** Real successful tool calls per UTC day, oldest first (days with none omitted). */
+export function dailyToolCalls(
+  rows: { day: string; endpoint: string; client: string; n: number; errors: number }[],
+): { day: string; n: number }[] {
+  const byDay = new Map<string, number>();
+  for (const r of rows) {
+    if (!isToolCallEndpoint(r.endpoint) || isInfraClient(r.client, surfaceOf(r.endpoint))) continue;
+    byDay.set(r.day, (byDay.get(r.day) ?? 0) + r.n - r.errors);
+  }
+  return [...byDay].filter(([, n]) => n > 0).sort(([a], [b]) => (a < b ? -1 : 1)).map(([day, n]) => ({ day, n }));
+}
+
+/** The whole series, for the /mcp/usage adoption page. The rollup starts 2026-05-27. */
+export async function readDailyToolCalls(db: D1Database, now: number): Promise<{ day: string; n: number }[]> {
+  await ensureDimsFresh(db, now);
+  return dailyToolCalls(await readToolCallRows(db, '0000-00-00'));
+}
+
 export async function readToolCallStats(db: D1Database, now: number): Promise<ToolCallStats> {
   await ensureDimsFresh(db, now);
   return toolCallStatsFrom(await readToolCallRows(db, dayBefore(now, 29)), now);

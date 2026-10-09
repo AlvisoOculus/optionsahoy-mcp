@@ -26,12 +26,12 @@ interface DayRow {
   n: number;
 }
 
-// Rollup-backed: the all-history curve reads mcp_daily (a few hundred
-// rows, one per day) instead of GROUP BY over every call ever logged -
-// the unbounded scan was part of the 2026-09-01 read outage. ensureFresh
-// keeps today's bucket live, and because the curve lives in the rollup it
-// SURVIVES retention deletes of old mcp_calls rows.
-import { ensureFresh, readDaily } from '../_lib/statsRollup';
+// Plots successful tool calls from real callers (functions/_lib/toolCalls.ts),
+// read from the daily per-caller rollup, which starts 2026-05-27 and survives
+// retention deletes of old mcp_calls rows. Until 2026-10-09 it plotted every
+// logged message (mcp_daily) under the label "tool calls": 285,205 of them,
+// mostly keep-alive pings, handshakes, scanners and our own monitors.
+import { readDailyToolCalls } from '../_lib/toolCalls';
 
 const GRAPH_COLS = 56; // constant chart width; days are resampled to fill it
 const HEIGHT = 8; // cumulative chart rows
@@ -114,17 +114,6 @@ export function sparkline(values: number[]): string {
     .join('');
 }
 
-function relativeAge(ms: number | null): string {
-  if (ms == null || !Number.isFinite(ms)) return 'n/a';
-  const sec = Math.round((Date.now() - ms) / 1000);
-  if (sec < 0) return 'just now';
-  if (sec < 60) return `${sec}s ago`;
-  const min = Math.round(sec / 60);
-  if (min < 60) return `${min}m ago`;
-  const hr = Math.round(min / 60);
-  if (hr < 48) return `${hr}h ago`;
-  return `${Math.round(hr / 24)}d ago`;
-}
 
 function esc(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -182,10 +171,7 @@ export const onRequest: PagesFunction = async (ctx) => {
   }
 
   const today = new Date().toISOString().slice(0, 10);
-  const snap = await ensureFresh(db, Date.now());
-  const dailyRows = await readDaily(db);
-  const lastT = snap.last_ts;
-  const rows = dailyRows;
+  const rows = await readDailyToolCalls(db, Date.now());
   if (rows.length === 0) {
     return new Response(emptyPage(), {
       status: 200,
@@ -202,7 +188,6 @@ export const onRequest: PagesFunction = async (ctx) => {
   const spark = sparkline(resampleToWidth(sparkWindow, GRAPH_COLS));
   const numDays = days.length;
   const firstDay = days[0];
-  const lastTs = lastT;
 
   // Cumulative chart with a small y-axis label column + baseline.
   const totalStr = total.toLocaleString('en-US');
@@ -229,17 +214,17 @@ export const onRequest: PagesFunction = async (ctx) => {
     .join(', ');
 
   const inner = `<h1>OptionsAhoy MCP &mdash; adoption</h1>
-<p class="meta">${totalStr} total tool calls &middot; ${esc(firstDay)} &rarr; ${esc(today)} &middot; last call ${relativeAge(lastTs)} &middot; live, refreshes every 5 min</p>
+<p class="meta">${totalStr} successful tool calls from real callers &middot; ${esc(firstDay)} &rarr; ${esc(today)} &middot; our own monitoring, crawlers and scanners excluded; pings and handshakes are not calls &middot; refreshes every 5 min</p>
 
-<h2>Cumulative calls (${colCaption})</h2>
+<h2>Cumulative tool calls (${colCaption})</h2>
 <pre>${esc(chart)}
 ${esc(baseline)}
 ${xaxis}</pre>
 
-<h2>Calls per day (since ${esc(sparkFrom)})</h2>
+<h2>Tool calls per day (since ${esc(sparkFrom)})</h2>
 <pre>${esc(spark)}</pre>
 
-<div class="sr-only">Cumulative total ${total} MCP tool calls from ${esc(firstDay)} through ${esc(today)}. Daily counts for the last 30 days: ${esc(recent)}.</div>`;
+<div class="sr-only">Cumulative total ${total} successful tool calls from real callers from ${esc(firstDay)} through ${esc(today)}. Daily counts for the last 30 days: ${esc(recent)}.</div>`;
 
   return new Response(page(inner), {
     status: 200,
