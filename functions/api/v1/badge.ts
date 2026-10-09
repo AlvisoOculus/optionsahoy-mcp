@@ -11,13 +11,16 @@
 // /api/v1/stats). No token, no per-client detail, no args.
 //
 // Supported metrics:
-//   calls30d   - MCP + REST calls in the last 30 days (default)
-//   calls      - all-time calls
+//   toolCalls30d - successful tool calls from real callers, last 30 days
+//                  (default; see _lib/toolCalls.ts)
+//   calls30d     - every logged MCP + REST message, last 30 days
+//   calls        - every logged message, all time
 //
 // Always returns HTTP 200 (even on missing binding or unknown metric) so the
 // badge still renders rather than showing shields' "inaccessible" error.
 
 import { ensureFresh, readWindows } from '../../_lib/statsRollup';
+import { readToolCallStats } from '../../_lib/toolCalls';
 import { type PagesFunction } from '../../_lib/api';
 import { type D1Database } from '../../_lib/stats';
 
@@ -32,6 +35,10 @@ interface MetricDef {
 }
 
 const METRICS: Record<string, MetricDef> = {
+  toolCalls30d: {
+    label: 'tool calls (30d)',
+    value: async (db, now) => (await readToolCallStats(db, now)).last30d,
+  },
   calls30d: {
     label: 'MCP calls (30d)',
     value: async (db, now) => {
@@ -83,7 +90,7 @@ export const onRequest: PagesFunction = async (ctx) => {
   }
 
   const url = new URL(ctx.request.url);
-  const def = METRICS[url.searchParams.get('metric') ?? 'calls30d'];
+  const def = METRICS[url.searchParams.get('metric') ?? 'toolCalls30d'];
   if (!def) {
     return badge('mcp', 'unknown metric', 'lightgrey');
   }
