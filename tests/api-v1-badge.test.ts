@@ -19,15 +19,6 @@ function mockDb(n: number): D1Database {
         // carries the test's n for the all-time metric
         rows = [{ total: n, last_id: 1, last_ts: now, computed_at: now }];
       } else if (/FROM mcp_daily WHERE day >= /.test(sql)) rows = [{ n }];
-      // The tool-call slice of the per-caller rollup: n successful calls
-      // from a real client today, plus probe noise the count must ignore.
-      else if (/dim = 'callclient'.*mcp:tools\/call/s.test(sql)) {
-        const today = new Date(now).toISOString().slice(0, 10);
-        rows = [
-          { day: today, k1: 'mcp:tools/call', k2: 'claude-ai', n, errors: 0 },
-          { day: today, k1: 'mcp:tools/call', k2: 'optionsahoy-conformance/1', n: 500, errors: 0 },
-        ];
-      }
       else if (/FROM mcp_hourly/.test(sql)) rows = [{ n }];
       const stmt: D1PreparedStatement = {
         bind() {
@@ -50,15 +41,8 @@ function ctx(url: string, env: Env): PagesContext {
 }
 
 describe('GET /api/v1/badge', () => {
-  it('defaults to tool calls from real callers, not every logged message', async () => {
-    const res = await onRequest(ctx('http://localhost/api/v1/badge', { MCP_STATS: mockDb(42) }));
-    const json = (await res.json()) as Record<string, unknown>;
-    expect(json.label).toBe('tool calls (30d)');
-    expect(json.message).toBe('42'); // the monitor's 500 are not usage
-  });
-
-  it('still serves the raw calls30d metric by name, with shields schema', async () => {
-    const res = await onRequest(ctx('http://localhost/api/v1/badge?metric=calls30d', { MCP_STATS: mockDb(8793) }));
+  it('defaults to the calls30d metric with shields schema', async () => {
+    const res = await onRequest(ctx('http://localhost/api/v1/badge', { MCP_STATS: mockDb(8793) }));
     expect(res.status).toBe(200);
     expect(res.headers.get('content-type')).toMatch(/application\/json/);
     expect(res.headers.get('cache-control')).toContain('max-age=300');
@@ -94,6 +78,13 @@ describe('GET /api/v1/badge', () => {
     expect(res.status).toBe(200);
     const json = (await res.json()) as Record<string, unknown>;
     expect(json.message).toBe('unknown metric');
+  });
+
+  it('serves the 30-day count for toolCalls30d, which README copies from 2026-10-09 still request', async () => {
+    const res = await onRequest(ctx('http://localhost/api/v1/badge?metric=toolCalls30d', { MCP_STATS: mockDb(8793) }));
+    const json = (await res.json()) as Record<string, unknown>;
+    expect(json.label).toBe('MCP calls (30d)');
+    expect(json.message).toBe('8.8k');
   });
 
   it('handles OPTIONS preflight with 204 + CORS', async () => {

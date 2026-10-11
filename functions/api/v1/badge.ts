@@ -11,16 +11,14 @@
 // /api/v1/stats). No token, no per-client detail, no args.
 //
 // Supported metrics:
-//   toolCalls30d - successful tool calls from real callers, last 30 days
-//                  (default; see _lib/toolCalls.ts)
-//   calls30d     - every logged MCP + REST message, last 30 days
-//   calls        - every logged message, all time
+//   calls30d   - MCP + REST calls in the last 30 days (default;
+//                toolCalls30d is an alias)
+//   calls      - all-time calls
 //
 // Always returns HTTP 200 (even on missing binding or unknown metric) so the
 // badge still renders rather than showing shields' "inaccessible" error.
 
 import { ensureFresh, readWindows } from '../../_lib/statsRollup';
-import { readToolCallStats } from '../../_lib/toolCalls';
 import { type PagesFunction } from '../../_lib/api';
 import { type D1Database } from '../../_lib/stats';
 
@@ -35,10 +33,6 @@ interface MetricDef {
 }
 
 const METRICS: Record<string, MetricDef> = {
-  toolCalls30d: {
-    label: 'tool calls (30d)',
-    value: async (db, now) => (await readToolCallStats(db, now)).last30d,
-  },
   calls30d: {
     label: 'MCP calls (30d)',
     value: async (db, now) => {
@@ -51,6 +45,10 @@ const METRICS: Record<string, MetricDef> = {
     value: async (db, now) => (await ensureFresh(db, now)).total,
   },
 };
+// The README asked for metric=toolCalls30d on 2026-10-09 and 10-10, so
+// copies of it made then (directory listings) still do: show them the
+// default rather than "unknown metric".
+METRICS.toolCalls30d = METRICS.calls30d;
 
 // 8793 -> "8.8k", 950 -> "950", 1_500_000 -> "1.5M"
 function humanize(n: number): string {
@@ -90,7 +88,7 @@ export const onRequest: PagesFunction = async (ctx) => {
   }
 
   const url = new URL(ctx.request.url);
-  const def = METRICS[url.searchParams.get('metric') ?? 'toolCalls30d'];
+  const def = METRICS[url.searchParams.get('metric') ?? 'calls30d'];
   if (!def) {
     return badge('mcp', 'unknown metric', 'lightgrey');
   }
