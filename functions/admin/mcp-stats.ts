@@ -88,9 +88,12 @@ import {
   readRestNet,
   readCallClients,
   readCallErrors,
+  readReqClients,
   readTickerDemand,
   type TickerDemandRow,
 } from '../_lib/adminRollup';
+import { ensureFresh, readWindows } from '../_lib/statsRollup';
+import { trafficBreakdown } from '../_lib/traffic';
 
 // A caller's mistake, not ours. Every parser rejection starts with
 // `field "<name>"` (REST prefixes `parse: `); the rest are an unknown tool
@@ -233,7 +236,7 @@ export const onRequest: PagesFunction = async (ctx) => {
   await ensureDimsFresh(db, Date.now());
   const day = sinceDay(sinceMs);
 
-  const [endpoints, daily, dailyRest, dailyMcp, tools, errors, clients, countries, restNet, errFieldRaw, sessionsDaily, sessionDepth, initClients, callClients, callErrors, tickerDemand] = await Promise.all([
+  const [endpoints, daily, dailyRest, dailyMcp, tools, errors, clients, countries, restNet, errFieldRaw, sessionsDaily, sessionDepth, initClients, callClients, callErrors, tickerDemand, reqClients, publicCounts] = await Promise.all([
     readEndpoints(db, day),
     readDailyTotals(db, day),
     readDailyRest(db, day),
@@ -250,8 +253,15 @@ export const onRequest: PagesFunction = async (ctx) => {
     readCallClients(db, day),
     readCallErrors(db, day),
     readTickerDemand(db, day).catch(emptyIfUnmigrated),
+    readReqClients(db, day),
+    // What the public counters read right now (/api/v1/stats), so the funnel
+    // can put them beside the breakdown of the same requests.
+    ensureFresh(db, Date.now()).then(async (snap) => ({ total: snap.total, ...(await readWindows(db, Date.now())) })),
   ]);
   const toolFaults = toolFaultsFrom(callErrors);
+  // Every logged request in the window by caller and by type: what the public
+  // call count is made of. `since` is the UTC day the window starts.
+  const traffic = { since: day, publicCounts, ...trafficBreakdown(reqClients) };
   const endpointsReal = realTrafficByEndpoint(callClients);
 
   // A real connect = a person in an AI client, or a programmatic agent
@@ -321,7 +331,7 @@ export const onRequest: PagesFunction = async (ctx) => {
   ).slice(0, 50);
 
   if (url.searchParams.get('format') === 'json') {
-    const body = JSON.stringify({ days, endpoints, endpointsReal, toolFaults, daily, dailyRest, dailyMcp, tools, errors, topErrorFields, clients, countries, restNet, sessionsDaily, sessionDepth, initializesReal, realClients, endpointErrors, tickerDemand, samples: classified, sampleCounts });
+    const body = JSON.stringify({ days, traffic, endpoints, endpointsReal, toolFaults, daily, dailyRest, dailyMcp, tools, errors, topErrorFields, clients, countries, restNet, sessionsDaily, sessionDepth, initializesReal, realClients, endpointErrors, tickerDemand, samples: classified, sampleCounts });
     return new Response(body, {
       status: 200,
       headers: {

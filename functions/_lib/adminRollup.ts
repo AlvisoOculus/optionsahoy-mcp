@@ -23,6 +23,7 @@
 // to the millisecond". The dashboard's charts were already day-grained.
 
 import type { D1Database, D1PreparedStatement } from './stats';
+import type { ReqClientRow } from './traffic';
 
 // Parallel admin loads must not both fold: a second fold reading the same
 // rows would double the counts. The CAS below elects one; the other reads
@@ -86,6 +87,16 @@ const DIMS: DimSpec[] = [
            WHERE id > ?1 AND id <= ?2
              AND (endpoint = 'mcp:tools/call' OR endpoint LIKE 'rest:%' OR endpoint = 'a2a')
            GROUP BY day, k1, k2`,
+  },
+  // Every logged request by caller, all endpoints: what the public call count
+  // is made of (pings, handshakes and list reads included), for the funnel's
+  // traffic breakdown (_lib/traffic.ts). Same caller key as callclient.
+  // Backfilled from mcp_calls on 2026-10-11, so it covers the whole log.
+  {
+    dim: 'reqclient',
+    sql: `SELECT ${DAY_EXPR} AS day, COALESCE(endpoint, '') AS k1, COALESCE(client_name, ua, '') AS k2,
+                 '' AS k3, '' AS k4, COUNT(*) AS n, COALESCE(SUM(is_error), 0) AS errors
+            FROM mcp_calls WHERE id > ?1 AND id <= ?2 GROUP BY day, k1, k2`,
   },
   {
     dim: 'client',
@@ -309,6 +320,16 @@ export async function readCallClients(
     db,
     `SELECT k1, k2, SUM(n) AS n, SUM(errors) AS errors FROM mcp_dim_daily
       WHERE dim = 'callclient' AND day >= ? GROUP BY k1, k2`,
+    [day],
+  );
+  return r.map((x) => ({ endpoint: x.k1, client: x.k2, n: x.n, errors: x.errors }));
+}
+
+export async function readReqClients(db: D1Database, day: string): Promise<ReqClientRow[]> {
+  const r = await rows<{ k1: string; k2: string; n: number; errors: number }>(
+    db,
+    `SELECT k1, k2, SUM(n) AS n, SUM(errors) AS errors FROM mcp_dim_daily
+      WHERE dim = 'reqclient' AND day >= ? GROUP BY k1, k2`,
     [day],
   );
   return r.map((x) => ({ endpoint: x.k1, client: x.k2, n: x.n, errors: x.errors }));

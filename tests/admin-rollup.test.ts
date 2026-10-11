@@ -17,6 +17,7 @@ import {
   readInitClients,
   readCountries,
   readCallClients,
+  readReqClients,
   DIM_REFRESH_MS,
 } from '../functions/_lib/adminRollup';
 import type { D1Database, D1PreparedStatement } from '../functions/_lib/stats';
@@ -158,6 +159,10 @@ function memDb(state: State): D1Database {
           rows.filter((c) => c.endpoint === 'mcp:tools/call' || c.endpoint.startsWith('rest:') || c.endpoint === 'a2a'),
           (c) => [c.endpoint, c.client_name ?? c.ua ?? '', '', ''],
         );
+      }
+      // reqclient: the same caller key over every endpoint (no filter).
+      if (/COALESCE\(client_name, ua, ''\) AS k2/.test(sql)) {
+        return fold(rows, (c) => [c.endpoint, c.client_name ?? c.ua ?? '', '', '']);
       }
       if (/mcp:tools\/call' OR endpoint LIKE 'rest:%/.test(sql)) {
         return fold(
@@ -350,6 +355,35 @@ describe('callclient: calls by caller for the real-traffic error rate', () => {
       { endpoint: 'mcp:tools/call', client: 'python-httpx/0.28.1', n: 2, errors: 1 },
       { endpoint: 'rest:nso', client: 'OptionsAhoy-smoke/1.0', n: 1, errors: 1 },
     ]);
+  });
+});
+
+describe('reqclient: every logged request by caller, for the traffic breakdown', () => {
+  it('folds every endpoint, housekeeping included, and totals the same as the endpoint rollup', async () => {
+    const state = newState({
+      calls: [
+        call({ id: 1, endpoint: 'mcp:ping', ua: 'copilot-cli' }),
+        call({ id: 2, endpoint: 'mcp:ping', ua: 'copilot-cli' }),
+        call({ id: 3, endpoint: 'mcp:initialize', client_name: 'copilot-cli' }),
+        call({ id: 4, endpoint: 'mcp:server/discover', ua: 'copilot-cli', is_error: 1 }),
+        call({ id: 5, ua: 'python-httpx/0.28.1' }),
+        call({ id: 6, endpoint: 'rest:nso', ua: 'OptionsAhoy-smoke/1.0', is_error: 1, error_msg: 'y' }),
+      ],
+      cursor: { last_id: 0, computed_at: 0 },
+    });
+    const db = memDb(state);
+    await ensureDimsFresh(db, T0);
+    const window = sinceDay(T0 - DAY_MS);
+    const got = (await readReqClients(db, window)).sort((a, b) => a.endpoint.localeCompare(b.endpoint));
+    expect(got).toEqual([
+      { endpoint: 'mcp:initialize', client: 'copilot-cli', n: 1, errors: 0 },
+      { endpoint: 'mcp:ping', client: 'copilot-cli', n: 2, errors: 0 },
+      { endpoint: 'mcp:server/discover', client: 'copilot-cli', n: 1, errors: 1 },
+      { endpoint: 'mcp:tools/call', client: 'python-httpx/0.28.1', n: 1, errors: 0 },
+      { endpoint: 'rest:nso', client: 'OptionsAhoy-smoke/1.0', n: 1, errors: 1 },
+    ]);
+    const endpointTotal = (await readEndpoints(db, window)).reduce((a, r) => a + r.n, 0);
+    expect(got.reduce((a, r) => a + r.n, 0)).toBe(endpointTotal);
   });
 });
 

@@ -69,6 +69,14 @@ const SAMPLE_ROWS = [
     { k1: 'mcp:tools/call', k2: 'SaSame-MCP-Audit/0.1', n: 30, errors: 30 },
     { k1: 'rest:nso', k2: 'OptionsAhoy-smoke/1.0 (Mozilla/5.0 compatible)', n: 200, errors: 190 },
   ] },
+  // Every request by caller (the traffic breakdown): copilot-cli's keep-alives
+  // outnumber everything else, and only the tools/call and REST rows are work.
+  { match: /dim = 'reqclient'/, rows: [
+    { k1: 'mcp:ping', k2: 'copilot-cli', n: 900, errors: 0 },
+    { k1: 'mcp:initialize', k2: 'copilot-cli', n: 50, errors: 0 },
+    { k1: 'mcp:tools/call', k2: 'python-httpx/0.28.1', n: 40, errors: 10 },
+    { k1: 'rest:nso', k2: 'OptionsAhoy-smoke/1.0 (Mozilla/5.0 compatible)', n: 200, errors: 190 },
+  ] },
   // The two per-surface daily reads also carry dim = 'endpoint', so their
   // endpoint filters must be matched before the generic endpoint reads.
   { match: /k1 LIKE 'rest:%'/, rows: [{ day: '2026-05-27', n: 9 }, { day: '2026-05-26', n: 11 }] },
@@ -159,6 +167,18 @@ describe('admin /mcp-stats', () => {
       { field: 'shares', count: 5 },
       { field: 'volatility', count: 3 },
     ]);
+    // Every logged request by caller and type, with the public counters
+    // beside it (zeros here: the mock has no stats snapshot).
+    expect(body.traffic).toMatchObject({
+      since: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
+      publicCounts: { total: 0, last24h: 0, last7d: 0, last30d: 0 },
+      total: 1190,
+      callers: 3,
+      work: 240,
+      workOk: 40,
+    });
+    expect(body.traffic.byCaller[0]).toMatchObject({ client: 'copilot-cli', kind: 'human', n: 950, work: 0 });
+    expect(body.traffic.byEndpoint[0]).toMatchObject({ endpoint: 'mcp:ping', n: 900 });
   });
 
   it('still requires the token when format=json', async () => {
