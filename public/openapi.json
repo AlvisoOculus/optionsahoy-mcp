@@ -1006,7 +1006,8 @@
                   "windowClosed": false,
                   "qdNotYetEligible": false
                 },
-                "effectiveHorizon": 4
+                "effectiveHorizon": 4,
+                "lastExerciseYear": 4
               }
             }
           }
@@ -3840,7 +3841,7 @@
               },
               "maxHorizon": {
                 "type": "integer",
-                "description": "Maximum usable planning horizon in years (1..10), capped by grant expiration or the post-termination window."
+                "description": "Last plan year (1..10) in which shares can still be exercised, set by the grant expiration or the post-termination window. The planning horizon itself is never capped; schedule years after this one hold the shares."
               },
               "daysUntilWindowClose": {
                 "type": [
@@ -3870,7 +3871,11 @@
           },
           "effectiveHorizon": {
             "type": "integer",
-            "description": "Horizon actually used by the schedules: min(requested horizon, timing.maxHorizon)."
+            "description": "Years the schedules span: the requested horizon (1..10), never capped by the grant term or the departure window. 1 for a departed user inside the 90-day window, whose horizon is the post-exercise hold instead."
+          },
+          "lastExerciseYear": {
+            "type": "integer",
+            "description": "Last schedule year with any exercise: min(effectiveHorizon, timing.maxHorizon). Later years hold the shares and recover AMT credit."
           },
           "departedRecommendation": {
             "type": "object",
@@ -4108,7 +4113,8 @@
           "stateHasAmt",
           "bargainPerShare",
           "timing",
-          "effectiveHorizon"
+          "effectiveHorizon",
+          "lastExerciseYear"
         ]
       },
       "NsoResult": {
