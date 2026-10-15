@@ -80,7 +80,13 @@ export interface TimingFlags {
   grantExpiration: Date;       // grantDate + 10y (IRC §422 max term for ISOs)
   qdEligibleDate: Date;        // grantDate + 2y (qualifying-disposition gate)
   exerciseWindowClose: Date | null; // terminationDate + 90d, null when employed
-  maxHorizon: number;          // 1..10 capped by binding constraint (grant 10y expiry; departed 90d window)
+  // Last plan year (1..10) in which shares can still be exercised: complete
+  // years from today to the earlier of the grant's 10-year term and the
+  // post-termination window, floored at 1 (an expired term or a closed window
+  // still gets a year-1 exercise, shown for reference). The planning horizon
+  // itself is never capped by this; years after it hold the shares. The name
+  // predates that rule and stays for the public tool schema.
+  maxHorizon: number;
   daysUntilWindowClose: number | null; // null when still employed; can be negative
   windowClosed: boolean;       // departed + deadline already past
   qdNotYetEligible: boolean;   // grantDate + 2y is in the future
@@ -142,9 +148,9 @@ export function computeTimingFlags(input: AmtIsoInput, today: Date): TimingFlags
   // which silently truncates the slider.
   const yearsUntilDeadline = completeYearsBetween(today, bindingDeadline);
   let maxHorizon = Math.max(1, Math.min(10, yearsUntilDeadline));
-  if (windowClosed) maxHorizon = 1; // calculator becomes informational; lock to 1
-  // Departed users with an open window are inside the 90-day grace — force
-  // lump-sum-only mode (1 year horizon).
+  if (windowClosed) maxHorizon = 1; // nothing left to exercise; year 1 is shown for reference
+  // Departed users with an open window are inside the 90-day grace: every
+  // exercise happens this year.
   if (input.hasLeftCompany && !windowClosed) maxHorizon = 1;
 
   return {
@@ -376,7 +382,8 @@ export interface AmtIsoResult {
   crossoverBargain: number;       // = crossoverShares × (fmv − strike)
   alreadyInAmt: boolean;          // true if regular tax < tmt with 0 bargain (rare)
 
-  // Multi-year plans (run at effectiveHorizon, clamped to maxHorizon)
+  // Multi-year plans, each spanning effectiveHorizon years. Shares are
+  // exercised in years 1..lastExerciseYear only; later years hold them.
   schedules: {
     lumpSum: Schedule;
     evenSplit: Schedule;
@@ -387,7 +394,13 @@ export interface AmtIsoResult {
   stateHasAmt: boolean;
   bargainPerShare: number;
   timing: TimingFlags;
-  effectiveHorizon: number;       // min(input.horizon, timing.maxHorizon)
+  // Years the schedules span: the requested horizon (1..10), never capped by
+  // the grant term or the departure window (no input may lock the Horizon
+  // slider). 1 for a departed user inside the 90-day window, whose horizon
+  // is the post-exercise hold instead.
+  effectiveHorizon: number;
+  // Last schedule year with any exercise: min(effectiveHorizon, timing.maxHorizon).
+  lastExerciseYear: number;
 
   // Departed-user partial-exercise recommendation. Populated only when
   // hasLeftCompany=true and the post-termination window is still open. The
@@ -642,13 +655,20 @@ function gridGranularity(horizon: number): number {
  * O(horizon × granularity²) ≈ 5 × 10,000 = 50K cells. Each cell evaluates
  * the per-year tax function once (cheap).
  */
-function optimizeSchedule(input: AmtIsoInput): number[] {
+function optimizeSchedule(input: AmtIsoInput, lastExerciseYear: number = input.horizon): number[] {
   const horizon = input.horizon;
   if (horizon < 1) return [];
   if (horizon === 1) return [input.shares];
 
+  // Years the search may allocate shares to. Later years are hold-only:
+  // they still pay regular tax and recover credit, so they count in every
+  // candidate's cost, but never exercise. When every year can exercise
+  // this equals the horizon and the search is unchanged.
+  const exerciseYears = Math.max(1, Math.min(horizon, Math.floor(lastExerciseYear)));
+  if (exerciseYears === 1) return [input.shares, ...new Array(horizon - 1).fill(0)];
+
   const ctx = buildYearContext(input);
-  const granularity = gridGranularity(horizon);
+  const granularity = gridGranularity(exerciseYears);
   const chunkShares = input.shares / granularity;
   const bpsByYear = Array.from({ length: horizon }, (_, i) =>
     bargainPerShareForYear(input, i + 1),
@@ -688,7 +708,10 @@ function optimizeSchedule(input: AmtIsoInput): number[] {
   const lumpSplit = [input.shares, ...new Array(horizon - 1).fill(0)];
   let bestFvCost = scheduleFvCost(runSchedule('lump_sum', lumpSplit, input));
   let bestSplit = lumpSplit.slice();
-  const evenSplit = new Array(horizon).fill(input.shares / horizon);
+  const evenSplit = [
+    ...new Array(exerciseYears).fill(input.shares / exerciseYears),
+    ...new Array(horizon - exerciseYears).fill(0),
+  ];
   const evenFvCost = scheduleFvCost(runSchedule('even_split', evenSplit, input));
   if (evenFvCost < bestFvCost) {
     bestFvCost = evenFvCost;
@@ -707,11 +730,18 @@ function optimizeSchedule(input: AmtIsoInput): number[] {
 
     const bps = bpsByYear[yearIdx];
 
-    if (yearIdx === horizon - 1) {
+    if (yearIdx === exerciseYears - 1) {
       const shares = chunksRemaining * chunkShares;
       currentSplit[yearIdx] = shares;
       const yt = computeYearTax(yearIdx + 1, shares, bps, ctx, creditBalance);
-      const total = fvTaxSoFar + yt.cashTax * fvWeight(yearIdx);
+      let total = fvTaxSoFar + yt.cashTax * fvWeight(yearIdx);
+      // Hold-only years after the last exercise year.
+      let credit = creditBalance + yt.amtOwedFederal - yt.creditRecovered;
+      for (let t = exerciseYears; t < horizon; t++) {
+        const ht = computeYearTax(t + 1, 0, bpsByYear[t], ctx, credit);
+        total += ht.cashTax * fvWeight(t);
+        credit += ht.amtOwedFederal - ht.creditRecovered;
+      }
       if (total < bestFvCost) {
         bestFvCost = total;
         bestSplit = currentSplit.slice();
@@ -761,9 +791,9 @@ function optimizeSchedule(input: AmtIsoInput): number[] {
   while (improving && iterations < MAX_REFINE_ITER) {
     improving = false;
     iterations++;
-    for (let i = 0; i < horizon; i++) {
+    for (let i = 0; i < exerciseYears; i++) {
       if (refined[i] === 0) continue;
-      for (let j = 0; j < horizon; j++) {
+      for (let j = 0; j < exerciseYears; j++) {
         if (i === j) continue;
         const candidate = refined.slice();
         candidate[i] -= 1;
@@ -920,7 +950,15 @@ export function optimizeDepartedExerciseQuantity(
 
 export function computeAmtIso(input: AmtIsoInput, today: Date = new Date()): AmtIsoResult {
   const timing = computeTimingFlags(input, today);
-  const effectiveHorizon = Math.max(1, Math.min(input.horizon, timing.maxHorizon));
+  // The horizon is the user's, 1..10; no input may cap it (a capped range
+  // locked the Horizon slider, 2026-10-14). A departed user inside the
+  // 90-day window exercises this year only and reads `horizon` as the
+  // post-exercise hold, so the schedules span a single year there.
+  const departedOpenWindow = input.hasLeftCompany && !timing.windowClosed;
+  const effectiveHorizon = departedOpenWindow ? 1 : Math.max(1, Math.min(10, input.horizon));
+  // Exercises stop after the last year the grant term or the departure
+  // window allows; the years after only hold the shares.
+  const lastExerciseYear = Math.min(effectiveHorizon, timing.maxHorizon);
   const effective: AmtIsoInput = { ...input, horizon: effectiveHorizon };
 
   // Crossover always uses year-1 bargain (today's FMV).
@@ -930,19 +968,22 @@ export function computeAmtIso(input: AmtIsoInput, today: Date = new Date()): Amt
   const crossoverShares =
     bargainPerShareYear1 > 0 ? Math.floor(crossoverBargain / bargainPerShareYear1) : 0;
 
-  // Three plans, all run at effectiveHorizon
+  // Three plans, all spanning effectiveHorizon years and exercising only in
+  // years 1..lastExerciseYear.
   const lumpSplit = [effective.shares, ...new Array(effectiveHorizon - 1).fill(0)];
-  const evenSplit = new Array(effectiveHorizon).fill(effective.shares / effectiveHorizon);
-  const optimizedSplit = optimizeSchedule(effective);
+  const evenSplit = [
+    ...new Array(lastExerciseYear).fill(effective.shares / lastExerciseYear),
+    ...new Array(effectiveHorizon - lastExerciseYear).fill(0),
+  ];
+  const optimizedSplit = optimizeSchedule(effective, lastExerciseYear);
 
   // Departed users inside the 90-day window get a partial-exercise
   // recommendation. The exercise schedule is still year-1 lump (no
   // multi-year scheduling possible); input.horizon is reinterpreted as the
   // post-exercise hold horizon for the value calc.
-  const departedRecommendation =
-    input.hasLeftCompany && !timing.windowClosed
-      ? optimizeDepartedExerciseQuantity(input)
-      : undefined;
+  const departedRecommendation = departedOpenWindow
+    ? optimizeDepartedExerciseQuantity(input)
+    : undefined;
 
   return {
     crossoverShares,
@@ -957,6 +998,7 @@ export function computeAmtIso(input: AmtIsoInput, today: Date = new Date()): Amt
     bargainPerShare: bargainPerShareYear1,
     timing,
     effectiveHorizon,
+    lastExerciseYear,
     departedRecommendation,
   };
 }

@@ -368,7 +368,7 @@ const AMT_ISO_OUTPUT_SCHEMA: JsonSchema = {
           type: ['string', 'null'],
           description: 'Post-termination exercise deadline (terminationDate + 90 days) as an ISO 8601 date-time string; null while still employed.',
         },
-        maxHorizon: int('Maximum usable planning horizon in years (1..10), capped by grant expiration or the post-termination window.'),
+        maxHorizon: int('Last plan year (1..10) in which shares can still be exercised, set by the grant expiration or the post-termination window. The planning horizon itself is never capped; schedule years after this one hold the shares.'),
         daysUntilWindowClose: {
           type: ['number', 'null'],
           description: 'Days until the post-termination exercise window closes (can be negative when already past); null while still employed.',
@@ -381,7 +381,8 @@ const AMT_ISO_OUTPUT_SCHEMA: JsonSchema = {
         'daysUntilWindowClose', 'windowClosed', 'qdNotYetEligible',
       ],
     },
-    effectiveHorizon: int('Horizon actually used by the schedules: min(requested horizon, timing.maxHorizon).'),
+    effectiveHorizon: int('Years the schedules span: the requested horizon (1..10), never capped by the grant term or the departure window. 1 for a departed user inside the 90-day window, whose horizon is the post-exercise hold instead.'),
+    lastExerciseYear: int('Last schedule year with any exercise: min(effectiveHorizon, timing.maxHorizon). Later years hold the shares and recover AMT credit.'),
     departedRecommendation: {
       type: 'object',
       description: 'Present only when hasLeftCompany=true and the 90-day post-termination window is still open: the partial-exercise quantity with the highest expected after-tax value found by a scan over candidate share counts, which can land a few shares off the exact optimum.',
@@ -418,7 +419,7 @@ const AMT_ISO_OUTPUT_SCHEMA: JsonSchema = {
   },
   required: [
     'crossoverShares', 'crossoverBargain', 'alreadyInAmt', 'schedules', 'stateHasAmt',
-    'bargainPerShare', 'timing', 'effectiveHorizon',
+    'bargainPerShare', 'timing', 'effectiveHorizon', 'lastExerciseYear',
   ],
 };
 
