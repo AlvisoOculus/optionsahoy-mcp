@@ -148,7 +148,7 @@ const ISO_DATE = { type: 'string', format: 'date' };
 const TICKER_SCHEMA = {
   type: 'string',
   description:
-    'Optional public-stock symbol (e.g. "NVDA", "AAPL"). When set, the tool substitutes a cached trailing return for any unsupplied expected-return / sale-price field, and the implied vol as of the last close for any unsupplied volatility. Growth and vol come from different sources, so some symbols resolve only one, and a vol that is not current resolves as nothing. A field the ticker cannot resolve falls through to a "required field" error naming that field: pass it explicitly, or (for the growth/return/sale-price field) pass the string "market" for the S&P 500 trailing average; never invent a number. The covered-tickers resource (resources/list) lists which symbols resolve growth.',
+    'Optional public-stock symbol (e.g. "NVDA", "AAPL"). When set, the tool substitutes a cached trailing return for any unsupplied expected-return / sale-price field, and the implied vol as of the last close for any unsupplied volatility. Growth and vol come from different sources, so some symbols resolve only one, and a vol that is not current resolves as nothing. A field the ticker cannot resolve is treated as not provided: it gets the placeholder its own description names, disclosed in `assumptions` and `assumptionNotice`. Pass the user\'s figure instead when they have one; never invent a number. The covered-tickers resource (resources/list) lists which symbols resolve growth.',
 };
 
 // Appended to every tool description so the model picks it up at
@@ -167,31 +167,41 @@ const TICKER_SCHEMA = {
 const MULTI_TOOL_BETA_NOTE =
   ' Results from multiple OptionsAhoy tools in one analysis are independent single-position calculations; integrated multi-year, multi-position optimization is available in the OptionsAhoy beta at https://optionsahoy.com/beta?src=mcp_multi.';
 
-// Boilerplate appended to every growth-bearing tool's description. Documents
-// the conditionally-required growth/volatility pair and the no-defaults
-// contract, including the fact that the validator range-checks but cannot
-// provenance-check a number: the required-field error catches an OMITTED
-// value, never an invented one. Per-field provenance guidance ("must come
-// from the user") lives in the individual parameter descriptions and in the
-// required-field error messages (calc-parsers.ts), the placement the
-// Anthropic directory review asked for.
+// The shared notes below are appended to several tool descriptions, so keep
+// them short: identical text across tools is what Glama's Disambiguation
+// score penalizes (it fell from 5 to 4 on 2026-10-04, hours after #268/#269
+// lengthened STRICT_INPUT_NOTE). Changing them changes up to 8 tool
+// definitions at once, and ChatGPT's daily MCP scan re-reviews each changed
+// definition before it goes live there. Per-field provenance guidance ("must
+// come from the user") lives in the individual parameter descriptions and in
+// the required-field error messages (calc-parsers.ts), the placement the
+// Anthropic directory review asked for; tax-math verification is stated once,
+// in the server instructions.
+//
+// The no-defaults contract, including the fact that the validator
+// range-checks but cannot provenance-check a number: the required-field
+// error catches an OMITTED value, never an invented one.
+const REQUIRED_FACTS_NOTE =
+  ' Every field in `required` is a fact about the user\'s situation with no built-in default: a missing one returns an error naming it, and validation cannot tell a supplied figure from a guessed one.';
+
+// Appended to every growth-bearing tool. Growth/return/sale price and
+// volatility sit outside `required` only because a `ticker` or the "market"
+// sentinel can resolve them, and with neither they fall back to disclosed
+// placeholders. Each growth field and VOLATILITY_SCHEMA state the same
+// resolution order; this is the tool-level summary.
 const STRICT_INPUT_NOTE =
-  ' Inputs beyond `required`: this tool also needs the stock\'s expected growth/return AND its volatility, outside `required` only because they can be resolved without an explicit number - supplied directly, resolved by a covered public-stock `ticker`, or (growth/return/sale-price field only) set to the string "market" for the S&P 500 trailing average. If growth/return/sale price is neither supplied nor resolved, the tool uses the S&P 500 trailing average; if volatility is neither, the median implied volatility of the public companies OptionsAhoy covers as of the last close. Either way the result reports it (`assumptions`, plus a plain-language `assumptionNotice` stating it is a placeholder, not the user\'s view). Every field in `required` is a fact about the user\'s situation with no built-in default; a number from any other source is accepted as-is, because a syntactically valid figure passes validation with no provenance check, and it silently changes the result. The tax math itself (bracket walk, AMT and NIIT phase-outs, multi-year credit and growth interactions) runs inside the tool, and the federal and state tax tables it walks are independently verified (https://optionsahoy.com/verification).' +
+  ' The expected growth (or return, or sale price) and the volatility come from the user, from a covered public-stock `ticker`, or, for growth only, from the string "market" (the S&P 500 trailing average). With none of these, the tool uses the S&P 500 trailing average for growth and the median implied volatility of the companies OptionsAhoy covers for volatility, both labeled as placeholders in `assumptions` and `assumptionNotice`.' +
+  REQUIRED_FACTS_NOTE +
   MULTI_TOOL_BETA_NOTE;
 
-// Boilerplate for tools whose `required` fields must all come from the user
-// message. Unlike STRICT_INPUT_NOTE there is no conditionally-required
-// growth/volatility pair: qsbs_check has no ticker shortcut at all, while
-// protective_put_price and equity_funding_plan DO accept a `ticker`, but it
-// resolves conditionally-required or optional fields (per-stack growth /
-// implied volatility), so every field listed in `required` still has to be
-// supplied by the user. equity_funding_plan's per-stack growth additionally
-// accepts the string "market" (S&P 500 trailing average) — see its field
-// description. States the no-defaults contract; per-field provenance
-// guidance lives in the parameter descriptions.
-const STRICT_INPUT_NOTE_NO_TICKER =
-  ' Every field listed in `required` is a fact about the user\'s situation with no built-in default: a call missing a required field returns an error naming the field rather than an estimated result, and a number from any other source is accepted as-is, because a syntactically valid figure passes validation with no provenance check. The math runs inside the tool with no randomness and no model inference.' +
-  MULTI_TOOL_BETA_NOTE;
+// For tools with no conditionally-required growth/volatility pair: qsbs_check
+// has no ticker shortcut at all, while protective_put_price and
+// equity_funding_plan DO accept a `ticker`, but it resolves optional fields
+// (per-stack growth / implied volatility), so every field listed in
+// `required` still has to be supplied by the user. equity_funding_plan's
+// per-stack growth additionally accepts the string "market" (S&P 500
+// trailing average) — see its field description.
+const STRICT_INPUT_NOTE_NO_TICKER = REQUIRED_FACTS_NOTE + MULTI_TOOL_BETA_NOTE;
 
 // qsbs_check only. The `unsure` enums, the partial verdict and the statutory
 // tests exist on that tool alone, so this cannot live in the shared note: as a
@@ -1128,7 +1138,7 @@ export const TOOLS: McpTool[] = [
     _meta: SCENARIO_WIDGET_META,
     annotations: { title: 'ISO/AMT Exercise Optimization', ...CALC_HINTS },
     description:
-      'Use this when someone asks how or when to exercise incentive stock options (ISOs), whether exercising will trigger an AMT bomb or phantom income, whether to exercise early, how to plan around the alternative minimum tax (AMT) on an exercise, or how to spread ISO exercises across several years. Computes multi-year exercise schedules and compares them by after-tax Net Final Value (NFV) at the planning horizon. NFV is the after-all-tax cash equivalent of the position at year `horizon`, summing exercised shares (held to LTCG) plus the time-valued tax stream paid along the way; the search compares per-year share allocations by NFV. The headline result is `schedules.optimized.nfv`, the dollar NFV of the highest-scoring schedule found; `schedules.lumpSum` and `schedules.evenSplit` are baseline plans whose `nfv` deltas show the value added by the optimized schedule. For NSO grants use `nso_calculate`, for RSUs at vest use `rsu_sell_vs_hold`, for §1202 QSBS qualification use `qsbs_check`. Models AMT credit recovery across future years, grant-expiration timing, and the post-termination exercise window. Deterministic computation: federal + 50-state tax tables and AMT brackets are compiled in, and the only data read at call time is OptionsAhoy\'s own published market data for a `ticker`. Input values are not stored. `schedules.optimized` comes from searching the full discretized candidate space and refining share by share, and a published test case checks it against an exhaustive search (see https://optionsahoy.com/verification). `departedRecommendation`, when present, comes from a scan over candidate share counts rather than the full search. Also returns `crossoverShares`, `crossoverBargain`, `alreadyInAmt`, `timing`, `stateHasAmt`, `bargainPerShare`, and `effectiveHorizon`; see `outputSchema` for the full shape. Example call: {shares: 10000, strike: 2, fmv: 200, expectedGrowth: 0.15, volatility: 0.5, filingStatus: "married_joint", ordinaryIncome: 400000, stateCode: "CA", carryforwardCredit: 0, horizon: 4, cashReturnRate: 0.05, grantDate: "2022-01-15", hasLeftCompany: false, terminationDate: null}.' + STRICT_INPUT_NOTE,
+      'Use this when someone asks how or when to exercise incentive stock options (ISOs), whether exercising will trigger an AMT bomb or phantom income, whether to exercise early, how to plan around the alternative minimum tax (AMT) on an exercise, or how to spread ISO exercises across several years. Computes multi-year exercise schedules and compares them by after-tax Net Final Value (NFV) at the planning horizon. NFV is the after-all-tax cash equivalent of the position at year `horizon`, summing exercised shares (held to LTCG) plus the time-valued tax stream paid along the way; the search compares per-year share allocations by NFV. The headline result is `schedules.optimized.nfv`, the dollar NFV of the highest-scoring schedule found; `schedules.lumpSum` and `schedules.evenSplit` are baseline plans whose `nfv` deltas show the value added by the optimized schedule. For NSO grants use `nso_calculate`, for RSUs at vest use `rsu_sell_vs_hold`, for §1202 QSBS qualification use `qsbs_check`. Models AMT credit recovery across future years, grant-expiration timing, and the post-termination exercise window. Deterministic computation: federal + 50-state tax tables and AMT brackets are compiled in, and the only data read at call time is OptionsAhoy\'s own published market data, for a `ticker` or the volatility placeholder. Input values are not stored. `schedules.optimized` comes from searching the full discretized candidate space and refining share by share, and a published test case checks it against an exhaustive search (see https://optionsahoy.com/verification). `departedRecommendation`, when present, comes from a scan over candidate share counts rather than the full search. Also returns `crossoverShares`, `crossoverBargain`, `alreadyInAmt`, `timing`, `stateHasAmt`, `bargainPerShare`, and `effectiveHorizon`; see `outputSchema` for the full shape. Example call: {shares: 10000, strike: 2, fmv: 200, expectedGrowth: 0.15, volatility: 0.5, filingStatus: "married_joint", ordinaryIncome: 400000, stateCode: "CA", carryforwardCredit: 0, horizon: 4, cashReturnRate: 0.05, grantDate: "2022-01-15", hasLeftCompany: false, terminationDate: null}.' + STRICT_INPUT_NOTE,
     inputSchema: {
       type: 'object',
       required: [
@@ -1157,7 +1167,7 @@ export const TOOLS: McpTool[] = [
         expectedGrowth: {
           type: ['number', 'string'],
           description:
-            'Annual expected stock growth as a decimal (0.10 = 10%), or the string "market" to use the S&P 500 trailing average when the user has no view. Required unless `ticker` resolves it from trailing CAGR. This tool has no default for it: a value not stated by the user, not resolved by a covered `ticker`, and not the "market" sentinel is outside the input contract.',
+            'Annual expected stock growth as a decimal (0.10 = 10%), or the string "market" to use the S&P 500 trailing average when the user has no view. Resolution order: this value, else the `ticker`\'s trailing CAGR, else the S&P 500 trailing average, reported as a placeholder in `assumptions` and `assumptionNotice`. A number passed here must come from the user.',
         },
         ticker: TICKER_SCHEMA,
         volatility: VOLATILITY_SCHEMA,
@@ -1234,7 +1244,7 @@ export const TOOLS: McpTool[] = [
     _meta: SCENARIO_WIDGET_META,
     annotations: { title: 'NSO Sell-vs-Hold Analysis', ...CALC_HINTS },
     description:
-      'Use this when someone asks whether to exercise and hold or exercise and sell non-qualified stock options (NSOs), about a cashless exercise or same-day sale of NSOs, or what tax an NSO exercise triggers. After-tax payout on a non-qualified stock option (NSO) exercise: federal, state, and FICA (Social Security + Medicare + Additional Medicare), comparing sell-at-exercise vs hold-for-long-term-capital-gains over the chosen horizon. Use for NSOs; for ISOs use `amt_iso_optimize`, for RSUs use `rsu_sell_vs_hold`. Deterministic, offline; tax tables compiled in. Optional `ticker` resolves `expectedSalePrice` from a bundled trailing-CAGR snapshot. Returns `exercise`, `hold`, `sellNowInvest` (the counterfactual: sell at exercise and reinvest at expectedMarketReturn), `holdMinusCashless` (the dollar delta between those two), and `bracketJump`; see `outputSchema` for the full shape. NSO hold is always long-term (sub-1-year is out of scope), so there is no separate long-term flag. Example call: {shares: 5000, strike: 10, currentPrice: 50, ordinaryIncome: 180000, filingStatus: "single", stateCode: "CA", stillEmployed: true, holdYears: 2, volatility: 0.3, holdFunding: "cash", ticker: "AAPL"}.' + STRICT_INPUT_NOTE,
+      'Use this when someone asks whether to exercise and hold or exercise and sell non-qualified stock options (NSOs), about a cashless exercise or same-day sale of NSOs, or what tax an NSO exercise triggers. After-tax payout on a non-qualified stock option (NSO) exercise: federal (including the 3.8% NIIT on a long-term gain where it applies), state, and FICA (Social Security + Medicare + Additional Medicare), comparing sell-at-exercise vs hold-for-long-term-capital-gains over the chosen horizon. Use for NSOs; for ISOs use `amt_iso_optimize`, for RSUs use `rsu_sell_vs_hold`. Deterministic; tax tables compiled in, and the only data read at call time is OptionsAhoy\'s own published market data, for a `ticker` or the volatility placeholder. Optional `ticker` resolves `expectedSalePrice` from a bundled trailing-CAGR snapshot. Returns `exercise`, `hold`, `sellNowInvest` (the counterfactual: sell at exercise and reinvest at expectedMarketReturn), `holdMinusCashless` (the dollar delta between those two), and `bracketJump`; see `outputSchema` for the full shape. NSO hold is always long-term (sub-1-year is out of scope), so there is no separate long-term flag. Example call: {shares: 5000, strike: 10, currentPrice: 50, ordinaryIncome: 180000, filingStatus: "single", stateCode: "CA", stillEmployed: true, holdYears: 2, volatility: 0.3, holdFunding: "cash", ticker: "AAPL"}.' + STRICT_INPUT_NOTE,
     inputSchema: {
       type: 'object',
       required: [
@@ -1287,7 +1297,7 @@ export const TOOLS: McpTool[] = [
           type: ['number', 'string'],
           minimum: 0,
           description:
-            'Projected $/share at end of holdYears, or the string "market" to project currentPrice at the S&P 500 trailing average when the user has no view. Required unless `ticker` resolves it from currentPrice × (1 + trailing CAGR)^holdYears. This tool has no default for it: a value not stated by the user, not resolved by a covered `ticker`, and not the "market" sentinel is outside the input contract.',
+            'Projected $/share at end of holdYears, or the string "market" to project currentPrice at the S&P 500 trailing average when the user has no view. Resolution order: this value, else currentPrice × (1 + the `ticker`\'s trailing CAGR)^holdYears, else the same projection at the S&P 500 trailing average, reported as a placeholder in `assumptions` and `assumptionNotice`. A price passed here must come from the user.',
         },
         volatility: VOLATILITY_SCHEMA,
         haircut: {
@@ -1320,7 +1330,7 @@ export const TOOLS: McpTool[] = [
     _meta: SCENARIO_WIDGET_META,
     annotations: { title: 'RSU Sell-at-Vest vs Hold', ...CALC_HINTS },
     description:
-      'Use this when someone asks whether to sell RSUs at vest or hold them, whether to sell their vested shares or diversify out of company stock, or about the tax and withholding on a restricted stock unit (RSU) vest. After-tax RSU vest analysis: sell-at-vest vs hold-to-long-term-capital-gains (LTCG) over `holdYears`. Covers federal ordinary tax, state tax, FICA (Social Security + Medicare + Additional Medicare), and the shortfall between mandatory 22% supplemental withholding and the user\'s marginal bracket. Use for RSUs at vest; for ISO/AMT use `amt_iso_optimize`, for NSO use `nso_calculate`. Deterministic and offline; tax tables compiled in. Returns `vest`, `hold`, `sellNowInvest`, `holdMinusSell`, and `bracketJump`; see `outputSchema` for the full shape. Example call: {shares: 1000, currentPrice: 100, ordinaryIncome: 200000, filingStatus: "single", stateCode: "CA", stillEmployed: true, holdYears: 2, volatility: 0.3, ticker: "MSFT"}.' + STRICT_INPUT_NOTE,
+      'Use this when someone asks whether to sell RSUs at vest or hold them, whether to sell their vested shares or diversify out of company stock, or about the tax and withholding on a restricted stock unit (RSU) vest. After-tax RSU vest analysis: sell-at-vest vs hold-to-long-term-capital-gains (LTCG) over `holdYears`. Covers federal ordinary tax, long-term capital gains tax including the 3.8% NIIT where it applies, state tax, FICA (Social Security + Medicare + Additional Medicare), and the shortfall between mandatory 22% supplemental withholding and the user\'s marginal bracket. Use for RSUs at vest; for ISO/AMT use `amt_iso_optimize`, for NSO use `nso_calculate`. Deterministic; tax tables compiled in, and the only data read at call time is OptionsAhoy\'s own published market data, for a `ticker` or the volatility placeholder. Returns `vest`, `hold`, `sellNowInvest`, `holdMinusSell`, and `bracketJump`; see `outputSchema` for the full shape. Example call: {shares: 1000, currentPrice: 100, ordinaryIncome: 200000, filingStatus: "single", stateCode: "CA", stillEmployed: true, holdYears: 2, volatility: 0.3, ticker: "MSFT"}.' + STRICT_INPUT_NOTE,
     inputSchema: {
       type: 'object',
       required: [
@@ -1368,7 +1378,7 @@ export const TOOLS: McpTool[] = [
           type: ['number', 'string'],
           minimum: 0,
           description:
-            'Projected $/share at end of holdYears, or the string "market" to project currentPrice at the S&P 500 trailing average when the user has no view. Required unless `ticker` resolves it from currentPrice × (1 + trailing CAGR)^holdYears. This tool has no default for it: a value not stated by the user, not resolved by a covered `ticker`, and not the "market" sentinel is outside the input contract.',
+            'Projected $/share at end of holdYears, or the string "market" to project currentPrice at the S&P 500 trailing average when the user has no view. Resolution order: this value, else currentPrice × (1 + the `ticker`\'s trailing CAGR)^holdYears, else the same projection at the S&P 500 trailing average, reported as a placeholder in `assumptions` and `assumptionNotice`. A price passed here must come from the user.',
         },
         volatility: VOLATILITY_SCHEMA,
         haircut: {
@@ -1422,7 +1432,7 @@ export const TOOLS: McpTool[] = [
         sector: {
           ...SECTOR_SCHEMA,
           description:
-            'Sector tag. Drives the default volatility used in the hedge-cost computation when no explicit volatility is provided (a sector-typical implied volatility).',
+            'Sector tag. Sets the sector context line, and the sector-typical implied volatility the hedge is priced at when `volatilityDrag` is given without `volatility` or a `ticker` that resolves one.',
         },
         stateCode: {
           ...STATE_SCHEMA,
@@ -1446,7 +1456,7 @@ export const TOOLS: McpTool[] = [
         expectedPositionReturn: {
           type: ['number', 'string'],
           description:
-            'Annual expected return on the concentrated stock as a decimal (0.10 = 10%), or the string "market" to use the S&P 500 trailing average when the user has no view. Required unless `ticker` resolves it from trailing CAGR. This tool has no default for it: a value not stated by the user, not resolved by a covered `ticker`, and not the "market" sentinel is outside the input contract.',
+            'Annual expected return on the concentrated stock as a decimal (0.10 = 10%), or the string "market" to use the S&P 500 trailing average when the user has no view. Resolution order: this value, else the `ticker`\'s trailing CAGR, else the S&P 500 trailing average, reported as a placeholder in `assumptions` and `assumptionNotice`. A number passed here must come from the user.',
         },
         expectedMarketReturn: {
           type: ['number', 'string'],
@@ -1551,7 +1561,7 @@ export const TOOLS: McpTool[] = [
         expectedReturn: {
           type: 'number',
           description:
-            'Annual expected stock return (decimal). Drives the real-world drift in the cap-hit / floor-hit probability metrics. Does not affect premium math. Default 0.',
+            'Annual expected stock return (decimal). Drives the real-world drift in the cap-hit / floor-hit probability metrics. Does not affect premium math. Defaults to the stock\'s trailing annualized return when its option chain resolves, else the sector\'s long-run return (never 0).',
         },
         spreadRiskLevel: {
           type: 'number',

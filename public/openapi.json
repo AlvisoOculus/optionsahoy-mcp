@@ -2623,7 +2623,7 @@
               "number",
               "string"
             ],
-            "description": "Arithmetic-mean annual growth rate, e.g. 0.10 for 10%/year. Required unless `ticker` resolves it from trailing CAGR. Also accepts the string \"market\" to use the S&P 500 trailing average when the user has no view."
+            "description": "Arithmetic-mean annual growth rate, e.g. 0.10 for 10%/year. Resolution order: this value, else the `ticker`'s trailing CAGR, else the S&P 500 trailing average, disclosed in `assumptions`. Also accepts the string \"market\" to use the S&P 500 trailing average when the user has no view."
           },
           "ticker": {
             "$ref": "#/components/schemas/Ticker"
@@ -2742,7 +2742,7 @@
               "string"
             ],
             "minimum": 0,
-            "description": "Expected sale price at horizon, USD per share. Required unless `ticker` resolves it from currentPrice × (1 + trailing CAGR)^holdYears. Also accepts the string \"market\" to project currentPrice at the S&P 500 trailing average."
+            "description": "Expected sale price at horizon, USD per share. Resolution order: this value, else currentPrice × (1 + the `ticker`'s trailing CAGR)^holdYears, else the same projection at the S&P 500 trailing average, disclosed in `assumptions`. Also accepts the string \"market\" to project currentPrice at the S&P 500 trailing average."
           },
           "haircut": {
             "type": "number",
@@ -2820,7 +2820,7 @@
               "string"
             ],
             "minimum": 0,
-            "description": "Projected $/share at end of holdYears. Required unless `ticker` resolves it from currentPrice × (1 + trailing CAGR)^holdYears. Also accepts the string \"market\" to project currentPrice at the S&P 500 trailing average."
+            "description": "Projected $/share at end of holdYears. Resolution order: this value, else currentPrice × (1 + the `ticker`'s trailing CAGR)^holdYears, else the same projection at the S&P 500 trailing average, disclosed in `assumptions`. Also accepts the string \"market\" to project currentPrice at the S&P 500 trailing average."
           },
           "haircut": {
             "type": "number",
@@ -2894,7 +2894,7 @@
               "number",
               "string"
             ],
-            "description": "Annual return on the concentrated stock. Required unless `ticker` resolves it from trailing CAGR. Also accepts the string \"market\" to use the S&P 500 trailing average when the user has no view."
+            "description": "Annual return on the concentrated stock. Resolution order: this value, else the `ticker`'s trailing CAGR, else the S&P 500 trailing average, disclosed in `assumptions`. Also accepts the string \"market\" to use the S&P 500 trailing average when the user has no view."
           },
           "expectedMarketReturn": {
             "type": [
@@ -3154,7 +3154,7 @@
                     "number",
                     "string"
                   ],
-                  "description": "Per-stack growth decimal (0.08 = 8%/yr), or the string \"market\" for the S&P 500 trailing average. Required unless `ticker` resolves it; omitting it is an error, not a flat default. Pass 0 for a deliberately flat-price plan."
+                  "description": "Per-stack growth decimal (0.08 = 8%/yr), or the string \"market\" for the S&P 500 trailing average. If omitted and `ticker` does not resolve it, falls back to the S&P 500 trailing average, disclosed in `assumptions` (never a silent flat default). Pass 0 for a deliberately flat-price plan."
                 },
                 "volatility": {
                   "type": "number",
@@ -3230,7 +3230,7 @@
               "number",
               "string"
             ],
-            "description": "Legacy single-stack annual growth decimal, or the string \"market\" for the S&P 500 trailing average. Required with legacy `lots`: pass 0 for a deliberately flat-price plan (omitting it is an error, not a flat default)."
+            "description": "Legacy single-stack annual growth decimal, or the string \"market\" for the S&P 500 trailing average. Used with legacy `lots`: pass 0 for a deliberately flat-price plan; if omitted it falls back to the S&P 500 trailing average, disclosed in `assumptions` (never a silent flat default)."
           },
           "ordinaryIncome": {
             "type": "number",
