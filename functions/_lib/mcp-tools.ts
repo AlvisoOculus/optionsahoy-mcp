@@ -31,6 +31,7 @@ import {
   parseEquityFundingInput,
   parseRsuLotOptimizeInput,
   MAX_RSU_LOT_ORDER_LOTS,
+  type GrowthAssumption,
 } from './calc-parsers';
 
 export type McpToolAnnotations = {
@@ -203,12 +204,16 @@ const STRICT_INPUT_NOTE =
 // trailing average) — see its field description.
 const STRICT_INPUT_NOTE_NO_TICKER = REQUIRED_FACTS_NOTE + MULTI_TOOL_BETA_NOTE;
 
-// qsbs_check only. The `unsure` enums, the partial verdict and the statutory
+// qsbs_check only. The `unsure` enums, the `caveats` verdict and the statutory
 // tests exist on that tool alone, so this cannot live in the shared note: as a
 // blanket claim it promised protective_put_price, equity_funding_plan and
 // rsu_lot_optimize an output structure none of them has.
+// What an unconfirmed answer does to one test (qsbs.ts: an `unsure` status
+// makes the verdict `caveats` unless another test fails or the hold is short).
+const QSBS_UNCONFIRMED = 'marks this test unconfirmed (a `caveats` verdict when the other tests pass).';
+
 const QSBS_UNSURE_NOTE =
-  ' For the enum fields that accept `unsure`, that value is the accurate encoding of a fact the user has not confirmed: it yields a partial verdict flagging that test as unconfirmed, where encoding an unconfirmed fact as yes or no yields a verdict the underlying facts may not support.';
+  ' For the enum fields that accept `unsure`, that value is the accurate encoding of a fact the user has not confirmed: it marks that test unconfirmed (a `caveats` verdict when the other tests pass), where encoding an unconfirmed fact as yes or no yields a verdict the underlying facts may not support.';
 
 // Vol input shared by amt_iso_optimize, nso_calculate, rsu_sell_vs_hold.
 // concentration_analyze defines its own version because it also uses sigma
@@ -289,6 +294,29 @@ const dateStr = (description: string): JsonSchema => ({
   type: 'string',
   description: `${description} ISO 8601 date-time string.`,
 });
+
+// `assumptions` and `assumptionNotice` are the exception to the 1:1 rule
+// above: the tool runner adds them (attachAssumptions in calc-parsers.ts), not
+// the calc, and only when a placeholder stood in for a growth or volatility
+// input. Declared on the five tools whose descriptions promise them; the other
+// three never take a placeholder. `satisfies` keeps the item fields in step
+// with GrowthAssumption.
+const ASSUMPTION_ITEM_PROPERTIES = {
+  field: { type: 'string' },
+  value: { type: 'number' },
+  annualRate: { type: 'number' },
+  basis: { type: 'string' },
+  reason: { type: 'string' },
+} satisfies Record<keyof GrowthAssumption, JsonSchema>;
+
+const ASSUMPTION_OUTPUT_PROPERTIES: Record<string, JsonSchema> = {
+  assumptions: {
+    type: 'array',
+    description: 'Present only when a placeholder stood in for a growth or volatility input the user did not supply, one entry per such input: `field` (the input), `value` (what it took: a rate, or for expectedSalePrice a $/share price), `annualRate` (the rate behind it), and `basis` and `reason` in words.',
+    items: { type: 'object', properties: ASSUMPTION_ITEM_PROPERTIES, required: Object.keys(ASSUMPTION_ITEM_PROPERTIES) },
+  },
+  assumptionNotice: str('Present with `assumptions`: one plain-language sentence naming each placeholder, written to be relayed to the user.'),
+};
 
 // One calendar year of an ISO exercise schedule (amtIso.ts YearTax).
 const YEAR_TAX_SCHEMA: JsonSchema = {
@@ -426,6 +454,7 @@ const AMT_ISO_OUTPUT_SCHEMA: JsonSchema = {
         'recommendedSchedule', 'curve',
       ],
     },
+    ...ASSUMPTION_OUTPUT_PROPERTIES,
   },
   required: [
     'crossoverShares', 'crossoverBargain', 'alreadyInAmt', 'schedules', 'stateHasAmt',
@@ -516,6 +545,7 @@ const NSO_OUTPUT_SCHEMA: JsonSchema = {
       required: ['netCashAtY0', 'marketGain', 'ltcgFederal', 'ltcgState', 'ltcgTotal', 'netAtYearN'],
     },
     holdMinusCashless: num('hold.netAtYearN - sellNowInvest.netAtYearN in dollars. Positive favors holding the shares; negative favors selling at exercise and reinvesting.'),
+    ...ASSUMPTION_OUTPUT_PROPERTIES,
   },
   required: ['exercise', 'bracketJump', 'hold', 'sellNowInvest', 'holdMinusCashless'],
 };
@@ -581,6 +611,7 @@ const RSU_OUTPUT_SCHEMA: JsonSchema = {
       ],
     },
     holdMinusSell: num('hold.netAtYearN - sellNowInvest.netAtYearN in dollars. Positive favors holding the vested shares; negative favors selling at vest and reinvesting.'),
+    ...ASSUMPTION_OUTPUT_PROPERTIES,
   },
   required: ['vest', 'bracketJump', 'hold', 'sellNowInvest', 'holdMinusSell'],
 };
@@ -701,6 +732,7 @@ const CONCENTRATION_OUTPUT_SCHEMA: JsonSchema = {
     },
     sectorContextLine: str('One-line volatility/drawdown context for the chosen sector.'),
     advisorBenchmarkLine: str('One-line comparison of the user weight vs the common advisor 10% single-name guideline.'),
+    ...ASSUMPTION_OUTPUT_PROPERTIES,
   },
   required: [
     'concentration', 'riskBand', 'isLongTermToday', 'longTermDate', 'daysUntilLongTerm',
@@ -724,13 +756,13 @@ const PROTECTIVE_PUT_OUTPUT_SCHEMA: JsonSchema = {
           type: 'string',
           enum: ['explicit', 'ticker', 'sector-default', 'chain'],
           description:
-            'Which source produced the sigma actually priced: "explicit" (caller-supplied), "chain" (interpolated from the stock\'s live option chain at the strike being priced), "ticker" (the stock\'s published at-the-money implied vol as of the last close), or "sector-default" (feed unavailable or ticker uncovered; a sector-typical estimate - tell the user the price is not stock-specific).',
+            'Which source produced the sigma actually priced: "explicit" (caller-supplied), "chain" (interpolated from the stock\'s listed option chain as of the last close, at the strike being priced), "ticker" (the stock\'s published at-the-money implied vol as of the last close), or "sector-default" (feed unavailable or ticker uncovered; a sector-typical estimate - tell the user the price is not stock-specific).',
         },
         pricingMode: {
           type: 'string',
           enum: ['chain-skew', 'flat'],
           description:
-            'How the legs were priced. "chain-skew": each leg is priced at the implied volatility of its own strike, read off the live chain, so the floor put carries the market\'s downside skew and the put spread\'s short leg carries its own. "flat": every leg is priced at the single `volatility` above, which understates what out-of-the-money protection costs and overstates the rebate the spread\'s short leg earns - the quote is an estimate of this structure\'s cost, not a strike-aware one. Reached whenever no live chain applies: an explicit `volatility`, no `ticker`, or a chain that could not be fetched or was not current.',
+            'How the legs were priced. "chain-skew": each leg is priced at the implied volatility of its own strike, read off the stock\'s option chain as of the last close, so the floor put carries the market\'s downside skew and the put spread\'s short leg carries its own. "flat": every leg is priced at the single `volatility` above, which understates what out-of-the-money protection costs and overstates the rebate the spread\'s short leg earns - the quote is an estimate of this structure\'s cost, not a strike-aware one. Reached whenever no chain applies: an explicit `volatility`, no `ticker`, or a chain that could not be fetched or was not current.',
         },
         protectionLevel: num('Protection level as a fraction below spot (0.10 = 10% OTM put).'),
         tenorYears: num('Option tenor in years.'),
@@ -1033,6 +1065,7 @@ const EQUITY_FUNDING_OUTPUT_SCHEMA: JsonSchema = {
     targetAfterTax: num('Echo of the requested net cash target in dollars.'),
     targetDateISO: str('Echo of the target date as an ISO date string.'),
     appliedRiskTolerance: num('Shortfall-probability tolerance actually applied (default 0.10 when not supplied).'),
+    ...ASSUMPTION_OUTPUT_PROPERTIES,
   },
   required: [
     'recommended', 'lockInNow', 'balanced', 'holdForGrowth', 'frontier',
@@ -1138,7 +1171,7 @@ export const TOOLS: McpTool[] = [
     _meta: SCENARIO_WIDGET_META,
     annotations: { title: 'ISO/AMT Exercise Optimization', ...CALC_HINTS },
     description:
-      'Use this when someone asks how or when to exercise incentive stock options (ISOs), whether exercising will trigger an AMT bomb or phantom income, whether to exercise early, how to plan around the alternative minimum tax (AMT) on an exercise, or how to spread ISO exercises across several years. Computes multi-year exercise schedules and compares them by after-tax Net Final Value (NFV) at the planning horizon. NFV is the after-all-tax cash equivalent of the position at year `horizon`, summing exercised shares (held to LTCG) plus the time-valued tax stream paid along the way; the search compares per-year share allocations by NFV. The headline result is `schedules.optimized.nfv`, the dollar NFV of the highest-scoring schedule found; `schedules.lumpSum` and `schedules.evenSplit` are baseline plans whose `nfv` deltas show the value added by the optimized schedule. For NSO grants use `nso_calculate`, for RSUs at vest use `rsu_sell_vs_hold`, for §1202 QSBS qualification use `qsbs_check`. Models AMT credit recovery across future years, grant-expiration timing, and the post-termination exercise window. Deterministic computation: federal + 50-state tax tables and AMT brackets are compiled in, and the only data read at call time is OptionsAhoy\'s own published market data, for a `ticker` or the volatility placeholder. Input values are not stored. `schedules.optimized` comes from searching the full discretized candidate space and refining share by share, and a published test case checks it against an exhaustive search (see https://optionsahoy.com/verification). `departedRecommendation`, when present, comes from a scan over candidate share counts rather than the full search. Also returns `crossoverShares`, `crossoverBargain`, `alreadyInAmt`, `timing`, `stateHasAmt`, `bargainPerShare`, and `effectiveHorizon`; see `outputSchema` for the full shape. Example call: {shares: 10000, strike: 2, fmv: 200, expectedGrowth: 0.15, volatility: 0.5, filingStatus: "married_joint", ordinaryIncome: 400000, stateCode: "CA", carryforwardCredit: 0, horizon: 4, cashReturnRate: 0.05, grantDate: "2022-01-15", hasLeftCompany: false, terminationDate: null}.' + STRICT_INPUT_NOTE,
+      'Use this when someone asks how or when to exercise incentive stock options (ISOs), whether exercising will trigger an AMT bomb or phantom income, whether to exercise early, how to plan around the alternative minimum tax (AMT) on an exercise, or how to spread ISO exercises across several years. Computes multi-year exercise schedules and compares them by after-tax Net Final Value (NFV) at the planning horizon. NFV is the after-all-tax cash equivalent of the position at year `horizon`, summing exercised shares (held to LTCG) plus the time-valued tax stream paid along the way; the search compares per-year share allocations by NFV. The headline result is `schedules.optimized.nfv`, the dollar NFV of the highest-scoring schedule found; `schedules.lumpSum` and `schedules.evenSplit` are baseline plans whose `nfv` deltas show the value added by the optimized schedule. For NSO grants use `nso_calculate`, for RSUs at vest use `rsu_sell_vs_hold`, for §1202 QSBS qualification use `qsbs_check`. Models AMT credit recovery across future years, grant-expiration timing, and the post-termination exercise window. Deterministic computation: federal + 50-state tax tables and AMT brackets are compiled in, and the only data read at call time is OptionsAhoy\'s own published market data, for a `ticker` or the volatility placeholder. Input values are not stored. `schedules.optimized` comes from searching the full discretized candidate space and refining share by share, and a published test case checks it against an exhaustive search (see https://optionsahoy.com/verification). `departedRecommendation`, when present, comes from a scan over candidate share counts rather than the full search. Also returns `crossoverShares`, `crossoverBargain`, `alreadyInAmt`, `timing`, `stateHasAmt`, `bargainPerShare`, and `effectiveHorizon`; see `outputSchema` for the full shape. The schedules are calculations from the inputs supplied, for planning, not tax or investment advice; the user should have a tax professional confirm a schedule before exercising. Example call: {shares: 10000, strike: 2, fmv: 200, expectedGrowth: 0.15, volatility: 0.5, filingStatus: "married_joint", ordinaryIncome: 400000, stateCode: "CA", carryforwardCredit: 0, horizon: 4, cashReturnRate: 0.05, grantDate: "2022-01-15", hasLeftCompany: false, terminationDate: null}.' + STRICT_INPUT_NOTE,
     inputSchema: {
       type: 'object',
       required: [
@@ -1519,7 +1552,7 @@ export const TOOLS: McpTool[] = [
     _meta: SCENARIO_WIDGET_META,
     annotations: { title: 'Protective Put / Collar / Put Spread Pricing', ...CALC_HINTS },
     description:
-      'Use this when someone asks how much it costs to hedge or protect a stock position against a drop, to protect gains, get downside protection, or limit losses on a position, or to price a protective put, a zero-cost collar, or a put spread. Closed-form pricing of a protective put, a zero-cost collar, and a put spread on a single-stock position. For concentration-vs-hedge tax-cost comparison, use `concentration_analyze` with a `hedgeChoice`. Parameter interactions: `volatility` omitted resolves from `ticker`, else a sector-typical implied volatility; an explicit sigma overrides it. For collars, omitting `upsideCapPct` lets the tool back-solve the cap that zeros the net premium (truly zero-cost collar); supplying `upsideCapPct` overrides the solver and yields a non-zero net premium when the cap is wider than zero-cost. `tenorYears` drives the risk-free-rate lookup AND the floor-hit / cap-hit probability metrics, so changing tenor shifts every probability output even at fixed strike. `expectedReturn` affects only the probability metrics (real-world drift in the floor-hit / cap-hit calculations); premium math is risk-neutral and ignores it (when a chain resolves it defaults to that stock\'s trailing annualized return, else to the sector\'s long-run return; never 0). `protectionLevel` sets the put strike as `(1 − protectionLevel) × spot`; raising it widens the protected zone but raises premium roughly linearly. `spreadRiskLevel` (default 0.10) sets the put spread\'s short strike by targeting the probability the stock ends below it; it affects only the `putSpread` block. The put spread finances the same floor with a short put at a lower strike (not a short call), so it is cheaper than the bare put and needs no shares to sell calls against, which makes it the one structure of the three that works on unexercised employee options; the trade-off is that protection stops at the short strike and losses resume below it. Closed-form and deterministic. With a `ticker` and no explicit `volatility`, each leg prices at its own strike\'s implied volatility off that stock\'s listed option chain as of the last close (`pricingMode` "chain-skew"); otherwise all legs price at one sigma ("flat"), understating out-of-the-money protection. Returns a top-level object with keys: `inputs` (echoed canonical input), `riskFreeRate` (used in option pricing), `realWorldDrift` (from expectedReturn), `barePut` (strike, premium, annualCost, annualCostPct, maxLoss, badYearPrice, badYearDropPct, coveredLossAtBadYear, premiumToCoveredRatio, expectedProfit, premiumToExpectedProfitRatio), `collar` (putStrike, callStrike, netPremium, annualCost, annualCostPct, maxLoss, upsideCap, upsideCapPct, isZeroCost, capProbability), `putSpread` (available, unavailableReason, longStrike, longPremium, shortStrike, shortPremium, shortSigma, netPremium, annualCost, annualCostPct, maxLossInBand, bandWidth, shortStrikeDropPct, breachProbability, riskLevel, savingsPct, coveredLossAtBadYear), `payoffTable`, `payoffRange`, and `recommended` (the structure, of collar / bare put / put spread, that the tool\'s comparison rule selects for these inputs, or none). When `putSpread.available` is false, `putSpread.unavailableReason` explains why that structure could not be priced. Example call: {positionValue: 400000, sector: "tech_software", protectionLevel: 0.10, tenorYears: 1, spreadRiskLevel: 0.10}.' + STRICT_INPUT_NOTE_NO_TICKER,
+      'Use this when someone asks how much it costs to hedge or protect a stock position against a drop, to protect gains, get downside protection, or limit losses on a position, or to price a protective put, a zero-cost collar, or a put spread. Closed-form pricing of a protective put, a zero-cost collar, and a put spread on a single-stock position. For concentration-vs-hedge tax-cost comparison, use `concentration_analyze` with a `hedgeChoice`. Parameter interactions: `volatility` omitted resolves from `ticker`, else a sector-typical implied volatility; an explicit sigma overrides it. For collars, omitting `upsideCapPct` lets the tool back-solve the cap that zeros the net premium (truly zero-cost collar); supplying `upsideCapPct` overrides the solver and yields a non-zero net premium when the cap is wider than zero-cost. `tenorYears` drives the risk-free-rate lookup AND the floor-hit / cap-hit probability metrics, so changing tenor shifts every probability output even at fixed strike. `expectedReturn` affects only the probability metrics (real-world drift in the floor-hit / cap-hit calculations); premium math is risk-neutral and ignores it (when a chain resolves it defaults to that stock\'s trailing annualized return, else to the sector\'s long-run return; never 0). `protectionLevel` sets the put strike as `(1 − protectionLevel) × spot`; raising it widens the protected zone but raises premium roughly linearly. `spreadRiskLevel` (default 0.10) sets the put spread\'s short strike by targeting the probability the stock ends below it; it affects only the `putSpread` block. The put spread finances the same floor with a short put at a lower strike (not a short call), so it is cheaper than the bare put and needs no shares to sell calls against, which makes it the one structure of the three that works on unexercised employee options; the trade-off is that protection stops at the short strike and losses resume below it. Closed-form and deterministic. With a `ticker` and no explicit `volatility`, each leg prices at its own strike\'s implied volatility off that stock\'s listed option chain as of the last close (`pricingMode` "chain-skew"); otherwise all legs price at one sigma ("flat"), understating out-of-the-money protection. Returns a top-level object with keys: `inputs` (echoed canonical input), `riskFreeRate` (used in option pricing), `realWorldDrift` (from expectedReturn), `barePut` (strike, premium, annualCost, annualCostPct, maxLoss, badYearPrice, badYearDropPct, coveredLossAtBadYear, premiumToCoveredRatio, expectedProfit, premiumToExpectedProfitRatio), `collar` (putStrike, callStrike, netPremium, annualCost, annualCostPct, maxLoss, upsideCap, upsideCapPct, isZeroCost, capProbability), `putSpread` (available, unavailableReason, longStrike, longPremium, shortStrike, shortPremium, shortSigma, netPremium, annualCost, annualCostPct, maxLossInBand, bandWidth, shortStrikeDropPct, breachProbability, riskLevel, savingsPct, coveredLossAtBadYear), `payoffTable`, `payoffRange`, and `recommended` (the structure, of collar / bare put / put spread, that the tool\'s comparison rule selects for these inputs, or none). When `putSpread.available` is false, `putSpread.unavailableReason` explains why that structure could not be priced. Prices are model estimates from the inputs and the option data as of the last close, for planning, not investment advice; the user should confirm a hedge with a financial professional before trading. Example call: {positionValue: 400000, sector: "tech_software", protectionLevel: 0.10, tenorYears: 1, spreadRiskLevel: 0.10}.' + STRICT_INPUT_NOTE_NO_TICKER,
     inputSchema: {
       type: 'object',
       required: ['positionValue', 'sector', 'protectionLevel', 'tenorYears'],
@@ -1614,13 +1647,13 @@ export const TOOLS: McpTool[] = [
           type: 'string',
           enum: ['original-issuance', 'gift-or-inheritance', 'secondary', 'unsure'],
           description:
-            "§1202 Test 2: How the user obtained the shares. 'original-issuance' (direct from the company) qualifies. 'gift-or-inheritance' tacks the original holder's basis and clock. 'secondary' (bought on a secondary market) does NOT qualify. 'unsure' triggers a partial verdict.",
+            "§1202 Test 2: How the user obtained the shares. 'original-issuance' (direct from the company) qualifies. 'gift-or-inheritance' tacks the original holder's basis and clock. 'secondary' (bought on a secondary market) does NOT qualify. 'unsure' " + QSBS_UNCONFIRMED,
         },
         assetCategory: {
           type: 'string',
           enum: ['under-50m', '50m-to-75m', 'over-75m', 'unsure'],
           description:
-            "§1202 Test 3: Aggregate gross assets of the issuing corporation at the time of issuance. 'under-50m' qualifies pre-OBBBA. '50m-to-75m' qualifies ONLY under OBBBA 2026+ (post-2025-07-05). 'over-75m' never qualifies. 'unsure' returns a partial verdict.",
+            "§1202 Test 3: Aggregate gross assets of the issuing corporation at the time of issuance. 'under-50m' qualifies pre-OBBBA. '50m-to-75m' qualifies ONLY under OBBBA 2026+ (post-2025-07-05). 'over-75m' never qualifies. 'unsure' " + QSBS_UNCONFIRMED,
         },
         industry: {
           type: 'string',
@@ -1631,13 +1664,13 @@ export const TOOLS: McpTool[] = [
             'extraction', 'hospitality', 'performing-arts', 'other-services', 'unsure',
           ],
           description:
-            '§1202 Test 4: Industry classification of the corporation. Four values qualify: tech-software, manufacturing, biotech-research, retail-wholesale. Specified service trades or businesses (law, engineering, architecture, accounting-actuarial, consulting, finance, health-services, performing-arts) do NOT qualify, and farming, extraction and hospitality are separately excluded, so they do not qualify either. other-services and unsure return a caveated verdict rather than a pass or fail.',
+            '§1202 Test 4: Industry classification of the corporation. Four values qualify: tech-software, manufacturing, biotech-research, retail-wholesale. Specified service trades or businesses (law, engineering, architecture, accounting-actuarial, consulting, finance, health-services, performing-arts) do NOT qualify, and farming, extraction and hospitality are separately excluded, so they do not qualify either. \'other-services\' or \'unsure\' ' + QSBS_UNCONFIRMED,
         },
         activeBusiness: {
           type: 'string',
           enum: ['yes', 'no', 'unsure'],
           description:
-            "§1202 Test 5: Did the corporation use ≥80% of its assets in the active conduct of a qualified trade throughout the holding period? 'yes' qualifies. 'no' fails. 'unsure' returns a partial verdict (user should confirm with their CFO).",
+            "§1202 Test 5: Did the corporation use ≥80% of its assets in the active conduct of a qualified trade throughout the holding period? 'yes' qualifies. 'no' fails. 'unsure' " + QSBS_UNCONFIRMED + ' The user should confirm it with their CFO.',
         },
         adjustedBasis: {
           type: 'number',
@@ -1675,7 +1708,7 @@ export const TOOLS: McpTool[] = [
     _meta: SCENARIO_WIDGET_META,
     annotations: { title: 'Equity-Funding Plan Comparison', ...CALC_HINTS },
     description:
-      'Use this when someone asks which shares to sell and when to reach a cash goal by a deadline (down payment, tuition, a tax bill), or how to fund a goal from equity at a lower tax cost. Multi-year, multi-stack equity-funding optimizer. Given a target after-tax amount and a deadline (down payment, tax bill, expansion check), returns four named plans on the risk/wealth frontier: `lockInNow` (sell today, no further exposure to the stock price), `balanced` (bracket-aware spread across months), `holdForGrowth` (sell at the deadline, full exposure to the stock price), and `recommended` (the plan with the most projected wealth among those whose lognormal shortfall probability is at or below `riskToleranceShortfall`, default 10%). Also returns `frontier`, the full hybrid sweep between Lock-in-now and Balanced. Each plan carries its `plan` schedule plus `wealthAtTarget`, `totalTax`, and `shortfallProbability`; see `outputSchema` for the full shape. Use this when an equity holder needs cash by a deadline; for the upstream tax math on RSU/NSO/ISO events that PRODUCED the holdings, call `rsu_sell_vs_hold` / `nso_calculate` / `amt_iso_optimize` first. Out of scope: FICA, AMT, QSBS routing (use `qsbs_check`). Pass multi-ticker holdings via `stacks`; single-stack legacy callers can use top-level `lots` + `currentPrice`. Example: {targetAfterTax: 400000, targetDate: "2028-06-01", stacks: [{ticker: "NVDA", currentPrice: 140, expectedAnnualGrowth: 0.15, volatility: 0.45, lots: [{shares: 4000, costBasisPerShare: 60, acquisitionDate: "2023-06-15"}]}], ordinaryIncome: 280000, filingStatus: "married_joint", stateCode: "CA", cashInterestRate: 0.04, riskToleranceShortfall: 0.10}. Each stack needs `expectedAnnualGrowth`: a decimal, the string "market" (S&P 500 trailing average), or a covered `ticker` that resolves it from the trailing-returns table (a symbol like "NVDA" is enough; volatility still comes from the stack\'s `volatility` or `defaultVolatility`). Omitting growth (with no ticker that resolves it) assumes the S&P 500 trailing average, disclosed in `assumptions`/`assumptionNotice`, never a silent flat default; pass 0 to model flat prices deliberately.' + STRICT_INPUT_NOTE_NO_TICKER,
+      'Use this when someone asks which shares to sell and when to reach a cash goal by a deadline (down payment, tuition, a tax bill), or how to fund a goal from equity at a lower tax cost. Multi-year, multi-stack equity-funding optimizer. Given a target after-tax amount and a deadline (down payment, tax bill, expansion check), returns four named plans on the risk/wealth frontier: `lockInNow` (sell today, no further exposure to the stock price), `balanced` (bracket-aware spread across months), `holdForGrowth` (sell at the deadline, full exposure to the stock price), and `recommended` (the plan with the most projected wealth among those whose lognormal shortfall probability is at or below `riskToleranceShortfall`, default 10%). Also returns `frontier`, the full hybrid sweep between Lock-in-now and Balanced. Each plan carries its `plan` schedule plus `wealthAtTarget`, `totalTax`, and `shortfallProbability`; see `outputSchema` for the full shape. Use this when an equity holder needs cash by a deadline; for the upstream tax math on RSU/NSO/ISO events that PRODUCED the holdings, call `rsu_sell_vs_hold` / `nso_calculate` / `amt_iso_optimize` first. Out of scope: FICA, AMT, QSBS routing (use `qsbs_check`). Pass multi-ticker holdings via `stacks`; single-stack legacy callers can use top-level `lots` + `currentPrice`. The plans are calculations from the inputs and risk tolerance supplied, for planning, not investment or tax advice; the user should confirm a sale plan with a tax or financial professional before selling. Example: {targetAfterTax: 400000, targetDate: "2028-06-01", stacks: [{ticker: "NVDA", currentPrice: 140, expectedAnnualGrowth: 0.15, volatility: 0.45, lots: [{shares: 4000, costBasisPerShare: 60, acquisitionDate: "2023-06-15"}]}], ordinaryIncome: 280000, filingStatus: "married_joint", stateCode: "CA", cashInterestRate: 0.04, riskToleranceShortfall: 0.10}. Each stack needs `expectedAnnualGrowth`: a decimal, the string "market" (S&P 500 trailing average), or a covered `ticker` that resolves it from the trailing-returns table (a symbol like "NVDA" is enough; volatility still comes from the stack\'s `volatility` or `defaultVolatility`). Omitting growth (with no ticker that resolves it) assumes the S&P 500 trailing average, disclosed in `assumptions`/`assumptionNotice`, never a silent flat default; pass 0 to model flat prices deliberately.' + STRICT_INPUT_NOTE_NO_TICKER,
     inputSchema: {
       type: 'object',
       required: ['targetAfterTax', 'targetDate', 'ordinaryIncome', 'filingStatus', 'stateCode'],
@@ -1804,7 +1837,7 @@ export const TOOLS: McpTool[] = [
     _meta: SCENARIO_WIDGET_META,
     annotations: { title: 'RSU Lot-Order Divest Plan', ...CALC_HINTS },
     description:
-      'Use this when someone asks which vested RSU lots to sell first, in which years, to divest part of a concentrated company-stock position, compared on total computed tax: "I want to sell down half my Amazon stock; which lots, and when?". Given the vested lots (vest date, shares, cost basis), a current price, and a divest fraction, it compares WHICH lots and WHICH sale dates to use, by computed total tax, to divest that many shares, using three levers: specific-lot identification (sell higher-basis lots to realize less gain, or underwater lots to harvest losses that net against gains), long-term deferral (wait past the one-year mark to convert short-term ordinary rates to long-term capital gains), and multi-year bracket spreading (split gains across 1 to 3 tax years, with in-plan capital-loss carryforward). Every sale is priced at today\'s price (flat-price assumption; there is no growth model). Returns the year-by-year sell schedule grouped by tax year, the total tax (federal LTCG + NIIT + state), what a first-in-first-out (FIFO) oldest-first sell order on the same schedule would have cost (`headlineDeltaVsFifo`), a 1/2/3-year horizon trade-off, and per-lot deferral callouts. This tool owns WHICH LOTS and WHICH DATES; for WHETHER and HOW MUCH to sell down a position use `concentration_analyze`, for a single new vest use `rsu_sell_vs_hold`, and to raise a specific cash amount by a deadline use `equity_funding_plan`. Out of scope: growth/return modeling, wash-sale basis migration, AMT, unvested grants. Example: {lots: [{vestDate: "2022-08-15", shares: 120, costBasisPerShare: 95}, {vestDate: "2024-02-15", shares: 100, costBasisPerShare: 130}, {vestDate: "2026-05-15", shares: 80, costBasisPerShare: 210}], currentPrice: 180, divestFraction: 0.5, horizonYears: 2, ordinaryIncome: 200000, filingStatus: "single", stateCode: "CA"}.' + STRICT_INPUT_NOTE_NO_TICKER,
+      'Use this when someone asks which vested RSU lots to sell first, in which years, to divest part of a concentrated company-stock position, compared on total computed tax: "I want to sell down half my Amazon stock; which lots, and when?". Given the vested lots (vest date, shares, cost basis), a current price, and a divest fraction, it compares WHICH lots and WHICH sale dates to use, by computed total tax, to divest that many shares, using three levers: specific-lot identification (sell higher-basis lots to realize less gain, or underwater lots to harvest losses that net against gains), long-term deferral (wait past the one-year mark to convert short-term ordinary rates to long-term capital gains), and multi-year bracket spreading (split gains across 1 to 3 tax years, with in-plan capital-loss carryforward). Every sale is priced at today\'s price (flat-price assumption; there is no growth model). Returns the year-by-year sell schedule grouped by tax year, the total tax (federal LTCG + NIIT + state), what a first-in-first-out (FIFO) oldest-first sell order on the same schedule would have cost (`headlineDeltaVsFifo`), a 1/2/3-year horizon trade-off, and per-lot deferral callouts. This tool owns WHICH LOTS and WHICH DATES; for WHETHER and HOW MUCH to sell down a position use `concentration_analyze`, for a single new vest use `rsu_sell_vs_hold`, and to raise a specific cash amount by a deadline use `equity_funding_plan`. Out of scope: growth/return modeling, wash-sale basis migration, AMT, unvested grants. The lot order is a calculation from the lots and inputs supplied, for planning, not tax or investment advice; the user should have a tax professional confirm it before selling. Example: {lots: [{vestDate: "2022-08-15", shares: 120, costBasisPerShare: 95}, {vestDate: "2024-02-15", shares: 100, costBasisPerShare: 130}, {vestDate: "2026-05-15", shares: 80, costBasisPerShare: 210}], currentPrice: 180, divestFraction: 0.5, horizonYears: 2, ordinaryIncome: 200000, filingStatus: "single", stateCode: "CA"}.' + STRICT_INPUT_NOTE_NO_TICKER,
     inputSchema: {
       type: 'object',
       required: ['lots', 'currentPrice', 'divestFraction', 'horizonYears', 'ordinaryIncome', 'filingStatus', 'stateCode'],

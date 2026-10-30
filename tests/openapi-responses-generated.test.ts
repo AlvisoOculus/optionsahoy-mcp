@@ -6,11 +6,13 @@
 // this fails -- run `npm run gen:openapi`. The mcp copy is checked strictly; the
 // cross-repo optionsahoy_web mirror only when present (absent in some CI).
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach } from 'vitest';
 import { readFileSync, existsSync } from 'node:fs';
 import Ajv2020 from 'ajv/dist/2020.js';
 import { TOOLS } from '../functions/_lib/mcp-tools';
 import { buildOpenApi } from '../scripts/codegen/gen-openapi.mjs';
+import { MARKET_VOL_MIN_ENTRIES } from '../lib/data/live-vols';
+import { seedFreshVols } from './helpers/live-vols-fixture';
 
 // tool name -> REST slug + PascalCase component prefix (mirrors gen-openapi.mts).
 const MAP = [
@@ -106,6 +108,38 @@ describe('openapi.json request/response examples are the real engine I/O', () =>
       const validate = ajv.compile({ $ref: `oa#/components/schemas/${prefix}Result` });
       const result = media(spec.components.responses[`${prefix}Success`]).example.result;
       expect(validate(result), JSON.stringify(validate.errors)).toBe(true);
+    });
+  }
+});
+
+// The examples above pass every growth and volatility input, so they never
+// reach the placeholder path, where the runner (attachAssumptions) adds
+// `assumptions` and `assumptionNotice`; five outputSchemas left those out until
+// 2026-10-30. Run each tool's real handler with those inputs removed: every key
+// it returns must be declared, and the result must validate.
+describe('a result that used placeholders still matches its outputSchema', () => {
+  const media = (s: any) => s.content['application/json'];
+  const ajv = new Ajv2020({ strict: false, allErrors: true });
+  const PLACEHOLDER_INPUTS = ['expectedGrowth', 'expectedSalePrice', 'expectedPositionReturn', 'volatility', 'volatilityDrag', 'ticker'];
+  // The volatility placeholder is a median across the covered market; the
+  // global setup seeds five tickers, too few for one, before every test.
+  beforeEach(() => seedFreshVols(Object.fromEntries(Array.from({ length: MARKET_VOL_MIN_ENTRIES + 5 }, (_, i) => [`T${i}`, 0.2 + i * 0.01]))));
+
+  for (const [name, slug] of MAP) {
+    it(`${name}: every returned key is declared and the result validates`, () => {
+      const tool = byName.get(name)!;
+      const req = structuredClone(media(spec.paths[`/api/v1/${slug}`].post.requestBody).example);
+      for (const f of PLACEHOLDER_INPUTS) delete req[f];
+      for (const stack of req.stacks ?? []) {
+        delete stack.expectedAnnualGrowth;
+        delete stack.ticker;
+      }
+      const out = JSON.parse(JSON.stringify(tool.handler(req)));
+      if (tool.description.includes('`assumptions`')) expect(out.assumptions?.length, 'placeholder path not reached').toBeGreaterThan(0);
+      const declared = Object.keys((tool.outputSchema as { properties: object }).properties);
+      expect(Object.keys(out).filter((k) => !declared.includes(k))).toEqual([]);
+      const validate = ajv.compile(tool.outputSchema);
+      expect(validate(out), JSON.stringify(validate.errors)).toBe(true);
     });
   }
 });

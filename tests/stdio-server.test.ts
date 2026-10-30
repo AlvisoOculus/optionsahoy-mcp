@@ -8,6 +8,8 @@
 
 import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
+import { createInterface } from 'node:readline';
+import { PassThrough, type Readable } from 'node:stream';
 import path from 'node:path';
 import { SERVER_INSTRUCTIONS } from '../functions/_lib/mcp-instructions';
 import { fileURLToPath } from 'node:url';
@@ -29,11 +31,20 @@ type Pending = {
   reject: (err: Error) => void;
 };
 
+// Calls onLine for each non-empty line. readline decodes UTF-8 across chunk
+// boundaries; decoding each chunk on its own corrupted a multi-byte character
+// split between two chunks (a '≤' in concentration_analyze's output).
+function onLines(stream: Readable, onLine: (line: string) => void) {
+  createInterface({ input: stream }).on('line', (l) => {
+    const line = l.trim();
+    if (line) onLine(line);
+  });
+}
+
 // Long-lived stdio session reused across all the per-tool tests. Spawning
 // the server once instead of per-test cuts the suite from ~20s to ~2s.
 class StdioSession {
   child!: ChildProcessWithoutNullStreams;
-  private buffer = '';
   private pending: Pending[] = [];
   private nextId = 1;
 
@@ -42,7 +53,7 @@ class StdioSession {
       cwd: SERVER_CWD,
       stdio: ['pipe', 'pipe', 'pipe'],
     });
-    this.child.stdout.on('data', (chunk) => this.onChunk(chunk));
+    onLines(this.child.stdout, (line) => this.onLine(line));
     this.child.stderr.on('data', () => {});
     // If the child dies, reject every in-flight request so tests fail loudly
     // instead of hanging until each per-request timer fires.
@@ -94,28 +105,34 @@ class StdioSession {
     this.child.stdin.write(JSON.stringify({ jsonrpc: '2.0', method }) + '\n');
   }
 
-  private onChunk(chunk: Buffer) {
-    this.buffer += chunk.toString();
-    let nl;
-    while ((nl = this.buffer.indexOf('\n')) >= 0) {
-      const line = this.buffer.slice(0, nl).trim();
-      this.buffer = this.buffer.slice(nl + 1);
-      if (!line) continue;
-      let parsed: JsonRpcResponse;
-      try {
-        parsed = JSON.parse(line);
-      } catch {
-        continue;
-      }
-      if (parsed.id == null) continue;
-      const match = this.pending.find((p) => p.id === parsed.id);
-      if (match) {
-        this.pending = this.pending.filter((p) => p !== match);
-        match.resolve(parsed);
-      }
+  private onLine(line: string) {
+    let parsed: JsonRpcResponse;
+    try {
+      parsed = JSON.parse(line);
+    } catch {
+      return;
+    }
+    const match = this.pending.find((p) => p.id === parsed.id);
+    if (match) {
+      this.pending = this.pending.filter((p) => p !== match);
+      match.resolve(parsed);
     }
   }
 }
+
+describe('stdout line reader', () => {
+  it('keeps a multi-byte character that is split across two chunks', async () => {
+    const stream = new PassThrough();
+    const lines: string[] = [];
+    onLines(stream, (line) => lines.push(line));
+    const bytes = Buffer.from('{"x":"≤10%"}\n');
+    const cut = bytes.indexOf(0x89); // inside the 3-byte '≤' (e2 89 a4)
+    stream.write(bytes.subarray(0, cut));
+    stream.write(bytes.subarray(cut));
+    await new Promise((r) => setImmediate(r));
+    expect(lines).toEqual(['{"x":"≤10%"}']);
+  });
+});
 
 describe('local stdio MCP server', () => {
   const session = new StdioSession();
