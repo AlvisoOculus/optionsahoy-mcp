@@ -10,6 +10,7 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { TOOLS } from '../functions/_lib/mcp-tools';
 import { PROMPTS } from '../functions/_lib/mcp-prompts';
+import { SERVER_INSTRUCTIONS } from '../functions/_lib/mcp-instructions';
 import { QSBS_INDUSTRY_OPTIONS } from '../lib/calc/qsbs';
 import { evaluateQsbs, type QsbsInputs } from '@/lib/calc/qsbs';
 
@@ -27,6 +28,10 @@ describe('MCP tool docs: voice/IP lint', () => {
     ['IV multiplier constant name', /IV_OVER_RV_MULTIPLIER/],
     ['model name Black-Scholes', /Black-?Scholes/],
     ['search-strategy phrasing', /\bgreedy\b|chunk-grid|1-share refinement/],
+    // Every number read at call time is OptionsAhoy's own published data as of
+    // the last close (hence openWorldHint false); the outputSchema called the
+    // option chain "live" until 2026-10-30.
+    ['"live" market data', /\blive\b/i],
   ];
   for (const tool of TOOLS) {
     const s = blob(tool);
@@ -35,6 +40,37 @@ describe('MCP tool docs: voice/IP lint', () => {
         expect(re.test(s), `${tool.name} contains ${label}`).toBe(false);
       });
     }
+  }
+  it('server instructions: no "live" market data', () => {
+    expect(/\blive\b/i.test(SERVER_INSTRUCTIONS)).toBe(false);
+  });
+});
+
+// Every `name` a definition puts in backticks must exist: a tool, an input
+// field or enum value of any tool, or one of this tool's own result fields
+// (dotted paths included). Five descriptions promised `assumptions` and
+// `assumptionNotice` while their outputSchemas left both out, until 2026-10-30.
+function schemaNames(schema: any, prefix = '', out = new Set<string>()): Set<string> {
+  if (!schema || typeof schema !== 'object') return out;
+  for (const e of schema.enum ?? []) if (typeof e === 'string') out.add(e);
+  for (const [k, v] of Object.entries(schema.properties ?? {})) {
+    const path = prefix ? `${prefix}.${k}` : k;
+    out.add(k).add(path);
+    schemaNames(v, path, out);
+  }
+  if (schema.items) schemaNames(schema.items, prefix, out);
+  for (const key of ['anyOf', 'oneOf', 'allOf']) for (const x of schema[key] ?? []) schemaNames(x, prefix, out);
+  return out;
+}
+
+describe('every backticked name in a tool definition exists', () => {
+  const shared = new Set(['outputSchema', 'required', ...TOOLS.flatMap((t) => [t.name, ...schemaNames(t.inputSchema)])]);
+  for (const tool of TOOLS) {
+    it(`${tool.name}: names only real tools, inputs and result fields`, () => {
+      const own = schemaNames(tool.outputSchema);
+      const unknown = [...blob(tool).matchAll(/`([A-Za-z_][\w.]*)`/g)].map((m) => m[1]).filter((n) => !shared.has(n) && !own.has(n));
+      expect([...new Set(unknown)]).toEqual([]);
+    });
   }
 });
 
@@ -81,6 +117,17 @@ describe('QSBS docs bound to the engine', () => {
   it('docs say six tests, never eight', () => {
     expect(/eight (statutory )?tests|each of the eight|the eight/i.test(s)).toBe(false);
     expect(/six statutory tests|six tests/i.test(s)).toBe(true);
+  });
+  it('each `unsure` input names the verdict the engine returns for it', () => {
+    const props = byName['qsbs_check'].inputSchema.properties as Record<string, { enum?: string[]; description: string }>;
+    const unsureFields = Object.keys(props).filter((f) => props[f].enum?.includes('unsure'));
+    expect(unsureFields.length).toBeGreaterThan(0);
+    for (const f of unsureFields) {
+      const { verdict } = evaluateQsbs({ ...sample, [f]: 'unsure' } as QsbsInputs);
+      expect(props[f].description, f).toContain(`\`${verdict}\` verdict`);
+    }
+    // `partial` is the sub-100% tier, not what an unconfirmed answer gives.
+    expect(/partial verdict/.test(s)).toBe(false);
   });
   it('no phantom does-not-qualify verdict', () => {
     expect(/does-not-qualify/.test(s)).toBe(false);

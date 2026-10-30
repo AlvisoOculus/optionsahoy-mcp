@@ -106,7 +106,7 @@ The position is 33% of net worth, which the tool bands as "Concentrated", and a 
  "protectionLevel": 0.2, "tenorYears": 1, "spreadRiskLevel": 0.1, "expectedReturn": 0.08}
 ```
 
-A bare put struck at $400,000 costs $19,348 a year, 3.87% of the position. The zero-cost collar buys the same floor for a net premium of roughly zero by capping upside at $724,518, which it puts a 15.7% chance on reaching, and that is the structure it recommends. ([raw](docs/examples/protective_put_price.json)) This call passes an explicit sigma, so every leg prices at that one number; pass a `ticker` instead and each leg prices at its own strike's implied volatility off that stock's live option chain, which costs more for a floor this far out of the money.
+A bare put struck at $400,000 costs $19,348 a year, 3.87% of the position. The zero-cost collar buys the same floor for a net premium of roughly zero by capping upside at $724,518, which it puts a 15.7% chance on reaching, and that is the structure it recommends. ([raw](docs/examples/protective_put_price.json)) This call passes an explicit sigma, so every leg prices at that one number; pass a `ticker` instead and each leg prices at its own strike's implied volatility off that stock's listed option chain as of the last close, which costs more for a floor this far out of the money.
 
 ### `qsbs_check`
 

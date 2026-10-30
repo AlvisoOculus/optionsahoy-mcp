@@ -4103,6 +4103,41 @@
               "recommendedSchedule",
               "curve"
             ]
+          },
+          "assumptions": {
+            "type": "array",
+            "description": "Present only when a placeholder stood in for a growth or volatility input the user did not supply, one entry per such input: `field` (the input), `value` (what it took: a rate, or for expectedSalePrice a $/share price), `annualRate` (the rate behind it), and `basis` and `reason` in words.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "field": {
+                  "type": "string"
+                },
+                "value": {
+                  "type": "number"
+                },
+                "annualRate": {
+                  "type": "number"
+                },
+                "basis": {
+                  "type": "string"
+                },
+                "reason": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "field",
+                "value",
+                "annualRate",
+                "basis",
+                "reason"
+              ]
+            }
+          },
+          "assumptionNotice": {
+            "type": "string",
+            "description": "Present with `assumptions`: one plain-language sentence naming each placeholder, written to be relayed to the user."
           }
         },
         "required": [
@@ -4338,6 +4373,41 @@
           "holdMinusCashless": {
             "type": "number",
             "description": "hold.netAtYearN - sellNowInvest.netAtYearN in dollars. Positive favors holding the shares; negative favors selling at exercise and reinvesting."
+          },
+          "assumptions": {
+            "type": "array",
+            "description": "Present only when a placeholder stood in for a growth or volatility input the user did not supply, one entry per such input: `field` (the input), `value` (what it took: a rate, or for expectedSalePrice a $/share price), `annualRate` (the rate behind it), and `basis` and `reason` in words.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "field": {
+                  "type": "string"
+                },
+                "value": {
+                  "type": "number"
+                },
+                "annualRate": {
+                  "type": "number"
+                },
+                "basis": {
+                  "type": "string"
+                },
+                "reason": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "field",
+                "value",
+                "annualRate",
+                "basis",
+                "reason"
+              ]
+            }
+          },
+          "assumptionNotice": {
+            "type": "string",
+            "description": "Present with `assumptions`: one plain-language sentence naming each placeholder, written to be relayed to the user."
           }
         },
         "required": [
@@ -4530,6 +4600,41 @@
           "holdMinusSell": {
             "type": "number",
             "description": "hold.netAtYearN - sellNowInvest.netAtYearN in dollars. Positive favors holding the vested shares; negative favors selling at vest and reinvesting."
+          },
+          "assumptions": {
+            "type": "array",
+            "description": "Present only when a placeholder stood in for a growth or volatility input the user did not supply, one entry per such input: `field` (the input), `value` (what it took: a rate, or for expectedSalePrice a $/share price), `annualRate` (the rate behind it), and `basis` and `reason` in words.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "field": {
+                  "type": "string"
+                },
+                "value": {
+                  "type": "number"
+                },
+                "annualRate": {
+                  "type": "number"
+                },
+                "basis": {
+                  "type": "string"
+                },
+                "reason": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "field",
+                "value",
+                "annualRate",
+                "basis",
+                "reason"
+              ]
+            }
+          },
+          "assumptionNotice": {
+            "type": "string",
+            "description": "Present with `assumptions`: one plain-language sentence naming each placeholder, written to be relayed to the user."
           }
         },
         "required": [
@@ -4885,6 +4990,41 @@
           "advisorBenchmarkLine": {
             "type": "string",
             "description": "One-line comparison of the user weight vs the common advisor 10% single-name guideline."
+          },
+          "assumptions": {
+            "type": "array",
+            "description": "Present only when a placeholder stood in for a growth or volatility input the user did not supply, one entry per such input: `field` (the input), `value` (what it took: a rate, or for expectedSalePrice a $/share price), `annualRate` (the rate behind it), and `basis` and `reason` in words.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "field": {
+                  "type": "string"
+                },
+                "value": {
+                  "type": "number"
+                },
+                "annualRate": {
+                  "type": "number"
+                },
+                "basis": {
+                  "type": "string"
+                },
+                "reason": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "field",
+                "value",
+                "annualRate",
+                "basis",
+                "reason"
+              ]
+            }
+          },
+          "assumptionNotice": {
+            "type": "string",
+            "description": "Present with `assumptions`: one plain-language sentence naming each placeholder, written to be relayed to the user."
           }
         },
         "required": [
@@ -4929,7 +5069,7 @@
                   "sector-default",
                   "chain"
                 ],
-                "description": "Which source produced the sigma actually priced: \"explicit\" (caller-supplied), \"chain\" (interpolated from the stock's live option chain at the strike being priced), \"ticker\" (the stock's published at-the-money implied vol as of the last close), or \"sector-default\" (feed unavailable or ticker uncovered; a sector-typical estimate - tell the user the price is not stock-specific)."
+                "description": "Which source produced the sigma actually priced: \"explicit\" (caller-supplied), \"chain\" (interpolated from the stock's listed option chain as of the last close, at the strike being priced), \"ticker\" (the stock's published at-the-money implied vol as of the last close), or \"sector-default\" (feed unavailable or ticker uncovered; a sector-typical estimate - tell the user the price is not stock-specific)."
               },
               "pricingMode": {
                 "type": "string",
@@ -4937,7 +5077,7 @@
                   "chain-skew",
                   "flat"
                 ],
-                "description": "How the legs were priced. \"chain-skew\": each leg is priced at the implied volatility of its own strike, read off the live chain, so the floor put carries the market's downside skew and the put spread's short leg carries its own. \"flat\": every leg is priced at the single `volatility` above, which understates what out-of-the-money protection costs and overstates the rebate the spread's short leg earns - the quote is an estimate of this structure's cost, not a strike-aware one. Reached whenever no live chain applies: an explicit `volatility`, no `ticker`, or a chain that could not be fetched or was not current."
+                "description": "How the legs were priced. \"chain-skew\": each leg is priced at the implied volatility of its own strike, read off the stock's option chain as of the last close, so the floor put carries the market's downside skew and the put spread's short leg carries its own. \"flat\": every leg is priced at the single `volatility` above, which understates what out-of-the-money protection costs and overstates the rebate the spread's short leg earns - the quote is an estimate of this structure's cost, not a strike-aware one. Reached whenever no chain applies: an explicit `volatility`, no `ticker`, or a chain that could not be fetched or was not current."
               },
               "protectionLevel": {
                 "type": "number",
@@ -6398,6 +6538,41 @@
           "appliedRiskTolerance": {
             "type": "number",
             "description": "Shortfall-probability tolerance actually applied (default 0.10 when not supplied)."
+          },
+          "assumptions": {
+            "type": "array",
+            "description": "Present only when a placeholder stood in for a growth or volatility input the user did not supply, one entry per such input: `field` (the input), `value` (what it took: a rate, or for expectedSalePrice a $/share price), `annualRate` (the rate behind it), and `basis` and `reason` in words.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "field": {
+                  "type": "string"
+                },
+                "value": {
+                  "type": "number"
+                },
+                "annualRate": {
+                  "type": "number"
+                },
+                "basis": {
+                  "type": "string"
+                },
+                "reason": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "field",
+                "value",
+                "annualRate",
+                "basis",
+                "reason"
+              ]
+            }
+          },
+          "assumptionNotice": {
+            "type": "string",
+            "description": "Present with `assumptions`: one plain-language sentence naming each placeholder, written to be relayed to the user."
           }
         },
         "required": [

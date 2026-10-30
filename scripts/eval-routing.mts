@@ -340,7 +340,8 @@ function judgeViaClaudeCode(reply: string): Promise<string | null> {
       child.kill('SIGKILL');
       done(null);
     }, CC_TIMEOUT_MS);
-    child.stdout.on('data', (d: Buffer) => (out += d.toString()));
+    child.stdout.setEncoding('utf8'); // decodes across chunk boundaries
+    child.stdout.on('data', (d: string) => (out += d));
     child.on('close', () => {
       try {
         done(parseJudgeAnswer((JSON.parse(out) as { result: string }).result));
@@ -539,8 +540,9 @@ function callOnceViaClaudeCode(
     // tool_use arrive as separate events). Accumulate text; stop at the first
     // tool_use (the routing decision) or at the final `result` event.
     const texts: string[] = [];
-    child.stdout.on('data', (d: Buffer) => {
-      buf += d.toString();
+    child.stdout.setEncoding('utf8'); // decodes across chunk boundaries
+    child.stdout.on('data', (d: string) => {
+      buf += d;
       let nl;
       while ((nl = buf.indexOf('\n')) >= 0) {
         const line = buf.slice(0, nl);
@@ -573,7 +575,8 @@ function callOnceViaClaudeCode(
         }
       }
     });
-    child.stderr.on('data', (d: Buffer) => (stderr += d.toString()));
+    child.stderr.setEncoding('utf8');
+    child.stderr.on('data', (d: string) => (stderr += d));
     child.on('error', (e) => {
       if (!settled) {
         settled = true;

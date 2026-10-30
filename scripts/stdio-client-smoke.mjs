@@ -108,6 +108,7 @@ function ask(prompt, { allow = [], timeoutMs = 180_000 } = {}) {
       resolve({ ok: false, text, toolsUsed, reason: 'timed out' });
     }, timeoutMs);
 
+    child.stdout.setEncoding('utf8'); // decodes across chunk boundaries
     child.stdout.on('data', (c) => {
       buf += c;
       const lines = buf.split('\n');
