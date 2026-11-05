@@ -4,7 +4,7 @@
   "version": "1.11.1",
   "mcp_url": "https://optionsahoy.com/mcp",
   "transport": "http",
-  "protocolVersion": "2024-11-05",
+  "protocolVersion": "2025-11-25",
   "documentation": "https://optionsahoy.com/for-agents",
   "contact": "andrew@alphalatitude.com"
 }

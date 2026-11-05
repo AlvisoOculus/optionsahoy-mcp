@@ -7,7 +7,9 @@
 // `notifications/initialized`, `tools/list`, `tools/call`, `resources/list`,
 // `resources/read`, `prompts/list`, `prompts/get`. Other methods reply with
 // JSON-RPC error -32601 (method not found). No SSE streaming: every request
-// gets a single JSON-RPC response.
+// gets a single JSON-RPC response, and a POST of notifications only gets 202.
+// initialize answers in the client's protocol version when it is one we
+// speak (SUPPORTED_PROTOCOL_VERSIONS in _lib/version.ts), else the newest.
 //
 // Add the server to an MCP client by configuring a remote-HTTP MCP
 // connection to https://optionsahoy.com/mcp. No auth.
@@ -21,13 +23,11 @@ import { PROMPTS } from './_lib/mcp-prompts';
 import { adaptPromptArgs, toolForPrompt } from './_lib/prompt-aliases';
 import { CALL_COUNT_UNKNOWN, bumpSessionCallCount, nextStepsFor, nextStepsProse } from './_lib/sessions';
 import { isUnmarketedClient } from './_lib/classify';
-import { SERVER_VERSION } from './_lib/version';
+import { LATEST_PROTOCOL_VERSION, SERVER_VERSION, SUPPORTED_PROTOCOL_VERSIONS } from './_lib/version';
 import { SERVER_INSTRUCTIONS } from './_lib/mcp-instructions';
 import { SCENARIO_WIDGET_RESOURCE, SCENARIO_WIDGET_RESULT_META, SCENARIO_WIDGET_URI } from './_lib/mcp-widget';
 import { coveredTickers } from '../lib/data/trailing-returns';
 import { warmForCall } from './_lib/calc-parsers';
-
-const PROTOCOL_VERSION = '2024-11-05';
 
 // Precomputed projections for the list endpoints. These fire on every MCP
 // client connect; doing the .map() once at module load avoids reallocating
@@ -61,7 +61,7 @@ const PROMPTS_LIST = PROMPTS.map((p) => ({
 const GET_DESCRIPTOR = {
   name: 'OptionsAhoy MCP Server',
   version: SERVER_VERSION,
-  protocolVersion: PROTOCOL_VERSION,
+  protocolVersion: LATEST_PROTOCOL_VERSION,
   transport: 'http' as const,
   tools: TOOLS.map((t) => t.name),
   resources: RESOURCES_LIST.map((r) => r.uri),
@@ -78,10 +78,20 @@ const GET_DESCRIPTOR = {
 // on every GET /mcp hit - this endpoint is polled heavily by scanners/registries.
 const GET_DESCRIPTOR_JSON = JSON.stringify(GET_DESCRIPTOR);
 
+// Any Origin is valid here. The spec's Origin check guards local servers
+// against DNS rebinding; this endpoint is public, unauthenticated and sets no
+// cookies, so a rebound page can do nothing it could not do by calling us.
 const CORS: Record<string, string> = {
   'access-control-allow-origin': '*',
   'access-control-allow-methods': 'POST, OPTIONS',
-  'access-control-allow-headers': 'content-type, mcp-session-id, mcp-protocol-version',
+  // Any request header. Protocol revisions keep adding them (2025-06-18
+  // MCP-Protocol-Version; 2026-07-28 Mcp-Method, Mcp-Name, Mcp-Param-*, sent
+  // even on the server/discover probe those clients fall back from), and a
+  // browser client whose preflight refuses one fails before it can fall back.
+  // A list went stale with each revision. With any origin and no credentials
+  // the wildcard is as safe as the list; it does not cover Authorization,
+  // which this server never reads.
+  'access-control-allow-headers': '*',
   // Without expose-headers, browser-based clients (MCP Inspector web, registry
   // try-it panes) can receive the session id below but never READ it, so they
   // would stay sessionless forever and the next-steps funnel would stay dark
@@ -128,9 +138,20 @@ function isParams(v: unknown): v is Record<string, unknown> {
   return typeof v === 'object' && v !== null && !Array.isArray(v);
 }
 
+// JSON-RPC: a request without an id is a notification, and gets no reply.
+function isNotification(req: JsonRpcRequest): boolean {
+  return req.id === undefined;
+}
+
 // Dispatch one JSON-RPC request. Pushes one CallFields entry into `logs`
-// per handled method (notifications are skipped because they carry no
-// actionable signal). The caller flushes `logs` to D1 in one batch.
+// per handled method. The caller flushes `logs` to D1 in one batch, and sends
+// no reply for a notification, whatever this returns.
+//
+// Notifications log nothing when they can carry no signal: notifications/*,
+// and the methods that would do work for a reply nobody gets (tools/call,
+// resources/read, prompts/get, an unknown method), which return null before
+// logging. An id-less initialize, list or ping is still handled and logged,
+// as it always was: the public call count is every logged row.
 //
 // `sessionDeps` carries the Mcp-Session-Id + MCP_STATS binding so that
 // tools/call can dedupe its injected beta-access pitch per session.
@@ -146,7 +167,7 @@ async function handle(
   allowInjection: boolean,
 ): Promise<JsonRpcResponse | null> {
   const id = req.id ?? null;
-  const isNotification = req.id === undefined;
+  const notification = isNotification(req);
   const endpoint = `mcp:${req.method}`;
 
   // Helper: push an error log entry and build the JSON-RPC error response.
@@ -161,8 +182,11 @@ async function handle(
       const clientInfo = isParams(params.clientInfo) ? params.clientInfo : null;
       const clientName = clientInfo && typeof clientInfo.name === 'string' ? clientInfo.name : undefined;
       logs.push({ endpoint, isError: false, clientName });
+      const requested = params.protocolVersion;
       return ok(id, {
-        protocolVersion: PROTOCOL_VERSION,
+        protocolVersion: typeof requested === 'string' && SUPPORTED_PROTOCOL_VERSIONS.includes(requested)
+          ? requested
+          : LATEST_PROTOCOL_VERSION,
         capabilities: {
           tools: { listChanged: false },
           resources: { listChanged: false, subscribe: false },
@@ -173,6 +197,8 @@ async function handle(
       });
     }
 
+    // No reply even when one carries an id, as always. The SDK answers that
+    // -32601; doing so here would turn a client bug that works into an error.
     case 'notifications/initialized':
     case 'notifications/cancelled':
       return null;
@@ -182,7 +208,7 @@ async function handle(
       return ok(id, { tools: TOOLS_LIST });
 
     case 'tools/call': {
-      if (isNotification) return null;
+      if (notification) return null;
       if (!isParams(req.params)) return logErr(-32602, 'Invalid params');
       const { name, arguments: args } = req.params as { name?: unknown; arguments?: unknown };
       if (typeof name !== 'string') return logErr(-32602, 'Invalid params: name must be a string', 'name not a string');
@@ -313,7 +339,7 @@ async function handle(
       return ok(id, { resourceTemplates: [] });
 
     case 'resources/read': {
-      if (isNotification) return null;
+      if (notification) return null;
       if (!isParams(req.params)) return logErr(-32602, 'Invalid params');
       const { uri } = req.params as { uri?: unknown };
       if (typeof uri !== 'string') return logErr(-32602, 'Invalid params: uri must be a string', 'uri not a string');
@@ -332,7 +358,7 @@ async function handle(
       return ok(id, { prompts: PROMPTS_LIST });
 
     case 'prompts/get': {
-      if (isNotification) return null;
+      if (notification) return null;
       if (!isParams(req.params)) return logErr(-32602, 'Invalid params');
       const { name, arguments: args } = req.params as { name?: unknown; arguments?: unknown };
       if (typeof name !== 'string') return logErr(-32602, 'Invalid params: name must be a string', 'name not a string');
@@ -354,7 +380,7 @@ async function handle(
       return ok(id, {});
 
     default:
-      if (isNotification) return null;
+      if (notification) return null;
       return logErr(-32601, `Method not found: ${req.method}`, 'method not found');
   }
 }
@@ -367,6 +393,11 @@ export const onRequest: PagesFunction = async (ctx) => {
   // beta-access pitch per session. undefined if either is missing —
   // tools/call then skips injection entirely.
   const sessionId = request.headers.get('Mcp-Session-Id');
+  // MCP-Protocol-Version is deliberately not read. From 2025-06-18 the spec
+  // asks for a 400 when it names a version the server does not speak, but
+  // every supported version behaves identically here, so the only effect of
+  // a 400 would be to turn away a client that works today: one sending a
+  // 2026-07-28 header on tools/list, say.
   const db = ctx.env?.MCP_STATS;
   const sessionDeps = sessionId && db ? { sessionId, db } : undefined;
   // Whether this caller may be shown the next-steps block at all. Excludes
@@ -487,16 +518,21 @@ export const onRequest: PagesFunction = async (ctx) => {
       responses.push(err(null, -32600, 'Invalid Request'));
       continue;
     }
-    const out = await handle(r as JsonRpcRequest, logs, samples, sessionDeps, allowInjection);
-    if (out !== null) responses.push(out);
+    const req = r as JsonRpcRequest;
+    const out = await handle(req, logs, samples, sessionDeps, allowInjection);
+    // Never answer a notification, whatever its method: an id-less tools/list
+    // or ping used to come back as an id:null result. Logging is unchanged
+    // (see handle()).
+    if (out !== null && !isNotification(req)) responses.push(out);
   }
 
   logCalls(ctx, logs);
   logSamples(ctx, samples);
 
   if (responses.length === 0) {
-    // All-notifications batch. Per spec, return 204 No Content.
-    return new Response(null, { status: 204, headers: { ...CORS, ...NO_STORE } });
+    // The POST held only notifications. Streamable HTTP (2025-03-26 on)
+    // requires 202 Accepted with no body.
+    return new Response(null, { status: 202, headers: { ...CORS, ...NO_STORE } });
   }
   return jsonResponse(Array.isArray(body) ? responses : responses[0], 200, sessionHeader);
 };

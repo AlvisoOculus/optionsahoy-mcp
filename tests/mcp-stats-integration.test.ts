@@ -176,6 +176,30 @@ describe('mcp.ts -> logCall integration', () => {
     expect(rows).toHaveLength(0);
   });
 
+  // The public call count is every logged row, so what an id-less request
+  // (JSON-RPC: a notification, never answered) logs must not change. These
+  // two pin both halves: what has always been logged, and what never was.
+  it('logs an id-less tools/list and ping, as it always has', async () => {
+    const { db, rows } = mockDb();
+    await flushedCall({ jsonrpc: '2.0', method: 'tools/list' }, { MCP_STATS: db });
+    await flushedCall({ jsonrpc: '2.0', method: 'ping' }, { MCP_STATS: db });
+    expect(rows.map((r) => [r.endpoint, r.isError])).toEqual([['mcp:tools/list', 0], ['mcp:ping', 0]]);
+  });
+
+  it('logs nothing for an id-less tools/call, resources/read, prompts/get or unknown notification', async () => {
+    const { db, rows } = mockDb();
+    await flushedCall(
+      [
+        { jsonrpc: '2.0', method: 'tools/call', params: { name: 'qsbs_check', arguments: {} } },
+        { jsonrpc: '2.0', method: 'resources/read', params: { uri: 'optionsahoy://nope' } },
+        { jsonrpc: '2.0', method: 'prompts/get', params: { name: 'nope' } },
+        { jsonrpc: '2.0', method: 'notifications/roots/list_changed' },
+      ],
+      { MCP_STATS: db },
+    );
+    expect(rows).toEqual([]);
+  });
+
   it('still works when MCP_STATS is not bound', async () => {
     const { status } = await flushedCall(
       { jsonrpc: '2.0', id: 8, method: 'ping' },

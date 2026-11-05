@@ -11,6 +11,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { readFileSync, existsSync } from 'fs';
+import { LATEST_PROTOCOL_VERSION } from '../functions/_lib/version';
 
 const pkg = JSON.parse(readFileSync('package.json', 'utf8')) as { version: string };
 
@@ -44,5 +45,26 @@ describe('.well-known discovery files track the package version', () => {
     } as never);
     const body = (await (res as Response).json()) as { result: { serverInfo: { version: string } } };
     expect(body.result.serverInfo.version).toBe(pkg.version);
+  });
+});
+
+// The MCP discovery files also advertise a protocol version. It sat at
+// 2024-11-05 through 2026-11 because initialize answered nothing else; now that
+// initialize negotiates, they advertise the newest version it speaks. (The
+// agent cards' protocolVersion is A2A's, a different protocol, so not here.)
+const MCP_DISCOVERY = VERSIONED.filter((f) => f.endsWith('/mcp.json'));
+
+describe('MCP discovery files advertise the newest protocol version /mcp speaks', () => {
+  it.each(MCP_DISCOVERY)('%s says the newest protocol version', (file) => {
+    if (!existsSync(file)) return; // sibling repo not checked out
+    const doc = JSON.parse(readFileSync(file, 'utf8')) as { protocolVersion?: string };
+    expect(doc.protocolVersion, `${file} is stale - run npm run gen:wellknown`).toBe(LATEST_PROTOCOL_VERSION);
+  });
+
+  it('is the version GET /mcp advertises', async () => {
+    const { onRequest } = await import('../functions/mcp');
+    const res = await onRequest({ request: new Request('https://optionsahoy.com/mcp'), env: {} } as never);
+    const body = (await (res as Response).json()) as { protocolVersion: string };
+    expect(body.protocolVersion).toBe(LATEST_PROTOCOL_VERSION);
   });
 });

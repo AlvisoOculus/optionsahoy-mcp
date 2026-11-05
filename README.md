@@ -389,7 +389,7 @@ The MCP server returns `isError: true` with a human-readable message when input 
 - Check the live `tools/list` response (eight tools expected): `curl -X POST https://optionsahoy.com/mcp -H 'content-type: application/json' -d '{"jsonrpc":"2.0","method":"tools/list","id":1}'`
 
 **CORS errors from a browser-based client**
-The server returns `access-control-allow-origin: *` on all responses including preflight, and accepts the standard MCP headers (`content-type`, `mcp-session-id`, `mcp-protocol-version`). If a browser still blocks, the client is likely sending a non-allowed header — verify the request headers against the `access-control-allow-headers` response.
+The server returns `access-control-allow-origin: *` on all responses including preflight, and allows any request header (`access-control-allow-headers: *`), so the headers every MCP protocol revision adds pass. If a browser still blocks, check whether the client sends credentials or an `Authorization` header: the wildcard covers neither, and this server needs neither.
 
 **Resource / prompt not found**
 Resource URIs and prompt names are case-sensitive. Pull the canonical list with `resources/list` and `prompts/list` rather than hand-typing.
