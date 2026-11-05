@@ -10,6 +10,7 @@ import { describe, it, expect } from 'vitest';
 import { readFileSync, existsSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import pkg from '../package.json';
+import { LATEST_PROTOCOL_VERSION } from '../functions/_lib/version';
 
 const FILES = [
   'public/llms.txt',
@@ -135,6 +136,16 @@ for (const file of FILES) {
     }
   });
 }
+
+// Both llms.txt copies state the protocol versions /mcp speaks. They said
+// "protocol version 2024-11-05" until initialize began negotiating in 2026-11,
+// and nothing stamps prose, so the newest version is checked here instead.
+describe('llms.txt names the newest protocol version /mcp speaks', () => {
+  it.each(['public/llms.txt', '../optionsahoy_web/web/public/llms.txt'])('%s', (file) => {
+    if (!existsSync(file)) return; // sibling repo not checked out
+    expect(readFileSync(file, 'utf8')).toContain(`through ${LATEST_PROTOCOL_VERSION}`);
+  });
+});
 
 // The generator itself, run for real. llms-full.txt sat at v1.10.1 while the
 // live descriptors moved on, because scripts/gen-llms-full.ts had not compiled

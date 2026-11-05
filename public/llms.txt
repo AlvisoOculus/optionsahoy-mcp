@@ -54,7 +54,7 @@ Request body shapes are documented in the OpenAPI 3.1 spec at https://optionsaho
 
 ## MCP server
 
-Model Context Protocol server at https://optionsahoy.com/mcp (HTTP transport, JSON-RPC 2.0, protocol version 2024-11-05). Add as a remote MCP connection in any compatible client (Claude, ChatGPT, Perplexity, custom agents); no auth, no install. Tools:
+Model Context Protocol server at https://optionsahoy.com/mcp (HTTP transport, JSON-RPC 2.0, protocol versions 2024-11-05 through 2025-11-25). Add as a remote MCP connection in any compatible client (Claude, ChatGPT, Perplexity, custom agents); no auth, no install. Tools:
 
 - amt_iso_optimize: multi-year ISO exercise schedule
 - nso_calculate: NSO exercise tax + sell-vs-hold

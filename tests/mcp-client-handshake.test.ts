@@ -7,7 +7,7 @@
 // / ChatGPT / Perplexity connection if they regressed.
 //
 // Step 1: initialize         — server must echo protocol version, declare tools capability
-// Step 2: notifications/initialized — server must respond 204 No Content (200+body breaks some clients)
+// Step 2: notifications/initialized — server must respond 202 Accepted, no body (200+body breaks some clients)
 // Step 3: tools/list         — server must enumerate the tools the client will then call
 // Step 4: tools/call         — server must dispatch + return content blocks
 //
@@ -88,7 +88,8 @@ describe('MCP client-conversation regression', () => {
     const notif = await onRequest({
       request: rpc({ jsonrpc: '2.0', method: 'notifications/initialized' }),
     });
-    expect(notif.status, 'notifications must return 204 No Content, not 200+body').toBe(204);
+    expect(notif.status, 'notifications must return 202 Accepted with no body, not 200+body').toBe(202);
+    expect(await notif.text()).toBe('');
 
     // ── Step 3: tools/list ───────────────────────────────────────────────
     type ListResponse = {

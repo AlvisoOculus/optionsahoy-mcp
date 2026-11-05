@@ -3,7 +3,7 @@
 // End-to-end test for the /mcp HTTP MCP server. Drives the handler with
 // the same JSON-RPC requests an MCP client would send, then asserts:
 //   - initialize negotiates protocol + advertises tools capability
-//   - notifications/initialized returns no body (204 No Content)
+//   - a POST of notifications only returns 202 Accepted with no body
 //   - tools/list returns all 6 tools with input schemas
 //   - tools/call invokes the right calc and the text content parses to
 //     the same JSON the in-process call returns (byte-identity check)
@@ -11,7 +11,12 @@
 //     HTTP method
 
 import { describe, it, expect } from 'vitest';
+import {
+  LATEST_PROTOCOL_VERSION as SDK_LATEST_PROTOCOL_VERSION,
+  SUPPORTED_PROTOCOL_VERSIONS as SDK_SUPPORTED_PROTOCOL_VERSIONS,
+} from '@modelcontextprotocol/sdk/types.js';
 import { onRequest } from '../functions/mcp';
+import { LATEST_PROTOCOL_VERSION, SUPPORTED_PROTOCOL_VERSIONS } from '../functions/_lib/version';
 import type { McpToolAnnotations } from '../functions/_lib/mcp-tools';
 import { computeAmtIso } from '@/lib/calc/amtIso';
 import { evaluateQsbs } from '@/lib/calc/qsbs';
@@ -64,7 +69,7 @@ const QSBS_INPUT = {
 };
 
 describe('POST /mcp — initialize', () => {
-  it('returns protocol version + tools/resources/prompts capabilities', async () => {
+  it('returns tools/resources/prompts capabilities and serverInfo', async () => {
     const { status, json } = await call<{
       result: {
         protocolVersion: string;
@@ -78,7 +83,6 @@ describe('POST /mcp — initialize', () => {
       params: {},
     });
     expect(status).toBe(200);
-    expect(json.result.protocolVersion).toBe('2024-11-05');
     expect(json.result.capabilities.tools).toBeDefined();
     expect(json.result.capabilities.resources).toBeDefined();
     expect(json.result.capabilities.prompts).toBeDefined();
@@ -99,12 +103,71 @@ describe('POST /mcp — initialize', () => {
   });
 });
 
+// Version negotiation (MCP lifecycle): echo the client's protocol version when
+// the server speaks it, otherwise answer the newest one it speaks.
+describe('POST /mcp — initialize negotiates the protocol version', () => {
+  const client = { capabilities: {}, clientInfo: { name: 'negotiation-test', version: '1' } };
+  const negotiated = async (params: unknown) =>
+    (await call<{ result: { protocolVersion: string } }>({ jsonrpc: '2.0', id: 1, method: 'initialize', params }))
+      .json.result.protocolVersion;
+
+  it.each(SUPPORTED_PROTOCOL_VERSIONS)('echoes %s, which it speaks', async (version) => {
+    expect(await negotiated({ ...client, protocolVersion: version })).toBe(version);
+  });
+
+  it.each([
+    ['a revision it does not speak (2026-07-28)', { ...client, protocolVersion: '2026-07-28' }],
+    ['an unknown date', { ...client, protocolVersion: '1999-01-01' }],
+    ['a supported version with whitespace around it', { ...client, protocolVersion: ' 2025-06-18 ' }],
+    ['a version that is not a string', { ...client, protocolVersion: 20250618 }],
+    ['no protocolVersion', client],
+    ['no params', undefined],
+  ])('answers the newest version for %s', async (_case, params) => {
+    expect(await negotiated(params)).toBe(LATEST_PROTOCOL_VERSION);
+  });
+
+  // The stdio server negotiates from the SDK's list, so this keeps the two
+  // servers' answers to a well-formed initialize the same. An SDK upgrade
+  // that adds a revision fails here until someone decides whether /mcp
+  // should speak it (2026-07-28 replaces initialize rather than extending it).
+  it("speaks exactly the MCP SDK's protocol versions", () => {
+    expect(SUPPORTED_PROTOCOL_VERSIONS).toEqual(SDK_SUPPORTED_PROTOCOL_VERSIONS);
+    expect(LATEST_PROTOCOL_VERSION).toBe(SDK_LATEST_PROTOCOL_VERSION);
+  });
+});
+
 describe('POST /mcp — notifications', () => {
-  it('returns 204 for notifications/initialized', async () => {
-    const res = await onRequest({
-      request: rpc({ jsonrpc: '2.0', method: 'notifications/initialized' }),
-    });
-    expect(res.status).toBe(204);
+  // Streamable HTTP (2025-03-26 on): a POST holding only notifications gets
+  // 202 Accepted with no body. This server answered 204 until 2026-11. And
+  // JSON-RPC never answers a notification, whatever its method: an id-less
+  // tools/list used to come back as 200 with an id:null result.
+  it.each([
+    ['notifications/initialized', { jsonrpc: '2.0', method: 'notifications/initialized' }],
+    ['a batch of notifications, one it does not know', [
+      { jsonrpc: '2.0', method: 'notifications/initialized' },
+      { jsonrpc: '2.0', method: 'notifications/roots/list_changed' },
+    ]],
+    ['tools/list sent without an id', { jsonrpc: '2.0', method: 'tools/list' }],
+  ])('returns 202 with no body for %s', async (_case, body) => {
+    const res = await onRequest({ request: rpc(body) });
+    expect(res.status).toBe(202);
+    expect(await res.text()).toBe('');
+  });
+
+  it('answers only the requests in a batch that mixes in notifications', async () => {
+    const { status, json } = await call<Array<{ id: number | null }>>([
+      { jsonrpc: '2.0', method: 'notifications/initialized' },
+      { jsonrpc: '2.0', id: 7, method: 'ping' },
+      { jsonrpc: '2.0', method: 'ping' },
+    ]);
+    expect(status).toBe(200);
+    expect(json.map((r) => r.id)).toEqual([7]);
+  });
+
+  it('still answers a request whose id is null', async () => {
+    const { status, json } = await call<{ id: number | null; result: unknown }>({ jsonrpc: '2.0', id: null, method: 'ping' });
+    expect(status).toBe(200);
+    expect(json).toEqual({ jsonrpc: '2.0', id: null, result: {} });
   });
 });
 
@@ -585,6 +648,15 @@ describe('POST /mcp — error paths', () => {
     const res = await onRequest({ request: rpc(null, 'OPTIONS') });
     expect(res.status).toBe(204);
     expect(res.headers.get('access-control-allow-origin')).toBe('*');
+  });
+
+  // A browser client's preflight names every header it will send, and each
+  // protocol revision adds some: 2026-07-28 clients send Mcp-Method and
+  // Mcp-Name on every POST, including the server/discover probe whose -32601
+  // sends them back to initialize. A fixed list refused each new one.
+  it('OPTIONS preflight allows any request header', async () => {
+    const res = await onRequest({ request: rpc(null, 'OPTIONS') });
+    expect(res.headers.get('access-control-allow-headers')).toBe('*');
   });
 
   it('GET returns server description JSON with tools/resources/prompts arrays', async () => {
