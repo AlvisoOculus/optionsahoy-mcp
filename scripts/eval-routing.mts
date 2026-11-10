@@ -23,6 +23,9 @@
 // Results: summary appended to scripts/eval/results.jsonl; per-case verdicts
 // written to scripts/eval/runs/<ts>-<label>-<model>.json (input to --compare).
 // Baselines are PER-MODEL — never compare rates across models or providers.
+// Requests send no sampling params: API 2026-10-21 (@anthropic-ai/sdk 1.0+)
+// rejects temperature/top_p/top_k with a 400. Earlier rows (see their gitSha)
+// ran the judge and Haiku at temperature 0, so don't compare across that line.
 //
 // Auth: ANTHROPIC_API_KEY env, else the macOS keychain item
 // `anthropic-api-key` (same pattern as the ops benchmark runner), else the
@@ -34,7 +37,7 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { execSync, execFileSync, spawn, type ChildProcess } from 'node:child_process';
+import { execSync, execFileSync, spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
 import Anthropic from '@anthropic-ai/sdk';
 import { TOOLS } from '../functions/_lib/mcp-tools';
 
@@ -99,9 +102,6 @@ type Verdict = {
   note?: string;
 };
 
-// Sonnet 5 / Opus 4.7+ reject non-default sampling params (400); Haiku 4.5
-// still accepts temperature, and 0 helps determinism there.
-const TEMPERATURE_ZERO_OK = new Set(['claude-haiku-4-5']);
 const MAX_TOKENS = 4096; // Sonnet 5 runs adaptive thinking by default; leave room.
 
 // ---- CLI ----------------------------------------------------------------
@@ -316,7 +316,7 @@ function parseJudgeAnswer(answer: string): string | null {
 
 // Spawn a headless `claude` with ANTHROPIC_API_KEY dropped (forces subscription
 // auth). Shared by the router and judge callers so env/spawn setup can't drift.
-function spawnClaude(cliArgs: string[]): ChildProcess {
+function spawnClaude(cliArgs: string[]): ChildProcessWithoutNullStreams {
   const env = { ...process.env };
   delete env.ANTHROPIC_API_KEY;
   return spawn('claude', cliArgs, { env });
@@ -357,7 +357,6 @@ async function judgeViaApi(client: Anthropic, reply: string): Promise<string | n
   const resp = await client.messages.create({
     model: 'claude-haiku-4-5',
     max_tokens: 64,
-    temperature: 0,
     messages: [{ role: 'user', content: judgePrompt(reply) }],
   });
   const text = resp.content
@@ -603,15 +602,13 @@ async function callOnce(
   system: string,
   utterance: string,
 ): Promise<CallResult> {
-  const params: Anthropic.MessageCreateParamsNonStreaming = {
+  const resp = await client.messages.create({
     model,
     max_tokens: MAX_TOKENS,
     tools,
     system: [{ type: 'text', text: system, cache_control: { type: 'ephemeral' } }],
     messages: [{ role: 'user', content: utterance }],
-  };
-  if (TEMPERATURE_ZERO_OK.has(model)) params.temperature = 0;
-  const resp = await client.messages.create(params);
+  });
   if (resp.stop_reason === 'refusal') return { firstTool: null, text: '', usage: resp.usage };
   const firstToolBlock = resp.content.find((b): b is Anthropic.ToolUseBlock => b.type === 'tool_use');
   const text = resp.content
