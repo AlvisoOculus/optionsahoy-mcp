@@ -6,6 +6,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { onRequest } from '../functions/mcp';
+import { toolFaultsFrom } from '../functions/admin/mcp-stats';
 import type { D1Database, D1PreparedStatement, Env } from '../functions/_lib/stats';
 
 interface LoggedRow {
@@ -152,6 +153,32 @@ describe('mcp.ts -> logCall integration', () => {
     expect(rows[0].tool).toBe('made_up_tool');
     expect(rows[0].isError).toBe(1);
     expect(rows[0].errorMsg).toMatch(/unknown tool/);
+  });
+
+  // The rows the daily MCP health check reads. A caller's mistake has to reach
+  // the log in a shape toolFaultsFrom reads as caller input, or the check
+  // reports it as our fault: the first call here turned it red from 2026-11-08.
+  it('logs caller mistakes on tools/call as caller input, not tool faults', async () => {
+    const { db, rows } = mockDb();
+    const lots = [{ vestDate: '2099-01-15', shares: 100, costBasisPerShare: 50 }];
+    const rsu = { lots, currentPrice: 100, divestFraction: 0.5, horizonYears: 2, ordinaryIncome: 200_000, filingStatus: 'single', stateCode: 'CA' };
+    const params = [
+      { name: 'rsu_lot_optimize', arguments: rsu },
+      { name: 'qsbs_check', arguments: [] },
+      { name: 42, arguments: {} },
+      'not an object',
+    ];
+    for (const [i, p] of params.entries()) {
+      await flushedCall({ jsonrpc: '2.0', id: 20 + i, method: 'tools/call', params: p }, { MCP_STATS: db });
+    }
+    expect(rows.map((r) => r.errorMsg)).toEqual([
+      expect.stringMatching(/^lots\[0\] field "vestDate" must be on or before today/),
+      'body must be a JSON object',
+      'name not a string',
+      'Invalid params',
+    ]);
+    const logged = rows.map((r) => ({ endpoint: r.endpoint, tool: r.tool, error_msg: r.errorMsg ?? '', n: 1 }));
+    expect(toolFaultsFrom(logged)).toEqual([]);
   });
 
   it('logs tools/list, resources/list, prompts/list (passive scans)', async () => {
