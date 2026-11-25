@@ -16,5 +16,5 @@
       "@/lib/*": ["./lib/*"]
     }
   },
-  "include": ["functions/**/*", "lib/**/*", "tests/**/*"]
+  "include": ["functions/**/*", "lib/**/*", "tests/**/*", "scripts/eval-routing.mts"]
 }
