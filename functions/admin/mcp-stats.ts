@@ -95,18 +95,39 @@ import {
 import { ensureFresh, readWindows } from '../_lib/statsRollup';
 import { trafficBreakdown } from '../_lib/traffic';
 
-// A caller's mistake, not ours. Every parser rejection starts with
-// `field "<name>"` (REST prefixes `parse: `); the rest are an unknown tool
-// name, a non-JSON body, or a wrong HTTP method. Anything else a tool call
-// logged is an exception our code threw (functions/mcp.ts logs e.message).
+// An element of an array input, then any fields or elements below it:
+// lots[0], stacks[1].lots, stacks[1].lots[2].
+const ELEMENT_PATH = String.raw`[A-Za-z]\w*\[\d+\](?:\.[A-Za-z]\w*|\[\d+\])*`;
+
+// A parser rejection (functions/_lib/calc-parsers.ts, and the p.* helpers and
+// asObject in _lib/api.ts) names the input it refuses, then what is wrong:
+//   field "volatility" required: ...
+//   lots[0] field "vestDate" must be on or before today: ...
+//   lots[0] must be an object with vestDate, shares, costBasisPerShare
+//   stacks[0].lots must be a non-empty array
+//   body must be a JSON object             (arguments that are not an object)
+// REST logs it as `parse: <message>`. An element path counts only before
+// `field "` or `must `: a TypeError can lead with one too
+// (`lots[0].map is not a function`), and that one is ours.
+const PARSER_REJECTION = new RegExp(
+  String.raw`^(?:parse: )?(?:${ELEMENT_PATH} (?:field "|must )|field "|body must be a JSON object$)`,
+);
+
+// A caller's mistake, not ours: a parser rejection (above); a tools/call with
+// no params object, a non-string tool name or an unknown tool; a REST body
+// that is not JSON, or a method other than POST. Anything else a tool call
+// logged is an exception our code threw (functions/mcp.ts logs e.message;
+// REST logs a calculation failure as `calc: <message>`).
 export function isCallerInputError(msg: string): boolean {
   return (
-    /^(parse: )?field "/.test(msg) ||
+    PARSER_REJECTION.test(msg) ||
     // The stacks/lots error before 2026-10-09 lacked the field "..." prefix;
     // those rows stay in the call log for months, so read them as what they
     // were: a caller who sent neither (or both) of stacks and lots.
     /^(parse: )?(provide )?either "stacks"/.test(msg) ||
     /^unknown tool\b/.test(msg) ||
+    msg === 'Invalid params' ||
+    msg === 'name not a string' ||
     msg === 'invalid json' ||
     /^method [A-Z]+$/.test(msg)
   );
